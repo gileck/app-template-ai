@@ -50,7 +50,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Save settings to localStorage whenever they change
     useEffect(() => {
-        if (typeof window !== 'undefined' && settings.aiModel) {
+        if (typeof window !== 'undefined') {
             localStorage.setItem('appSettings', JSON.stringify(settings));
         }
     }, [settings]);
