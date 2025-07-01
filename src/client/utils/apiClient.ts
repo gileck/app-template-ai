@@ -34,26 +34,21 @@ export const apiClient = {
         }),
       });
 
-      // Don't cache non-200 responses
-      if (!response.ok) {
-        throw new Error(`Failed to call ${name}: ${response.statusText}`);
+      // Only cache responses with status 200
+      if (response.status !== 200) {
+        throw new Error(`Failed to call ${name}: HTTP ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
 
-      // Don't cache responses with error fields
-      if (result.error) {
-        throw new Error(`Failed to call ${name}: ${result.error}`);
-      }
-
-      // Additional check: if response is not 200-299 range, throw error
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`Failed to call ${name}: HTTP ${response.status}`);
-      }
-
-      // Don't cache if data is null/undefined or if result indicates an error state
-      if (result.data === null || result.data === undefined) {
+      // Don't cache if result data is null
+      if (result.data === null) {
         throw new Error(`Failed to call ${name}: No data returned`);
+      }
+
+      // Don't cache responses with error fields
+      if (result.data && typeof result.data === 'object' && 'error' in result.data && result.data.error !== undefined && result.data.error !== null) {
+        throw new Error(`Failed to call ${name}: ${result.data.error}`);
       }
 
       return result.data;
@@ -75,6 +70,7 @@ export const apiClient = {
           staleWhileRevalidate: options?.staleWhileRevalidate ?? true,
           ttl: options?.ttl,
           maxStaleAge: options?.maxStaleAge,
+          isDataValidForCache: options?.isDataValidForCache,
         }
       );
     }
@@ -110,6 +106,10 @@ export type ApiOptions = {
    * Stale while revalidate for client-side cache
    */
   staleWhileRevalidate?: boolean;
+  /**
+   * Callback to validate if data should be cached
+   */
+  isDataValidForCache?: <T>(data: T) => boolean;
 };
 
 export default apiClient;

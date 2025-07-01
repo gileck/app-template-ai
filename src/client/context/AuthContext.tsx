@@ -5,7 +5,7 @@ import {
     apiRegister,
     apiFetchCurrentUser
 } from '@/apis/auth/client';
-import { LoginRequest, RegisterRequest, UserResponse } from '@/apis/auth/types';
+import { LoginRequest, RegisterRequest, UserResponse, CurrentUserResponse } from '@/apis/auth/types';
 
 interface AuthContextType {
     user: UserResponse | null;
@@ -35,10 +35,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsInitialLoading(true);
         try {
             const response = await apiFetchCurrentUser({
-                //10 seconds
+                staleWhileRevalidate: true,
+                //10 seconds  
                 ttl: 10 * 1000,
                 // 1 day
-                maxStaleAge: 24 * 60 * 60 * 1000,
+                maxStaleAge: 24 * 60 * 60 * 1000 * 7,
+                isDataValidForCache: (data) => !!(data as CurrentUserResponse)?.user?.id,
             });
             if (response.data?.user) {
                 setUser(response.data.user);
