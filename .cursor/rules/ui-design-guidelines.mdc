@@ -26,6 +26,32 @@ alwaysApply: false
 - Ensure WCAG AA contrast ratios (4.5:1 for normal text, 3:1 for large text)
 - Maintain 3:1 contrast ratio for non-text elements (icons, borders, focus indicators)
 
+### Dark/Light Mode Implementation
+- Implement user-controlled theme toggle with persistent storage
+- Use Material-UI `createTheme` with dynamic `palette.mode` based on settings
+- Store theme preference in app settings with localStorage persistence
+- Provide theme toggle button in header navigation with appropriate icons
+- Ensure proper SSR handling with client-side theme initialization
+- Remove conflicting CSS that overrides theme provider (hardcoded body styles)
+- Apply Material-UI `CssBaseline` for consistent global theme application
+
+### Theme Provider Architecture
+```tsx
+// ThemeProvider implementation
+const theme = createTheme({
+  palette: {
+    mode: settings.theme, // 'light' | 'dark'
+    primary: { main: '#1976d2' },
+    secondary: { main: '#dc004e' }
+  }
+});
+
+// Theme toggle implementation
+const toggleTheme = () => {
+  updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
+};
+```
+
 ### Accessibility Color Support
 - Honor user-selected tint in iOS Settings → Accessibility → Display → Button Shapes
 - Add underline to primary buttons when accessibility button shapes are detected
@@ -166,6 +192,14 @@ alwaysApply: false
 - Add `fetchpriority="high"` to hero images and `loading="lazy"` everywhere else
 - Avoid `backdrop-filter` on huge full-screen elements (GPU memory impact)
 
+### Theme Implementation Best Practices
+- Avoid multiple conflicting theme providers in the component tree
+- Remove hardcoded CSS background/color styles that override theme providers
+- Use Material-UI components that automatically adapt to theme changes
+- Implement proper SSR handling: check `typeof window !== 'undefined'` before accessing localStorage
+- Place theme toggle in header navigation for consistent access across all pages
+- Use semantic theme naming ('light'/'dark') rather than system-dependent options
+
 ## Implementation Examples
 
 ### Design Token System
@@ -214,6 +248,55 @@ alwaysApply: false
 }
 ```
 
+### Material-UI Theme Provider Setup
+```tsx
+// AppThemeProvider.tsx - Main theme provider component
+import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
+import { useSettings } from '../settings/SettingsContext';
+
+export const AppThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const { settings } = useSettings();
+  
+  const theme = createTheme({
+    palette: {
+      mode: settings.theme, // 'light' | 'dark'
+      primary: { main: '#1976d2' },
+      secondary: { main: '#dc004e' }
+    }
+  });
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
+};
+
+// Settings type definition
+interface Settings {
+  theme: 'light' | 'dark';
+  // other settings...
+}
+
+// Theme toggle button in header
+import { LightModeIcon, DarkModeIcon } from '@mui/icons-material';
+
+const ThemeToggleButton = () => {
+  const { settings, updateSettings } = useSettings();
+  
+  const toggleTheme = () => {
+    updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
+  };
+
+  return (
+    <IconButton onClick={toggleTheme} color="inherit">
+      {settings.theme === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+    </IconButton>
+  );
+};
+```
+
 ### Component Structure
 When creating UI components in [client/components](mdc:src/client/components), follow these patterns:
 - Use TypeScript interfaces for all props
@@ -221,6 +304,38 @@ When creating UI components in [client/components](mdc:src/client/components), f
 - Apply proper ARIA attributes
 - Include loading and error states
 - Support theme switching capabilities
+
+### Common Theme Implementation Issues & Solutions
+
+#### Problem: Multiple Theme Providers
+**Issue**: Having multiple `ThemeProvider` components in the component tree causes conflicts
+**Solution**: Use single `AppThemeProvider` at the root level in `_app.tsx`
+
+#### Problem: Hardcoded CSS Overriding Theme
+**Issue**: CSS like `body { background: var(--background); color: var(--foreground); }` overrides Material-UI theme
+**Solution**: Remove conflicting CSS and rely on Material-UI's `CssBaseline` component
+
+#### Problem: SSR Theme Mismatch
+**Issue**: Server renders with default theme, client hydrates with user preference
+**Solution**: Check `typeof window !== 'undefined'` before accessing localStorage
+
+#### Problem: Theme Toggle Not Visible
+**Issue**: Theme toggle not accessible when user is logged out
+**Solution**: Place toggle in main layout header, not inside authentication-gated components
+
+```tsx
+// ❌ Wrong - Multiple providers
+<ThemeProvider theme={hardcodedTheme}>
+  <AppThemeProvider>
+    <App />
+  </AppThemeProvider>
+</ThemeProvider>
+
+// ✅ Correct - Single dynamic provider
+<AppThemeProvider>
+  <App />
+</AppThemeProvider>
+```
 
 ## Card Components with Images & Actions
 
@@ -535,3 +650,8 @@ When creating UI components in [client/components](mdc:src/client/components), f
 - [ ] Images have appropriate dark mode treatments
 - [ ] Shadows remain subtle and appropriate
 - [ ] Brand assets have dark mode variants
+- [ ] Theme toggle button functions correctly in header
+- [ ] Theme preference persists across page reloads
+- [ ] No conflicting CSS overriding theme provider styles
+- [ ] Material-UI components adapt automatically to theme changes
+- [ ] SSR compatibility: no "window is not defined" errors

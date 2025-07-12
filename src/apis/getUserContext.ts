@@ -36,7 +36,6 @@ export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
       // Verify and decode the token
       const decoded = jwt.verify(token, JWT_SECRET) as unknown as AuthTokenPayload;
       userId = decoded.userId;
-      console.log('userId', userId);
     } catch (err) {
       // Invalid token - clear it
       console.warn('Invalid auth token:', err);

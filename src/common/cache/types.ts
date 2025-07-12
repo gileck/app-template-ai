@@ -17,6 +17,8 @@ export interface CacheOptions {
     maxCacheSize?: number;
     /** Time-to-live for stale data in milliseconds. Default: 10 seconds */
     isStaleTTL?: number;
+    /** Callback to validate if data should be cached. If returns false, data is not cached and existing cache is deleted. */
+    isDataValidForCache?: <T>(data: T) => boolean;
 }
 
 export interface CacheMetadata {

@@ -131,7 +131,7 @@ export const RouterProvider = ({ children, routes }: {
   }, []);
 
   // Provide router context and render current route
-  console.log('currentPath', currentPath);
+  // console.log('currentPath', currentPath);
 
   // Provide router context and render current route
   return (
