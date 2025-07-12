@@ -17,7 +17,9 @@ Follow these steps to add a new route to the application:
 
 ### 1. Create a Route Component Folder
 
-Create a new folder in the `src/client/routes` directory with the name of your route component:
+Create a new folder in the `src/client/routes` directory with the name of your route component. The structure depends on whether your route needs data fetching:
+
+#### For Routes WITHOUT Data Fetching
 
 ```
 src/client/routes/
@@ -26,30 +28,14 @@ src/client/routes/
 │   └── index.ts
 ```
 
-#### Create the route component file:
+#### For Routes WITH Data Fetching
 
-```tsx
-// src/client/routes/NewRoute/NewRoute.tsx
-import { Box, Typography } from '@mui/material';
-import { useRouter } from '../../router';
-
-export const NewRoute = () => {
-  const { routeParams, queryParams } = useRouter();
-  
-  return (
-    <Box>
-      <Typography variant="h4">New Route</Typography>
-      <Typography paragraph>This is a new route in our application.</Typography>
-    </Box>
-  );
-};
 ```
-
-#### Create the index.ts file to export the component:
-
-```tsx
-// src/client/routes/NewRoute/index.ts
-export { NewRoute } from './NewRoute';
+src/client/routes/
+├── NewRoute/
+│   ├── NewRoute.tsx      # Main component with DataFetcherWrapper
+│   ├── NewRouteBase.tsx  # Base component that receives data as props
+│   └── index.ts          # Exports the main wrapped component
 ```
 
 ### Component Organization Guidelines
@@ -68,6 +54,7 @@ Follow these best practices for route components:
   ```
   src/client/routes/NewRoute/           # Route-specific folder
   ├── NewRoute.tsx                      # Main route component (exported)
+  ├── NewRouteBase.tsx                  # Base component (for data fetching routes)
   ├── NewRouteHeader.tsx                # Route-specific component
   ├── NewRouteContent.tsx               # Route-specific component
   ├── NewRouteFooter.tsx                # Route-specific component
@@ -82,6 +69,164 @@ Follow these best practices for route components:
 - Follow the naming convention of PascalCase for component files and folders
 - Use named exports (avoid default exports as per our guidelines)
 - Keep related components and utilities in the same folder
+
+## Data Fetching Pattern
+
+### For Routes That Need Data Fetching
+
+Use the `DataFetcherWrapper` pattern to separate data fetching logic from component rendering:
+
+#### 1. Create the Main Component (NewRoute.tsx)
+
+```tsx
+import React from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { DataFetcherWrapper } from '@/client/utils/DataFetcherWrapper';
+import { getNewRouteData } from '@/apis/newroute/client';
+import { NewRouteBase } from './NewRouteBase';
+
+// Custom loader (optional)
+const NewRouteLoader = () => (
+    <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 8
+    }}>
+        <CircularProgress size={40} />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Loading your data...
+        </Typography>
+    </Box>
+);
+
+// Create the wrapped component using DataFetcherWrapper
+export const NewRoute = DataFetcherWrapper(
+    { 
+        data: getNewRouteData,
+        // For multiple data sources:
+        // userData: getUserData,
+        // settings: getSettings,
+        // For query parameter-based fetching:
+        // item: (queryParams) => getItem({ itemId: queryParams.itemId })
+    },
+    NewRouteBase,
+    {
+        loader: NewRouteLoader,
+        showGlobalError: true,
+        enableRefresh: true
+    }
+);
+```
+
+#### 2. Create the Base Component (NewRouteBase.tsx)
+
+```tsx
+import React from 'react';
+import { Box, Typography, Button } from '@mui/material';
+import { GetNewRouteDataResponse } from '@/apis/newroute/types';
+
+interface NewRouteBaseProps {
+    data: GetNewRouteDataResponse;
+    isLoading: boolean;
+    error: string | null;
+    refresh: () => void;
+}
+
+export const NewRouteBase: React.FC<NewRouteBaseProps> = ({
+    data,
+    isLoading,
+    error,
+    refresh
+}) => {
+    // Component only handles rendering - no data fetching logic
+    if (error) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Typography color="error">{error}</Typography>
+                <Button onClick={refresh}>Retry</Button>
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ p: 3 }}>
+            <Typography variant="h4">New Route</Typography>
+            {/* Render your data */}
+            <Button onClick={refresh}>Refresh</Button>
+        </Box>
+    );
+};
+```
+
+#### 3. Create the Index File (index.ts)
+
+```tsx
+export { NewRoute } from './NewRoute';
+```
+
+### For Routes WITHOUT Data Fetching
+
+For simple routes that don't need data fetching, create a single component:
+
+```tsx
+// src/client/routes/NewRoute/NewRoute.tsx
+import React from 'react';
+import { Box, Typography } from '@mui/material';
+
+export const NewRoute: React.FC = () => {
+    return (
+        <Box sx={{ p: 3 }}>
+            <Typography variant="h4">New Route</Typography>
+            {/* Your component content */}
+        </Box>
+    );
+};
+```
+
+### DataFetcherWrapper Options
+
+Configure the wrapper based on your needs:
+
+```tsx
+// Basic usage
+export const NewRoute = DataFetcherWrapper(
+    { data: getData },
+    NewRouteBase
+);
+
+// With custom options
+export const NewRoute = DataFetcherWrapper(
+    { data: getData },
+    NewRouteBase,
+    {
+        loader: CustomLoader,          // Custom loading component
+        showGlobalLoading: false,      // Disable default loading (default: false)
+        showGlobalError: true,         // Show error alerts (default: true)
+        enableRefresh: true            // Show retry button (default: true)
+    }
+);
+
+// Multiple data sources
+export const NewRoute = DataFetcherWrapper(
+    {
+        userData: getUserData,
+        settings: getSettings,
+        preferences: getPreferences
+    },
+    NewRouteBase
+);
+
+// Query parameter-based fetching
+export const NewRoute = DataFetcherWrapper(
+    {
+        item: (queryParams) => getItem({ itemId: queryParams.itemId }),
+        relatedItems: (queryParams) => getRelatedItems({ itemId: queryParams.itemId })
+    },
+    NewRouteBase
+);
+```
 
 ### 2. Register the Route in the Routes Configuration
 
@@ -185,27 +330,6 @@ const { navigate } = useRouter();
 const handleVideoClick = (videoId) => {
   navigate(`/video/${videoId}`);
 };
-
-// Navigate to a channel page with a specific channel ID
-const handleChannelClick = (channelId) => {
-  navigate(`/channel/${channelId}`);
-};
-```
-
-For routes with multiple parameters, include all parameters in the path:
-
-```tsx
-// Route with multiple parameters
-navigate(`/category/${categoryId}/product/${productId}`);
-```
-
-You can also include query parameters:
-
-```tsx
-// Navigate with query parameters
-navigate(`/search?q=${encodeURIComponent(searchQuery)}&filter=${filter}`);
-
-// Note: When using query parameters, always use `encodeURIComponent()` for any user-provided values to ensure proper URL encoding.
 ```
 
 ### Getting Current Route
@@ -278,3 +402,105 @@ export const SearchResults = () => {
     </div>
   );
 };
+```
+
+### Using DataFetcherWrapper with Query Parameters
+
+For routes that need to fetch data based on URL parameters, use the query parameter support in DataFetcherWrapper:
+
+```tsx
+// src/client/routes/ItemDetail/ItemDetail.tsx
+import { DataFetcherWrapper } from '@/client/utils/DataFetcherWrapper';
+import { getItem, getItemComments } from '@/apis/items/client';
+import { ItemDetailBase } from './ItemDetailBase';
+
+export const ItemDetail = DataFetcherWrapper(
+    {
+        // These functions will receive the current query parameters
+        item: (queryParams) => getItem({ itemId: queryParams.itemId }),
+        comments: (queryParams) => getItemComments({ itemId: queryParams.itemId })
+    },
+    ItemDetailBase
+);
+```
+
+## Best Practices for Route Components
+
+### 1. Separation of Concerns
+
+```tsx
+// ✅ Good: Base component only handles rendering
+const NewRouteBase = ({ data, error, refresh }) => {
+    if (error) return <ErrorDisplay error={error} onRetry={refresh} />;
+    return <div>{/* render data */}</div>;
+};
+
+// ✅ Good: Main component handles data fetching
+export const NewRoute = DataFetcherWrapper(
+    { data: getData },
+    NewRouteBase
+);
+
+// ❌ Bad: Component handles both data fetching and rendering
+const NewRoute = () => {
+    const [data, setData] = useState(null);
+    useEffect(() => { /* fetch data */ }, []);
+    return <div>{/* render data */}</div>;
+};
+```
+
+### 2. Error Handling
+
+```tsx
+// ✅ Good: Handle errors gracefully
+const NewRouteBase = ({ data, error, refresh }) => {
+    if (error) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error">{error}</Alert>
+                <Button onClick={refresh}>Try Again</Button>
+            </Box>
+        );
+    }
+    // ... rest of component
+};
+```
+
+### 3. Loading States
+
+```tsx
+// ✅ Good: Provide meaningful loading states
+const NewRouteLoader = () => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
+        <CircularProgress />
+        <Typography variant="body2" sx={{ mt: 2 }}>
+            Loading your content...
+        </Typography>
+    </Box>
+);
+```
+
+### 4. Type Safety
+
+```tsx
+// ✅ Good: Define proper interfaces for props
+interface NewRouteBaseProps {
+    data: GetDataResponse;
+    isLoading: boolean;
+    error: string | null;
+    refresh: () => void;
+}
+
+const NewRouteBase: React.FC<NewRouteBaseProps> = ({ data, error, refresh }) => {
+    // Component implementation with full type safety
+};
+```
+
+## Summary
+
+- **Routes WITHOUT data fetching**: Single component file
+- **Routes WITH data fetching**: Use DataFetcherWrapper pattern with separate base component
+- **Always use the wrapper pattern for data fetching**: This ensures consistent error handling and loading states
+- **Keep base components pure**: They should only handle rendering, not data fetching
+- **Use proper TypeScript interfaces**: Ensure type safety throughout your components
+- **Handle errors gracefully**: Provide meaningful error messages and retry functionality
