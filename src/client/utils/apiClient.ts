@@ -29,7 +29,7 @@ export const apiClient = {
           params,
           options: {
             ...options,
-            disableCache: options?.disableCache
+            disableCache: true,
           }
         }),
       });
@@ -67,7 +67,7 @@ export const apiClient = {
         {
           bypassCache: options?.bypassCache ?? false,
           disableCache: options?.disableCache ?? false,
-          staleWhileRevalidate: options?.staleWhileRevalidate ?? true,
+          staleWhileRevalidate: options?.staleWhileRevalidate ?? false,
           ttl: options?.ttl,
           maxStaleAge: options?.maxStaleAge,
           isDataValidForCache: options?.isDataValidForCache,

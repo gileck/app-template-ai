@@ -9,7 +9,7 @@
     "lint": "next lint",
     "push": "git add .;git commit -am 'commit' && git push",
     "ts": "tsc --noEmit",
-    "checks": "yarn ts & yarn lint",
+    "checks": "yarn ts; yarn lint",
     "watch-checks": "node scripts/watch-checks.js"
   },
   "dependencies": {
