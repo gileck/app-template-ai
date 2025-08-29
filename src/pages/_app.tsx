@@ -10,7 +10,7 @@ import { Layout } from '@/client/components/Layout';
 
 const RouterProvider = dynamic(() => import('@/client/router/index').then(module => module.RouterProvider), { ssr: false });
 
-export default function App({}: AppProps) {
+export default function App({ }: AppProps) {
   return (
     <SettingsProvider>
       <AppThemeProvider>
@@ -25,4 +25,3 @@ export default function App({}: AppProps) {
     </SettingsProvider>
   );
 }
-  
