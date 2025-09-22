@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Box,
     Typography,
@@ -46,7 +46,7 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
     refresh
 }) => {
     const [newTodoTitle, setNewTodoTitle] = useState('');
-    const [actionLoading, setActionLoading] = useState(false);
+    const [actionLoading] = useState(false);
     const [actionError, setActionError] = useState<string>('');
     const [editingTodo, setEditingTodo] = useState<TodoItemClient | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -54,8 +54,33 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
     const [todoToDelete, setTodoToDelete] = useState<TodoItemClient | null>(null);
     const { navigate } = useRouter();
 
-    // Extract todos from response
-    const todos = todosResponse?.todos || [];
+    // Local offline-first todos state (persisted)
+    const [localTodos, setLocalTodos] = useState<TodoItemClient[]>([]);
+    const STORAGE_KEY = 'todos_local_state_v1';
+
+    // Initialize local state from localStorage or server response
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setLocalTodos(parsed);
+                    return;
+                }
+            }
+        } catch { /* ignore */ }
+        setLocalTodos(todosResponse?.todos || []);
+    }, []);
+
+    // Persist local state
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(localTodos));
+        } catch { /* ignore */ }
+    }, [localTodos]);
 
     const handleCreateTodo = async () => {
         if (!newTodoTitle.trim()) {
@@ -63,43 +88,57 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
             return;
         }
 
-        setActionLoading(true);
         setActionError('');
-        try {
-            const result = await createTodo({ title: newTodoTitle });
-            if (result.data?.error) {
+        const tempId = `temp-${Date.now()}`;
+        const optimistic = { _id: tempId, title: newTodoTitle.trim(), completed: false } as unknown as TodoItemClient;
+        setLocalTodos(prev => [...prev, optimistic]);
+        setNewTodoTitle('');
+
+        // Fire-and-forget server sync
+        createTodo({ title: optimistic.title }).then(result => {
+            if (result.data?.todo && result.data.todo._id) {
+                setLocalTodos(prev => prev.map(t => t._id === tempId ? { ...result.data!.todo } as unknown as TodoItemClient : t));
+            } else if (result.data?.error) {
                 setActionError(result.data.error);
-            } else if (result.data?.todo) {
-                setNewTodoTitle('');
-                refresh(); // Refresh the data
+                // Optionally revert
+                setLocalTodos(prev => prev.filter(t => t._id !== tempId));
             }
-        } catch (err) {
-            console.error('Failed to create todo:', err);
-            setActionError('Failed to create todo');
-        } finally {
-            setActionLoading(false);
-        }
+        }).catch(err => {
+            // If queued offline, keep optimistic item; otherwise revert and show error
+            const isQueued = err instanceof Error && err.message === 'REQUEST_QUEUED_OFFLINE';
+            if (!isQueued) {
+                setActionError('Failed to create todo');
+            }
+        });
     };
 
     const handleToggleComplete = async (todo: TodoItemClient) => {
-        setActionLoading(true);
         setActionError('');
-        try {
-            const result = await updateTodo({
-                todoId: todo._id,
-                completed: !todo.completed
+        const updatedCompleted = !todo.completed;
+        // Optimistic update
+        setLocalTodos(prev => prev.map(t => t._id === todo._id ? { ...t, completed: updatedCompleted } : t));
+
+        // Background sync
+        updateTodo({ todoId: todo._id, completed: updatedCompleted })
+            .then(result => {
+                if (result.data?.error) {
+                    setActionError(result.data.error);
+                    // Revert on server error
+                    setLocalTodos(prev => prev.map(t => t._id === todo._id ? { ...t, completed: !updatedCompleted } : t));
+                } else if (result.data?.todo) {
+                    // Align with server response
+                    const next = result.data.todo as unknown as TodoItemClient;
+                    setLocalTodos(prev => prev.map(t => t._id === todo._id ? next : t));
+                }
+            })
+            .catch(err => {
+                const isQueued = err instanceof Error && err.message === 'REQUEST_QUEUED_OFFLINE';
+                if (!isQueued) {
+                    setActionError('Failed to update todo');
+                    // Revert
+                    setLocalTodos(prev => prev.map(t => t._id === todo._id ? { ...t, completed: !updatedCompleted } : t));
+                }
             });
-            if (result.data?.error) {
-                setActionError(result.data.error);
-            } else if (result.data?.todo) {
-                refresh(); // Refresh the data
-            }
-        } catch (err) {
-            console.error('Failed to update todo:', err);
-            setActionError('Failed to update todo');
-        } finally {
-            setActionLoading(false);
-        }
     };
 
     const handleStartEdit = (todo: TodoItemClient) => {
@@ -113,26 +152,34 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
             return;
         }
 
-        setActionLoading(true);
         setActionError('');
-        try {
-            const result = await updateTodo({
-                todoId: editingTodo._id,
-                title: editTitle
+        const originalTitle = editingTodo.title;
+        const todoId = editingTodo._id;
+        // Optimistic update
+        setLocalTodos(prev => prev.map(t => t._id === todoId ? { ...t, title: editTitle.trim() } : t));
+        setEditingTodo(null);
+        setEditTitle('');
+
+        // Background sync
+        updateTodo({ todoId, title: editTitle.trim() })
+            .then(result => {
+                if (result.data?.error) {
+                    setActionError(result.data.error);
+                    // Revert
+                    setLocalTodos(prev => prev.map(t => t._id === todoId ? { ...t, title: originalTitle } : t));
+                } else if (result.data?.todo) {
+                    const next = result.data.todo as unknown as TodoItemClient;
+                    setLocalTodos(prev => prev.map(t => t._id === todoId ? next : t));
+                }
+            })
+            .catch(err => {
+                const isQueued = err instanceof Error && err.message === 'REQUEST_QUEUED_OFFLINE';
+                if (!isQueued) {
+                    setActionError('Failed to update todo');
+                    // Revert
+                    setLocalTodos(prev => prev.map(t => t._id === todoId ? { ...t, title: originalTitle } : t));
+                }
             });
-            if (result.data?.error) {
-                setActionError(result.data.error);
-            } else if (result.data?.todo) {
-                setEditingTodo(null);
-                setEditTitle('');
-                refresh(); // Refresh the data
-            }
-        } catch (err) {
-            console.error('Failed to update todo:', err);
-            setActionError('Failed to update todo');
-        } finally {
-            setActionLoading(false);
-        }
     };
 
     const handleCancelEdit = () => {
@@ -152,23 +199,31 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
     const confirmDelete = async () => {
         if (!todoToDelete) return;
 
-        setActionLoading(true);
         setActionError('');
-        try {
-            const result = await deleteTodo({ todoId: todoToDelete._id });
-            if (result.data?.error) {
-                setActionError(result.data.error);
-            } else if (result.data?.success) {
-                setDeleteConfirmOpen(false);
-                setTodoToDelete(null);
-                refresh(); // Refresh the data
-            }
-        } catch (err) {
-            console.error('Failed to delete todo:', err);
-            setActionError('Failed to delete todo');
-        } finally {
-            setActionLoading(false);
-        }
+        const removedId = todoToDelete._id;
+        const removed = todoToDelete;
+        // Optimistic remove
+        setLocalTodos(prev => prev.filter(t => t._id !== removedId));
+        setDeleteConfirmOpen(false);
+        setTodoToDelete(null);
+
+        // Background sync
+        deleteTodo({ todoId: removedId })
+            .then(result => {
+                if (result.data?.error || result.data?.success === false) {
+                    setActionError(result.data?.error || 'Failed to delete todo');
+                    // Revert
+                    setLocalTodos(prev => [removed, ...prev]);
+                }
+            })
+            .catch(err => {
+                const isQueued = err instanceof Error && err.message === 'REQUEST_QUEUED_OFFLINE';
+                if (!isQueued) {
+                    setActionError('Failed to delete todo');
+                    // Revert
+                    setLocalTodos(prev => [removed, ...prev]);
+                }
+            });
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -233,17 +288,17 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
 
             {/* Todos list */}
             <Paper sx={{ p: 2 }}>
-                {isLoading ? (
+                {isLoading && localTodos.length === 0 ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                         <CircularProgress />
                     </Box>
-                ) : todos.length === 0 ? (
+                ) : localTodos.length === 0 ? (
                     <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                         No todos yet. Add one above!
                     </Typography>
                 ) : (
                     <List>
-                        {todos.map((todo, index) => (
+                        {localTodos.map((todo, index) => (
                             <React.Fragment key={todo._id}>
                                 <ListItem
                                     sx={{
@@ -305,7 +360,7 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
                                             <>
                                                 <IconButton
                                                     onClick={() => handleViewTodo(todo)}
-                                                    disabled={actionLoading}
+                                                    disabled={actionLoading || String(todo._id).startsWith('temp-')}
                                                     size="small"
                                                     color="info"
                                                 >
@@ -331,7 +386,7 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
                                         )}
                                     </Box>
                                 </ListItem>
-                                {index < todos.length - 1 && <Divider />}
+                                {index < localTodos.length - 1 && <Divider />}
                             </React.Fragment>
                         ))}
                     </List>

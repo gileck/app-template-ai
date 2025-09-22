@@ -8,6 +8,9 @@ const SettingsContext = createContext<SettingsContextType>({
     settings: defaultSettings,
     updateSettings: () => { },
     clearCache: async () => ({ success: false, message: 'Context not initialized' }),
+    isDeviceOffline: false,
+    effectiveOffline: false,
+    subscribeToEffectiveOfflineChanges: () => () => { },
 });
 
 // Custom hook to use the settings context
@@ -33,6 +36,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
         return defaultSettings;
     });
+
+    // Track device online/offline status
+    const [isDeviceOffline, setIsDeviceOffline] = useState<boolean>(false);
+    const [listeners] = useState<Set<(effectiveOffline: boolean) => void>>(new Set());
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const updateStatus = () => setIsDeviceOffline(!navigator.onLine);
+        updateStatus();
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        return () => {
+            window.removeEventListener('online', updateStatus);
+            window.removeEventListener('offline', updateStatus);
+        };
+    }, []);
 
     // Initialize AI model if not set
     useEffect(() => {
@@ -80,8 +99,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     };
 
+    const effectiveOffline = settings.offlineMode || isDeviceOffline;
+
+    // Notify listeners on effectiveOffline change
+    useEffect(() => {
+        listeners.forEach(listener => {
+            try { listener(effectiveOffline); } catch { /* ignore */ }
+        });
+    }, [effectiveOffline, listeners]);
+
+    const subscribeToEffectiveOfflineChanges = (listener: (effectiveOffline: boolean) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    };
+
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, clearCache: handleClearCache }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, clearCache: handleClearCache, isDeviceOffline, effectiveOffline, subscribeToEffectiveOfflineChanges }}>
             {children}
         </SettingsContext.Provider>
     );

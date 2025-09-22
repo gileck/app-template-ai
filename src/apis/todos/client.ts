@@ -41,7 +41,7 @@ export const getTodo = async (
 export const createTodo = async (
     params: CreateTodoRequest
 ): Promise<CacheResult<CreateTodoResponse>> => {
-    return apiClient.call(API_CREATE_TODO, params);
+    return apiClient.post(API_CREATE_TODO, params);
 };
 
 /**
@@ -50,7 +50,7 @@ export const createTodo = async (
 export const updateTodo = async (
     params: UpdateTodoRequest
 ): Promise<CacheResult<UpdateTodoResponse>> => {
-    return apiClient.call(API_UPDATE_TODO, params);
+    return apiClient.post(API_UPDATE_TODO, params);
 };
 
 /**
@@ -59,5 +59,5 @@ export const updateTodo = async (
 export const deleteTodo = async (
     params: DeleteTodoRequest
 ): Promise<CacheResult<DeleteTodoResponse>> => {
-    return apiClient.call(API_DELETE_TODO, params);
+    return apiClient.post(API_DELETE_TODO, params);
 }; 
