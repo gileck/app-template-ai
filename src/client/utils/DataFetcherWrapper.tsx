@@ -1,5 +1,7 @@
 import React, { useState, useEffect, ComponentType } from 'react';
-import { Box, CircularProgress, Alert, Button } from '@mui/material';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Alert } from '@/client/components/ui/alert';
+import { Button } from '@/client/components/ui/button';
 import { CacheResult } from '@/common/cache/types';
 import { useRouter } from '../router';
 
@@ -159,11 +161,7 @@ export function DataFetcherWrapper<
                 const LoaderComponent = loader;
                 return <LoaderComponent />;
             } else if (showGlobalLoading) {
-                return (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress />
-                    </Box>
-                );
+                return <div className="py-2"><LinearProgress /></div>;
             }
             // If no loader and showGlobalLoading is false, continue to render nothing
         }
@@ -171,20 +169,16 @@ export function DataFetcherWrapper<
         // Show global error state if enabled and there's an error
         if (showGlobalError && error) {
             return (
-                <Box sx={{ p: 3 }}>
-                    <Alert
-                        severity="error"
-                        action={
-                            enableRefresh ? (
-                                <Button color="inherit" size="small" onClick={refresh}>
-                                    Retry
-                                </Button>
-                            ) : undefined
-                        }
-                    >
-                        {error}
+                <div className="p-3">
+                    <Alert variant="destructive">
+                        <div className="flex items-center justify-between">
+                            <span>{error}</span>
+                            {enableRefresh && (
+                                <Button variant="outline" size="sm" onClick={refresh}>Retry</Button>
+                            )}
+                        </div>
                     </Alert>
-                </Box>
+                </div>
             );
         }
 
@@ -194,11 +188,7 @@ export function DataFetcherWrapper<
                 const LoaderComponent = loader;
                 return <LoaderComponent />;
             } else if (showGlobalLoading) {
-                return (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress />
-                    </Box>
-                );
+                return <div className="py-2"><LinearProgress /></div>;
             }
             // Return null if no loader is specified and global loading is disabled
             return null;

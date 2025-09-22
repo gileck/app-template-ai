@@ -1,6 +1,5 @@
 ---
-description: 
-globs: 
+globs: .tsx,.css
 alwaysApply: false
 ---
 # iOS-Inspired UI Design Guidelines

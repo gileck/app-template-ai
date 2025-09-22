@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/client/context/AuthContext';
-import {
-    Box,
-    Button,
-    CircularProgress,
-    TextField,
-    Alert,
-    Link
-} from '@mui/material';
+import { Button } from '@/client/components/ui/button';
+import { Input } from '@/client/components/ui/input';
+import { Label } from '@/client/components/ui/label';
+import { Alert } from '@/client/components/ui/alert';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { useLoginFormValidator } from './useLoginFormValidator';
 import { LoginFormState } from './types';
 
@@ -55,107 +52,102 @@ export const LoginForm = () => {
     };
 
     return (
-        <Box component="form" onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate className="space-y-3">
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert variant="destructive" className="mb-2">
                     {error}
                 </Alert>
             )}
 
-            <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="username"
-                label="Username"
-                name="username"
-                autoComplete="username"
-                value={formData.username}
-                onChange={handleChange}
-                error={!!formErrors.username}
-                helperText={formErrors.username}
-                disabled={isLoading}
-            />
-
-            {isRegistering && (
-                <TextField
-                    margin="normal"
-                    fullWidth
-                    id="email"
-                    label="Email Address (Optional)"
-                    name="email"
-                    autoComplete="email"
-                    value={formData.email}
+            <div className="space-y-1">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                    id="username"
+                    name="username"
+                    autoComplete="username"
+                    value={formData.username}
                     onChange={handleChange}
-                    error={!!formErrors.email}
-                    helperText={formErrors.email}
                     disabled={isLoading}
+                    aria-invalid={!!formErrors.username}
+                    aria-describedby="username-error"
                 />
-            )}
-
-            <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                autoComplete={isRegistering ? 'new-password' : 'current-password'}
-                value={formData.password}
-                onChange={handleChange}
-                error={!!formErrors.password}
-                helperText={formErrors.password}
-                disabled={isLoading}
-            />
-
-            {isRegistering && (
-                <TextField
-                    margin="normal"
-                    required
-                    fullWidth
-                    name="confirmPassword"
-                    label="Confirm Password"
-                    type="password"
-                    id="confirmPassword"
-                    autoComplete="new-password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    error={!!formErrors.confirmPassword}
-                    helperText={formErrors.confirmPassword}
-                    disabled={isLoading}
-                />
-            )}
-
-            <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{ mt: 3, mb: 2 }}
-                disabled={isLoading}
-            >
-                {isLoading ? (
-                    <CircularProgress size={24} />
-                ) : isRegistering ? (
-                    'Register'
-                ) : (
-                    'Sign In'
+                {formErrors.username && (
+                    <p id="username-error" className="text-xs text-destructive">{formErrors.username}</p>
                 )}
-            </Button>
+            </div>
 
-            <Box textAlign="center">
-                <Link
-                    component="button"
-                    variant="body2"
-                    onClick={toggleMode}
+            {isRegistering && (
+                <div className="space-y-1">
+                    <Label htmlFor="email">Email Address (Optional)</Label>
+                    <Input
+                        id="email"
+                        name="email"
+                        autoComplete="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                        aria-invalid={!!formErrors.email}
+                        aria-describedby="email-error"
+                    />
+                    {formErrors.email && (
+                        <p id="email-error" className="text-xs text-destructive">{formErrors.email}</p>
+                    )}
+                </div>
+            )}
+
+            <div className="space-y-1">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete={isRegistering ? 'new-password' : 'current-password'}
+                    value={formData.password}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                    aria-invalid={!!formErrors.password}
+                    aria-describedby="password-error"
+                />
+                {formErrors.password && (
+                    <p id="password-error" className="text-xs text-destructive">{formErrors.password}</p>
+                )}
+            </div>
+
+            {isRegistering && (
+                <div className="space-y-1">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                        aria-invalid={!!formErrors.confirmPassword}
+                        aria-describedby="confirmPassword-error"
+                    />
+                    {formErrors.confirmPassword && (
+                        <p id="confirmPassword-error" className="text-xs text-destructive">{formErrors.confirmPassword}</p>
+                    )}
+                </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+                {isRegistering ? 'Register' : 'Sign In'}
+            </Button>
+            {isLoading && <LinearProgress className="mt-2" />}
+
+            <div className="text-center">
+                <button
                     type="button"
+                    className="text-sm text-primary underline-offset-4 hover:underline disabled:opacity-50"
+                    onClick={toggleMode}
                     disabled={isLoading}
                 >
-                    {isRegistering
-                        ? 'Already have an account? Sign in'
-                        : "Don't have an account? Register"}
-                </Link>
-            </Box>
-        </Box>
+                    {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+                </button>
+            </div>
+        </form>
     );
 }; 

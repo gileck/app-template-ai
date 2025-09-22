@@ -1,7 +1,8 @@
 import React from 'react';
 import { useAuth } from '@/client/context/AuthContext';
 import { LoginForm } from './LoginForm';
-import { Box, LinearProgress, Modal, Paper, Typography } from '@mui/material';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
 
 interface AuthWrapperProps {
     children: React.ReactNode;
@@ -12,29 +13,24 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
     if (isInitialLoading) {
         return (
-            <Box sx={{ width: '100%' }}>
-                <LinearProgress />
-            </Box>
+            <div className="w-full py-2">
+                <div className="mx-auto max-w-screen-lg">
+                    <LinearProgress />
+                </div>
+            </div>
         );
     }
 
     if (!isAuthenticated) {
         return (
-            <Modal open={true}>
-                <Paper sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 400,
-                    p: 4
-                }}>
-                    <Typography variant="h5" component="h2" sx={{ mb: 2 }}>
-                        Sign In
-                    </Typography>
+            <Dialog open>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Sign In</DialogTitle>
+                    </DialogHeader>
                     <LoginForm />
-                </Paper>
-            </Modal>
+                </DialogContent>
+            </Dialog>
         );
     }
 

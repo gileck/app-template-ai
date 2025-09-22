@@ -1,27 +1,13 @@
-import { Box, Container } from '@mui/material';
-
 interface FooterProps {
   isStandalone?: boolean;
 }
 
 export const Footer = ({ isStandalone }: FooterProps) => {
   return (
-    <Box component="footer" sx={{
-      py: 3,
-      px: 2,
-      mt: 'auto',
-      backgroundColor: (theme) => theme.palette.grey[200],
-      // Ensure footer is above the home indicator on iOS
-      ...(isStandalone && {
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)'
-      }),
-      // Hide footer on mobile devices since we have bottom navigation
-      display: { xs: 'none', sm: 'block' }
-    }}>
-      <Container maxWidth="sm">
-
-      </Container>
-    </Box>
+    <footer className={`mt-auto hidden border-t bg-muted/30 sm:block ${isStandalone ? 'pb-[calc(env(safe-area-inset-bottom)+16px)]' : ''}`}>
+      <div className="mx-auto max-w-screen-lg px-4 py-3">
+      </div>
+    </footer>
   );
 };
 

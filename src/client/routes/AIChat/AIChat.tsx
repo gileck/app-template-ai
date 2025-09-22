@@ -1,19 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  TextField,
-  Typography,
-  Paper,
-  Container,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  IconButton,
-  Chip
-} from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
+import { Input } from '@/client/components/ui/input';
+import { Button } from '@/client/components/ui/button';
+import { Card } from '@/client/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Badge } from '@/client/components/ui/badge';
+import { Send, MessageSquare } from 'lucide-react';
 import { AIModelDefinition, getAllModels } from '@/server/ai/models';
 import { sendChatMessage } from '@/apis/chat/client';
 import { useSettings } from '@/client/settings/SettingsContext';
@@ -48,8 +40,8 @@ export function AIChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleModelChange = (event: SelectChangeEvent) => {
-    updateSettings({ aiModel: event.target.value });
+  const handleModelChange = (value: string) => {
+    updateSettings({ aiModel: value });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,113 +110,64 @@ export function AIChat() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        AI Chat
-      </Typography>
+    <div className="mx-auto flex h-[100vh] max-w-3xl flex-col py-4">
+      <h1 className="mb-2 flex items-center text-2xl font-semibold"><MessageSquare className="mr-2 h-5 w-5" /> AI Chat</h1>
 
-      <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel id="model-select-label">AI Model</InputLabel>
-        <Select
-          labelId="model-select-label"
-          id="model-select"
-          value={settings.aiModel}
-          label="AI Model"
-          onChange={handleModelChange}
-        >
-          {models.map((model) => (
-            <MenuItem key={model.id} value={model.id}>
-              {model.name} ({model.provider})
-            </MenuItem>
-          ))}
+      <div className="mb-3">
+        <Select value={settings.aiModel} onValueChange={handleModelChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select AI Model" />
+          </SelectTrigger>
+          <SelectContent>
+            {models.map((model) => (
+              <SelectItem key={model.id} value={model.id}>
+                {model.name} ({model.provider})
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
+      </div>
 
-      <Paper
-        elevation={3}
-        sx={{
-          p: 2,
-          mb: 2,
-          flexGrow: 1,
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
+      <Card className="mb-2 flex flex-1 flex-col overflow-auto p-2">
         {messages.length === 0 ? (
-          <Typography
-            variant="body1"
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100%',
-              color: 'text.secondary'
-            }}
-          >
-            Start a conversation with the AI
-          </Typography>
+          <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Start a conversation with the AI</p>
         ) : (
           <>
             {messages.map((message) => (
-              <Paper
+              <div
                 key={message.id}
-                elevation={1}
-                sx={{
-                  p: 2,
-                  mb: 2,
-                  maxWidth: '80%',
-                  alignSelf: message.sender === 'user' ? 'flex-end' : 'flex-start',
-                  backgroundColor: message.sender === 'user' ? 'primary.light' : 'background.paper',
-                  borderRadius: 2,
-                }}
+                className={`mb-2 max-w-[80%] rounded-lg p-2 ${message.sender === 'user' ? 'self-end bg-primary/10' : 'self-start bg-background border'}`}
               >
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {message.text}
-                </Typography>
+                <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>
 
                 {message.cost !== undefined && (
-                  <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {message.isFromCache ? (
-                      <span>
-                        <Chip
-                          size="small"
-                          label={`From cache (${message.cacheProvider || 'unknown'})`}
-                          color={message.cacheProvider === 's3' ? 'primary' : message.cacheProvider === 'localStorage' ? 'secondary' : 'default'}
-                          variant="outlined"
-                          sx={{ mr: 1 }}
-                        />
-                      </span>
+                      <Badge variant="secondary">From cache ({message.cacheProvider || 'unknown'})</Badge>
                     ) : (
                       `Cost: ${formatCost(message.cost)}`
                     )}
-                  </Typography>
+                  </div>
                 )}
-              </Paper>
+              </div>
             ))}
             <div ref={messagesEndRef} />
           </>
         )}
-      </Paper>
+      </Card>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
-        <TextField
-          fullWidth
-          variant="outlined"
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <Input
           placeholder="Type your message..."
           value={input}
           onChange={handleInputChange}
           disabled={isLoading}
         />
-        <IconButton
-          color="primary"
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          sx={{ p: '10px' }}
-        >
-          {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-        </IconButton>
+        <Button type="submit" disabled={isLoading || !input.trim()}>
+          <Send className="mr-2 h-4 w-4" /> Send
+        </Button>
+        {isLoading && <div className="w-32"><LinearProgress /></div>}
       </form>
-    </Container>
+    </div>
   );
 }

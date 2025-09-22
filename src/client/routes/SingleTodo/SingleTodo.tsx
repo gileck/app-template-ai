@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Chip, Button, IconButton } from '@mui/material';
-import { ArrowBack, Edit, Delete, Check, Close } from '@mui/icons-material';
+import { Card, CardContent } from '@/client/components/ui/card';
+import { Button } from '@/client/components/ui/button';
+import { Badge } from '@/client/components/ui/badge';
+import { ArrowLeft, Edit, Trash2, Check, X } from 'lucide-react';
 import { useRouter } from '../../router';
 import { DataFetcherWrapper } from '../../utils/DataFetcherWrapper';
 import { getTodo } from '../../../apis/todos/client';
@@ -18,78 +20,61 @@ const SingleTodoBase: React.FC<SingleTodoBaseProps> = ({ todo, error }) => {
 
     if (error) {
         return (
-            <Box sx={{ p: 3 }}>
-                <Typography color="error">{error}</Typography>
-                <Button onClick={() => navigate('/todos')}>Back to Todos</Button>
-            </Box>
+            <div className="p-3 text-destructive">
+                {error}
+                <div>
+                    <Button onClick={() => navigate('/todos')} className="mt-2">Back to Todos</Button>
+                </div>
+            </div>
         );
     }
 
     if (!todo.todo) {
         return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Todo not found</Typography>
-                <Button onClick={() => navigate('/todos')}>Back to Todos</Button>
-            </Box>
+            <div className="p-3">
+                <p>Todo not found</p>
+                <Button onClick={() => navigate('/todos')} className="mt-2">Back to Todos</Button>
+            </div>
         );
     }
 
     const todoItem = todo.todo;
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <IconButton onClick={() => navigate('/todos')} sx={{ mr: 2 }}>
-                    <ArrowBack />
-                </IconButton>
-                <Typography variant="h4">Todo Details</Typography>
-            </Box>
+        <div className="p-3">
+            <div className="mb-3 flex items-center">
+                <Button variant="ghost" size="sm" className="mr-2" onClick={() => navigate('/todos')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+                <h1 className="text-2xl font-semibold">Todo Details</h1>
+            </div>
 
-            <Card sx={{ maxWidth: 600 }}>
+            <Card className="max-w-xl">
                 <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Typography variant="h5" component="h2">
-                            {todoItem.title}
-                        </Typography>
-                        <Chip
-                            label={todoItem.completed ? 'Completed' : 'Pending'}
-                            color={todoItem.completed ? 'success' : 'warning'}
-                            icon={todoItem.completed ? <Check /> : <Close />}
-                        />
-                    </Box>
+                    <div className="mb-2 flex items-start justify-between">
+                        <h2 className="text-xl font-medium">{todoItem.title}</h2>
+                        <Badge variant={todoItem.completed ? 'success' : 'warning'} className="inline-flex items-center">
+                            {todoItem.completed ? <Check className="mr-1 h-4 w-4" /> : <X className="mr-1 h-4 w-4" />}
+                            {todoItem.completed ? 'Completed' : 'Pending'}
+                        </Badge>
+                    </div>
 
-                    <Box sx={{ mb: 3 }}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Created: {new Date(todoItem.createdAt).toLocaleDateString()}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Updated: {new Date(todoItem.updatedAt).toLocaleDateString()}
-                        </Typography>
-                    </Box>
+                    <div className="mb-3 text-sm text-muted-foreground">
+                        <p>Created: {new Date(todoItem.createdAt).toLocaleDateString()}</p>
+                        <p>Updated: {new Date(todoItem.updatedAt).toLocaleDateString()}</p>
+                    </div>
 
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<Edit />}
-                            onClick={() => navigate(`/todos?edit=${todoItem._id}`)}
-                        >
-                            Edit
+                    <div className="flex gap-2">
+                        <Button onClick={() => navigate(`/todos?edit=${todoItem._id}`)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
                         </Button>
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<Delete />}
-                            onClick={() => {
-                                // TODO: Add delete functionality
-                                console.log('Delete todo:', todoItem._id);
-                            }}
-                        >
-                            Delete
+                        <Button variant="outline" onClick={() => console.log('Delete todo:', todoItem._id)}>
+                            <Trash2 className="mr-2 h-4 w-4 text-destructive" /> Delete
                         </Button>
-                    </Box>
+                    </div>
                 </CardContent>
             </Card>
-        </Box>
+        </div>
     );
 };
 

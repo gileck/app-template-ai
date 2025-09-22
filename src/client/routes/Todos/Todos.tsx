@@ -1,23 +1,15 @@
 import React from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { DataFetcherWrapper } from '@/client/utils/DataFetcherWrapper';
 import { getTodos } from '@/apis/todos/client';
 import { TodosBase } from './TodosBase';
 
 // Custom loader for todos
 const TodosLoader = () => (
-    <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 8
-    }}>
-        <CircularProgress size={40} />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Loading your todos...
-        </Typography>
-    </Box>
+    <div className="w-full py-4">
+        <LinearProgress />
+        <p className="mt-2 text-center text-sm text-muted-foreground">Loading your todos...</p>
+    </div>
 );
 
 // Create the wrapped component using DataFetcherWrapper with custom loader

@@ -1,29 +1,24 @@
-import React, { ReactNode, useMemo } from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material';
+import React, { ReactNode, useEffect } from 'react';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { useSettings } from '../settings/SettingsContext';
 
 export const AppThemeProvider = ({ children }: { children: ReactNode }) => {
   const { settings } = useSettings();
 
-  const theme = useMemo(() => {
-    return createTheme({
-      palette: {
-        mode: settings.theme,
-        primary: {
-          main: '#1976d2',
-        },
-        secondary: {
-          main: '#dc004e',
-        },
-      },
-    });
+  // Sync next-themes with app settings
+  useEffect(() => {
+    // next-themes reads class on html; we rely on attribute "class" toggling
+    const root = document.documentElement;
+    if (settings.theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
   }, [settings.theme]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <NextThemesProvider attribute="class" defaultTheme={settings.theme} enableSystem={false}>
       {children}
-    </ThemeProvider>
+    </NextThemesProvider>
   );
-}; 
+};

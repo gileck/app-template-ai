@@ -1,6 +1,6 @@
-import { Paper, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
+import { Button } from '@/client/components/ui/button';
 
 interface BottomNavBarProps {
   navItems: NavItem[];
@@ -9,7 +9,7 @@ interface BottomNavBarProps {
 
 export const BottomNavBar = ({ navItems, isStandalone }: BottomNavBarProps) => {
   const { currentPath, navigate } = useRouter();
-  
+
   // Get the current navigation value based on the path
   const getCurrentNavValue = () => {
     const index = navItems.findIndex(item => item.path === currentPath);
@@ -21,38 +21,21 @@ export const BottomNavBar = ({ navItems, isStandalone }: BottomNavBarProps) => {
   };
 
   return (
-    <Paper 
-      sx={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0,
-        display: { xs: 'block', sm: 'none' },
-        zIndex: 1100,
-        borderRadius: 0,
-        ...(isStandalone && {
-          paddingBottom: 'env(safe-area-inset-bottom)'
-        })
-      }} 
-      elevation={3}
-    >
-      <BottomNavigation
-        showLabels
-        value={getCurrentNavValue()}
-        onChange={(_, newValue) => {
-          const selectedPath = navItems[newValue]?.path || '/';
-          handleNavigation(selectedPath);
-        }}
-      >
-        {navItems.map((item) => (
-          <BottomNavigationAction 
+    <div className={`fixed inset-x-0 bottom-0 z-40 block border-t bg-background/95 sm:hidden ${isStandalone ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}>
+      <div className="mx-auto flex max-w-screen-lg items-center justify-between px-2 py-2">
+        {navItems.map((item, idx) => (
+          <Button
             key={item.path}
-            label={item.label} 
-            icon={item.icon} 
-          />
+            variant={getCurrentNavValue() === idx ? 'secondary' : 'ghost'}
+            className="flex-1"
+            onClick={() => handleNavigation(item.path)}
+          >
+            <span className="mr-2 inline-flex">{item.icon}</span>
+            {item.label}
+          </Button>
         ))}
-      </BottomNavigation>
-    </Paper>
+      </div>
+    </div>
   );
 };
 

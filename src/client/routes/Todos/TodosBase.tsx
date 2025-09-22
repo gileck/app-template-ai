@@ -1,32 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import {
-    Box,
-    Typography,
-    TextField,
-    Button,
-    List,
-    ListItem,
-    ListItemText,
-    IconButton,
-    Checkbox,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Alert,
-    Paper,
-    Divider,
-    CircularProgress
-} from '@mui/material';
-import {
-    Add as AddIcon,
-    Edit as EditIcon,
-    Delete as DeleteIcon,
-    Save as SaveIcon,
-    Cancel as CancelIcon,
-    Refresh as RefreshIcon,
-    Visibility as VisibilityIcon
-} from '@mui/icons-material';
+import { Button } from '@/client/components/ui/button';
+import { Input } from '@/client/components/ui/input';
+import { Alert } from '@/client/components/ui/alert';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Card } from '@/client/components/ui/card';
+import { Separator } from '@/client/components/ui/separator';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
+import { CheckSquare, Eye, Plus, RefreshCcw, Save, X, Pencil, Trash2 } from 'lucide-react';
 import { createTodo, updateTodo, deleteTodo } from '@/apis/todos/client';
 import { TodoItemClient } from '@/server/database/collections/todos/types';
 import { GetTodosResponse } from '@/apis/todos/types';
@@ -243,83 +223,61 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
     const displayError = fetchError || actionError;
 
     return (
-        <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" component="h1">
-                    My Todos
-                </Typography>
-                <Button
-                    variant="outlined"
-                    onClick={refresh}
-                    startIcon={<RefreshIcon />}
-                    disabled={isLoading}
-                >
-                    Refresh
+        <div className="mx-auto max-w-3xl p-3">
+            <div className="mb-3 flex items-center justify-between">
+                <h1 className="text-2xl font-semibold">My Todos</h1>
+                <Button variant="outline" onClick={refresh} disabled={isLoading}>
+                    <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
                 </Button>
-            </Box>
+            </div>
 
             {displayError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {displayError}
-                </Alert>
+                <Alert variant="destructive" className="mb-2">{displayError}</Alert>
             )}
 
             {/* Add new todo */}
-            <Paper sx={{ p: 2, mb: 3 }}>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <TextField
-                        fullWidth
+            <Card className="mb-3 p-2">
+                <div className="flex items-center gap-2">
+                    <Input
                         value={newTodoTitle}
                         onChange={(e) => setNewTodoTitle(e.target.value)}
                         placeholder="Enter a new todo..."
                         onKeyPress={handleKeyPress}
                         disabled={actionLoading}
                     />
-                    <Button
-                        variant="contained"
-                        onClick={handleCreateTodo}
-                        disabled={actionLoading || !newTodoTitle.trim()}
-                        startIcon={actionLoading ? <CircularProgress size={16} /> : <AddIcon />}
-                    >
-                        Add
+                    <Button onClick={handleCreateTodo} disabled={actionLoading || !newTodoTitle.trim()}>
+                        <Plus className="mr-2 h-4 w-4" /> Add
                     </Button>
-                </Box>
-            </Paper>
+                    {actionLoading && <div className="w-24"><LinearProgress className="mt-1" /></div>}
+                </div>
+            </Card>
 
             {/* Todos list */}
-            <Paper sx={{ p: 2 }}>
+            <Card className="p-2">
                 {isLoading && localTodos.length === 0 ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                        <CircularProgress />
-                    </Box>
+                    <div className="py-2"><LinearProgress /></div>
                 ) : localTodos.length === 0 ? (
-                    <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                        No todos yet. Add one above!
-                    </Typography>
+                    <p className="py-4 text-center text-sm text-muted-foreground">No todos yet. Add one above!</p>
                 ) : (
-                    <List>
+                    <ul>
                         {localTodos.map((todo, index) => (
                             <React.Fragment key={todo._id}>
-                                <ListItem
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1,
-                                        opacity: todo.completed ? 0.7 : 1,
-                                        bgcolor: todo.completed ? 'action.hover' : 'transparent',
-                                        borderRadius: 1,
-                                        mb: 1
-                                    }}
+                                <li
+                                    className={`mb-1 flex items-center gap-2 rounded p-2 ${todo.completed ? 'opacity-70 bg-accent' : ''}`}
                                 >
-                                    <Checkbox
-                                        checked={todo.completed}
-                                        onChange={() => handleToggleComplete(todo)}
+                                    <button
+                                        className="h-5 w-5 rounded border"
+                                        aria-checked={todo.completed}
+                                        role="checkbox"
+                                        onClick={() => handleToggleComplete(todo)}
                                         disabled={actionLoading}
-                                    />
+                                    >
+                                        {todo.completed ? <CheckSquare className="h-4 w-4" /> : null}
+                                    </button>
 
                                     {editingTodo?._id === todo._id ? (
-                                        <TextField
-                                            fullWidth
+                                        <Input
+                                            className="flex-1"
                                             value={editTitle}
                                             onChange={(e) => setEditTitle(e.target.value)}
                                             onKeyPress={handleEditKeyPress}
@@ -327,88 +285,54 @@ export const TodosBase: React.FC<TodosBaseProps> = ({
                                             autoFocus
                                         />
                                     ) : (
-                                        <ListItemText
-                                            primary={todo.title}
-                                            sx={{
-                                                textDecoration: todo.completed ? 'line-through' : 'none',
-                                                color: todo.completed ? 'text.secondary' : 'text.primary'
-                                            }}
-                                        />
+                                        <span className={`flex-1 ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                            {todo.title}
+                                        </span>
                                     )}
 
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                        {editingTodo?._id === todo._id ? (
-                                            <>
-                                                <IconButton
-                                                    onClick={handleSaveEdit}
-                                                    disabled={actionLoading}
-                                                    size="small"
-                                                    color="primary"
-                                                >
-                                                    <SaveIcon />
-                                                </IconButton>
-                                                <IconButton
-                                                    onClick={handleCancelEdit}
-                                                    disabled={actionLoading}
-                                                    size="small"
-                                                    color="secondary"
-                                                >
-                                                    <CancelIcon />
-                                                </IconButton>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <IconButton
-                                                    onClick={() => handleViewTodo(todo)}
-                                                    disabled={actionLoading || String(todo._id).startsWith('temp-')}
-                                                    size="small"
-                                                    color="info"
-                                                >
-                                                    <VisibilityIcon />
-                                                </IconButton>
-                                                <IconButton
-                                                    onClick={() => handleStartEdit(todo)}
-                                                    disabled={actionLoading}
-                                                    size="small"
-                                                    color="primary"
-                                                >
-                                                    <EditIcon />
-                                                </IconButton>
-                                                <IconButton
-                                                    onClick={() => handleDeleteTodo(todo)}
-                                                    disabled={actionLoading}
-                                                    size="small"
-                                                    color="error"
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </>
-                                        )}
-                                    </Box>
-                                </ListItem>
-                                {index < localTodos.length - 1 && <Divider />}
+                                    {editingTodo?._id === todo._id ? (
+                                        <div className="flex gap-1">
+                                            <Button variant="secondary" size="sm" onClick={handleSaveEdit} disabled={actionLoading}>
+                                                <Save className="mr-1 h-4 w-4" />
+                                            </Button>
+                                            <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={actionLoading}>
+                                                <X className="mr-1 h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-1">
+                                            <Button variant="ghost" size="sm" onClick={() => handleViewTodo(todo)} disabled={actionLoading || String(todo._id).startsWith('temp-')}>
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleStartEdit(todo)} disabled={actionLoading}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleDeleteTodo(todo)} disabled={actionLoading}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    )}
+                                </li>
+                                {index < localTodos.length - 1 && <Separator />}
                             </React.Fragment>
                         ))}
-                    </List>
+                    </ul>
                 )}
-            </Paper>
+            </Card>
 
             {/* Delete confirmation dialog */}
-            <Dialog
-                open={deleteConfirmOpen}
-                onClose={() => setDeleteConfirmOpen(false)}
-            >
-                <DialogTitle>Delete Todo</DialogTitle>
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <DialogContent>
-                    Are you sure you want to delete &quot;{todoToDelete?.title}&quot;?
+                    <DialogHeader>
+                        <DialogTitle>Delete Todo</DialogTitle>
+                    </DialogHeader>
+                    <p>Are you sure you want to delete &quot;{todoToDelete?.title}&quot;?</p>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={confirmDelete} autoFocus>Delete</Button>
+                    </DialogFooter>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
-                    <Button onClick={confirmDelete} color="error" autoFocus>
-                        Delete
-                    </Button>
-                </DialogActions>
             </Dialog>
-        </Box>
+        </div>
     );
 }; 

@@ -1,31 +1,13 @@
 import { useEffect, useState, useRef, ChangeEvent } from 'react';
-import {
-    Box,
-    Typography,
-    Paper,
-    Avatar,
-    Divider,
-    List,
-    ListItem,
-    ListItemText,
-    Stack,
-    CircularProgress,
-    TextField,
-    Button,
-    IconButton,
-    Snackbar,
-    Alert,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions
-} from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from '../../router';
-import EditIcon from '@mui/icons-material/Edit';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import { Button } from '@/client/components/ui/button';
+import { Input } from '@/client/components/ui/input';
+import { Card } from '@/client/components/ui/card';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Alert } from '@/client/components/ui/alert';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
+import { Camera, Edit3, Save, X } from 'lucide-react';
 import { apiUpdateProfile, apiFetchCurrentUser } from '@/apis/auth/client';
 import { UpdateProfileRequest, UserResponse } from '@/apis/auth/types';
 
@@ -75,9 +57,9 @@ export const Profile = () => {
 
     if (isLoading || loadingUserData) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-                <CircularProgress />
-            </Box>
+            <div className="flex h-[80vh] items-center justify-center w-full px-4">
+                <LinearProgress />
+            </div>
         );
     }
 
@@ -205,135 +187,86 @@ export const Profile = () => {
         setOpenImageDialog(false);
     };
 
-    const handleCloseSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    };
+    // const handleCloseSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
     // Use localUser for display to prevent the entire app from re-rendering
     const displayUser = localUser || user;
 
     return (
-        <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-                My Profile
+        <div>
+            <div className="mb-3 flex items-center">
+                <h1 className="text-2xl font-semibold">My Profile</h1>
                 {!editing && (
-                    <IconButton color="primary" onClick={handleEditClick} sx={{ ml: 2 }}>
-                        <EditIcon />
-                    </IconButton>
+                    <Button variant="ghost" size="sm" className="ml-2" onClick={handleEditClick}>
+                        <Edit3 className="mr-2 h-4 w-4" /> Edit
+                    </Button>
                 )}
-            </Typography>
+            </div>
 
             {displayUser && (
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-                    <Box sx={{ width: { xs: '100%', md: '30%' } }}>
-                        <Paper elevation={2} sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <Box sx={{ position: 'relative' }}>
-                                <Avatar
-                                    src={previewImage}
-                                    sx={{
-                                        width: 120,
-                                        height: 120,
-                                        fontSize: '3rem',
-                                        mb: 2,
-                                        bgcolor: 'primary.main'
-                                    }}
-                                >
-                                    {username.charAt(0).toUpperCase()}
-                                </Avatar>
+                <div className="flex flex-col gap-3 md:flex-row">
+                    <div className="w-full md:w-1/3">
+                        <Card className="flex flex-col items-center p-4">
+                            <div className="relative">
+                                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-primary text-3xl font-bold text-primary-foreground">
+                                    {previewImage ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={previewImage} alt="avatar" className="h-28 w-28 rounded-full object-cover" />
+                                    ) : (
+                                        username.charAt(0).toUpperCase()
+                                    )}
+                                </div>
                                 {editing && (
-                                    <IconButton
-                                        color="primary"
-                                        sx={{
-                                            position: 'absolute',
-                                            right: -10,
-                                            bottom: 10,
-                                            backgroundColor: 'background.paper',
-                                            boxShadow: 1
-                                        }}
-                                        onClick={handleOpenImageDialog}
-                                        disabled={savingProfile}
-                                    >
-                                        <PhotoCameraIcon />
-                                    </IconButton>
+                                    <Button variant="secondary" size="sm" className="absolute -right-2 bottom-2" onClick={handleOpenImageDialog} disabled={savingProfile}>
+                                        <Camera className="h-4 w-4" />
+                                    </Button>
                                 )}
-                            </Box>
+                            </div>
                             {editing ? (
-                                <TextField
-                                    label="Username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    fullWidth
-                                    margin="normal"
-                                    variant="outlined"
-                                    size="small"
-                                    disabled={savingProfile}
-                                />
+                                <div className="mt-2 w-full">
+                                    <Input value={username} onChange={(e) => setUsername(e.target.value)} disabled={savingProfile} />
+                                </div>
                             ) : (
                                 <>
-                                    <Typography variant="h5">{username}</Typography>
-                                    {displayUser.email && (
-                                        <Typography variant="body2" color="text.secondary">{displayUser.email}</Typography>
-                                    )}
+                                    <p className="mt-2 text-xl font-medium">{username}</p>
+                                    {displayUser.email && <p className="text-sm text-muted-foreground">{displayUser.email}</p>}
                                 </>
                             )}
 
                             {editing && (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 1 }}>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        startIcon={savingProfile ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                                        onClick={handleSaveProfile}
-                                        disabled={savingProfile}
-                                    >
-                                        {savingProfile ? 'Saving...' : 'Save'}
+                                <div className="mt-2 flex justify-center gap-2">
+                                    <Button onClick={handleSaveProfile} disabled={savingProfile}>
+                                        <Save className="mr-2 h-4 w-4" /> Save
                                     </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="secondary"
-                                        startIcon={<CancelIcon />}
-                                        onClick={handleCancelEdit}
-                                        disabled={savingProfile}
-                                    >
-                                        Cancel
+                                    {savingProfile && <div className="w-32"><LinearProgress className="mt-1" /></div>}
+                                    <Button variant="outline" onClick={handleCancelEdit} disabled={savingProfile}>
+                                        <X className="mr-2 h-4 w-4" /> Cancel
                                     </Button>
-                                </Box>
+                                </div>
                             )}
-                        </Paper>
-                    </Box>
+                        </Card>
+                    </div>
 
-                    <Box sx={{ width: { xs: '100%', md: '70%' } }}>
-                        <Paper elevation={2} sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>Account Information</Typography>
-                            <Divider sx={{ mb: 2 }} />
-
-                            <List>
-                                <ListItem>
-                                    <ListItemText
-                                        primary="Username"
-                                        secondary={username}
-                                    />
-                                </ListItem>
-                                <Divider component="li" />
-
-                                <ListItem>
-                                    <ListItemText
-                                        primary="Email"
-                                        secondary={displayUser.email || 'Not provided'}
-                                    />
-                                </ListItem>
-                                <Divider component="li" />
-
-                                <ListItem>
-                                    <ListItemText
-                                        primary="Member Since"
-                                        secondary={new Date(displayUser.createdAt).toLocaleDateString()}
-                                    />
-                                </ListItem>
-                            </List>
-                        </Paper>
-                    </Box>
-                </Stack>
+                    <div className="w-full md:w-2/3">
+                        <Card className="p-4">
+                            <h2 className="mb-2 text-lg font-medium">Account Information</h2>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Username</span>
+                                    <span>{username}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Email</span>
+                                    <span>{displayUser.email || 'Not provided'}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Member Since</span>
+                                    <span>{new Date(displayUser.createdAt).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
             )}
 
             {/* Hidden file input for image upload */}
@@ -346,48 +279,30 @@ export const Profile = () => {
             />
 
             {/* Image upload dialog */}
-            <Dialog open={openImageDialog} onClose={handleCloseImageDialog}>
-                <DialogTitle>Change Profile Picture</DialogTitle>
+            <Dialog open={openImageDialog} onOpenChange={setOpenImageDialog}>
                 <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <Button
-                            variant="contained"
-                            onClick={handlePaste}
-                        >
-                            Paste from Clipboard
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            onClick={handleUploadClick}
-                        >
-                            Upload Image
-                        </Button>
-                    </Stack>
+                    <DialogHeader>
+                        <DialogTitle>Change Profile Picture</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-2">
+                        <Button onClick={handlePaste}>Paste from Clipboard</Button>
+                        <Button variant="outline" onClick={handleUploadClick}>Upload Image</Button>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCloseImageDialog}>Cancel</Button>
+                    </DialogFooter>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseImageDialog} color="primary">
-                        Cancel
-                    </Button>
-                </DialogActions>
             </Dialog>
 
             {/* Snackbar for notifications */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
-                <Alert
-                    onClose={handleCloseSnackbar}
-                    severity={snackbar.severity}
-                    variant="filled"
-                    sx={{ width: '100%' }}
-                >
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-        </Box>
+            {snackbar.open && (
+                <div className="fixed bottom-4 left-1/2 z-50 w-[90%] max-w-md -translate-x-1/2">
+                    <Alert variant={snackbar.severity === 'success' ? 'success' : 'destructive'}>
+                        {snackbar.message}
+                    </Alert>
+                </div>
+            )}
+        </div>
     );
 };
 

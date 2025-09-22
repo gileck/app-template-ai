@@ -1,4 +1,5 @@
-import { Drawer, Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/client/components/ui/sheet';
+import React from 'react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
 
@@ -17,38 +18,37 @@ export const DrawerMenu = ({ navItems, mobileOpen, onDrawerToggle }: DrawerMenuP
   };
 
   const drawerContent = (
-    <Box onClick={onDrawerToggle} sx={{ textAlign: 'center' }}>
-      <List>
-        {navItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              sx={{ textAlign: 'center' }}
+    <div className="py-2" onClick={onDrawerToggle}>
+      <nav className="grid gap-0.5 px-2 pb-2">
+        {navItems.map((item) => {
+          const selected = currentPath === item.path;
+          return (
+            <button
+              key={item.path}
               onClick={() => handleNavigation(item.path)}
-              selected={currentPath === item.path}
+              className={`flex h-9 w-full items-center justify-start gap-2.5 rounded-md px-3 text-left text-sm ${selected
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
+              <span className="inline-flex h-4 w-4 items-center justify-center">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 
   return (
-    <Drawer
-      variant="temporary"
-      open={mobileOpen}
-      onClose={onDrawerToggle}
-      ModalProps={{
-        keepMounted: true, // Better open performance on mobile
-      }}
-      sx={{
-        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 },
-      }}
-    >
-      {drawerContent}
-    </Drawer>
+    <Sheet open={mobileOpen} onOpenChange={(o) => !o && onDrawerToggle()}>
+      <SheetContent side="left" className="w-64">
+        <div className="px-4 py-2">
+          <SheetTitle>Menu</SheetTitle>
+        </div>
+        {drawerContent}
+      </SheetContent>
+    </Sheet>
   );
 };
 

@@ -1,31 +1,17 @@
 import React, { useState } from 'react';
-import {
-  Typography,
-  Container,
-  Paper,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  Divider,
-  FormControlLabel,
-  Switch,
-  Snackbar,
-  Alert,
-  CircularProgress
-} from '@mui/material';
+import { Button } from '@/client/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
+import { Switch } from '@/client/components/ui/switch';
+import { Card } from '@/client/components/ui/card';
+import { Separator } from '@/client/components/ui/separator';
+import { Alert } from '@/client/components/ui/alert';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
 import { useSettings } from '@/client/settings/SettingsContext';
 import { localStorageCacheProvider } from '@/client/utils/localStorageCache';
 
-interface SnackbarState {
-  open: boolean;
-  message: string;
-  severity: 'success' | 'error' | 'info' | 'warning';
-}
+interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
 export function Settings() {
   const { settings, updateSettings, clearCache } = useSettings();
@@ -37,9 +23,7 @@ export function Settings() {
     severity: 'info'
   });
 
-  const handleModelChange = (event: SelectChangeEvent) => {
-    updateSettings({ aiModel: event.target.value });
-  };
+  const handleModelChange = (value: string) => { updateSettings({ aiModel: value }); };
 
   const handleClearCache = async () => {
     setIsClearing(true);
@@ -80,95 +64,58 @@ export function Settings() {
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  // Close snackbar helper (not currently used by inline snackbar)
+  // const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Settings
-      </Typography>
+    <div className="mx-auto max-w-3xl py-4">
+      <h1 className="text-2xl font-semibold">Settings</h1>
 
-      <Paper elevation={3} sx={{ p: 3, mt: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Cache Management
-        </Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and local storage caches.
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleClearCache}
-          disabled={isClearing}
-          startIcon={isClearing ? <CircularProgress size={20} color="inherit" /> : null}
-        >
-          {isClearing ? 'Clearing...' : 'Clear Cache'}
-        </Button>
+      <Card className="mt-3 p-4">
+        <h2 className="mb-2 text-lg font-medium">Cache Management</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and local storage caches.</p>
+        <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
+        {isClearing && <LinearProgress className="mt-2" />}
 
-        <Divider sx={{ my: 3 }} />
+        <Separator className="my-3" />
 
-        <Typography variant="h6" gutterBottom>
-          Cache Behavior
-        </Typography>
-        <FormControl fullWidth sx={{ mt: 2 }}>
-          <FormControlLabel
-            control={<Switch checked={settings.offlineMode} onChange={(e) => updateSettings({ offlineMode: e.target.checked })} />}
-            label="Offline Mode"
-          />
-          <FormControlLabel
-            control={<Switch checked={settings.staleWhileRevalidate} onChange={(e) => updateSettings({ staleWhileRevalidate: e.target.checked })} />}
-            label="Serve Stale While Revalidate"
-          />
-          <Typography variant="body2" color="text.secondary">
-            When SWR is ON, cached data will be served immediately when available while a background refresh runs.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Offline Mode forces using cache and avoids relying on network.
-          </Typography>
-        </FormControl>
+        <h2 className="mb-2 text-lg font-medium">Cache Behavior</h2>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <Switch checked={settings.offlineMode} onCheckedChange={(v) => updateSettings({ offlineMode: v })} />
+            <span>Offline Mode</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <Switch checked={settings.staleWhileRevalidate} onCheckedChange={(v) => updateSettings({ staleWhileRevalidate: v })} />
+            <span>Serve Stale While Revalidate</span>
+          </label>
+          <p className="text-sm text-muted-foreground">When SWR is ON, cached data will be served immediately when available while a background refresh runs.</p>
+          <p className="text-sm text-muted-foreground">Offline Mode forces using cache and avoids relying on network.</p>
+        </div>
 
-        <Typography variant="h6" gutterBottom>
-          AI Model
-        </Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Select the AI model to use for chat and other AI-powered features.
-        </Typography>
-
-        <FormControl fullWidth sx={{ mt: 2 }}>
-          <InputLabel id="ai-model-select-label">AI Model</InputLabel>
-          <Select
-            labelId="ai-model-select-label"
-            id="ai-model-select"
-            value={settings.aiModel}
-            label="AI Model"
-            onChange={handleModelChange}
-          >
+        <h2 className="mt-4 mb-2 text-lg font-medium">AI Model</h2>
+        <p className="mb-2 text-sm text-muted-foreground">Select the AI model to use for chat and other AI-powered features.</p>
+        <Select value={settings.aiModel} onValueChange={handleModelChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="AI Model" />
+          </SelectTrigger>
+          <SelectContent>
             {models.map((model) => (
-              <MenuItem key={model.id} value={model.id}>
+              <SelectItem key={model.id} value={model.id}>
                 {model.name} ({model.provider})
-              </MenuItem>
+              </SelectItem>
             ))}
-          </Select>
-        </FormControl>
-      </Paper>
+          </SelectContent>
+        </Select>
+      </Card>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Container>
+      {snackbar.open && (
+        <div className="fixed bottom-4 left-1/2 z-50 w-[90%] max-w-md -translate-x-1/2">
+          <Alert variant={snackbar.severity === 'success' ? 'success' : snackbar.severity === 'warning' ? 'warning' : snackbar.severity === 'info' ? 'info' : 'destructive'}>
+            {snackbar.message}
+          </Alert>
+        </div>
+      )}
+    </div>
   );
 }
