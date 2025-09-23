@@ -1,4 +1,4 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/client/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/client/components/ui/sheet';
 import React from 'react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
