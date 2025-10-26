@@ -60,11 +60,12 @@ export async function flushOfflineQueue(getSettings: () => Settings | null | und
         while (q.length > 0) {
             const item = q[0];
             try {
-                const response = await fetch('/api/process', {
+                // Convert slashes to underscores for URL
+                const urlName = item.name.replace(/\//g, '_');
+                const response = await fetch(`/api/process/${urlName}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        name: item.name,
                         params: item.params,
                         options: { ...(item.options as Record<string, unknown> || {}), disableCache: true },
                     }),

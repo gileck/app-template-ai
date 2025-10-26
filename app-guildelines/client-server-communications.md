@@ -17,8 +17,22 @@ This project uses a simplified client-server communication pattern with a single
       /index.ts        - Exports name and types ONLY (not process or client functions)
   /pages
     /api
-      /process.ts      - Single Next.js API route handler for all requests
+      /process
+        /[name].ts     - Single Next.js API route handler for all requests
 ```
+
+### API Endpoint Format
+
+All API requests are sent to `/api/process/[name]` where the API name uses underscores instead of slashes:
+
+- **URL Format**: `/api/process/{api_name}` where slashes in the API name are replaced with underscores
+- **Examples**:
+  - `auth/me` → `/api/process/auth_me`
+  - `auth/login` → `/api/process/auth_login`
+  - `todos/getTodos` → `/api/process/todos_getTodos`
+  - `chat` → `/api/process/chat`
+
+The conversion between internal API names (with slashes) and URL format (with underscores) is handled automatically by the framework.
 
 ## Creating a New API Endpoint
 
@@ -296,7 +310,9 @@ const handleSubmit = async () => {
 
 1. **Single API Endpoint**:
    - **NEVER add new Next.js API routes to the /src/pages/api folder**
-   - All API requests go through the single /api/process endpoint
+   - All API requests go through the single `/api/process/[name]` endpoint
+   - The API name is included in the URL path with underscores replacing slashes
+   - Example: `auth/login` API is called via `/api/process/auth_login`
    - The central processApiCall.ts handles routing to the correct API handler
 
 2. **API Registration and Naming Flow**:

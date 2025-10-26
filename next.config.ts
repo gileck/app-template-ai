@@ -90,7 +90,7 @@ const nextConfig: NextConfig = withPWA({
   async rewrites() {
     return [
       {
-        source: '/:path*',
+        source: '/:path((?!api).*)*',
         destination: '/',
       },
     ];

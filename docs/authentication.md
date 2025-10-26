@@ -218,10 +218,12 @@ const LoginForm: React.FC = () => {
 
 The server exposes several authentication endpoints through a unified API layer:
 
-1. `auth/register`: Creates a new user account
-2. `auth/login`: Authenticates a user and issues a JWT token
-3. `auth/me`: Gets the current authenticated user
-4. `auth/logout`: Logs the user out by clearing the auth token
+1. `auth/register`: Creates a new user account (via `/api/process/auth_register`)
+2. `auth/login`: Authenticates a user and issues a JWT token (via `/api/process/auth_login`)
+3. `auth/me`: Gets the current authenticated user (via `/api/process/auth_me`)
+4. `auth/logout`: Logs the user out by clearing the auth token (via `/api/process/auth_logout`)
+
+Note: All API names use slashes internally (e.g., `auth/me`), but in the actual HTTP requests, the slashes are replaced with underscores (e.g., `/api/process/auth_me`). This conversion is handled automatically by the client API utilities.
 
 ### API Implementation
 
@@ -281,7 +283,9 @@ export const processApiCall = async (
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<CacheResult<unknown>> => {
-  const name = req.body.name;
+  // Parse API name from URL parameter (underscores are converted to slashes)
+  const nameParam = req.query.name as string;
+  const name = nameParam.replace(/_/g, '/');
   const params = req.body.params;
   const options = req.body.options;
 
@@ -340,14 +344,14 @@ export const processApiCall = async (
 
 1. **Initial Load**:
    - `AuthProvider` mounts and calls `checkAuthStatus()`
-   - Sends request to `auth/me` endpoint
+   - Sends request to `/api/process/auth_me` endpoint
    - If a valid token exists in cookies, server returns user data
    - `AuthProvider` updates context with user data
 
 2. **Login Flow**:
    - User submits credentials in `LoginForm`
    - `login()` method from `AuthContext` is called
-   - API request to `auth/login` endpoint
+   - API request to `/api/process/auth_login` endpoint
    - Server validates credentials and sets JWT cookie
    - Response returns user data
    - `AuthProvider` updates context with user data
