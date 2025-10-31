@@ -1,4 +1,4 @@
-import { EnhancedGenerateContentResponse, GenerationConfig, GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import {
   AIModel,
   AIModelResponse,
@@ -7,7 +7,8 @@ import {
 
 export class GeminiAdapter implements AIModel {
   static provider = 'gemini';
-  private genAI: GoogleGenerativeAI;
+  private genAI: GoogleGenAI;
+  private static readonly defaultConfig = { maxOutputTokens: 1000, temperature: 0.7 } as const;
 
   constructor() {
     // Get API key from environment variable
@@ -17,28 +18,30 @@ export class GeminiAdapter implements AIModel {
       throw new Error('Gemini API key not found in environment variables');
     }
 
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey });
   }
 
-  private calcUsage(response: EnhancedGenerateContentResponse): Usage {
-    // Get token usage from the usage_metadata in the response
-    const usageMetadata = response.usageMetadata;
-    
+  private calcUsage(response: unknown): Usage {
+    const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
     return {
-      promptTokens: usageMetadata?.promptTokenCount || 0,
-      completionTokens: usageMetadata?.candidatesTokenCount || 0,
-      totalTokens: usageMetadata?.totalTokenCount || 0
+      promptTokens: usage?.promptTokenCount || 0,
+      completionTokens: usage?.candidatesTokenCount || 0,
+      totalTokens: usage?.totalTokenCount || 0,
     };
   }
 
-  private getModel(modelId: string, generationConfig?: Partial<GenerationConfig>): GenerativeModel {
-    return this.genAI.getGenerativeModel({
+  private async generate(
+    modelId: string,
+    contents: string,
+    config?: Partial<{ maxOutputTokens: number; temperature: number; responseMimeType?: string }>
+  ) {
+    return this.genAI.models.generateContent({
       model: modelId,
-      generationConfig: {
-        maxOutputTokens: 1000,
-        temperature: 0.7,
-        ...generationConfig
-      }
+      contents,
+      config: {
+        ...GeminiAdapter.defaultConfig,
+        ...config,
+      },
     });
   }
   
@@ -47,14 +50,12 @@ export class GeminiAdapter implements AIModel {
     prompt: string,
     modelId: string,
   ): Promise<AIModelResponse<string>> {
-    const model = this.getModel(modelId)
     try {
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const responseText = response.text();
+      const result = await this.generate(modelId, prompt);
+      const responseText = (result as { text?: string }).text ?? '';
       return {
         result: responseText,
-        usage: this.calcUsage(response),
+        usage: this.calcUsage(result),
       };
     } catch (error) {
       console.error('Gemini API call failed:', error);
@@ -67,14 +68,9 @@ export class GeminiAdapter implements AIModel {
     prompt: string,
     modelId: string,
   ): Promise<AIModelResponse<T>> {
-    const model = this.getModel(modelId, {
-      responseMimeType: 'application/json', // Always set for JSON responses
-    })
     try {
-      // Make the API call
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const responseText = response.text();
+      const result = await this.generate(modelId, prompt, { responseMimeType: 'application/json' });
+      const responseText = (result as { text?: string }).text ?? '';
       // Parse JSON
       let json: T;
       try {
@@ -86,7 +82,7 @@ export class GeminiAdapter implements AIModel {
       // Return the formatted response
       return {
         result: json,
-        usage: this.calcUsage(response),
+        usage: this.calcUsage(result),
       };
     } catch (error) {
       console.error('Gemini API call failed:', error);

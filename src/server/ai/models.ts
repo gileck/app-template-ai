@@ -11,45 +11,77 @@ export interface AIModelDefinition {
   capabilities: string[];
 }
 
-// Gemini models with pricing information
+// Gemini models (officially supported as of Oct 2025)
 export const GEMINI_MODELS: AIModelDefinition[] = [
   {
-    id: 'gemini-1.5-flash-8b',
-    name: 'Gemini 1.5 Flash-8B',
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
     provider: 'gemini',
-    maxTokens: 1048576,
+    maxTokens: 1048576, // 1M input tokens
+    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning', 'multimodal', 'fast-responses', 'low-latency']
+  }
+];
+
+// OpenAI models (supported)
+export const OPENAI_MODELS: AIModelDefinition[] = [
+  {
+    id: 'gpt-5',
+    name: 'GPT-5',
+    provider: 'openai',
+    maxTokens: 128000,
+    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning', 'multimodal']
+  },
+  {
+    id: 'gpt-5-mini',
+    name: 'GPT-5 mini',
+    provider: 'openai',
+    maxTokens: 128000,
     capabilities: ['summarization', 'question-answering', 'content-generation']
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
-    provider: 'gemini',
-    maxTokens: 32768,
+    id: 'gpt-5-nano',
+    name: 'GPT-5 nano',
+    provider: 'openai',
+    maxTokens: 128000,
+    capabilities: ['summarization', 'classification']
+  },
+  {
+    id: 'gpt-5-pro',
+    name: 'GPT-5 pro',
+    provider: 'openai',
+    maxTokens: 128000,
+    capabilities: ['reasoning', 'analysis', 'multimodal', 'high-precision']
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    provider: 'openai',
+    maxTokens: 128000, // 128K context window
+    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning', 'multimodal']
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    provider: 'openai',
+    maxTokens: 128000, // 128K context window
     capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning']
   }
 ];
 
-// OpenAI models with pricing information
-export const OPENAI_MODELS: AIModelDefinition[] = [
+// Anthropic Claude models (supported)
+export const ANTHROPIC_MODELS: AIModelDefinition[] = [
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4O Mini',
-    provider: 'openai',
-    maxTokens: 8192,
-    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning']
+    id: 'claude-3-5-sonnet-20240620',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'anthropic',
+    maxTokens: 200000, // 200K context window
+    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning', 'coding', 'analysis']
   },
-  {
-    id: 'gpt-4o',
-    name: 'GPT-4O',
-    provider: 'openai',
-    maxTokens: 8192,
-    capabilities: ['summarization', 'question-answering', 'content-generation', 'reasoning']
-  }
 ];
 
 // Helper function to get all available models
 export function getAllModels(): AIModelDefinition[] {
-  return [...GEMINI_MODELS, ...OPENAI_MODELS];
+  return [...GEMINI_MODELS, ...OPENAI_MODELS, ...ANTHROPIC_MODELS];
 }
 
 // Helper function to get models by provider
