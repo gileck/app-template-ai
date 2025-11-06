@@ -17,7 +17,7 @@ interface TopNavBarProps {
 export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarProps) => {
   const { currentPath, navigate } = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, effectiveOffline } = useSettings();
   const [open, setOpen] = useState(false);
 
   const handleNavigation = (path: string) => {
@@ -42,7 +42,8 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
   const getThemeIcon = () => settings.theme === 'light' ? <Moon size={18} /> : <SunMedium size={18} />;
 
   return (
-    <nav className={`sticky top-0 z-40 border-b bg-background/80 backdrop-blur ${isStandalone ? 'backdrop-blur-md' : ''}`}>
+    <>
+      <nav className={`sticky top-0 z-40 border-b bg-background/80 backdrop-blur ${isStandalone ? 'backdrop-blur-md' : ''}`}>
       <div className="mx-auto flex h-14 w-full max-w-screen-lg items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="open drawer" onClick={onDrawerToggle}>
@@ -103,7 +104,13 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
           )}
         </div>
       </div>
-    </nav>
+      </nav>
+      {effectiveOffline && (
+        <div className="sticky top-14 z-40 w-full bg-amber-500/20 text-amber-900 dark:text-amber-200 text-xs py-1 text-center border-b border-amber-500/30">
+          ⚠️ Offline mode: using cached data
+        </div>
+      )}
+    </>
   );
 };
 

@@ -28,8 +28,8 @@ export interface CacheMetadata {
     lastAccessedAt: string;
     /** The cache key used to store this entry */
     key: string;
-    /** The cache provider used (fs, s3, or localStorage) */
-    provider: 'fs' | 's3' | 'localStorage';
+    /** The cache provider used (fs, s3, localStorage, or indexedDB) */
+    provider: 'fs' | 's3' | 'localStorage' | 'indexedDB';
 }
 
 export interface CacheResult<T> {

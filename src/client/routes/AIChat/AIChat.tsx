@@ -18,7 +18,7 @@ interface Message {
   cost?: number;
   timestamp: Date;
   isFromCache?: boolean;
-  cacheProvider?: 'fs' | 's3' | 'localStorage';
+  cacheProvider?: 'fs' | 's3' | 'localStorage' | 'indexedDB';
 }
 
 export function AIChat() {
@@ -72,20 +72,35 @@ export function AIChat() {
         modelId: settings.aiModel,
         text: input
       });
-      const { cost, result } = data
 
-      // Add AI message
-      const aiMessage: Message = {
-        id: Date.now().toString(),
-        text: result,
-        sender: 'ai',
-        cost: cost.totalCost,
-        timestamp: new Date(),
-        isFromCache,
-        cacheProvider: metadata?.provider
-      };
+      // Check if the response contains an error
+      if (data.error) {
+        // Add error message
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          text: data.error,
+          sender: 'ai',
+          timestamp: new Date(),
+          isFromCache
+        };
 
-      setMessages(prev => [...prev, aiMessage]);
+        setMessages(prev => [...prev, errorMessage]);
+      } else {
+        const { cost, result } = data;
+
+        // Add AI message
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          text: result,
+          sender: 'ai',
+          cost: cost.totalCost,
+          timestamp: new Date(),
+          isFromCache,
+          cacheProvider: metadata?.provider
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
 

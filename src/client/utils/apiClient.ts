@@ -1,6 +1,6 @@
 import { CacheResult } from "@/common/cache/types";
 import { createCache } from "@/common/cache";
-import { localStorageCacheProvider } from "./localStorageCache";
+import { clientCacheProvider } from "./indexedDBCache";
 import type { Settings } from "@/client/settings/types";
 import {
   enqueueOfflinePost,
@@ -9,7 +9,7 @@ import {
   shouldFlushNow,
 } from '@/client/utils/offlinePostQueue';
 
-const clientCache = createCache(localStorageCacheProvider)
+const clientCache = createCache(clientCacheProvider)
 
 let getSettingsRef: (() => Settings) | null = null;
 export function initializeApiClient(getSettings: () => Settings) {
@@ -87,15 +87,29 @@ export const apiClient = {
     const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
     const globalSWR = settings?.staleWhileRevalidate === true;
 
+    // Handle offline mode without throwing
     if (effectiveOffline) {
-      return clientCache.withCache(apiCall, { key: name, params: params || {} }, {
-        bypassCache: false,
-        staleWhileRevalidate: true,
-        disableCache: false,
-        ttl: options?.ttl,
-        maxStaleAge: options?.maxStaleAge,
-        isDataValidForCache: options?.isDataValidForCache,
-      });
+      const cacheKey = clientCacheProvider.generateCacheKey({ key: name, params: params || {} });
+      
+      // If cache is explicitly disabled, return error payload
+      if (options?.disableCache) {
+        return { 
+          data: { error: 'Network unavailable while offline' } as ResponseType, 
+          isFromCache: false 
+        };
+      }
+      
+      // Try to read from cache
+      const cached = await clientCacheProvider.readCacheWithStale<ResponseType>(cacheKey);
+      if (cached) {
+        return { data: cached.data, isFromCache: true, metadata: cached.metadata };
+      }
+      
+      // No cache available, return error payload
+      return { 
+        data: { error: "This content isn't available offline yet" } as ResponseType, 
+        isFromCache: true 
+      };
     }
 
     return clientCache.withCache(apiCall, { key: name, params: params || {} }, {
@@ -117,7 +131,7 @@ export const apiClient = {
     const settings = getSettingsSafe();
     const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
     if (effectiveOffline) {
-      // Enqueue request for later processing and signal as queued
+      // Enqueue request for later processing and return friendly message
       enqueueOfflinePost<Params>({
         id: generateQueueId(),
         name,
@@ -129,7 +143,10 @@ export const apiClient = {
       if (shouldFlushNow(settings)) {
         void flushOfflineQueue(() => getSettingsSafe());
       }
-      throw new Error('REQUEST_QUEUED_OFFLINE');
+      return { 
+        data: { error: 'Request queued and will sync when online' } as ResponseType, 
+        isFromCache: false 
+      };
     }
 
     // Convert slashes to underscores for URL

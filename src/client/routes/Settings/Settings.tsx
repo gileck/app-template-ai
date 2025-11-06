@@ -9,7 +9,7 @@ import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
 import { useSettings } from '@/client/settings/SettingsContext';
-import { localStorageCacheProvider } from '@/client/utils/localStorageCache';
+import { clientCacheProvider } from '@/client/utils/indexedDBCache';
 
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
@@ -31,21 +31,21 @@ export function Settings() {
       // Clear server-side cache
       const result = await clearCache();
 
-      // Clear localStorage cache
-      const localStorageCleared = await localStorageCacheProvider.clearAllCache();
+      // Clear client-side cache (IndexedDB with localStorage fallback)
+      const clientCacheCleared = await clientCacheProvider.clearAllCache();
 
       // Determine overall success and message
-      const overallSuccess = result.success && localStorageCleared;
+      const overallSuccess = result.success && clientCacheCleared;
       let message = result.message;
 
-      if (result.success && localStorageCleared) {
+      if (result.success && clientCacheCleared) {
         message = 'All caches cleared successfully';
-      } else if (result.success && !localStorageCleared) {
-        message = 'Server cache cleared, but failed to clear local cache';
-      } else if (!result.success && localStorageCleared) {
-        message = 'Local cache cleared, but failed to clear server cache';
+      } else if (result.success && !clientCacheCleared) {
+        message = 'Server cache cleared, but failed to clear client cache';
+      } else if (!result.success && clientCacheCleared) {
+        message = 'Client cache cleared, but failed to clear server cache';
       } else {
-        message = 'Failed to clear both server and local caches';
+        message = 'Failed to clear both server and client caches';
       }
 
       setSnackbar({
@@ -73,7 +73,7 @@ export function Settings() {
 
       <Card className="mt-3 p-4">
         <h2 className="mb-2 text-lg font-medium">Cache Management</h2>
-        <p className="mb-3 text-sm text-muted-foreground">Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and local storage caches.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and client-side caches (IndexedDB).</p>
         <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
         {isClearing && <LinearProgress className="mt-2" />}
 
