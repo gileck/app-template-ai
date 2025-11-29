@@ -27,6 +27,7 @@ export {
 // Components
 export { default as AuthWrapper } from './AuthWrapper';
 export { LoginForm } from './LoginForm';
+export { IOSAuthModal } from './IOSAuthModal';
 
 // Types
 export type { UserPublicHint, LoginFormState, LoginFormErrors } from './types';

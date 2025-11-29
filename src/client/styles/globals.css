@@ -223,3 +223,45 @@
         opacity: 0;
     }
 }
+
+/* iOS-style shake animation for errors */
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-4px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(4px);
+    }
+}
+
+.animate-shake {
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* iOS-style input focus glow */
+.ios-input-glow {
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+/* iOS grouped input styles */
+.ios-input-group {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.ios-input-group .ios-input-item:not(:last-child) {
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.dark .ios-input-group {
+    background: hsl(var(--muted) / 0.2);
+}
+
+/* iOS-style button press effect */
+.ios-button-press:active {
+    transform: scale(0.98);
+}

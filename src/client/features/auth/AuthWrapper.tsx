@@ -2,8 +2,8 @@ import React from 'react';
 import { useAuthStore, useIsProbablyLoggedIn } from './store';
 import { useAuthValidation } from './hooks';
 import { LoginForm } from './LoginForm';
+import { IOSAuthModal } from './IOSAuthModal';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
 
 interface AuthWrapperProps {
     children: React.ReactNode;
@@ -52,18 +52,12 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         );
     }
 
-    // Not authenticated - show login
+    // Not authenticated - show iOS-style login modal
     return (
-        <Dialog open>
-            <DialogContent className="sm:max-w-sm">
-                <DialogHeader>
-                    <DialogTitle>Sign In</DialogTitle>
-                </DialogHeader>
-                <LoginForm />
-            </DialogContent>
-        </Dialog>
+        <IOSAuthModal isOpen>
+            <LoginForm />
+        </IOSAuthModal>
     );
 };
 
 export default AuthWrapper;
-

@@ -216,13 +216,53 @@ export function useLogout() {
             return response.data;
         },
         onSuccess: () => {
-            clearAuth();
-            queryClient.clear();
+            clearAllLocalData(clearAuth, queryClient);
         },
         onError: () => {
-            clearAuth();
-            queryClient.clear();
+            // Still clear local data even if server logout fails
+            clearAllLocalData(clearAuth, queryClient);
         },
     });
+}
+
+/**
+ * Clears all local data on logout:
+ * - Auth store
+ * - React Query cache
+ * - Settings store
+ * - Router store
+ * - IndexedDB cache
+ * - Offline queue
+ * - All app-related localStorage
+ */
+async function clearAllLocalData(
+    clearAuth: () => void,
+    queryClient: ReturnType<typeof useQueryClient>
+) {
+    // Clear auth store
+    clearAuth();
+
+    // Clear React Query cache
+    queryClient.clear();
+
+    // Clear other Zustand stores by removing their localStorage keys
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('settings-storage');
+        localStorage.removeItem('route-storage');
+        localStorage.removeItem('apiClient_offline_post_queue_v1');
+    }
+
+    // Clear IndexedDB cache
+    try {
+        const { clientCacheProvider } = await import('@/client/utils/indexedDBCache');
+        await clientCacheProvider.clearAllCache();
+    } catch {
+        // IndexedDB might not be available
+    }
+
+    // Reload to reset all in-memory state
+    if (typeof window !== 'undefined') {
+        window.location.href = '/';
+    }
 }
 
