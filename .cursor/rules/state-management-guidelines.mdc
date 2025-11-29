@@ -1,7 +1,7 @@
 ---
 description: when managing state in the application (client state, server state, offline support)
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # State Management Guidelines
 
