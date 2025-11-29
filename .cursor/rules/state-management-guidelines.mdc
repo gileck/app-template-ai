@@ -163,14 +163,20 @@ When adding a new feature that needs client state:
 1. Create `src/client/features/{name}/store.ts`
 2. Create `src/client/features/{name}/index.ts` to export it
 3. Add export to `src/client/features/index.ts`
+4. **Use centralized defaults from `@/client/config`**
 
 ```typescript
 // features/notifications/store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_DEFAULTS, createTTLValidator } from '@/client/config';
+
+// Use centralized TTL (or override with custom value)
+const isValid = createTTLValidator(STORE_DEFAULTS.TTL); // Default: 7 days
 
 interface NotificationState {
     unreadCount: number;
+    lastCheckedAt: number | null;
     setUnreadCount: (count: number) => void;
 }
 
@@ -178,34 +184,81 @@ export const useNotificationStore = create<NotificationState>()(
     persist(
         (set) => ({
             unreadCount: 0,
-            setUnreadCount: (count) => set({ unreadCount: count }),
+            lastCheckedAt: null,
+            setUnreadCount: (count) => set({ 
+                unreadCount: count, 
+                lastCheckedAt: Date.now() 
+            }),
         }),
-        { name: 'notification-storage' }
+        {
+            name: 'notification-storage',
+            onRehydrateStorage: () => (state) => {
+                // Expire old state using centralized TTL
+                if (state && !isValid(state.lastCheckedAt)) {
+                    state.unreadCount = 0;
+                    state.lastCheckedAt = null;
+                }
+            },
+        }
     )
 );
+```
+
+## Centralized Configuration
+
+**All defaults live in ONE place**: `src/client/config/defaults.ts`
+
+```typescript
+import { TIME, STORE_DEFAULTS, QUERY_DEFAULTS, createTTLValidator } from '@/client/config';
+
+// Time constants
+TIME.SECOND  // 1000
+TIME.MINUTE  // 60 * 1000
+TIME.HOUR    // 60 * 60 * 1000
+TIME.DAY     // 24 * 60 * 60 * 1000
+
+// Zustand store TTLs
+STORE_DEFAULTS.TTL           // 7 days (default)
+STORE_DEFAULTS.TTL_SHORT     // 1 day
+STORE_DEFAULTS.TTL_LONG      // 30 days
+STORE_DEFAULTS.TTL_AUTH_HINT // 7 days
+STORE_DEFAULTS.TTL_ROUTE     // 30 days
+
+// React Query cache times
+QUERY_DEFAULTS.STALE_TIME    // 30 seconds
+QUERY_DEFAULTS.GC_TIME       // 30 minutes
+QUERY_DEFAULTS.MAX_STALE_AGE // 24 hours
+
+// TTL validator helper
+const isValid = createTTLValidator(STORE_DEFAULTS.TTL);
+if (!isValid(timestamp)) { /* expired */ }
+```
+
+### Override When Needed
+
+```typescript
+// Use default TTL (7 days)
+const isValid = createTTLValidator(STORE_DEFAULTS.TTL);
+
+// Override with custom TTL
+const isValid = createTTLValidator(2 * TIME.HOUR); // 2 hours
 ```
 
 ## React Query Patterns
 
 ### Centralized Cache Config
 
-**All cache settings live in ONE place**: `src/client/query/defaults.ts`
+Hooks use `useQueryDefaults()` which reads from centralized config:
 
 ```typescript
 // src/client/query/defaults.ts
-import { useSettingsStore } from '@/client/features/settings';
-
-export const CACHE_TIMES = {
-    STALE_TIME: 30 * 1000,        // 30 seconds fresh
-    GC_TIME: 30 * 60 * 1000,      // 30 minutes in cache
-    MAX_STALE_AGE: 24 * 60 * 60 * 1000, // 24 hours max stale
-};
+import { QUERY_DEFAULTS } from '@/client/config';
 
 export function useQueryDefaults() {
     const swr = useSettingsStore((s) => s.settings.staleWhileRevalidate);
     return {
-        staleTime: swr ? CACHE_TIMES.STALE_TIME : 0,
-        gcTime: CACHE_TIMES.GC_TIME,
+        staleTime: swr ? QUERY_DEFAULTS.STALE_TIME : 0,
+        gcTime: QUERY_DEFAULTS.GC_TIME,
     };
 }
 ```
@@ -328,12 +381,13 @@ The architecture enables instant app startup after iOS kills the app:
 
 | File | Purpose |
 |------|---------|
+| `src/client/config/defaults.ts` | **Centralized TTL/cache defaults** |
 | `src/client/features/settings/store.ts` | Settings with offline mode |
 | `src/client/features/auth/store.ts` | Auth with instant-boot hints |
 | `src/client/features/auth/hooks.ts` | Auth mutations (login, logout) |
 | `src/client/features/router/store.ts` | Route persistence for PWA |
 | `src/client/query/QueryProvider.tsx` | React Query + IndexedDB persistence |
-| `src/client/query/defaults.ts` | Centralized cache configuration |
+| `src/client/query/defaults.ts` | React Query defaults (uses config) |
 | `src/client/utils/apiClient.ts` | API client with offline queue |
 | `src/client/utils/offlinePostQueue.ts` | POST request queue + batch sync |
 

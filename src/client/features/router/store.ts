@@ -7,8 +7,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_DEFAULTS, createTTLValidator } from '@/client/config';
 
-const ROUTE_STATE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+// Use centralized TTL
+const isRouteValid = createTTLValidator(STORE_DEFAULTS.TTL_ROUTE);
 
 /**
  * Routes that should NOT be persisted/restored
@@ -44,7 +46,7 @@ export const useRouteStore = create<RouteState>()(
                 if (!state.lastRoute || !state.lastRouteTimestamp) {
                     return null;
                 }
-                if (Date.now() - state.lastRouteTimestamp > ROUTE_STATE_TTL) {
+                if (!isRouteValid(state.lastRouteTimestamp)) {
                     return null;
                 }
                 if (EXCLUDED_ROUTES.some(excluded => state.lastRoute?.startsWith(excluded))) {
@@ -57,7 +59,7 @@ export const useRouteStore = create<RouteState>()(
             name: 'route-storage',
             onRehydrateStorage: () => (state) => {
                 if (state && state.lastRouteTimestamp) {
-                    if (Date.now() - state.lastRouteTimestamp > ROUTE_STATE_TTL) {
+                    if (!isRouteValid(state.lastRouteTimestamp)) {
                         state.lastRoute = null;
                         state.lastRouteTimestamp = null;
                     }
@@ -70,4 +72,3 @@ export const useRouteStore = create<RouteState>()(
 export function useLastRoute(): string | null {
     return useRouteStore((state) => state.getValidLastRoute());
 }
-

@@ -10,8 +10,10 @@ import { persist } from 'zustand/middleware';
 import type { UserPublicHint } from './types';
 import { userToHint } from './types';
 import type { UserResponse } from '@/apis/auth/types';
+import { STORE_DEFAULTS, createTTLValidator } from '@/client/config';
 
-const AUTH_HINT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+// Use centralized TTL
+const isHintValid = createTTLValidator(STORE_DEFAULTS.TTL_AUTH_HINT);
 
 interface PersistedAuthState {
     isProbablyLoggedIn: boolean;
@@ -32,11 +34,6 @@ interface AuthState extends PersistedAuthState {
     setValidating: (validating: boolean) => void;
     setError: (error: string | null) => void;
     clearAuth: () => void;
-}
-
-function isHintValid(timestamp: number | null): boolean {
-    if (!timestamp) return false;
-    return Date.now() - timestamp < AUTH_HINT_TTL;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -127,4 +124,3 @@ export function useUser(): UserResponse | null {
 export function useUserHint(): UserPublicHint | null {
     return useAuthStore((state) => state.userPublicHint);
 }
-
