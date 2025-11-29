@@ -1,401 +1,284 @@
 # Authentication System Documentation
 
-This document explains how user authentication should work in our application, covering both client-side and server-side aspects, and providing code examples to help understand the flow of data.
+This document explains the authentication system, including the instant-boot pattern for PWA support.
 
-## Overall Architecture
+## Architecture Overview
 
-The authentication system uses a JWT (JSON Web Token) based authentication flow with the following components:
+The authentication system uses:
 
-1. **Client-side components**:
-   - `AuthProvider`: Context provider for auth state
-   - `AuthWrapper`: Component that guards authenticated routes
-   - `LoginForm`: UI component for login/registration
+1. **Zustand Store** (`authStore`) - Client-side auth state with localStorage persistence
+2. **React Query** - Server data caching with IndexedDB persistence  
+3. **HttpOnly Cookies** - Secure JWT token storage (server-side)
 
-2. **Server-side components**:
-   - Authentication API endpoints (login, register, logout, getCurrentUser)
-   - JWT token validation middleware
-   - Cookie-based token storage
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Storage Layers                            │
+├─────────────────────────────────────────────────────────────┤
+│  localStorage (Zustand)     │  IndexedDB (React Query)       │
+│  - isProbablyLoggedIn       │  - /me response cache          │
+│  - userPublicHint           │  - All query data              │
+│  - hintTimestamp            │                                │
+├─────────────────────────────────────────────────────────────┤
+│  HttpOnly Cookie (Server)                                    │
+│  - JWT auth token (secure, not accessible to JS)             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Authentication Flow in `index.tsx`
+## Instant Boot Pattern
 
-Here's how authentication is structured in our main application entry point:
+The app is designed to start instantly, even after iOS kills it in the background. This is achieved by:
 
-```tsx
-export default function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <SettingsProvider>
-          <AuthWrapper>
-            <RouterProvider routes={routes}>
-              {Component => <Layout><Component /></Layout>}
-            </RouterProvider>
-          </AuthWrapper>
-        </SettingsProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  );
+1. **Persisting a "hint"** that the user is probably logged in
+2. **Showing the app shell immediately** based on this hint
+3. **Validating in background** with the server
+
+### Why This Matters
+
+Without instant boot:
+```
+App Start → Loading spinner (2-3 sec) → App renders
+```
+
+With instant boot:
+```
+App Start → App renders immediately → Background validation
+```
+
+## Auth Flow: First Time User
+
+```
+App Start
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  QueryProvider: WaitForCacheRestore                          │
+│  IndexedDB is empty → completes immediately                  │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Zustand hydrates from localStorage                          │
+│  isProbablyLoggedIn = false (no hint stored)                 │
+│  userPublicHint = null                                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  AuthWrapper renders                                         │
+│  isProbablyLoggedIn = false                                  │
+│  → Shows Login Dialog immediately                            │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  User logs in via LoginForm                                  │
+│  useLogin() mutation calls server                            │
+│  Server validates, sets HttpOnly JWT cookie                  │
+│  Returns user data                                           │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  On success:                                                 │
+│  - Zustand: isProbablyLoggedIn=true, userPublicHint={...}   │
+│  - React Query: caches /me response to IndexedDB             │
+│  - App renders authenticated UI                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Auth Flow: Returning User (Instant Boot)
+
+```
+App Start (e.g., after iOS killed the app)
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  QueryProvider: WaitForCacheRestore (~50-100ms)              │
+│  Restores React Query cache from IndexedDB                   │
+│  /me response is now in memory                               │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Zustand hydrates from localStorage (instant, sync)          │
+│  isProbablyLoggedIn = true                                   │
+│  userPublicHint = { name: "Gil", email: "...", avatar: "..." }│
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  AuthWrapper renders                                         │
+│  isProbablyLoggedIn = true                                   │
+│  → Shows App Shell immediately                               │
+│  → TopNavBar shows avatar/name from userPublicHint           │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  useAuthValidation() runs in background                      │
+│  Calls /me endpoint via React Query                          │
+│  May serve cached response first (stale-while-revalidate)    │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ├─── If valid ──────────────────────────────────────────────┐
+    │    - Updates user state with fresh data                   │
+    │    - Refreshes hint for next boot                         │
+    │    - User continues using app normally                    │
+    │                                                           │
+    └─── If 401 (session expired) ─────────────────────────────┐
+         - Calls clearAuth()                                    │
+         - Clears isProbablyLoggedIn and userPublicHint        │
+         - Shows Login Dialog                                   │
+         - User sees brief flash then login prompt              │
+```
+
+## Key Components
+
+### Zustand Auth Store (`src/client/stores/authStore.ts`)
+
+```typescript
+interface AuthState {
+    // Persisted (localStorage) - for instant boot
+    isProbablyLoggedIn: boolean;      // Hint: user was logged in
+    userPublicHint: UserPublicHint;   // Name, email, avatar for UI
+    hintTimestamp: number;            // TTL check (7 days)
+    
+    // Runtime only (not persisted)
+    user: UserResponse | null;        // Full validated user
+    isValidated: boolean;             // Server confirmed auth
+    isValidating: boolean;            // Validation in progress
+    
+    // Actions
+    setUserHint(hint): void;
+    setValidatedUser(user): void;
+    clearAuth(): void;
 }
 ```
 
-The important parts of this structure are:
+### Auth Validation Hook (`src/client/hooks/useAuthValidation.ts`)
 
-1. `<AuthProvider>`: Wraps the entire application, providing auth state and methods
-2. `<AuthWrapper>`: Protects the router, ensuring only authenticated users access routes
-3. The nested structure ensures that authenticated routes have access to both auth and settings context
+Implements the background validation pattern:
+- Runs when `isProbablyLoggedIn` is true
+- Calls `/me` endpoint via React Query
+- Updates or clears auth state based on response
 
-## Context Providers Explained
+### AuthWrapper (`src/client/components/auth/AuthWrapper.tsx`)
 
-### AuthProvider
+Guards the app based on auth state:
+- If `isProbablyLoggedIn` → render app immediately (instant boot)
+- If `isAuthenticated` (validated) → render app
+- Otherwise → show login dialog
 
-The `AuthProvider` is responsible for:
+### Login/Register Mutations (`src/client/hooks/mutations/useAuthMutations.ts`)
 
-1. Managing the authentication state (user data, loading state, errors)
-2. Providing authentication methods (login, register, logout)
-3. Checking auth status when the application loads
-
-```tsx
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Check auth status when the app loads
-    const checkAuthStatus = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiFetchCurrentUser();
-            if (response.data?.user) {
-                setUser(response.data.user);
-            } else {
-                setUser(null);
-            }
-        } catch (err) {
-            console.error("Auth check failed:", err);
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        checkAuthStatus();
-    }, [checkAuthStatus]);
-
-    // Auth methods: login, register, logout
-    const login = async (credentials: LoginRequest): Promise<boolean> => {
-        setIsLoading(true);
-        try {
-            const response = await apiLogin(credentials);
-            if (response.data?.user) {
-                setUser(response.data.user);
-                return true;
-            } else {
-                setError(response.data?.error || 'Login failed');
-                return false;
-            }
-        } catch (err) {
-            setError('Login error');
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Similar implementations for register and logout...
-
-    const value = {
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-        error
-    };
-
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
-    );
-};
-```
-
-### AuthWrapper
-
-The `AuthWrapper` component:
-
-1. Blocks access to the application until auth state is determined
-2. Redirects unauthenticated users to a login modal
-3. Only renders children (the actual app) when user is authenticated
-
-```tsx
-const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-    const { isAuthenticated, isLoading } = useAuth();
-
-    if (isLoading) {
-        // Show loading state or nothing
-        return <></>;
-    }
-
-    if (!isAuthenticated) {
-        // Show login modal
-        return (
-            <Modal open={true}>
-                <Paper>
-                    <Typography variant="h5">Welcome</Typography>
-                    <LoginForm />
-                </Paper>
-            </Modal>
-        );
-    }
-
-    // User is authenticated, render the app
-    return <>{children}</>;
-};
-```
-
-
-## Client-Side Authentication
-
-### Authentication Hook Usage
-
-Components can access authentication state and methods using the `useAuth` hook:
-
-```tsx
-import { useAuth } from '../context/AuthContext';
-
-const MyComponent = () => {
-    const { user, isAuthenticated, login, logout } = useAuth();
-    
-    return (
-        <div>
-            {isAuthenticated ? (
-                <>
-                    <p>Welcome, {user?.username}!</p>
-                    <button onClick={logout}>Logout</button>
-                </>
-            ) : (
-                <button onClick={() => login({ email: 'test@example.com', password: 'password' })}>
-                    Login
-                </button>
-            )}
-        </div>
-    );
-};
-```
-
-### Login Form
-
-The `LoginForm` component handles user input for both login and registration:
-
-```tsx
-const LoginForm: React.FC = () => {
-    const { login, register, isLoading, error } = useAuth();
-    const [isRegistering, setIsRegistering] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [username, setUsername] = useState('');
-
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (isRegistering) {
-            await register({ username, email, password });
-        } else {
-            await login({ email, password });
-        }
-    };
-
-    // Form JSX...
-};
-```
+React Query mutations for auth actions:
+- `useLogin()` - Handles login, updates Zustand on success
+- `useRegister()` - Handles registration
+- `useLogout()` - Clears auth state and React Query cache
 
 ## Server-Side Authentication
 
-### Authentication API Endpoints
+### JWT Token Flow
 
-The server exposes several authentication endpoints through a unified API layer:
+1. **Login/Register**: Server validates credentials, generates JWT, sets HttpOnly cookie
+2. **API Requests**: Cookie automatically sent with every request
+3. **Validation**: `processApiCall` middleware extracts and verifies JWT
+4. **Context**: User ID passed to API handlers for authorization
 
-1. `auth/register`: Creates a new user account (via `/api/process/auth_register`)
-2. `auth/login`: Authenticates a user and issues a JWT token (via `/api/process/auth_login`)
-3. `auth/me`: Gets the current authenticated user (via `/api/process/auth_me`)
-4. `auth/logout`: Logs the user out by clearing the auth token (via `/api/process/auth_logout`)
+### API Endpoints
 
-Note: All API names use slashes internally (e.g., `auth/me`), but in the actual HTTP requests, the slashes are replaced with underscores (e.g., `/api/process/auth_me`). This conversion is handled automatically by the client API utilities.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `auth/login` | POST | Authenticate user, set JWT cookie |
+| `auth/register` | POST | Create user, set JWT cookie |
+| `auth/me` | GET | Get current user (validates token) |
+| `auth/logout` | POST | Clear JWT cookie |
 
-### API Implementation
+### Security Notes
 
-Authentication endpoints are implemented in `src/apis/auth/server.ts`:
+- JWT tokens stored in **HttpOnly cookies** (not accessible to JavaScript)
+- `isProbablyLoggedIn` is just a UI hint, not actual auth
+- Real authentication is always validated server-side
+- Token expiry handled by server, client just responds to 401
 
-```tsx
-// Registration endpoint
-export const registerUser = async (request: RegisterRequest, context: ApiHandlerContext): Promise<RegisterResponse> => {
-    try {
-        // Validate input
-        if (!request.username || !request.email || !request.password) {
-            return { error: "Required fields missing" };
-        }
+## TTL (Time-to-Live) Settings
 
-        // Check for existing user
-        const existingUser = await users.findUserByEmail(request.email);
-        if (existingUser) {
-            return { error: "Email already exists" };
-        }
+| Data | TTL | Purpose |
+|------|-----|---------|
+| Auth hint (Zustand) | 7 days | Clear stale hints after inactivity |
+| React Query cache | 24 hours | IndexedDB persistence max age |
+| JWT token | Server-defined | Actual session expiry |
 
-        // Hash password and create user
-        const passwordHash = await bcrypt.hash(request.password, SALT_ROUNDS);
-        const newUser = await users.insertUser({
-            username: request.username,
-            email: request.email,
-            password_hash: passwordHash,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+## Usage Examples
+
+### Checking Auth State in Components
+
+```typescript
+import { useAuthStore, useUser, useIsAuthenticated } from '@/client/stores';
+
+function MyComponent() {
+    // Get validated user
+    const user = useUser();
+    
+    // Check if fully authenticated
+    const isAuthenticated = useIsAuthenticated();
+    
+    // Or for instant-boot UI (before validation)
+    const userHint = useAuthStore((s) => s.userPublicHint);
+    const isProbablyLoggedIn = useAuthStore((s) => s.isProbablyLoggedIn);
+}
+```
+
+### Performing Login
+
+```typescript
+import { useLogin } from '@/client/hooks/mutations';
+
+function LoginForm() {
+    const loginMutation = useLogin();
+    
+    const handleSubmit = (credentials) => {
+        loginMutation.mutate(credentials, {
+            onSuccess: () => {
+                // User is now logged in
+                // Zustand and React Query are automatically updated
+            },
+            onError: (error) => {
+                // Show error message
+            }
         });
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { userId: newUser._id.toHexString() },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
-
-        // Set auth cookie
-        context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
-
-        return { user: sanitizeUser(newUser) };
-    } catch (error) {
-        console.error("Registration error:", error);
-        return { error: "Registration failed" };
-    }
-};
-
-// Similar implementations for login, getCurrentUser, and logout...
+    };
+}
 ```
 
-### Token Authentication Middleware
+### Performing Logout
 
-Authentication state is passed to API handlers through middleware in `processApiCall.ts`:
+```typescript
+import { useLogout } from '@/client/hooks/mutations';
 
-```tsx
-export const processApiCall = async (
-  req: NextApiRequest,
-  res: NextApiResponse
-): Promise<CacheResult<unknown>> => {
-  // Parse API name from URL parameter (underscores are converted to slashes)
-  const nameParam = req.query.name as string;
-  const name = nameParam.replace(/_/g, '/');
-  const params = req.body.params;
-  const options = req.body.options;
-
-  // Extract and verify JWT token from cookies
-  let userId = undefined;
-  const cookies = parse(req.headers.cookie || '');
-  const token = cookies[COOKIE_NAME];
-
-  if (token) {
-    try {
-      // Verify and decode the token
-      const decoded = jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
-      userId = decoded.userId;
-    } catch (err) {
-      // Invalid token - clear it
-      console.warn('Invalid auth token:', err);
-      res.setHeader('Set-Cookie', serialize(COOKIE_NAME, '', { 
-          path: '/', 
-          expires: new Date(0) 
-      }));
-    }
-  }
-
-  // Create context with auth info and cookie helpers
-  const context: ApiHandlerContext = {
-    userId,
-    getCookieValue: (name) => cookies[name],
-    setCookie: (name, value, options) => {
-      res.setHeader('Set-Cookie', serialize(name, value, options || {}));
-    },
-    clearCookie: (name, options) => {
-      res.setHeader('Set-Cookie', serialize(name, '', { 
-          ...options, 
-          path: '/', 
-          expires: new Date(0) 
-      }));
-    }
-  };
-
-  // Call the API handler with context
-  const apiHandler = apiHandlers[name];
-  const result = await withCache(
-    () => apiHandler.process(params, context),
-    {
-      key: name,
-      params: { ...params, userId },
-    },
-    options
-  );
-
-  return result;
-};
+function LogoutButton() {
+    const logoutMutation = useLogout();
+    
+    return (
+        <button onClick={() => logoutMutation.mutate()}>
+            Logout
+        </button>
+    );
+}
 ```
 
-## How User Authentication Data Flows
+## Troubleshooting
 
-1. **Initial Load**:
-   - `AuthProvider` mounts and calls `checkAuthStatus()`
-   - Sends request to `/api/process/auth_me` endpoint
-   - If a valid token exists in cookies, server returns user data
-   - `AuthProvider` updates context with user data
+### User sees login briefly then app loads
+This is normal when the session was valid. The `isProbablyLoggedIn` hint enables showing the app shell while validation runs in background.
 
-2. **Login Flow**:
-   - User submits credentials in `LoginForm`
-   - `login()` method from `AuthContext` is called
-   - API request to `/api/process/auth_login` endpoint
-   - Server validates credentials and sets JWT cookie
-   - Response returns user data
-   - `AuthProvider` updates context with user data
+### User stuck on loading
+Check if `WaitForCacheRestore` is blocking. IndexedDB restoration should be <100ms.
 
-3. **Protected Routes**:
-   - `AuthWrapper` uses auth context to check `isAuthenticated`
-   - If not authenticated, shows login modal
-   - If authenticated, renders protected routes
+### Auth state not persisting
+- Check localStorage for `auth-storage` key (Zustand)
+- Check IndexedDB for React Query cache
+- Verify `hintTimestamp` hasn't expired (7 days)
 
-4. **API Requests**:
-   - JWT token is automatically included in cookies with every request
-   - `processApiCall` middleware extracts and verifies token
-   - User ID is passed to API handlers via context
-   - API handlers can use user ID for authorization
-
-## Implementing this Pattern in a New App
-
-To implement this authentication pattern in a new application:
-
-1. **Create the Auth API Endpoints**:
-   - Define types in a `types.ts` file
-   - Create login, register, getCurrentUser, and logout endpoints
-   - Implement JWT generation and validation
-   - Use HTTP-only cookies for token storage
-
-2. **Create the Auth Context**:
-   - Implement state for user data, loading, and errors
-   - Create methods for login, register, logout
-   - Add initial auth check on component mount
-   - Provide the auth context to your app
-
-3. **Create the Auth Wrapper Component**:
-   - Use the auth context to check authentication status
-   - Show login UI for unauthenticated users
-   - Render the app for authenticated users
-
-4. **Implement API Request Authentication**:
-   - Add middleware to extract and verify JWT from cookies
-   - Pass user ID to API handlers
-   - Implement proper error handling
-
-5. **Build the Login/Register UI**:
-   - Create form components that use the auth context
-   - Handle form submission and errors
-   - Show loading states during API requests
-
-By following this pattern, you'll have a secure, cookie-based JWT authentication system that works well for both server-rendered and client-side applications. 
+### 401 errors after app restart
+Session may have expired server-side. This is handled gracefully - user sees app briefly, then login dialog.

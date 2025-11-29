@@ -27,47 +27,92 @@ Break down large components into smaller, focused components:
 - `DataTable.tsx` - Table showing data
 - `FilterBar.tsx` - Controls for filtering data
 
-### 2. Container/Presentation Pattern
+### 2. Data Fetching Pattern (React Query)
 
-Separate logic from presentation:
-- **Container Components**: Handle data fetching, state management, and business logic
-- **Presentation Components**: Focus on rendering UI based on props with minimal logic
+Use React Query hooks for data fetching instead of manual useState/useEffect patterns:
 
-Example:
 ```typescript
-// Container: Handles logic
-const UserListContainer = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Data fetching, filtering logic, etc.
-  
-  return <UserList users={users} isLoading={isLoading} onDelete={handleDelete} />;
-};
+// hooks.ts - Colocated in route folder
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getUsers, deleteUser } from '@/apis/users/client';
 
-// Presentation: Focuses on UI
-const UserList: React.FC<UserListProps> = ({ users, isLoading, onDelete }) => {
-  if (isLoading) return <LoadingSpinner />;
+export function useUsers() {
+    return useQuery({
+        queryKey: ['users'],
+        queryFn: async () => {
+            const response = await getUsers({});
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+    });
+}
+
+export function useDeleteUser() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (userId: string) => {
+            const response = await deleteUser({ userId });
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    });
+}
+
+// UserList.tsx - Component uses hooks directly
+const UserList = () => {
+  const { data, isLoading, error } = useUsers();
+  const deleteUserMutation = useDeleteUser();
+  
+  if (isLoading && !data) return <LoadingSpinner />;
+  if (error) return <ErrorMessage error={error} />;
   
   return (
     <div className="user-list">
-      {users.map(user => (
-        <UserListItem key={user.id} user={user} onDelete={onDelete} />
+      {data?.users?.map(user => (
+        <UserListItem 
+          key={user.id} 
+          user={user} 
+          onDelete={() => deleteUserMutation.mutate(user.id)} 
+        />
       ))}
     </div>
   );
 };
 ```
 
-### 3. Component Composition Hierarchy
+### 3. State Management Pattern
+
+- **Server State**: Use React Query for data from APIs (cached in IndexedDB)
+- **Client State**: Use Zustand stores for app-wide state (persisted to localStorage)
+- **Local State**: Use useState for component-specific UI state
+
+```typescript
+// ❌ Don't use Context for global state
+const { user } = useAuth(); // OLD pattern
+
+// ✅ Use Zustand stores
+import { useUser, useAuthStore } from '@/client/stores';
+const user = useUser();
+const isValidated = useAuthStore((state) => state.isValidated);
+
+// ❌ Don't fetch data with useState/useEffect
+const [data, setData] = useState([]);
+useEffect(() => { fetchData().then(setData); }, []);
+
+// ✅ Use React Query hooks
+const { data, isLoading } = useTodos();
+```
+
+### 4. Component Composition Hierarchy
 
 Build UI through composition:
-1. **Base/Atom Components**: Simple UI elements (buttons, inputs, etc.)
+1. **Base/Atom Components**: Simple UI elements in `src/client/components/ui/`
 2. **Compound Components**: Combinations of base components (form fields, cards)
 3. **Section Components**: Logical sections of a page or feature
 4. **Page Components**: Compose sections into complete pages
 
-### 4. File Organization
+### 5. File Organization
 
 #### Route-Specific Components
 
@@ -76,15 +121,15 @@ For components that are part of a specific route, follow this structure:
 src/client/routes/[ROUTE_NAME]/
 ├── [ROUTE_NAME].tsx     // Main route component 
 ├── index.ts             // Exports the route
-├── components/          // UI components specific to this route
-│   ├── Header.tsx       // Route-specific header
+├── hooks.ts             // React Query hooks (queries + mutations)
+├── components/          // UI components specific to this route (optional)
+│   ├── Header.tsx
 │   ├── ContentSection.tsx 
 │   └── ListItem.tsx     
-├── hooks/               // Hooks specific to this route
-│   ├── useRouteData.ts  
-│   └── useFormHandling.ts
-└── types.ts             // Shared types for this route
+└── types.ts             // Shared types (if needed beyond API types)
 ```
+
+**Note**: Prefer a single `hooks.ts` file over a `hooks/` directory for most routes.
 
 #### Shared Components
 
@@ -92,15 +137,13 @@ For reusable components used across multiple routes:
 ```
 src/client/components/Feature/
 ├── index.ts             // Exports all components
-├── FeatureContainer.tsx // Main container with logic
-├── Feature.tsx          // Main presentation component
+├── Feature.tsx          // Main component
 ├── FeatureHeader.tsx    // Sub-component for header
 ├── FeatureList.tsx      // Sub-component for list
-├── FeatureListItem.tsx  // Individual list item
 └── types.ts             // Shared types and interfaces
 ```
 
-### 5. Split Files at These Boundaries
+### 6. Split Files at These Boundaries
 
 Consider splitting components into separate files when:
 - A component exceeds 150 lines
@@ -112,25 +155,56 @@ Consider splitting components into separate files when:
 
 - Component files should generally stay under 150 lines
 - If a component file exceeds 200 lines, it should definitely be split
-- Container components should focus on logic and delegate rendering to presentation components
 - Main page components should primarily compose other components rather than implementing complex rendering logic
+- `hooks.ts` files can be longer (up to 300 lines) as they contain multiple related hooks
 
 ## Example Component Structure
 
 For a typical feature or page:
 
-```
+```typescript
+// hooks.ts - React Query hooks
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const featureQueryKey = ['feature'] as const;
+
+export function useFeatureData() {
+    return useQuery({
+        queryKey: featureQueryKey,
+        queryFn: async () => {
+            const response = await getFeatureData({});
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+    });
+}
+
+export function useFeatureAction() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (params) => { /* ... */ },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: featureQueryKey }),
+    });
+}
+
 // FeaturePage.tsx - Main page component
 const FeaturePage = () => {
-  const { data, actions } = useFeatureLogic(); // Custom hook for logic
-  
-  return (
-    <PageLayout>
-      <FeatureHeader title={data.title} onAction={actions.handleAction} />
-      <FeatureFilters filters={data.filters} onChange={actions.handleFilterChange} />
-      <FeatureList items={data.items} onItemClick={actions.handleItemClick} />
-    </PageLayout>
-  );
+    const { data, isLoading, error } = useFeatureData();
+    const actionMutation = useFeatureAction();
+    
+    if (isLoading && !data) return <LoadingSpinner />;
+    if (error) return <ErrorDisplay error={error} />;
+    
+    return (
+        <PageLayout>
+            <FeatureHeader title={data?.title} />
+            <FeatureFilters filters={data?.filters} />
+            <FeatureList 
+                items={data?.items || []} 
+                onAction={(id) => actionMutation.mutate(id)} 
+            />
+        </PageLayout>
+    );
 };
 ```
 

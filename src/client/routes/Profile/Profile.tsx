@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, ChangeEvent } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore, useUser } from '@/client/stores';
 import { useRouter } from '../../router';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
@@ -12,15 +12,28 @@ import { apiUpdateProfile, apiFetchCurrentUser } from '@/apis/auth/client';
 import { UpdateProfileRequest, UserResponse } from '@/apis/auth/types';
 
 export const Profile = () => {
-    const { user, isAuthenticated, isLoading } = useAuth();
+    // Use Zustand store instead of context
+    const user = useUser();
+    const isValidated = useAuthStore((state) => state.isValidated);
+    const isValidating = useAuthStore((state) => state.isValidating);
+    const setValidatedUser = useAuthStore((state) => state.setValidatedUser);
+
     const { navigate } = useRouter();
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral edit mode toggle
     const [editing, setEditing] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- form input before submission
     const [username, setUsername] = useState('');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral image preview before save
     const [previewImage, setPreviewImage] = useState<string | undefined>(undefined);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral snackbar notification
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog state
     const [openImageDialog, setOpenImageDialog] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator
     const [savingProfile, setSavingProfile] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- local optimistic user data copy
     const [localUser, setLocalUser] = useState<UserResponse | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator
     const [loadingUserData, setLoadingUserData] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +46,8 @@ export const Profile = () => {
                 setLocalUser(response.data.user);
                 setUsername(response.data.user.username);
                 setPreviewImage(response.data.user.profilePicture);
+                // Update the global store as well
+                setValidatedUser(response.data.user);
             }
         } catch (error) {
             console.error("Failed to fetch user data:", error);
@@ -42,10 +57,10 @@ export const Profile = () => {
     };
 
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
+        if (!isValidating && !isValidated && !user) {
             navigate('/login');
         }
-    }, [isAuthenticated, isLoading, navigate]);
+    }, [isValidated, isValidating, user, navigate]);
 
     useEffect(() => {
         if (user) {
@@ -55,7 +70,7 @@ export const Profile = () => {
         }
     }, [user]);
 
-    if (isLoading || loadingUserData) {
+    if (isValidating || loadingUserData) {
         return (
             <div className="flex h-[80vh] items-center justify-center w-full px-4">
                 <LinearProgress />
@@ -100,6 +115,8 @@ export const Profile = () => {
 
             if (response.data?.success && response.data.user) {
                 setLocalUser(response.data.user);
+                // Update the global store
+                setValidatedUser(response.data.user);
                 setEditing(false);
                 setSnackbar({
                     open: true,
@@ -186,8 +203,6 @@ export const Profile = () => {
     const handleCloseImageDialog = () => {
         setOpenImageDialog(false);
     };
-
-    // const handleCloseSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
     // Use localUser for display to prevent the entire app from re-rendering
     const displayUser = localUser || user;
@@ -306,4 +321,4 @@ export const Profile = () => {
     );
 };
 
-export default Profile; 
+export default Profile;

@@ -2768,6 +2768,32 @@
     postcss "^8.4.41"
     tailwindcss "4.0.17"
 
+"@tanstack/query-core@5.90.11":
+  version "5.90.11"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.90.11.tgz#702e2b197a01481cff858045de1e17a634b718c6"
+  integrity sha512-f9z/nXhCgWDF4lHqgIE30jxLe4sYv15QodfdPDKYAk7nAEjNcndy4dHz3ezhdUaR23BpWa4I2EH4/DZ0//Uf8A==
+
+"@tanstack/query-persist-client-core@5.91.10":
+  version "5.91.10"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-persist-client-core/-/query-persist-client-core-5.91.10.tgz#759ff4b220d7ab31944ca02c9f30cc27804faf93"
+  integrity sha512-oZQk/kap5jHx2w+JcSI6CvDFXR5jmAldqJsH5IEQizVOEwaRlCyYEBZ3Df56HXNxW4spWX0cjhI/4o+mnCGtHw==
+  dependencies:
+    "@tanstack/query-core" "5.90.11"
+
+"@tanstack/react-query-persist-client@^5.90.13":
+  version "5.90.13"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query-persist-client/-/react-query-persist-client-5.90.13.tgz#d61eb2adf362e8a72d5d2757178d3970171e5d1e"
+  integrity sha512-04R+o/su8wuqlEvUl6dJLLI8auUCFCCJ2qGfELPSJSE4mF0HOh+ZtmsDRuLXA/jBMyV6X2RZLrZTMRWNgWM4gw==
+  dependencies:
+    "@tanstack/query-persist-client-core" "5.91.10"
+
+"@tanstack/react-query@^5.90.11":
+  version "5.90.11"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.90.11.tgz#9e7669cda649ed119f70b6432b3932f19cbe1cb5"
+  integrity sha512-3uyzz01D1fkTLXuxF3JfoJoHQMU2fxsfJwE+6N5hHy0dVNoZOvwKP8Z2k7k1KDeD54N20apcJnG75TBAStIrBA==
+  dependencies:
+    "@tanstack/query-core" "5.90.11"
+
 "@tybys/wasm-util@^0.9.0":
   version "0.9.0"
   resolved "https://registry.npmjs.org/@tybys/wasm-util/-/wasm-util-0.9.0.tgz#3e75eb00604c8d6db470bf18c37b7d984a0e3355"
@@ -4789,6 +4815,11 @@ humanize-ms@^1.2.1:
   integrity sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==
   dependencies:
     ms "^2.0.0"
+
+idb-keyval@^6.2.2:
+  version "6.2.2"
+  resolved "https://registry.yarnpkg.com/idb-keyval/-/idb-keyval-6.2.2.tgz#b0171b5f73944854a3291a5cdba8e12768c4854a"
+  integrity sha512-yjD9nARJ/jb1g+CvD0tlhUHOrJ9Sy0P8T9MF3YaLlHnSRpwPfpTX0XIvpmw3gAJUmEu3FiICLBDPXVwyEvrleg==
 
 idb@^7.0.1:
   version "7.1.1"
@@ -7360,3 +7391,8 @@ yocto-queue@^0.1.0:
   version "0.1.0"
   resolved "https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
+
+zustand@^5.0.8:
+  version "5.0.8"
+  resolved "https://registry.yarnpkg.com/zustand/-/zustand-5.0.8.tgz#b998a0c088c7027a20f2709141a91cb07ac57f8a"
+  integrity sha512-gyPKpIaxY9XcO2vSMrLbiER7QMAMGOQZVRdJ6Zi782jkbzZygq5GI9nG8g+sMgitRtndwaBSl7uiqC49o1SSiw==

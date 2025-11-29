@@ -17,25 +17,13 @@ Follow these steps to add a new route to the application:
 
 ### 1. Create a Route Component Folder
 
-Create a new folder in the `src/client/routes` directory with the name of your route component. The structure depends on whether your route needs data fetching:
-
-#### For Routes WITHOUT Data Fetching
+Create a new folder in the `src/client/routes` directory with the name of your route component:
 
 ```
 src/client/routes/
 ├── NewRoute/
 │   ├── NewRoute.tsx
 │   └── index.ts
-```
-
-#### For Routes WITH Data Fetching
-
-```
-src/client/routes/
-├── NewRoute/
-│   ├── NewRoute.tsx      # Main component with DataFetcherWrapper
-│   ├── NewRouteBase.tsx  # Base component that receives data as props
-│   └── index.ts          # Exports the main wrapped component
 ```
 
 ### Component Organization Guidelines
@@ -54,7 +42,6 @@ Follow these best practices for route components:
   ```
   src/client/routes/NewRoute/           # Route-specific folder
   ├── NewRoute.tsx                      # Main route component (exported)
-  ├── NewRouteBase.tsx                  # Base component (for data fetching routes)
   ├── NewRouteHeader.tsx                # Route-specific component
   ├── NewRouteContent.tsx               # Route-specific component
   ├── NewRouteFooter.tsx                # Route-specific component
@@ -72,98 +59,125 @@ Follow these best practices for route components:
 
 ## Data Fetching Pattern
 
-### For Routes That Need Data Fetching
+### Using React Query for Data Fetching
 
-Use the `DataFetcherWrapper` pattern to separate data fetching logic from component rendering:
+Use React Query hooks for data fetching. This provides:
+- **Instant boot**: Data loads from IndexedDB cache immediately
+- **Background revalidation**: Fresh data fetches in the background
+- **Optimistic updates**: UI updates immediately on mutations
+- **Automatic error handling**: Built-in error and loading states
 
-#### 1. Create the Main Component (NewRoute.tsx)
+#### 1. Create a Query Hook (if not already exists)
+
+Add a query hook in `src/client/hooks/queries/`:
 
 ```tsx
-import React from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
-import { DataFetcherWrapper } from '@/client/utils/DataFetcherWrapper';
+// src/client/hooks/queries/useNewRouteData.ts
+import { useQuery } from '@tanstack/react-query';
 import { getNewRouteData } from '@/apis/newroute/client';
-import { NewRouteBase } from './NewRouteBase';
+import type { GetNewRouteDataResponse } from '@/apis/newroute/types';
 
-// Custom loader (optional)
-const NewRouteLoader = () => (
-    <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 8
-    }}>
-        <CircularProgress size={40} />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Loading your data...
-        </Typography>
-    </Box>
-);
+export const newRouteQueryKey = ['newRoute'] as const;
 
-// Create the wrapped component using DataFetcherWrapper
-export const NewRoute = DataFetcherWrapper(
-    { 
-        data: getNewRouteData,
-        // For multiple data sources:
-        // userData: getUserData,
-        // settings: getSettings,
-        // For query parameter-based fetching:
-        // item: (queryParams) => getItem({ itemId: queryParams.itemId })
-    },
-    NewRouteBase,
-    {
-        loader: NewRouteLoader,
-        showGlobalError: true,
-        enableRefresh: true
-    }
-);
+export function useNewRouteData(options?: { enabled?: boolean }) {
+    return useQuery({
+        queryKey: newRouteQueryKey,
+        queryFn: async (): Promise<GetNewRouteDataResponse> => {
+            const response = await getNewRouteData();
+            if (response.data?.error) {
+                throw new Error(response.data.error);
+            }
+            return response.data;
+        },
+        enabled: options?.enabled ?? true,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
+    });
+}
 ```
 
-#### 2. Create the Base Component (NewRouteBase.tsx)
+#### 2. Create the Route Component
 
 ```tsx
+// src/client/routes/NewRoute/NewRoute.tsx
 import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
-import { GetNewRouteDataResponse } from '@/apis/newroute/types';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Alert } from '@/client/components/ui/alert';
+import { Button } from '@/client/components/ui/button';
+import { useNewRouteData } from '@/client/hooks/queries/useNewRouteData';
 
-interface NewRouteBaseProps {
-    data: GetNewRouteDataResponse;
-    isLoading: boolean;
-    error: string | null;
-    refresh: () => void;
-}
+export function NewRoute() {
+    const { data, isLoading, isFetching, error, refetch } = useNewRouteData();
 
-export const NewRouteBase: React.FC<NewRouteBaseProps> = ({
-    data,
-    isLoading,
-    error,
-    refresh
-}) => {
-    // Component only handles rendering - no data fetching logic
+    // Show loading only on initial load (not background refetch)
+    // This enables instant boot - cached data shows immediately
+    if (isLoading && !data) {
+        return (
+            <div className="w-full py-4">
+                <LinearProgress />
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                    Loading...
+                </p>
+            </div>
+        );
+    }
+
     if (error) {
         return (
-            <Box sx={{ p: 3 }}>
-                <Typography color="error">{error}</Typography>
-                <Button onClick={refresh}>Retry</Button>
-            </Box>
+            <div className="p-3">
+                <Alert variant="destructive">
+                    {error instanceof Error ? error.message : 'An error occurred'}
+                </Alert>
+                <Button onClick={() => refetch()} className="mt-2">
+                    Retry
+                </Button>
+            </div>
         );
     }
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4">New Route</Typography>
+        <div className="p-3">
+            <div className="flex items-center justify-between mb-3">
+                <h1 className="text-2xl font-semibold">New Route</h1>
+                <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                    Refresh
+                </Button>
+            </div>
             {/* Render your data */}
-            <Button onClick={refresh}>Refresh</Button>
-        </Box>
+            <pre>{JSON.stringify(data, null, 2)}</pre>
+        </div>
     );
-};
+}
 ```
 
-#### 3. Create the Index File (index.ts)
+#### 3. Create the Index File
 
 ```tsx
+// src/client/routes/NewRoute/index.ts
 export { NewRoute } from './NewRoute';
+```
+
+### For Routes with URL Parameters
+
+Use query parameters or route parameters with React Query:
+
+```tsx
+// src/client/routes/ItemDetail/ItemDetail.tsx
+import { useRouter } from '../../router';
+import { useItem } from '@/client/hooks/queries/useItem';
+
+export function ItemDetail() {
+    const { queryParams } = useRouter();
+    const itemId = queryParams.itemId;
+
+    const { data, isLoading, error } = useItem(itemId || '');
+
+    if (isLoading && !data) {
+        return <LoadingSpinner />;
+    }
+
+    // ... render item
+}
 ```
 
 ### For Routes WITHOUT Data Fetching
@@ -171,61 +185,46 @@ export { NewRoute } from './NewRoute';
 For simple routes that don't need data fetching, create a single component:
 
 ```tsx
-// src/client/routes/NewRoute/NewRoute.tsx
+// src/client/routes/About/About.tsx
 import React from 'react';
-import { Box, Typography } from '@mui/material';
 
-export const NewRoute: React.FC = () => {
+export function About() {
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4">New Route</Typography>
-            {/* Your component content */}
-        </Box>
+        <div className="p-3">
+            <h1 className="text-2xl font-semibold">About</h1>
+            <p>Static content here...</p>
+        </div>
     );
-};
+}
 ```
 
-### DataFetcherWrapper Options
+### Creating Mutation Hooks
 
-Configure the wrapper based on your needs:
+For data modifications (create, update, delete), create mutation hooks:
 
 ```tsx
-// Basic usage
-export const NewRoute = DataFetcherWrapper(
-    { data: getData },
-    NewRouteBase
-);
+// src/client/hooks/mutations/useCreateItem.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createItem } from '@/apis/items/client';
+import { itemsQueryKey } from '../queries/useItems';
 
-// With custom options
-export const NewRoute = DataFetcherWrapper(
-    { data: getData },
-    NewRouteBase,
-    {
-        loader: CustomLoader,          // Custom loading component
-        showGlobalLoading: false,      // Disable default loading (default: false)
-        showGlobalError: true,         // Show error alerts (default: true)
-        enableRefresh: true            // Show retry button (default: true)
-    }
-);
+export function useCreateItem() {
+    const queryClient = useQueryClient();
 
-// Multiple data sources
-export const NewRoute = DataFetcherWrapper(
-    {
-        userData: getUserData,
-        settings: getSettings,
-        preferences: getPreferences
-    },
-    NewRouteBase
-);
-
-// Query parameter-based fetching
-export const NewRoute = DataFetcherWrapper(
-    {
-        item: (queryParams) => getItem({ itemId: queryParams.itemId }),
-        relatedItems: (queryParams) => getRelatedItems({ itemId: queryParams.itemId })
-    },
-    NewRouteBase
-);
+    return useMutation({
+        mutationFn: async (data: CreateItemRequest) => {
+            const response = await createItem(data);
+            if (response.data?.error) {
+                throw new Error(response.data.error);
+            }
+            return response.data;
+        },
+        onSuccess: () => {
+            // Invalidate items list to refetch
+            queryClient.invalidateQueries({ queryKey: itemsQueryKey });
+        },
+    });
+}
 ```
 
 ### 2. Register the Route in the Routes Configuration
@@ -241,7 +240,6 @@ export const routes = createRoutes({
   '/': Home,
   '/ai-chat': AIChat,
   '/settings': Settings,
-  '/file-manager': FileManager,
   '/new-route': NewRoute, // Add your new route here
   '/not-found': NotFound,
 });
@@ -257,21 +255,20 @@ Route path naming conventions:
 Update the navigation items in `src/client/components/NavLinks.tsx` to include your new route:
 
 ```tsx
-import NewRouteIcon from '@mui/icons-material/Extension'; // Choose an appropriate icon
+import { Extension } from 'lucide-react'; // Choose an appropriate icon
 
 export const navItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <HomeIcon /> },
-  { path: '/ai-chat', label: 'AI Chat', icon: <ChatIcon /> },
-  { path: '/file-manager', label: 'Files', icon: <FolderIcon /> },
-  { path: '/new-route', label: 'New Route', icon: <NewRouteIcon /> }, // Add your new route here
-  { path: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { path: '/', label: 'Home', icon: <Home /> },
+  { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare /> },
+  { path: '/new-route', label: 'New Route', icon: <Extension /> }, // Add your new route
+  { path: '/settings', label: 'Settings', icon: <Settings /> },
 ];
 ```
 
 Navigation item guidelines:
 - Choose a descriptive but concise label
-- Select an appropriate Material UI icon that represents the route's purpose
-- Consider the order of items in the navigation (most important/frequently used routes should be more accessible)
+- Select an appropriate Lucide icon that represents the route's purpose
+- Consider the order of items in the navigation
 
 ## Using the Router
 
@@ -318,20 +315,6 @@ navigate('/some-route');
 - Maintains application state during navigation
 - Enables proper history management
 
-### Navigating with Parameters
-
-When navigating to routes that require parameters (like IDs), construct the path with the parameters included:
-
-```tsx
-// Navigating to a route with a parameter
-const { navigate } = useRouter();
-
-// Navigate to a video page with a specific video ID
-const handleVideoClick = (videoId) => {
-  navigate(`/video/${videoId}`);
-};
-```
-
 ### Getting Current Route
 
 You can access the current route path using the `useRouter` hook:
@@ -340,11 +323,13 @@ You can access the current route path using the `useRouter` hook:
 import { useRouter } from '../../router';
 
 const MyComponent = () => {
-  const { currentPath } = useRouter();
+  const { currentPath, routeParams, queryParams } = useRouter();
   
   return (
     <div>
       <p>Current path: {currentPath}</p>
+      <p>Route params: {JSON.stringify(routeParams)}</p>
+      <p>Query params: {JSON.stringify(queryParams)}</p>
     </div>
   );
 };
@@ -364,13 +349,13 @@ export const routes = createRoutes({
 });
 ```
 
-Then access the parameters in your component using the `useRouter` hook:
+Then access the parameters in your component:
 
 ```tsx
 // src/client/routes/ItemDetail/ItemDetail.tsx
 import { useRouter } from '../../router';
 
-export const ItemDetail = () => {
+export function ItemDetail() {
   const { routeParams } = useRouter();
   const itemId = routeParams.id;
   
@@ -380,18 +365,18 @@ export const ItemDetail = () => {
       {itemId ? <p>Item ID: {itemId}</p> : <p>Invalid item ID</p>}
     </div>
   );
-};
+}
 ```
 
 ### Query Parameters
 
-The router also automatically parses query parameters from the URL. Access them in your component using the `useRouter` hook:
+The router also automatically parses query parameters from the URL:
 
 ```tsx
 // src/client/routes/SearchResults/SearchResults.tsx
 import { useRouter } from '../../router';
 
-export const SearchResults = () => {
+export function SearchResults() {
   const { queryParams } = useRouter();
   const searchQuery = queryParams.q || '';
   
@@ -401,106 +386,63 @@ export const SearchResults = () => {
       <p>Query: {searchQuery}</p>
     </div>
   );
-};
-```
-
-### Using DataFetcherWrapper with Query Parameters
-
-For routes that need to fetch data based on URL parameters, use the query parameter support in DataFetcherWrapper:
-
-```tsx
-// src/client/routes/ItemDetail/ItemDetail.tsx
-import { DataFetcherWrapper } from '@/client/utils/DataFetcherWrapper';
-import { getItem, getItemComments } from '@/apis/items/client';
-import { ItemDetailBase } from './ItemDetailBase';
-
-export const ItemDetail = DataFetcherWrapper(
-    {
-        // These functions will receive the current query parameters
-        item: (queryParams) => getItem({ itemId: queryParams.itemId }),
-        comments: (queryParams) => getItemComments({ itemId: queryParams.itemId })
-    },
-    ItemDetailBase
-);
+}
 ```
 
 ## Best Practices for Route Components
 
-### 1. Separation of Concerns
+### 1. Use React Query for Data Fetching
 
 ```tsx
-// ✅ Good: Base component only handles rendering
-const NewRouteBase = ({ data, error, refresh }) => {
-    if (error) return <ErrorDisplay error={error} onRetry={refresh} />;
-    return <div>{/* render data */}</div>;
-};
+// ✅ Good: Use React Query hooks
+const { data, isLoading, error, refetch } = useMyData();
 
-// ✅ Good: Main component handles data fetching
-export const NewRoute = DataFetcherWrapper(
-    { data: getData },
-    NewRouteBase
-);
-
-// ❌ Bad: Component handles both data fetching and rendering
-const NewRoute = () => {
-    const [data, setData] = useState(null);
-    useEffect(() => { /* fetch data */ }, []);
-    return <div>{/* render data */}</div>;
-};
+// ❌ Bad: Manual data fetching in components
+const [data, setData] = useState(null);
+useEffect(() => { /* fetch data */ }, []);
 ```
 
-### 2. Error Handling
+### 2. Handle Loading States Properly
+
+```tsx
+// ✅ Good: Only block on initial load, not background refetch
+if (isLoading && !data) {
+    return <LoadingSpinner />;
+}
+// Data shows immediately from cache, background fetch is silent
+```
+
+### 3. Error Handling
 
 ```tsx
 // ✅ Good: Handle errors gracefully
-const NewRouteBase = ({ data, error, refresh }) => {
-    if (error) {
-        return (
-            <Box sx={{ p: 3 }}>
-                <Alert severity="error">{error}</Alert>
-                <Button onClick={refresh}>Try Again</Button>
-            </Box>
-        );
-    }
-    // ... rest of component
-};
-```
-
-### 3. Loading States
-
-```tsx
-// ✅ Good: Provide meaningful loading states
-const NewRouteLoader = () => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2 }}>
-            Loading your content...
-        </Typography>
-    </Box>
-);
+if (error) {
+    return (
+        <div className="p-3">
+            <Alert variant="destructive">
+                {error instanceof Error ? error.message : 'An error occurred'}
+            </Alert>
+            <Button onClick={() => refetch()}>Try Again</Button>
+        </div>
+    );
+}
 ```
 
 ### 4. Type Safety
 
 ```tsx
-// ✅ Good: Define proper interfaces for props
-interface NewRouteBaseProps {
-    data: GetDataResponse;
-    isLoading: boolean;
-    error: string | null;
-    refresh: () => void;
-}
+// ✅ Good: Use TypeScript with proper types
+import type { GetDataResponse } from '@/apis/myapi/types';
 
-const NewRouteBase: React.FC<NewRouteBaseProps> = ({ data, error, refresh }) => {
-    // Component implementation with full type safety
-};
+const { data } = useMyData(); // data is typed as GetDataResponse
 ```
 
 ## Summary
 
-- **Routes WITHOUT data fetching**: Single component file
-- **Routes WITH data fetching**: Use DataFetcherWrapper pattern with separate base component
-- **Always use the wrapper pattern for data fetching**: This ensures consistent error handling and loading states
-- **Keep base components pure**: They should only handle rendering, not data fetching
-- **Use proper TypeScript interfaces**: Ensure type safety throughout your components
-- **Handle errors gracefully**: Provide meaningful error messages and retry functionality
+- **Use React Query hooks** for all data fetching (provides instant boot from cache)
+- **Create query hooks** in `src/client/hooks/queries/` for reusable data fetching
+- **Create mutation hooks** in `src/client/hooks/mutations/` for data modifications
+- **Check `isLoading && !data`** for loading states (allows cached data to show immediately)
+- **Handle errors gracefully** with retry functionality
+- **Use proper TypeScript interfaces** for type safety
+- **Keep route components focused** on layout and composition

@@ -15,6 +15,7 @@ Our application uses a custom SPA routing system built on top of Next.js. The ro
 2. Route components organized in folders within the [src/client/routes](mdc:src/client/routes) directory
 3. Route configuration in the [src/client/routes/index.ts](mdc:src/client/routes/index.ts) file
 4. Navigation components in the [src/client/components/layout](mdc:src/client/components/layout) directory
+5. **Route persistence** via `useUIStore` (Zustand) - remembers the last visited route for PWA instant boot
 
 ## Adding a New Route
 
@@ -47,9 +48,9 @@ Follow these best practices for route components:
   ```
   src/client/routes/NewRoute/           # Route-specific folder
   ├── NewRoute.tsx                      # Main route component (exported)
+  ├── hooks.ts                          # React Query hooks for this route
   ├── NewRouteHeader.tsx                # Route-specific component
   ├── NewRouteContent.tsx               # Route-specific component
-  ├── NewRouteFooter.tsx                # Route-specific component
   └── index.ts                          # Exports the main component
   
   src/client/components/                # Shared components
@@ -57,10 +58,50 @@ Follow these best practices for route components:
   └── ...
   ```
 
+- **Colocate React Query hooks** in a `hooks.ts` file within the route folder (unless shared across routes)
 - Extract business logic into separate hooks or utility functions
 - Follow the naming convention of PascalCase for component files and folders
 - Use named exports (avoid default exports as per our guidelines)
 - Keep related components and utilities in the same folder
+
+### Data Fetching Pattern
+
+Routes that fetch data should use **React Query hooks** (NOT direct API calls):
+
+```tsx
+// src/client/routes/Todos/hooks.ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getTodos, createTodo } from '@/apis/todos/client';
+
+export const todosQueryKey = ['todos'] as const;
+
+export function useTodos() {
+    return useQuery({
+        queryKey: todosQueryKey,
+        queryFn: async () => {
+            const response = await getTodos({});
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+    });
+}
+
+// src/client/routes/Todos/Todos.tsx
+export const Todos = () => {
+    const { data, isLoading, error } = useTodos();
+    
+    if (isLoading && !data) return <LoadingSpinner />;
+    if (error) return <ErrorDisplay error={error} />;
+    
+    return <TodoList todos={data?.todos || []} />;
+};
+```
+
+**Key points:**
+- Data loads instantly from IndexedDB cache (React Query persistence)
+- Background revalidation keeps data fresh
+- Use `isLoading && !data` to show loading only on initial load (not cache)
+- See `state-management-guidelines.mdc` for full React Query patterns
 
 ### 2. Register the Route in the Routes Configuration
 
@@ -237,3 +278,20 @@ export const SearchResults = () => {
   );
 };
 ```
+
+## PWA Route Persistence
+
+The router automatically persists the current route to `useUIStore` (Zustand with localStorage).
+
+### How it works:
+1. When navigating, the route is saved to `lastRoute` in the UI store
+2. On app startup, if the URL is `/` (root), the last route is restored
+3. Auth-related routes (`/login`, `/register`, etc.) are NOT persisted
+
+### Excluded routes (not persisted):
+- `/login`
+- `/register`
+- `/logout`
+- `/forgot-password`
+
+This enables **PWA instant boot** - when iOS kills the app, reopening it returns to the last viewed page.

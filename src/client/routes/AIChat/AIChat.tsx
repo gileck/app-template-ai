@@ -8,7 +8,7 @@ import { Badge } from '@/client/components/ui/badge';
 import { Send, MessageSquare } from 'lucide-react';
 import { AIModelDefinition, getAllModels } from '@/server/ai/models';
 import { sendChatMessage } from '@/apis/chat/client';
-import { useSettings } from '@/client/settings/SettingsContext';
+import { useSettingsStore } from '@/client/stores';
 
 // Message type definition
 interface Message {
@@ -22,12 +22,19 @@ interface Message {
 }
 
 export function AIChat() {
+  // eslint-disable-next-line state-management/prefer-state-architecture -- form input before submission
   const [input, setInput] = useState('');
+  // eslint-disable-next-line state-management/prefer-state-architecture -- session chat history (intentionally not persisted)
   const [messages, setMessages] = useState<Message[]>([]);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator
   const [isLoading, setIsLoading] = useState(false);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- static data from sync function
   const [models, setModels] = useState<AIModelDefinition[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { settings, updateSettings } = useSettings();
+
+  // Use Zustand store
+  const settings = useSettingsStore((state) => state.settings);
+  const updateSettings = useSettingsStore((state) => state.updateSettings);
 
   // Load models on component mount
   useEffect(() => {

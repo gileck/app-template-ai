@@ -1,0 +1,290 @@
+---
+description: when managing state in the application (client state, server state, offline support)
+globs: 
+alwaysApply: false
+---
+# State Management Guidelines
+
+This application uses a modern state management architecture optimized for PWA with offline support:
+
+- **Zustand**: Client state (persisted to localStorage)
+- **React Query**: Server state (persisted to IndexedDB)
+- **Offline-first**: All mutations handle offline mode gracefully
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     React Components                         │
+├─────────────────────────────────────────────────────────────┤
+│  Zustand Stores           │  React Query Hooks              │
+│  (Client State)           │  (Server State)                 │
+│  - useSettingsStore       │  - useQuery                     │
+│  - useAuthStore           │  - useMutation                  │
+│  - useUIStore             │  - useQueryClient               │
+├─────────────────────────────────────────────────────────────┤
+│  localStorage             │  IndexedDB                      │
+│  (Zustand persist)        │  (React Query persist)          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## When to Use What
+
+| State Type | Solution | Persistence | Example |
+|------------|----------|-------------|---------|
+| User preferences | Zustand | localStorage | Theme, offline mode |
+| Auth hints | Zustand | localStorage | `isProbablyLoggedIn`, `userPublicHint` |
+| Persistent UI state | Zustand | localStorage | Last route, saved filters |
+| Server data | React Query | IndexedDB | Todos, user profile |
+| Ephemeral UI state | useState | None | Modal open, form inputs, loading |
+
+### ✅ When to Use `useState` (Ephemeral State)
+
+Use `useState` for state that should NOT survive app restart - this is native-like behavior:
+
+```typescript
+// ✅ CORRECT: Ephemeral UI state
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [inputValue, setInputValue] = useState('');
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [expandedAccordion, setExpandedAccordion] = useState<string | null>(null);
+```
+
+### ❌ When NOT to Use `useState`
+
+```typescript
+// ❌ WRONG: Server data should use React Query
+const [todos, setTodos] = useState<Todo[]>([]);
+useEffect(() => { fetchTodos().then(setTodos); }, []);
+
+// ❌ WRONG: User preferences should use Zustand
+const [theme, setTheme] = useState('light');
+
+// ❌ WRONG: Data fetching state should use React Query
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+```
+
+### Decision Flowchart
+
+```
+Does this state come from an API?
+  YES → Use React Query
+  NO ↓
+
+Should this state persist across app restarts?
+  YES → Use Zustand store
+  NO ↓
+
+Is this temporary UI state (modal, form input, hover)?
+  YES → Use useState ✅
+```
+
+## Zustand Stores
+
+### Available Stores
+
+```typescript
+import { 
+    useSettingsStore,
+    useAuthStore, 
+    useUIStore,
+    useEffectiveOffline,
+    useUser,
+    useIsProbablyLoggedIn 
+} from '@/client/stores';
+```
+
+### Settings Store
+```typescript
+// Read settings
+const theme = useSettingsStore((state) => state.settings.theme);
+const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+
+// Update settings
+const updateSettings = useSettingsStore((state) => state.updateSettings);
+updateSettings({ theme: 'dark' });
+
+// Check effective offline status (user toggle OR device offline)
+const effectiveOffline = useEffectiveOffline();
+```
+
+### Auth Store
+```typescript
+// Read auth state
+const user = useUser(); // Validated user data
+const isProbablyLoggedIn = useIsProbablyLoggedIn(); // Persisted hint
+const isValidated = useAuthStore((state) => state.isValidated);
+
+// Update auth (typically done in mutation hooks)
+const setValidatedUser = useAuthStore((state) => state.setValidatedUser);
+const clearAuth = useAuthStore((state) => state.clearAuth);
+```
+
+### UI Store
+```typescript
+// Route persistence (handled automatically by router)
+const lastRoute = useUIStore((state) => state.lastRoute);
+const setLastRoute = useUIStore((state) => state.setLastRoute);
+```
+
+## React Query Patterns
+
+### Centralized Cache Config
+
+**All cache settings live in ONE place**: `src/client/query/defaults.ts`
+
+```typescript
+// src/client/query/defaults.ts
+export const CACHE_TIMES = {
+    STALE_TIME: 30 * 1000,        // 30 seconds fresh
+    GC_TIME: 30 * 60 * 1000,      // 30 minutes in cache
+    MAX_STALE_AGE: 24 * 60 * 60 * 1000, // 24 hours max stale
+};
+
+export function useQueryDefaults() {
+    const swr = useSettingsStore((s) => s.settings.staleWhileRevalidate);
+    return {
+        staleTime: swr ? CACHE_TIMES.STALE_TIME : 0,
+        gcTime: CACHE_TIMES.GC_TIME,
+    };
+}
+```
+
+### Query Hook Pattern
+
+Hooks are SIMPLE - no cache config needed:
+
+```typescript
+// src/client/routes/[ROUTE]/hooks.ts
+import { useQuery } from '@tanstack/react-query';
+import { useQueryDefaults } from '@/client/query';
+
+export const todosQueryKey = ['todos'] as const;
+
+export function useTodos() {
+    const queryDefaults = useQueryDefaults(); // Gets config from settings
+    
+    return useQuery({
+        queryKey: todosQueryKey,
+        queryFn: async () => {
+            const response = await getTodos({});
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        ...queryDefaults, // Spread defaults - no hardcoded values!
+    });
+}
+```
+
+### Mutation Hook Pattern with Optimistic Updates
+
+```typescript
+export function useUpdateTodo() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: UpdateTodoRequest) => {
+            const response = await updateTodo(data);
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data?.todo;
+        },
+        
+        onMutate: async (variables) => {
+            await queryClient.cancelQueries({ queryKey: todosQueryKey });
+            const previous = queryClient.getQueryData(todosQueryKey);
+            
+            // Optimistic update
+            queryClient.setQueryData(todosQueryKey, (old) => ({
+                todos: old.todos.map(t => 
+                    t._id === variables.todoId ? { ...t, ...variables } : t
+                ),
+            }));
+            
+            return { previous };
+        },
+        
+        onError: (_err, _vars, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(todosQueryKey, context.previous);
+            }
+        },
+        
+        // ⚠️ CRITICAL: Handle empty data from offline mode
+        onSuccess: (data) => {
+            if (data && data._id) {
+                queryClient.setQueryData(['todos', data._id], { todo: data });
+            }
+            queryClient.invalidateQueries({ queryKey: todosQueryKey });
+        },
+    });
+}
+```
+
+## ⚠️ Offline Mode - CRITICAL
+
+### How Offline Mode Works
+
+1. When offline, `apiClient.post` queues the request and returns `{ data: {}, isFromCache: false }`
+2. Optimistic updates show changes immediately in the UI
+3. When online, queued requests sync via `/api/process/batch-updates`
+4. After sync, React Query caches are invalidated to fetch fresh data
+
+### Mutation Callbacks MUST Handle Empty Data
+
+```typescript
+// ✅ CORRECT: Guard against empty data
+onSuccess: (data) => {
+    if (data && data.todo) {
+        queryClient.setQueryData(['todos', data.todo._id], { todo: data.todo });
+    }
+    queryClient.invalidateQueries({ queryKey: ['todos'] });
+},
+
+// ❌ WRONG: Will crash when offline (data is {})
+onSuccess: (data) => {
+    queryClient.setQueryData(['todos', data.todo._id], data); // CRASH!
+},
+```
+
+### Testing Offline Mode
+
+1. Go to Settings → Enable "Offline Mode"
+2. Perform mutations (create, update, delete)
+3. UI should update optimistically (no errors)
+4. Disable offline mode
+5. Queued requests should sync automatically
+
+## PWA Instant Boot
+
+The architecture enables instant app startup after iOS kills the app:
+
+1. **Auth Hint**: `isProbablyLoggedIn` loads from localStorage instantly
+2. **UI Shell**: App renders immediately with cached user hint
+3. **Route Restore**: Last visited route is restored from `useUIStore`
+4. **Data Cache**: React Query loads cached data from IndexedDB
+5. **Background Validation**: Auth and data revalidate in background
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/client/stores/settingsStore.ts` | Settings with offline mode |
+| `src/client/stores/authStore.ts` | Auth with instant-boot hints |
+| `src/client/stores/uiStore.ts` | UI state (last route) |
+| `src/client/stores/types.ts` | Shared store types |
+| `src/client/query/QueryProvider.tsx` | React Query + IndexedDB persistence |
+| `src/client/query/persister.ts` | IndexedDB persister config |
+| `src/client/utils/apiClient.ts` | API client with offline queue |
+| `src/client/utils/offlinePostQueue.ts` | POST request queue + batch sync |
+
+## Migration from Context
+
+```typescript
+// ❌ Old pattern (deprecated)
+import { useAuth } from '@/client/context/AuthContext';
+import { useSettings } from '@/client/settings/SettingsContext';
+
+// ✅ New pattern
+import { useUser, useAuthStore, useSettingsStore } from '@/client/stores';
+```

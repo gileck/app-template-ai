@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/client/context/AuthContext';
+import { useAuthStore } from '@/client/stores';
+import { useLogin, useRegister } from '@/client/hooks/mutations';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
 import { Label } from '@/client/components/ui/label';
@@ -9,8 +10,19 @@ import { useLoginFormValidator } from './useLoginFormValidator';
 import { LoginFormState } from './types';
 
 export const LoginForm = () => {
-    const { login, register, isLoading, error } = useAuth();
+    // Use Zustand store for error state
+    const error = useAuthStore((state) => state.error);
+    const setError = useAuthStore((state) => state.setError);
+
+    // Use React Query mutations for login/register
+    const loginMutation = useLogin();
+    const registerMutation = useRegister();
+
+    const isLoading = loginMutation.isPending || registerMutation.isPending;
+
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form mode toggle
     const [isRegistering, setIsRegistering] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- form input before submission
     const [formData, setFormData] = useState<LoginFormState>({
         username: '',
         email: '',
@@ -24,6 +36,12 @@ export const LoginForm = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         clearFieldError(name as keyof LoginFormState);
+        // Clear all errors when user starts typing
+        if (error || loginMutation.error || registerMutation.error) {
+            setError(null);
+            loginMutation.reset();
+            registerMutation.reset();
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -31,15 +49,16 @@ export const LoginForm = () => {
         if (!validateForm()) {
             return;
         }
+
         if (isRegistering) {
             const registerData = {
                 username: formData.username,
                 password: formData.password,
                 ...(formData.email.trim() && { email: formData.email })
             };
-            await register(registerData);
+            registerMutation.mutate(registerData);
         } else {
-            await login({
+            loginMutation.mutate({
                 username: formData.username,
                 password: formData.password
             });
@@ -49,13 +68,22 @@ export const LoginForm = () => {
     const toggleMode = () => {
         setIsRegistering(!isRegistering);
         resetFormErrors();
+        setError(null);
+        // Reset React Query mutations to clear stale errors
+        loginMutation.reset();
+        registerMutation.reset();
     };
+
+    // Combine errors from mutations and store
+    const displayError = error ||
+        (loginMutation.error instanceof Error ? loginMutation.error.message : null) ||
+        (registerMutation.error instanceof Error ? registerMutation.error.message : null);
 
     return (
         <form onSubmit={handleSubmit} noValidate className="space-y-3">
-            {error && (
+            {displayError && (
                 <Alert variant="destructive" className="mb-2">
-                    {error}
+                    {displayError}
                 </Alert>
             )}
 
@@ -150,4 +178,4 @@ export const LoginForm = () => {
             </div>
         </form>
     );
-}; 
+};

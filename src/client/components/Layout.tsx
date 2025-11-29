@@ -8,6 +8,7 @@ import { navItems, menuItems } from './NavLinks';
 
 
 export const Layout = ({ children }: { children?: ReactNode }) => {
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral drawer open state
   const [mobileOpen, setMobileOpen] = useState(false);
   const isStandalone = typeof window !== 'undefined' &&
     (window.matchMedia('(display-mode: standalone)').matches ||

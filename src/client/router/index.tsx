@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createContext, useContext } from 'react';
+import { useUIStore } from '@/client/stores';
 
 // Define router context and types
 type RouteParams = Record<string, string>;
@@ -60,12 +61,20 @@ const parseQueryParams = (): QueryParams => {
   return queryParams;
 };
 
+// Routes that should NOT be persisted/restored
+const EXCLUDED_ROUTES = ['/login', '/register', '/logout', '/forgot-password'];
+
 // Router provider component
 export const RouterProvider = ({ children, routes }: {
   children?: (Component: React.ComponentType) => React.ReactNode,
   routes: Record<string, React.ComponentType>
 }) => {
+  // Get setLastRoute action from UI store
+  const setLastRoute = useUIStore((state) => state.setLastRoute);
+  const hasRestoredRoute = useRef(false);
+
   // Initialize with current path or default to '/'
+  // eslint-disable-next-line state-management/prefer-state-architecture -- core router state, persisted separately to useUIStore
   const [currentPath, setCurrentPath] = useState<string>(() => {
     // Use the pathname part of the URL without the leading slash
     return typeof window !== 'undefined'
@@ -76,7 +85,40 @@ export const RouterProvider = ({ children, routes }: {
   });
 
   // Parse query parameters
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral query params from URL
   const [queryParams, setQueryParams] = useState<QueryParams>(() => parseQueryParams());
+
+  // Restore last route on initial mount (only once)
+  // This effect intentionally has no dependencies - it reads initial values on mount only
+  useEffect(() => {
+    if (hasRestoredRoute.current) return;
+    hasRestoredRoute.current = true;
+
+    // Get current values at mount time
+    const initialPath = window.location.pathname === '/' ? '/' : window.location.pathname;
+    const savedRoute = useUIStore.getState().getValidLastRoute();
+
+    // Only restore if:
+    // 1. We have a valid last route
+    // 2. Current path is the root (/) - indicates fresh app load
+    // 3. The route is not excluded
+    if (savedRoute &&
+      initialPath === '/' &&
+      !EXCLUDED_ROUTES.some(excluded => savedRoute.startsWith(excluded))) {
+      // Navigate to the last route
+      window.history.replaceState(null, '', savedRoute);
+      setCurrentPath(savedRoute);
+      setQueryParams(parseQueryParams());
+    }
+  }, []);
+
+  // Persist current route to UI store
+  useEffect(() => {
+    // Don't persist excluded routes
+    if (!EXCLUDED_ROUTES.some(excluded => currentPath.startsWith(excluded))) {
+      setLastRoute(currentPath);
+    }
+  }, [currentPath, setLastRoute]);
 
   // Find matching route pattern and parse route parameters
   const { RouteComponent, routeParams } = useMemo(() => {
@@ -129,9 +171,6 @@ export const RouterProvider = ({ children, routes }: {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-
-  // Provide router context and render current route
-  // console.log('currentPath', currentPath);
 
   // Provide router context and render current route
   return (

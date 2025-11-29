@@ -2,6 +2,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 import apiGuidelinesPlugin from "./eslint-plugin-api-guidelines/index.js";
+import stateManagementPlugin from "./eslint-plugin-state-management/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -43,7 +44,8 @@ const eslintConfig = [
           "no-direct-api-routes": restrictApiRoutesRule
         }
       },
-      "api-guidelines": apiGuidelinesPlugin
+      "api-guidelines": apiGuidelinesPlugin,
+      "state-management": stateManagementPlugin
     },
     rules: {
       "restrict-api-routes/no-direct-api-routes": "error",
@@ -71,7 +73,24 @@ const eslintConfig = [
         ignorePatterns: [
           '**/actions/index.ts'
         ]
-      }]
+      }],
+      // State management rule - warn on useState to encourage thinking
+      // Disabled for now - enable after fixing existing code
+      // "state-management/prefer-state-architecture": "warn"
+    }
+  },
+  // State management rule for client components only
+  {
+    files: ["src/client/**/*.tsx", "src/client/**/*.ts"],
+    // Exclude hooks files, stores, and test files
+    ignores: [
+      "src/client/stores/**",
+      "src/client/hooks/**",
+      "**/*.test.ts",
+      "**/*.test.tsx"
+    ],
+    rules: {
+      "state-management/prefer-state-architecture": "warn"
     }
   }
 ];

@@ -1,7 +1,8 @@
 import { CacheResult } from "@/common/cache/types";
 import { createCache } from "@/common/cache";
 import { clientCacheProvider } from "./indexedDBCache";
-import type { Settings } from "@/client/settings/types";
+import type { Settings } from "@/client/stores/types";
+import { useSettingsStore } from "@/client/stores";
 import {
   enqueueOfflinePost,
   generateQueueId,
@@ -11,7 +12,9 @@ import {
 
 const clientCache = createCache(clientCacheProvider)
 
+// Legacy callback support for initialization
 let getSettingsRef: (() => Settings) | null = null;
+
 export function initializeApiClient(getSettings: () => Settings) {
   getSettingsRef = getSettings;
   // Try to flush queued POST requests when settings change (e.g., leaving offline mode)
@@ -23,18 +26,24 @@ export function initializeApiClient(getSettings: () => Settings) {
   } catch {
     // ignore
   }
-  // Online listener handled by Settings subscription in _app
 }
 
+/**
+ * Get settings from Zustand store (preferred) or fallback to callback
+ */
 function getSettingsSafe(): Settings | null {
+  // Try to get from Zustand store first (preferred)
   try {
-    return getSettingsRef ? getSettingsRef() : null;
+    return useSettingsStore.getState().settings;
   } catch {
-    return null;
+    // Fallback to legacy callback
+    try {
+      return getSettingsRef ? getSettingsRef() : null;
+    } catch {
+      return null;
+    }
   }
 }
-
-// queue helpers moved to utils/offlinePostQueue
 
 export const apiClient = {
   /**
@@ -90,25 +99,25 @@ export const apiClient = {
     // Handle offline mode without throwing
     if (effectiveOffline) {
       const cacheKey = clientCacheProvider.generateCacheKey({ key: name, params: params || {} });
-      
+
       // If cache is explicitly disabled, return error payload
       if (options?.disableCache) {
-        return { 
-          data: { error: 'Network unavailable while offline' } as ResponseType, 
-          isFromCache: false 
+        return {
+          data: { error: 'Network unavailable while offline' } as ResponseType,
+          isFromCache: false
         };
       }
-      
+
       // Try to read from cache
       const cached = await clientCacheProvider.readCacheWithStale<ResponseType>(cacheKey);
       if (cached) {
         return { data: cached.data, isFromCache: true, metadata: cached.metadata };
       }
-      
+
       // No cache available, return error payload
-      return { 
-        data: { error: "This content isn't available offline yet" } as ResponseType, 
-        isFromCache: true 
+      return {
+        data: { error: "This content isn't available offline yet" } as ResponseType,
+        isFromCache: true
       };
     }
 
@@ -122,7 +131,41 @@ export const apiClient = {
     });
   },
 
-  // Direct POST that bypasses client cache entirely
+  /**
+   * Direct POST that bypasses client cache entirely.
+   * Used for mutations (create, update, delete).
+   * 
+   * ⚠️ IMPORTANT: OFFLINE MODE BEHAVIOR
+   * 
+   * When offline, this method returns `{ data: {}, isFromCache: false }`.
+   * The request is queued for batch sync when the device comes back online.
+   * 
+   * CALLERS MUST NEVER ASSUME `data` contains actual response properties.
+   * Always guard against empty/undefined data in mutation callbacks:
+   * 
+   * @example
+   * ```typescript
+   * useMutation({
+   *   mutationFn: async (data) => {
+   *     const response = await apiClient.post<ResponseType>('entity/update', data);
+   *     return response.data;
+   *   },
+   *   onSuccess: (data) => {
+   *     // ✅ CORRECT: Guard against empty data from offline mode
+   *     if (data && data.entity) {
+   *       queryClient.setQueryData(['entity', data.entity.id], data);
+   *     }
+   *     
+   *     // ❌ WRONG: Will crash when offline (data.entity is undefined)
+   *     queryClient.setQueryData(['entity', data.entity.id], data);
+   *   },
+   * });
+   * ```
+   * 
+   * The optimistic update pattern handles the UI immediately via `onMutate`.
+   * The empty `{}` return ensures no error is thrown and no rollback occurs.
+   * The actual sync happens later via batch-updates when online.
+   */
   post: async <ResponseType, Params = Record<string, string | number | boolean | undefined | null>>(
     name: string,
     params?: Params,
@@ -131,7 +174,7 @@ export const apiClient = {
     const settings = getSettingsSafe();
     const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
     if (effectiveOffline) {
-      // Enqueue request for later processing and return friendly message
+      // Queue for later sync when back online
       enqueueOfflinePost<Params>({
         id: generateQueueId(),
         name,
@@ -139,14 +182,11 @@ export const apiClient = {
         options,
         enqueuedAt: Date.now(),
       });
-      // Attempt immediate flush in case only navigator misreported earlier
-      if (shouldFlushNow(settings)) {
-        void flushOfflineQueue(() => getSettingsSafe());
-      }
-      return { 
-        data: { error: 'Request queued and will sync when online' } as ResponseType, 
-        isFromCache: false 
-      };
+
+      // Return empty object - NOT an error.
+      // Callers MUST handle this case (see JSDoc above).
+      // Optimistic updates handle the UI; this just prevents rollback.
+      return { data: {} as ResponseType, isFromCache: false };
     }
 
     // Convert slashes to underscores for URL

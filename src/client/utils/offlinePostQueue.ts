@@ -1,4 +1,5 @@
-import type { Settings } from "@/client/settings/types";
+import type { Settings } from "@/client/stores/types";
+import type { BatchSyncResponse } from "@/apis/batch-updates/types";
 
 type PrimitiveParam = string | number | boolean | undefined | null;
 export interface OfflinePostQueueItem<Params = Record<string, PrimitiveParam>> {
@@ -7,10 +8,36 @@ export interface OfflinePostQueueItem<Params = Record<string, PrimitiveParam>> {
     params: Params | undefined;
     options?: unknown | undefined;
     enqueuedAt: number;
+    retryCount?: number;
 }
+
+const MAX_RETRIES = 3;
 
 const OFFLINE_POST_QUEUE_STORAGE_KEY = 'apiClient_offline_post_queue_v1';
 let queueFlushInProgress = false;
+
+/**
+ * Sync result with both successes and failures
+ */
+export interface SyncResult {
+    syncedItems: OfflinePostQueueItem[];
+    failedItems: Array<{
+        item: OfflinePostQueueItem;
+        error: string;
+    }>;
+}
+
+// Callback to notify when sync completes (for cache invalidation and error display)
+let onSyncCallback: ((result: SyncResult) => void) | null = null;
+
+/**
+ * Register a callback to be notified when offline sync completes.
+ * This allows React Query caches to be invalidated and errors to be displayed.
+ */
+export function onOfflineQueueSync(callback: (result: SyncResult) => void): () => void {
+    onSyncCallback = callback;
+    return () => { onSyncCallback = null; };
+}
 
 export function loadOfflineQueue(): OfflinePostQueueItem[] {
     if (typeof window === 'undefined') return [];
@@ -49,38 +76,88 @@ export function shouldFlushNow(settings: Settings | null | undefined): boolean {
     return deviceOnline && !offlineMode;
 }
 
+/**
+ * Flush the offline queue by sending all queued operations in a single batch request.
+ * This is more efficient than making N separate API calls.
+ */
 export async function flushOfflineQueue(getSettings: () => Settings | null | undefined): Promise<void> {
     if (queueFlushInProgress) return;
     const settings = getSettings();
     if (!shouldFlushNow(settings)) return;
 
+    const q = loadOfflineQueue();
+    if (q.length === 0) return;
+
     queueFlushInProgress = true;
+    const syncedItems: OfflinePostQueueItem[] = [];
+    const failedItems: Array<{ item: OfflinePostQueueItem; error: string }> = [];
+
     try {
-        const q = loadOfflineQueue();
-        while (q.length > 0) {
-            const item = q[0];
-            try {
-                // Convert slashes to underscores for URL
-                const urlName = item.name.replace(/\//g, '_');
-                const response = await fetch(`/api/process/${urlName}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        params: item.params,
-                        options: { ...(item.options as Record<string, unknown> || {}), disableCache: true },
-                    }),
-                });
-                if (response.status !== 200) {
-                    break;
-                }
-                q.shift();
-                saveOfflineQueue(q);
-            } catch {
-                break;
+        // Build batch operations array
+        const operations = q.map(item => ({
+            id: item.id,
+            name: item.name,
+            params: item.params,
+        }));
+
+        // Send all operations in a single batch request
+        const response = await fetch('/api/process/batch-updates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ operations }),
+        });
+
+        if (response.status !== 200) {
+            console.error('Batch sync failed with status:', response.status);
+            return;
+        }
+
+        const result: BatchSyncResponse = await response.json();
+
+        // Build maps for success/failure lookup
+        const successIds = new Set<string>();
+        const errorMap = new Map<string, string>();
+        for (const opResult of result.results) {
+            if (opResult.success) {
+                successIds.add(opResult.id);
+            } else {
+                errorMap.set(opResult.id, opResult.error || 'Unknown error');
+                console.warn(`Batch operation ${opResult.id} failed:`, opResult.error);
             }
         }
+
+        // Track synced items, failed items, and filter queue
+        const remainingQueue: OfflinePostQueueItem[] = [];
+        for (const item of q) {
+            if (successIds.has(item.id)) {
+                syncedItems.push(item);
+            } else {
+                const error = errorMap.get(item.id) || 'Unknown error';
+                // Increment retry count and keep if under max
+                const retries = (item.retryCount || 0) + 1;
+                if (retries < MAX_RETRIES) {
+                    remainingQueue.push({ ...item, retryCount: retries });
+                } else {
+                    // Track as failed (dropped after max retries)
+                    failedItems.push({ item, error });
+                    console.error(`Dropping offline item ${item.id} (${item.name}) after ${MAX_RETRIES} failed retries`);
+                }
+            }
+        }
+
+        // Save remaining items back to queue
+        saveOfflineQueue(remainingQueue);
+
+        console.log(`Batch sync completed: ${result.successCount} succeeded, ${result.failureCount} failed`);
+    } catch (error) {
+        console.error('Batch sync error:', error);
     } finally {
         queueFlushInProgress = false;
+
+        // Notify listeners so they can invalidate caches and show errors
+        if (onSyncCallback && (syncedItems.length > 0 || failedItems.length > 0)) {
+            onSyncCallback({ syncedItems, failedItems });
+        }
     }
 }
 

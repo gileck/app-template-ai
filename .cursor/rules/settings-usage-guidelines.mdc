@@ -5,101 +5,146 @@ alwaysApply: false
 ---
 # Settings Usage Guidelines
 
-This document provides guidelines on how to use the application's settings feature. The settings are a global, persistent object used to store application configurations.
+This document provides guidelines on how to use the application's settings feature using Zustand stores.
 
 ## Accessing Settings
 
-To access the settings, use the `useSettings` hook from `[src/client/settings/SettingsContext.tsx](mdc:src/client/settings/SettingsContext.tsx)`.
+Use the `useSettingsStore` hook from `src/client/stores/settingsStore.ts`:
 
-Example:
 ```typescript
-import { useSettings } from '@/client/settings/SettingsContext';
+import { useSettingsStore } from '@/client/stores';
 
 const MyComponent = () => {
-  const { settings } = useSettings();
-  // Access specific settings like settings.aiModel
-  return (
-    <div>
-      Current AI Model: {settings.aiModel}
-    </div>
-  );
+    // Subscribe to specific settings slice (recommended)
+    const aiModel = useSettingsStore((state) => state.settings.aiModel);
+    const theme = useSettingsStore((state) => state.settings.theme);
+    
+    // Or get full settings object
+    const settings = useSettingsStore((state) => state.settings);
+    
+    return <div>Current AI Model: {aiModel}</div>;
 };
 ```
 
 ## Updating Settings
 
-To update settings, use the `updateSettings` function provided by the `useSettings` hook.
+Use the `updateSettings` action from the store:
 
-Example:
 ```typescript
-import { useSettings } from '@/client/settings/SettingsContext';
+import { useSettingsStore } from '@/client/stores';
 
 const MyComponent = () => {
-  const { updateSettings } = useSettings();
+    const updateSettings = useSettingsStore((state) => state.updateSettings);
 
-  const handleUpdateModel = (newModelId: string) => {
-    updateSettings({ aiModel: newModelId });
-  };
+    const handleUpdateModel = (newModelId: string) => {
+        updateSettings({ aiModel: newModelId });
+    };
 
-  // ...
+    const handleToggleOffline = () => {
+        updateSettings({ offlineMode: true });
+    };
 };
 ```
 
-## Clearing Cache
+## Offline Mode Detection
 
-The settings context also provides a function to clear the application cache.
+The app tracks both user-toggled offline mode and device connectivity:
 
-Example:
 ```typescript
-import { useSettings } from '@/client/settings/SettingsContext';
+import { useSettingsStore, useEffectiveOffline } from '@/client/stores';
 
 const MyComponent = () => {
-  const { clearCache } = useSettings();
-
-  const handleClearAppCache = async () => {
-    const result = await clearCache();
-    if (result.success) {
-      console.log('Cache cleared successfully');
-    } else {
-      console.error('Failed to clear cache:', result.message);
+    // User's manual offline mode setting
+    const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+    
+    // Device online/offline status
+    const isDeviceOffline = useSettingsStore((state) => state.isDeviceOffline);
+    
+    // Combined: true if EITHER user enabled offline mode OR device is offline
+    const effectiveOffline = useEffectiveOffline();
+    
+    if (effectiveOffline) {
+        return <OfflineBanner />;
     }
-  };
-
-  // ...
 };
 ```
 
-## Settings UI
+## Available Settings
 
-The user interface for managing settings is located in `[src/client/routes/Settings/Settings.tsx](mdc:src/client/routes/Settings/Settings.tsx)`. This component allows users to modify application settings, such as selecting an AI model and clearing the cache.
+Current settings fields (defined in `src/client/stores/types.ts`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `aiModel` | `string` | Selected AI model ID |
+| `theme` | `'light' \| 'dark'` | UI theme |
+| `offlineMode` | `boolean` | User-toggled offline mode |
+| `staleWhileRevalidate` | `boolean` | Cache serving strategy |
 
 ## Adding a New Settings Field
 
-To add a new field to the settings:
+1. **Update the `Settings` interface** in `src/client/stores/types.ts`:
+   ```typescript
+   export interface Settings {
+       aiModel: string;
+       theme: 'light' | 'dark';
+       offlineMode: boolean;
+       staleWhileRevalidate: boolean;
+       newField: boolean; // Add your new field
+   }
+   ```
 
-1.  **Update the `Settings` interface** in `[src/client/settings/types.ts](mdc:src/client/settings/types.ts)`:
-    ```typescript
-    export interface Settings {
-      aiModel: string;
-      newField: boolean; // Add your new field here
-    }
-    ```
+2. **Update `defaultSettings`** in `src/client/stores/settingsStore.ts`:
+   ```typescript
+   const defaultSettings: Settings = {
+       aiModel: '',
+       theme: 'light',
+       offlineMode: false,
+       staleWhileRevalidate: false,
+       newField: false, // Provide default value
+   };
+   ```
 
-2.  **Update the `defaultSettings` object** in `[src/client/settings/types.ts](mdc:src/client/settings/types.ts)`:
-    ```typescript
-    export const defaultSettings: Settings = {
-      aiModel: '',
-      newField: false, // Provide a default value
-    };
-    ```
+3. **Settings automatically persist** to localStorage via Zustand's `persist` middleware.
 
-3.  **The `SettingsContext` in `[src/client/settings/SettingsContext.tsx](mdc:src/client/settings/SettingsContext.tsx)` will automatically pick up these changes** as it imports `Settings` and `defaultSettings` from `types.ts`.
+4. **(Optional) Update the Settings UI** in `src/client/routes/Settings/Settings.tsx`.
 
-4.  **(Optional) Update the UI** in `[src/client/routes/Settings/Settings.tsx](mdc:src/client/routes/Settings/Settings.tsx)` if the new setting needs to be configurable by the user.
+## Clearing Cache
+
+Use the API client directly (cache clearing is now separate from settings):
+
+```typescript
+import { clearCache } from '@/apis/settings/clearCache/client';
+import { clientCacheProvider } from '@/client/utils/indexedDBCache';
+
+const handleClearCache = async () => {
+    // Clear server cache
+    const result = await clearCache({});
+    
+    // Clear client IndexedDB cache
+    await clientCacheProvider.clearAllCache();
+};
+```
 
 ## Key Files
 
--   **Settings Types**: `[src/client/settings/types.ts](mdc:src/client/settings/types.ts)` - Defines the `Settings` and `SettingsContextType` interfaces, and `defaultSettings`.
--   **Settings Context**: `[src/client/settings/SettingsContext.tsx](mdc:src/client/settings/SettingsContext.tsx)` - Defines the context, provider, and hook for settings.
--   **Settings Page UI**: `[src/client/routes/Settings/Settings.tsx](mdc:src/client/routes/Settings/Settings.tsx)` - The UI for users to manage settings.
--   **Example Usage in AIChat**: `[src/client/routes/AIChat/AIChat.tsx](mdc:src/client/routes/AIChat/AIChat.tsx)` - Demonstrates practical application of the settings context.
+- **Settings Types**: `src/client/stores/types.ts`
+- **Settings Store**: `src/client/stores/settingsStore.ts`
+- **Settings Page UI**: `src/client/routes/Settings/Settings.tsx`
+- **All Stores Export**: `src/client/stores/index.ts`
+
+## Migration Note
+
+**Old pattern (deprecated):**
+```typescript
+// ❌ Don't use Context
+import { useSettings } from '@/client/settings/SettingsContext';
+const { settings, updateSettings } = useSettings();
+```
+
+**New pattern:**
+```typescript
+// ✅ Use Zustand store
+import { useSettingsStore } from '@/client/stores';
+const settings = useSettingsStore((state) => state.settings);
+const updateSettings = useSettingsStore((state) => state.updateSettings);
+```

@@ -8,15 +8,22 @@ import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
-import { useSettings } from '@/client/settings/SettingsContext';
+import { useSettingsStore } from '@/client/stores';
 import { clientCacheProvider } from '@/client/utils/indexedDBCache';
+import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
 export function Settings() {
-  const { settings, updateSettings, clearCache } = useSettings();
+  // Use Zustand store instead of context
+  const settings = useSettingsStore((state) => state.settings);
+  const updateSettings = useSettingsStore((state) => state.updateSettings);
+
+  // eslint-disable-next-line state-management/prefer-state-architecture -- static data from sync function, not API
   const [models] = useState<AIModelDefinition[]>(getAllModels());
+  // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator for cache clear action
   const [isClearing, setIsClearing] = useState(false);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral snackbar notification
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
@@ -29,20 +36,20 @@ export function Settings() {
     setIsClearing(true);
     try {
       // Clear server-side cache
-      const result = await clearCache();
+      const result = await clearCacheApi({});
 
       // Clear client-side cache (IndexedDB with localStorage fallback)
       const clientCacheCleared = await clientCacheProvider.clearAllCache();
 
       // Determine overall success and message
-      const overallSuccess = result.success && clientCacheCleared;
-      let message = result.message;
+      const overallSuccess = result.data?.success && clientCacheCleared;
+      let message = result.data?.message || 'Cache operation completed';
 
-      if (result.success && clientCacheCleared) {
+      if (result.data?.success && clientCacheCleared) {
         message = 'All caches cleared successfully';
-      } else if (result.success && !clientCacheCleared) {
+      } else if (result.data?.success && !clientCacheCleared) {
         message = 'Server cache cleared, but failed to clear client cache';
-      } else if (!result.success && clientCacheCleared) {
+      } else if (!result.data?.success && clientCacheCleared) {
         message = 'Client cache cleared, but failed to clear server cache';
       } else {
         message = 'Failed to clear both server and client caches';
@@ -63,9 +70,6 @@ export function Settings() {
       setIsClearing(false);
     }
   };
-
-  // Close snackbar helper (not currently used by inline snackbar)
-  // const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
   return (
     <div className="mx-auto max-w-3xl py-4">

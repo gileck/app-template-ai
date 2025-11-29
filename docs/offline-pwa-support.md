@@ -76,8 +76,36 @@ When offline:
 #### POST Requests (`apiClient.post`)
 
 When offline:
-- Request is enqueued in localStorage queue
-- Returns: `{ data: { error: 'Request queued and will sync when online' }, isFromCache: false }`
+- Request is enqueued in localStorage queue for batch sync later
+- Returns: `{ data: {}, isFromCache: false }` (empty object, NOT an error)
+
+⚠️ **CRITICAL: Mutation Callers Must Handle Empty Data**
+
+When offline, `apiClient.post` returns an empty object `{}` instead of actual response data.
+This is intentional - it allows optimistic updates to persist without triggering rollbacks.
+
+**All mutation `onSuccess` callbacks MUST guard against empty/undefined data:**
+
+```typescript
+// ✅ CORRECT: Guard against empty data
+onSuccess: (data) => {
+    if (data && data.todo) {
+        queryClient.setQueryData(['todos', data.todo._id], { todo: data.todo });
+    }
+    queryClient.invalidateQueries({ queryKey: ['todos'] });
+},
+
+// ❌ WRONG: Will crash when offline
+onSuccess: (data) => {
+    queryClient.setQueryData(['todos', data.todo._id], { todo: data.todo }); // data.todo is undefined!
+},
+```
+
+**Why this design?**
+1. Optimistic updates (in `onMutate`) already update the UI immediately
+2. Returning `{}` prevents the mutation from "failing" (no rollback)
+3. The request is queued and will sync via batch-updates when online
+4. After sync, React Query caches are invalidated to fetch fresh data
 - Queue automatically flushes when connection is restored
 - User sees: Confirmation that action will complete when online
 
@@ -132,7 +160,7 @@ This pattern:
 - Prevents runtime crashes from missing properties
 - Displays user-friendly error messages inline
 - Maintains consistent error handling across the app
-- Works with existing `DataFetcherWrapper` component
+- Works with React Query hooks for data fetching
 
 ### 5. Cache Management
 
@@ -241,7 +269,7 @@ The implementation starts fresh with IndexedDB:
 
 - All API response types already include optional `error?: string`
 - Existing error handling patterns work without modification
-- `DataFetcherWrapper` already checks for error payloads
+- React Query hooks check for error payloads
 - No breaking changes to API contracts
 
 ## Testing Checklist
@@ -315,12 +343,26 @@ Potential improvements for future iterations:
 
 ## Related Files
 
-- `src/client/utils/indexedDBCache.ts` - IndexedDB cache provider
+### State Management (Zustand)
+- `src/client/stores/settingsStore.ts` - Settings state with offline mode
+- `src/client/stores/authStore.ts` - Auth state with instant-boot hints
+- `src/client/stores/uiStore.ts` - UI state (last route, filters)
+
+### React Query Persistence
+- `src/client/query/QueryProvider.tsx` - React Query with IndexedDB persistence
+- `src/client/query/persister.ts` - IndexedDB persister for React Query
+- `src/client/query/queryClient.ts` - Query client configuration
+
+### Cache & Offline
+- `src/client/utils/indexedDBCache.ts` - IndexedDB cache provider (for apiClient)
 - `src/client/utils/apiClient.ts` - API client with offline handling
 - `src/client/utils/offlinePostQueue.ts` - POST request queue
+
+### UI Components
 - `src/client/components/layout/TopNavBar.tsx` - Offline banner
 - `src/client/routes/Settings/Settings.tsx` - Cache management UI
-- `src/client/settings/SettingsContext.tsx` - Offline mode settings
+
+### Configuration
 - `src/common/cache/types.ts` - Cache type definitions
 - `next.config.ts` - Service worker configuration
 

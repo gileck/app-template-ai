@@ -2,26 +2,42 @@ import React from 'react';
 import { Card, CardContent } from '@/client/components/ui/card';
 import { Button } from '@/client/components/ui/button';
 import { Badge } from '@/client/components/ui/badge';
+import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { ArrowLeft, Edit, Trash2, Check, X } from 'lucide-react';
 import { useRouter } from '../../router';
-import { DataFetcherWrapper } from '../../utils/DataFetcherWrapper';
-import { getTodo } from '../../../apis/todos/client';
-import { GetTodoResponse } from '../../../apis/todos/types';
+import { useTodo } from '../Todos/hooks';
 
-interface SingleTodoBaseProps {
-    todo: GetTodoResponse;
-    isLoading: boolean;
-    error: string | null;
-    refresh: () => void;
-}
+/**
+ * Single Todo page component using React Query
+ * 
+ * Benefits:
+ * - Instant load from IndexedDB cache
+ * - Background revalidation
+ */
+const SingleTodo = () => {
+    const { routeParams, navigate } = useRouter();
+    const todoId = routeParams.todoId;
 
-const SingleTodoBase: React.FC<SingleTodoBaseProps> = ({ todo, error }) => {
-    const { navigate } = useRouter();
+    const {
+        data,
+        isLoading,
+        error
+    } = useTodo(todoId || '');
+
+    // Loading state - only show on initial load
+    if (isLoading && !data) {
+        return (
+            <div className="w-full py-4">
+                <LinearProgress />
+                <p className="mt-2 text-center text-sm text-muted-foreground">Loading todo...</p>
+            </div>
+        );
+    }
 
     if (error) {
         return (
             <div className="p-3 text-destructive">
-                {error}
+                {error instanceof Error ? error.message : 'An error occurred'}
                 <div>
                     <Button onClick={() => navigate('/todos')} className="mt-2">Back to Todos</Button>
                 </div>
@@ -29,7 +45,7 @@ const SingleTodoBase: React.FC<SingleTodoBaseProps> = ({ todo, error }) => {
         );
     }
 
-    if (!todo.todo) {
+    if (!data?.todo) {
         return (
             <div className="p-3">
                 <p>Todo not found</p>
@@ -38,7 +54,7 @@ const SingleTodoBase: React.FC<SingleTodoBaseProps> = ({ todo, error }) => {
         );
     }
 
-    const todoItem = todo.todo;
+    const todoItem = data.todo;
 
     return (
         <div className="p-3">
@@ -78,11 +94,4 @@ const SingleTodoBase: React.FC<SingleTodoBaseProps> = ({ todo, error }) => {
     );
 };
 
-const SingleTodo = DataFetcherWrapper(
-    {
-        todo: (queryParams: Record<string, string>) => getTodo({ todoId: queryParams.todoId })
-    },
-    SingleTodoBase
-);
-
-export default SingleTodo; 
+export default SingleTodo;
