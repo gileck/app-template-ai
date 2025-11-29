@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/client/components/ui/card';
 import { Button } from '@/client/components/ui/button';
 import { Badge } from '@/client/components/ui/badge';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
 import { ArrowLeft, Edit, Trash2, Check, X } from 'lucide-react';
 import { useRouter } from '../../router';
-import { useTodo } from '../Todos/hooks';
+import { useTodo, useDeleteTodo } from '../Todos/hooks';
 
 /**
  * Single Todo page component using React Query
@@ -18,11 +19,11 @@ const SingleTodo = () => {
     const { routeParams, navigate } = useRouter();
     const todoId = routeParams.todoId;
 
-    const {
-        data,
-        isLoading,
-        error
-    } = useTodo(todoId || '');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog state
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+    const { data, isLoading, error } = useTodo(todoId || '');
+    const deleteTodoMutation = useDeleteTodo();
 
     // Loading state - only show on initial load
     if (isLoading && !data) {
@@ -84,12 +85,44 @@ const SingleTodo = () => {
                         <Button onClick={() => navigate(`/todos?edit=${todoItem._id}`)}>
                             <Edit className="mr-2 h-4 w-4" /> Edit
                         </Button>
-                        <Button variant="outline" onClick={() => console.log('Delete todo:', todoItem._id)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteConfirmOpen(true)}
+                            disabled={deleteTodoMutation.isPending}
+                        >
                             <Trash2 className="mr-2 h-4 w-4 text-destructive" /> Delete
                         </Button>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Delete confirmation dialog */}
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Todo</DialogTitle>
+                    </DialogHeader>
+                    <p>Are you sure you want to delete &quot;{todoItem.title}&quot;?</p>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                setDeleteConfirmOpen(false);
+                                deleteTodoMutation.mutate(
+                                    { todoId: todoItem._id },
+                                    { onSuccess: () => navigate('/todos') }
+                                );
+                            }}
+                            disabled={deleteTodoMutation.isPending}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
