@@ -19,9 +19,9 @@ This application uses a modern state management architecture optimized for PWA w
 ├─────────────────────────────────────────────────────────────┤
 │  Zustand Stores           │  React Query Hooks              │
 │  (Client State)           │  (Server State)                 │
-│  - useSettingsStore       │  - useQuery                     │
-│  - useAuthStore           │  - useMutation                  │
-│  - useUIStore             │  - useQueryClient               │
+│  - features/auth/store    │  - useQuery                     │
+│  - features/settings/store│  - useMutation                  │
+│  - features/router/store  │  - useQueryClient               │
 ├─────────────────────────────────────────────────────────────┤
 │  localStorage             │  IndexedDB                      │
 │  (Zustand persist)        │  (React Query persist)          │
@@ -82,21 +82,45 @@ Is this temporary UI state (modal, form input, hover)?
 
 ## Zustand Stores
 
-### Available Stores
+### Philosophy: Many Small Stores ✅
+
+Zustand recommends **separate, focused stores** over a single large store:
+
+| Aspect | Single Store ❌ | Separate Stores ✅ |
+|--------|----------------|-------------------|
+| Re-renders | Any change triggers all selectors | Only affected components re-render |
+| Persistence | One TTL for everything | Independent TTLs per feature |
+| Feature isolation | All features coupled | Each feature owns its state |
+| Testing | Hard to test slices | Easy to test in isolation |
+| Adding features | Modify central file | Create new `features/x/store.ts` |
+
+### Store Structure
+
+Each feature has its own store in `features/{name}/store.ts`:
+
+```
+src/client/features/
+├── auth/store.ts       # Auth state + instant-boot hints
+├── settings/store.ts   # User preferences + offline mode
+└── router/store.ts     # Route persistence for PWA
+```
+
+### Imports
 
 ```typescript
-import { 
-    useSettingsStore,
-    useAuthStore, 
-    useUIStore,
-    useEffectiveOffline,
-    useUser,
-    useIsProbablyLoggedIn 
-} from '@/client/stores';
+// Import from feature folders
+import { useAuthStore, useUser, useIsProbablyLoggedIn } from '@/client/features/auth';
+import { useSettingsStore, useEffectiveOffline } from '@/client/features/settings';
+import { useRouteStore } from '@/client/features/router';
+
+// Or import all from features index
+import { useAuthStore, useSettingsStore, useRouteStore } from '@/client/features';
 ```
 
 ### Settings Store
 ```typescript
+import { useSettingsStore, useEffectiveOffline } from '@/client/features/settings';
+
 // Read settings
 const theme = useSettingsStore((state) => state.settings.theme);
 const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
@@ -111,6 +135,8 @@ const effectiveOffline = useEffectiveOffline();
 
 ### Auth Store
 ```typescript
+import { useAuthStore, useUser, useIsProbablyLoggedIn } from '@/client/features/auth';
+
 // Read auth state
 const user = useUser(); // Validated user data
 const isProbablyLoggedIn = useIsProbablyLoggedIn(); // Persisted hint
@@ -121,11 +147,42 @@ const setValidatedUser = useAuthStore((state) => state.setValidatedUser);
 const clearAuth = useAuthStore((state) => state.clearAuth);
 ```
 
-### UI Store
+### Route Store
 ```typescript
+import { useRouteStore } from '@/client/features/router';
+
 // Route persistence (handled automatically by router)
-const lastRoute = useUIStore((state) => state.lastRoute);
-const setLastRoute = useUIStore((state) => state.setLastRoute);
+const lastRoute = useRouteStore((state) => state.lastRoute);
+const setLastRoute = useRouteStore((state) => state.setLastRoute);
+```
+
+### Creating a New Store
+
+When adding a new feature that needs client state:
+
+1. Create `src/client/features/{name}/store.ts`
+2. Create `src/client/features/{name}/index.ts` to export it
+3. Add export to `src/client/features/index.ts`
+
+```typescript
+// features/notifications/store.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface NotificationState {
+    unreadCount: number;
+    setUnreadCount: (count: number) => void;
+}
+
+export const useNotificationStore = create<NotificationState>()(
+    persist(
+        (set) => ({
+            unreadCount: 0,
+            setUnreadCount: (count) => set({ unreadCount: count }),
+        }),
+        { name: 'notification-storage' }
+    )
+);
 ```
 
 ## React Query Patterns
@@ -136,6 +193,8 @@ const setLastRoute = useUIStore((state) => state.setLastRoute);
 
 ```typescript
 // src/client/query/defaults.ts
+import { useSettingsStore } from '@/client/features/settings';
+
 export const CACHE_TIMES = {
     STALE_TIME: 30 * 1000,        // 30 seconds fresh
     GC_TIME: 30 * 60 * 1000,      // 30 minutes in cache
@@ -261,7 +320,7 @@ The architecture enables instant app startup after iOS kills the app:
 
 1. **Auth Hint**: `isProbablyLoggedIn` loads from localStorage instantly
 2. **UI Shell**: App renders immediately with cached user hint
-3. **Route Restore**: Last visited route is restored from `useUIStore`
+3. **Route Restore**: Last visited route is restored from `useRouteStore`
 4. **Data Cache**: React Query loads cached data from IndexedDB
 5. **Background Validation**: Auth and data revalidate in background
 
@@ -269,22 +328,26 @@ The architecture enables instant app startup after iOS kills the app:
 
 | File | Purpose |
 |------|---------|
-| `src/client/stores/settingsStore.ts` | Settings with offline mode |
-| `src/client/stores/authStore.ts` | Auth with instant-boot hints |
-| `src/client/stores/uiStore.ts` | UI state (last route) |
-| `src/client/stores/types.ts` | Shared store types |
+| `src/client/features/settings/store.ts` | Settings with offline mode |
+| `src/client/features/auth/store.ts` | Auth with instant-boot hints |
+| `src/client/features/auth/hooks.ts` | Auth mutations (login, logout) |
+| `src/client/features/router/store.ts` | Route persistence for PWA |
 | `src/client/query/QueryProvider.tsx` | React Query + IndexedDB persistence |
-| `src/client/query/persister.ts` | IndexedDB persister config |
+| `src/client/query/defaults.ts` | Centralized cache configuration |
 | `src/client/utils/apiClient.ts` | API client with offline queue |
 | `src/client/utils/offlinePostQueue.ts` | POST request queue + batch sync |
 
-## Migration from Context
+## Import Patterns
 
 ```typescript
-// ❌ Old pattern (deprecated)
-import { useAuth } from '@/client/context/AuthContext';
-import { useSettings } from '@/client/settings/SettingsContext';
+// ✅ Import from feature folders (preferred)
+import { useAuthStore, useUser, useLogin } from '@/client/features/auth';
+import { useSettingsStore } from '@/client/features/settings';
+import { useRouteStore } from '@/client/features/router';
 
-// ✅ New pattern
-import { useUser, useAuthStore, useSettingsStore } from '@/client/stores';
+// ✅ Import from features index (convenience)
+import { useAuthStore, useSettingsStore } from '@/client/features';
+
+// ⚠️ Legacy re-export (backwards compatible, but prefer features/)
+import { useAuthStore } from '@/client/stores';
 ```
