@@ -24,13 +24,6 @@ export interface Settings {
 }
 
 /**
- * UI filters that can be persisted
- */
-export interface UIFilters {
-    [key: string]: unknown;
-}
-
-/**
  * Timestamp wrapper for TTL validation
  */
 export interface PersistedWithTimestamp<T> {

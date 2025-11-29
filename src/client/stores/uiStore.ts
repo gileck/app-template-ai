@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { UIFilters } from './types';
-
 const UI_STATE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /**
@@ -13,12 +11,9 @@ interface UIState {
     // Persisted state
     lastRoute: string | null;
     lastRouteTimestamp: number | null;
-    filters: UIFilters;
 
     // Actions
     setLastRoute: (route: string) => void;
-    setFilters: (filters: Partial<UIFilters>) => void;
-    clearFilters: () => void;
     getValidLastRoute: () => string | null;
 }
 
@@ -32,7 +27,6 @@ export const useUIStore = create<UIState>()(
             // Initial state
             lastRoute: null,
             lastRouteTimestamp: null,
-            filters: {},
 
             // Actions
             setLastRoute: (route) => {
@@ -44,16 +38,6 @@ export const useUIStore = create<UIState>()(
                     lastRoute: route,
                     lastRouteTimestamp: Date.now(),
                 });
-            },
-
-            setFilters: (newFilters) => {
-                set((state) => ({
-                    filters: { ...state.filters, ...newFilters },
-                }));
-            },
-
-            clearFilters: () => {
-                set({ filters: {} });
             },
 
             getValidLastRoute: () => {

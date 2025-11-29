@@ -29,6 +29,5 @@ export {
 export type {
     Settings,
     UserPublicHint,
-    UIFilters,
 } from './types';
 
