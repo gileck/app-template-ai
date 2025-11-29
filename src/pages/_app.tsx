@@ -1,7 +1,6 @@
 import "@/client/styles/globals.css";
 import type { AppProps } from "next/app";
 import { AppThemeProvider } from "@/client/components/ThemeProvider";
-import AuthWrapper from "@/client/components/auth/AuthWrapper";
 import dynamic from 'next/dynamic';
 import { routes } from '@/client/routes';
 import { Layout } from '@/client/components/Layout';
@@ -9,10 +8,11 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { QueryProvider } from '@/client/query';
 import {
+  AuthWrapper,
   useSettingsStore,
   initializeOfflineListeners,
   subscribeToEffectiveOfflineChanges
-} from '@/client/stores';
+} from '@/client/features';
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { flushOfflineQueue, shouldFlushNow, onOfflineQueueSync } from '@/client/utils/offlinePostQueue';
 import { BatchSyncAlert, useBatchSyncAlertStore } from '@/client/components/BatchSyncAlert';

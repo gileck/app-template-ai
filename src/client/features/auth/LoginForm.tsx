@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import { useAuthStore } from '@/client/stores';
-import { useLogin, useRegister } from '@/client/hooks/mutations';
+import { useAuthStore } from './store';
+import { useLogin, useRegister } from './hooks';
+import { useLoginFormValidator } from './useLoginFormValidator';
+import type { LoginFormState } from './types';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
 import { Label } from '@/client/components/ui/label';
 import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { useLoginFormValidator } from './useLoginFormValidator';
-import { LoginFormState } from './types';
 
 export const LoginForm = () => {
-    // Use Zustand store for error state
     const error = useAuthStore((state) => state.error);
     const setError = useAuthStore((state) => state.setError);
 
-    // Use React Query mutations for login/register
     const loginMutation = useLogin();
     const registerMutation = useRegister();
 
@@ -36,7 +34,6 @@ export const LoginForm = () => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         clearFieldError(name as keyof LoginFormState);
-        // Clear all errors when user starts typing
         if (error || loginMutation.error || registerMutation.error) {
             setError(null);
             loginMutation.reset();
@@ -69,12 +66,10 @@ export const LoginForm = () => {
         setIsRegistering(!isRegistering);
         resetFormErrors();
         setError(null);
-        // Reset React Query mutations to clear stale errors
         loginMutation.reset();
         registerMutation.reset();
     };
 
-    // Combine errors from mutations and store
     const displayError = error ||
         (loginMutation.error instanceof Error ? loginMutation.error.message : null) ||
         (registerMutation.error instanceof Error ? registerMutation.error.message : null);
@@ -179,3 +174,4 @@ export const LoginForm = () => {
         </form>
     );
 };
+

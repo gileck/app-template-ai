@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createContext, useContext } from 'react';
-import { useUIStore } from '@/client/stores';
+import { useRouteStore } from '@/client/features/router';
 
 // Define router context and types
 type RouteParams = Record<string, string>;
@@ -69,8 +69,8 @@ export const RouterProvider = ({ children, routes }: {
   children?: (Component: React.ComponentType) => React.ReactNode,
   routes: Record<string, React.ComponentType>
 }) => {
-  // Get setLastRoute action from UI store
-  const setLastRoute = useUIStore((state) => state.setLastRoute);
+  // Get setLastRoute action from route store
+  const setLastRoute = useRouteStore((state) => state.setLastRoute);
   const hasRestoredRoute = useRef(false);
 
   // Initialize with current path or default to '/'
@@ -96,7 +96,7 @@ export const RouterProvider = ({ children, routes }: {
 
     // Get current values at mount time
     const initialPath = window.location.pathname === '/' ? '/' : window.location.pathname;
-    const savedRoute = useUIStore.getState().getValidLastRoute();
+    const savedRoute = useRouteStore.getState().getValidLastRoute();
 
     // Only restore if:
     // 1. We have a valid last route

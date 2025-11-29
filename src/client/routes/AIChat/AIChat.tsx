@@ -8,7 +8,7 @@ import { Badge } from '@/client/components/ui/badge';
 import { Send, MessageSquare } from 'lucide-react';
 import { AIModelDefinition, getAllModels } from '@/server/ai/models';
 import { sendChatMessage } from '@/apis/chat/client';
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 
 // Message type definition
 interface Message {

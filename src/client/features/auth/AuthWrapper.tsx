@@ -1,6 +1,6 @@
 import React from 'react';
-import { useAuthStore, useIsProbablyLoggedIn } from '@/client/stores';
-import { useAuthValidation } from '@/client/hooks/useAuthValidation';
+import { useAuthStore, useIsProbablyLoggedIn } from './store';
+import { useAuthValidation } from './hooks';
 import { LoginForm } from './LoginForm';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
@@ -10,30 +10,20 @@ interface AuthWrapperProps {
 }
 
 /**
- * AuthWrapper component that handles the instant-boot auth pattern:
+ * AuthWrapper - Instant-boot auth pattern:
  * 
- * 1. On mount, Zustand hydrates `isProbablyLoggedIn` from localStorage
- * 2. If `isProbablyLoggedIn`, show authenticated shell immediately (no loading state)
- * 3. Background validation runs via useAuthValidation
- * 4. If validation fails, shows login dialog
- * 
- * This provides instant app startup even after iOS kills the app.
+ * 1. Zustand hydrates `isProbablyLoggedIn` from localStorage
+ * 2. If logged in, show app immediately (no blocking)
+ * 3. Background validation via useAuthValidation
+ * 4. If validation fails, show login dialog
  */
 const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-    // Get persistent hint from Zustand
     const isProbablyLoggedIn = useIsProbablyLoggedIn();
-
-    // Run background auth validation
     const { isAuthenticated, isValidating } = useAuthValidation();
-
-    // Get the validated state from the store
     const isValidated = useAuthStore((state) => state.isValidated);
 
-    // If we have a hint that user is logged in, show the app immediately
-    // This enables instant boot - the UI appears before validation completes
+    // Instant boot: show app while validating
     if (isProbablyLoggedIn && !isValidated) {
-        // Show app shell while validating in background
-        // Only show a subtle loading indicator, not a blocking one
         return (
             <>
                 {isValidating && (
@@ -46,13 +36,12 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         );
     }
 
-    // If validation completed and user is authenticated
+    // Validated and authenticated
     if (isAuthenticated) {
         return <>{children}</>;
     }
 
-    // If we don't have a hint and validation is still running
-    // This only happens on first load without any cached auth hint
+    // First load without cached hint
     if (isValidating && !isProbablyLoggedIn) {
         return (
             <div className="w-full py-2">
@@ -63,7 +52,7 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
         );
     }
 
-    // Not authenticated - show login dialog
+    // Not authenticated - show login
     return (
         <Dialog open>
             <DialogContent className="sm:max-w-sm">
@@ -77,3 +66,4 @@ const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 };
 
 export default AuthWrapper;
+

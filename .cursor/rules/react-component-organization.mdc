@@ -91,8 +91,8 @@ const UserList = () => {
 // ❌ Don't use Context for global state
 const { user } = useAuth(); // OLD pattern
 
-// ✅ Use Zustand stores
-import { useUser, useAuthStore } from '@/client/stores';
+// ✅ Use feature stores
+import { useUser, useAuthStore } from '@/client/features/auth';
 const user = useUser();
 const isValidated = useAuthStore((state) => state.isValidated);
 
@@ -103,6 +103,8 @@ useEffect(() => { fetchData().then(setData); }, []);
 // ✅ Use React Query hooks
 const { data, isLoading } = useTodos();
 ```
+
+**Reference**: See `feature-based-structure` rule for where to place stores and hooks.
 
 ### 4. Component Composition Hierarchy
 
@@ -131,17 +133,29 @@ src/client/routes/[ROUTE_NAME]/
 
 **Note**: Prefer a single `hooks.ts` file over a `hooks/` directory for most routes.
 
-#### Shared Components
+#### Feature Components (cross-cutting features)
 
-For reusable components used across multiple routes:
+For feature-specific components used across multiple routes:
 ```
-src/client/components/Feature/
-├── index.ts             // Exports all components
-├── Feature.tsx          // Main component
-├── FeatureHeader.tsx    // Sub-component for header
-├── FeatureList.tsx      // Sub-component for list
-└── types.ts             // Shared types and interfaces
+src/client/features/notifications/
+├── index.ts             // Public API exports
+├── store.ts             // Zustand store
+├── hooks.ts             // React Query hooks
+├── types.ts             // Feature types
+├── NotificationBell.tsx // Feature component
+└── NotificationList.tsx // Feature component
 ```
+
+#### Shared UI Components (primitives only)
+
+For truly reusable UI primitives with no business logic:
+```
+src/client/components/
+├── ui/                  // shadcn primitives (Button, Card, Input)
+└── layout/              // App shell (TopNavBar, Layout)
+```
+
+**Note**: Feature-specific components go in `features/`, NOT `components/`.
 
 ### 6. Split Files at These Boundaries
 

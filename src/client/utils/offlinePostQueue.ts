@@ -1,4 +1,4 @@
-import type { Settings } from "@/client/stores/types";
+import type { Settings } from "@/client/features/settings";
 import type { BatchSyncResponse } from "@/apis/batch-updates/types";
 
 type PrimitiveParam = string | number | boolean | undefined | null;

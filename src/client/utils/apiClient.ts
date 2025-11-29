@@ -1,8 +1,8 @@
 import { CacheResult } from "@/common/cache/types";
 import { createCache } from "@/common/cache";
 import { clientCacheProvider } from "./indexedDBCache";
-import type { Settings } from "@/client/stores/types";
-import { useSettingsStore } from "@/client/stores";
+import type { Settings } from "@/client/features/settings";
+import { useSettingsStore } from "@/client/features/settings";
 import {
   enqueueOfflinePost,
   generateQueueId,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LoginFormState, LoginFormErrors } from './types'; // Assuming types will be defined here or moved from LoginForm
+import type { LoginFormState, LoginFormErrors } from './types';
 
 export const useLoginFormValidator = (isRegistering: boolean, formData: LoginFormState) => {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form validation errors
@@ -61,4 +61,5 @@ export const useLoginFormValidator = (isRegistering: boolean, formData: LoginFor
     };
 
     return { formErrors, validateForm, clearFieldError, resetFormErrors };
-}; 
+};
+

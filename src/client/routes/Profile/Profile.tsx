@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, ChangeEvent } from 'react';
-import { useAuthStore, useUser } from '@/client/stores';
+import { useAuthStore, useUser } from '@/client/features/auth';
 import { useRouter } from '../../router';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';

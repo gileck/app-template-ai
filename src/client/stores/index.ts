@@ -1,33 +1,14 @@
 /**
- * Zustand stores for persistent state management
+ * @deprecated - Import from @/client/features instead
+ * 
+ * This file re-exports from features for backwards compatibility.
+ * New code should import directly from:
+ * - @/client/features/auth
+ * - @/client/features/settings
+ * - @/client/features/router
  */
 
-// Settings store
-export {
-    useSettingsStore,
-    initializeOfflineListeners,
-    subscribeToEffectiveOfflineChanges,
-    useEffectiveOffline,
-} from './settingsStore';
-
-// Auth store
-export {
-    useAuthStore,
-    useIsAuthenticated,
-    useIsProbablyLoggedIn,
-    useUser,
-    useUserHint,
-} from './authStore';
-
-// UI store
-export {
-    useUIStore,
-    useLastRoute,
-} from './uiStore';
-
-// Types
-export type {
-    Settings,
-    UserPublicHint,
-} from './types';
-
+// Re-export everything from features
+export * from '@/client/features/auth';
+export * from '@/client/features/settings';
+export * from '@/client/features/router';

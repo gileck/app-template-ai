@@ -5,7 +5,7 @@
  * Settings (like staleWhileRevalidate) are read from Zustand store.
  */
 
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 
 // ============================================================================
 // Cache Duration Constants (single source of truth)

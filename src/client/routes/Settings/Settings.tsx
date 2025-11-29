@@ -8,7 +8,7 @@ import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 import { clientCacheProvider } from '@/client/utils/indexedDBCache';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 

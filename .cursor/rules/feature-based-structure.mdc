@@ -1,0 +1,150 @@
+---
+description: Feature-based folder structure for client code
+globs: src/client/**/*
+alwaysApply: false
+---
+
+# Feature-Based Structure
+
+This project uses **feature-based organization** for client code. All code related to a feature lives together.
+
+## Directory Structure
+
+```
+src/client/
+├── features/           # Feature modules (stores, hooks, components, types)
+│   ├── auth/           # Authentication feature
+│   │   ├── store.ts    # Zustand store
+│   │   ├── hooks.ts    # React Query hooks + custom hooks
+│   │   ├── types.ts    # Feature-specific types
+│   │   ├── AuthWrapper.tsx
+│   │   ├── LoginForm.tsx
+│   │   └── index.ts    # Public API exports
+│   ├── settings/       # Settings feature
+│   │   ├── store.ts
+│   │   ├── types.ts
+│   │   └── index.ts
+│   └── router/         # Route persistence
+│       ├── store.ts
+│       └── index.ts
+├── routes/             # Route/page components (feature-specific to that route)
+│   ├── Todos/
+│   │   ├── Todos.tsx   # Main component
+│   │   ├── hooks.ts    # Route-specific React Query hooks
+│   │   └── index.ts
+│   ├── Settings/
+│   └── Profile/
+├── components/         # Shared UI components ONLY
+│   ├── ui/             # shadcn components
+│   └── layout/         # Layout components (TopNavBar, Sidebar)
+├── query/              # React Query infrastructure
+│   ├── queryClient.ts
+│   ├── persister.ts
+│   └── defaults.ts
+└── utils/              # Shared utilities
+```
+
+## Rules
+
+### 1. Features contain ALL feature-related code
+
+✅ **DO**: Put store, hooks, components, and types together
+
+```
+features/auth/
+├── store.ts          # useAuthStore
+├── hooks.ts          # useLogin, useLogout, useAuthValidation
+├── types.ts          # UserPublicHint, LoginFormState
+├── AuthWrapper.tsx   # Component
+├── LoginForm.tsx     # Component
+└── index.ts          # exports
+```
+
+❌ **DON'T**: Scatter feature code across folders
+
+```
+stores/authStore.ts
+hooks/useAuthValidation.ts
+hooks/mutations/useAuthMutations.ts
+components/auth/AuthWrapper.tsx
+```
+
+### 2. Routes folder is for route-specific code
+
+Routes contain only code specific to that route/page:
+
+```typescript
+// routes/Todos/hooks.ts - Only used by Todos route
+export function useTodos() { ... }
+export function useCreateTodo() { ... }
+```
+
+If a hook/component is used by multiple routes → move to `features/`
+
+### 3. Features export via index.ts
+
+Every feature has a public API:
+
+```typescript
+// features/auth/index.ts
+export { useAuthStore, useIsAuthenticated } from './store';
+export { useLogin, useLogout } from './hooks';
+export { AuthWrapper } from './AuthWrapper';
+export type { UserPublicHint } from './types';
+```
+
+### 4. Import from feature index, not internal files
+
+✅ **DO**:
+```typescript
+import { useAuthStore, useLogin } from '@/client/features/auth';
+```
+
+❌ **DON'T**:
+```typescript
+import { useAuthStore } from '@/client/features/auth/store';
+```
+
+### 5. Shared components go in `components/`
+
+Only truly shared, reusable UI components:
+- `components/ui/` - shadcn primitives (Button, Card, Input)
+- `components/layout/` - App shell (TopNavBar, Layout)
+
+Feature-specific components live in the feature folder.
+
+## Creating a New Feature
+
+1. Create feature folder: `src/client/features/{name}/`
+2. Create files:
+   - `store.ts` - Zustand store (if needed)
+   - `hooks.ts` - React Query hooks
+   - `types.ts` - TypeScript types
+   - Components as needed
+   - `index.ts` - Public exports
+3. Export from `features/index.ts`
+
+### Example: Adding a "notifications" feature
+
+```
+features/notifications/
+├── store.ts          # useNotificationStore
+├── hooks.ts          # useNotifications, useMarkAsRead
+├── types.ts          # Notification, NotificationSettings
+├── NotificationBell.tsx
+├── NotificationList.tsx
+└── index.ts
+```
+
+```typescript
+// features/notifications/index.ts
+export { useNotificationStore } from './store';
+export { useNotifications, useMarkAsRead } from './hooks';
+export { NotificationBell } from './NotificationBell';
+export type { Notification } from './types';
+```
+
+## Migration Note
+
+The old `@/client/stores` path re-exports from features for backwards compatibility.
+New code should import directly from `@/client/features/{name}`.

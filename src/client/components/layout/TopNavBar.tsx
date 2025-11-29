@@ -1,8 +1,13 @@
 import { Menu, Moon, SunMedium, LogIn, User, LogOut, WifiOff } from 'lucide-react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
-import { useAuthStore, useUser, useSettingsStore, useEffectiveOffline } from '@/client/stores';
-import { useLogout } from '@/client/hooks/mutations';
+import {
+  useAuthStore,
+  useUser,
+  useLogout,
+  useSettingsStore,
+  useEffectiveOffline
+} from '@/client/features';
 import { useState } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/client/components/ui/dropdown-menu';

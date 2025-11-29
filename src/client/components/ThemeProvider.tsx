@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect } from 'react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 
 export const AppThemeProvider = ({ children }: { children: ReactNode }) => {
   const theme = useSettingsStore((state) => state.settings.theme);
