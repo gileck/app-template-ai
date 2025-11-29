@@ -59,6 +59,25 @@ export const apiClient = {
     options?: ApiOptions
   ): Promise<CacheResult<ResponseType>> => {
     const settings = getSettingsSafe();
+    const cacheKey = clientCacheProvider.generateCacheKey({ key: name, params: params || {} });
+
+    // Helper to get cached data
+    const getCachedData = async (): Promise<CacheResult<ResponseType>> => {
+      if (options?.disableCache) {
+        return {
+          data: { error: 'Network unavailable while offline' } as ResponseType,
+          isFromCache: false
+        };
+      }
+      const cached = await clientCacheProvider.readCacheWithStale<ResponseType>(cacheKey);
+      if (cached) {
+        return { data: cached.data, isFromCache: true, metadata: cached.metadata };
+      }
+      return {
+        data: { error: "This content isn't available offline yet" } as ResponseType,
+        isFromCache: true
+      };
+    };
 
     const apiCall = async (): Promise<ResponseType> => {
       if (settings?.offlineMode) {
@@ -96,39 +115,38 @@ export const apiClient = {
     const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
     const globalSWR = settings?.staleWhileRevalidate === true;
 
-    // Handle offline mode without throwing
+    // Handle offline mode - return cached data
     if (effectiveOffline) {
-      const cacheKey = clientCacheProvider.generateCacheKey({ key: name, params: params || {} });
-
-      // If cache is explicitly disabled, return error payload
-      if (options?.disableCache) {
-        return {
-          data: { error: 'Network unavailable while offline' } as ResponseType,
-          isFromCache: false
-        };
-      }
-
-      // Try to read from cache
-      const cached = await clientCacheProvider.readCacheWithStale<ResponseType>(cacheKey);
-      if (cached) {
-        return { data: cached.data, isFromCache: true, metadata: cached.metadata };
-      }
-
-      // No cache available, return error payload
-      return {
-        data: { error: "This content isn't available offline yet" } as ResponseType,
-        isFromCache: true
-      };
+      return getCachedData();
     }
 
-    return clientCache.withCache(apiCall, { key: name, params: params || {} }, {
-      bypassCache: !globalSWR,
-      staleWhileRevalidate: globalSWR,
-      disableCache: false,
-      ttl: options?.ttl,
-      maxStaleAge: options?.maxStaleAge,
-      isDataValidForCache: options?.isDataValidForCache,
-    });
+    // Try network request with retries, fall back to cache on persistent network errors
+    const maxRetries = 3;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await clientCache.withCache(apiCall, { key: name, params: params || {} }, {
+          bypassCache: !globalSWR,
+          staleWhileRevalidate: globalSWR,
+          disableCache: false,
+          ttl: options?.ttl,
+          maxStaleAge: options?.maxStaleAge,
+          isDataValidForCache: options?.isDataValidForCache,
+        });
+      } catch (error) {
+        // Only retry on network errors (TypeError from fetch)
+        if (!(error instanceof TypeError)) {
+          throw error;
+        }
+        // Don't wait on last attempt
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // 500ms, 1s, 1.5s
+        }
+      }
+    }
+
+    // All retries failed, fall back to cache
+    return getCachedData();
   },
 
   /**
