@@ -42,9 +42,11 @@ export function Todos() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog context
     const [todoToDelete, setTodoToDelete] = useState<TodoItemClient | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- track which todo is being mutated
+    const [mutatingTodoId, setMutatingTodoId] = useState<string | null>(null);
 
     const todos = data?.todos || [];
-    const isActionLoading = createTodoMutation.isPending || updateTodoMutation.isPending || deleteTodoMutation.isPending;
+    const isCreating = createTodoMutation.isPending;
 
     // Show loading only if fetching with no cached data
     // Cache restoration is handled globally by QueryProvider
@@ -78,10 +80,12 @@ export function Todos() {
 
     const handleToggleComplete = async (todo: TodoItemClient) => {
         setActionError('');
+        setMutatingTodoId(todo._id);
 
         updateTodoMutation.mutate(
             { todoId: todo._id, completed: !todo.completed },
             {
+                onSettled: () => setMutatingTodoId(null),
                 onError: (err) => {
                     setActionError(err instanceof Error ? err.message : 'Failed to update todo');
                 },
@@ -102,12 +106,14 @@ export function Todos() {
 
         setActionError('');
         const todoId = editingTodo._id;
+        setMutatingTodoId(todoId);
         setEditingTodo(null);
         setEditTitle('');
 
         updateTodoMutation.mutate(
             { todoId, title: editTitle.trim() },
             {
+                onSettled: () => setMutatingTodoId(null),
                 onError: (err) => {
                     setActionError(err instanceof Error ? err.message : 'Failed to update todo');
                 },
@@ -134,12 +140,14 @@ export function Todos() {
 
         setActionError('');
         const todoId = todoToDelete._id;
+        setMutatingTodoId(todoId);
         setDeleteConfirmOpen(false);
         setTodoToDelete(null);
 
         deleteTodoMutation.mutate(
             { todoId },
             {
+                onSettled: () => setMutatingTodoId(null),
                 onError: (err) => {
                     setActionError(err instanceof Error ? err.message : 'Failed to delete todo');
                 },
@@ -184,9 +192,9 @@ export function Todos() {
                         onChange={(e) => setNewTodoTitle(e.target.value)}
                         placeholder="Enter a new todo..."
                         onKeyPress={handleKeyPress}
-                        disabled={isActionLoading}
+                        disabled={isCreating}
                     />
-                    <Button onClick={handleCreateTodo} disabled={isActionLoading || !newTodoTitle.trim()}>
+                    <Button onClick={handleCreateTodo} disabled={isCreating || !newTodoTitle.trim()}>
                         <Plus className="mr-2 h-4 w-4" /> Add
                     </Button>
                     {createTodoMutation.isPending && <div className="w-24"><LinearProgress className="mt-1" /></div>}
@@ -209,7 +217,7 @@ export function Todos() {
                                         aria-checked={todo.completed}
                                         role="checkbox"
                                         onClick={() => handleToggleComplete(todo)}
-                                        disabled={isActionLoading}
+                                        disabled={mutatingTodoId === todo._id}
                                     >
                                         {todo.completed ? <CheckSquare className="h-4 w-4" /> : null}
                                     </button>
@@ -220,7 +228,7 @@ export function Todos() {
                                             value={editTitle}
                                             onChange={(e) => setEditTitle(e.target.value)}
                                             onKeyPress={handleEditKeyPress}
-                                            disabled={isActionLoading}
+                                            disabled={mutatingTodoId === todo._id}
                                             autoFocus
                                         />
                                     ) : (
@@ -231,22 +239,22 @@ export function Todos() {
 
                                     {editingTodo?._id === todo._id ? (
                                         <div className="flex gap-1">
-                                            <Button variant="secondary" size="sm" onClick={handleSaveEdit} disabled={isActionLoading}>
+                                            <Button variant="secondary" size="sm" onClick={handleSaveEdit} disabled={mutatingTodoId === todo._id}>
                                                 <Save className="mr-1 h-4 w-4" />
                                             </Button>
-                                            <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isActionLoading}>
+                                            <Button variant="outline" size="sm" onClick={handleCancelEdit}>
                                                 <X className="mr-1 h-4 w-4" />
                                             </Button>
                                         </div>
                                     ) : (
                                         <div className="flex gap-1">
-                                            <Button variant="ghost" size="sm" onClick={() => handleViewTodo(todo)} disabled={isActionLoading}>
+                                            <Button variant="ghost" size="sm" onClick={() => handleViewTodo(todo)}>
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => handleStartEdit(todo)} disabled={isActionLoading}>
+                                            <Button variant="ghost" size="sm" onClick={() => handleStartEdit(todo)} disabled={mutatingTodoId === todo._id}>
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => handleDeleteTodo(todo)} disabled={isActionLoading}>
+                                            <Button variant="ghost" size="sm" onClick={() => handleDeleteTodo(todo)} disabled={mutatingTodoId === todo._id}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
                                         </div>
