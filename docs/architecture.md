@@ -203,7 +203,7 @@ Is it temporary UI state (modal, form)?
   YES → useState
 ```
 
-📚 **Detailed Documentation**: See `.cursor/rules/state-management-guidelines.mdc`
+📚 **Detailed Documentation**: [state-management.md](./state-management.md)
 
 ---
 
