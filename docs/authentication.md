@@ -134,7 +134,7 @@ App Start (e.g., after iOS killed the app)
 
 ## Key Components
 
-### Zustand Auth Store (`src/client/stores/authStore.ts`)
+### Zustand Auth Store (`src/client/features/auth/store.ts`)
 
 ```typescript
 interface AuthState {
@@ -155,26 +155,21 @@ interface AuthState {
 }
 ```
 
-### Auth Validation Hook (`src/client/hooks/useAuthValidation.ts`)
+### Auth Hooks (`src/client/features/auth/hooks.ts`)
 
-Implements the background validation pattern:
-- Runs when `isProbablyLoggedIn` is true
-- Calls `/me` endpoint via React Query
-- Updates or clears auth state based on response
+All auth-related hooks in one file:
+- `useAuthValidation()` - Background validation pattern
+- `useLogin()` - Login mutation, updates Zustand on success
+- `useRegister()` - Registration mutation
+- `useLogout()` - Clears auth state and React Query cache
+- `useCurrentUser()` - Fetches current user via React Query
 
-### AuthWrapper (`src/client/components/auth/AuthWrapper.tsx`)
+### AuthWrapper (`src/client/features/auth/AuthWrapper.tsx`)
 
 Guards the app based on auth state:
 - If `isProbablyLoggedIn` → render app immediately (instant boot)
 - If `isAuthenticated` (validated) → render app
 - Otherwise → show login dialog
-
-### Login/Register Mutations (`src/client/hooks/mutations/useAuthMutations.ts`)
-
-React Query mutations for auth actions:
-- `useLogin()` - Handles login, updates Zustand on success
-- `useRegister()` - Handles registration
-- `useLogout()` - Clears auth state and React Query cache
 
 ## Server-Side Authentication
 
@@ -214,7 +209,7 @@ React Query mutations for auth actions:
 ### Checking Auth State in Components
 
 ```typescript
-import { useAuthStore, useUser, useIsAuthenticated } from '@/client/stores';
+import { useAuthStore, useUser, useIsAuthenticated } from '@/client/features/auth';
 
 function MyComponent() {
     // Get validated user
@@ -232,7 +227,7 @@ function MyComponent() {
 ### Performing Login
 
 ```typescript
-import { useLogin } from '@/client/hooks/mutations';
+import { useLogin } from '@/client/features/auth';
 
 function LoginForm() {
     const loginMutation = useLogin();
@@ -254,7 +249,7 @@ function LoginForm() {
 ### Performing Logout
 
 ```typescript
-import { useLogout } from '@/client/hooks/mutations';
+import { useLogout } from '@/client/features/auth';
 
 function LogoutButton() {
     const logoutMutation = useLogout();

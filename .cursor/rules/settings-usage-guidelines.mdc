@@ -9,10 +9,10 @@ This document provides guidelines on how to use the application's settings featu
 
 ## Accessing Settings
 
-Use the `useSettingsStore` hook from `src/client/stores/settingsStore.ts`:
+Use the `useSettingsStore` hook from the settings feature:
 
 ```typescript
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 
 const MyComponent = () => {
     // Subscribe to specific settings slice (recommended)
@@ -31,7 +31,7 @@ const MyComponent = () => {
 Use the `updateSettings` action from the store:
 
 ```typescript
-import { useSettingsStore } from '@/client/stores';
+import { useSettingsStore } from '@/client/features/settings';
 
 const MyComponent = () => {
     const updateSettings = useSettingsStore((state) => state.updateSettings);
@@ -51,7 +51,7 @@ const MyComponent = () => {
 The app tracks both user-toggled offline mode and device connectivity:
 
 ```typescript
-import { useSettingsStore, useEffectiveOffline } from '@/client/stores';
+import { useSettingsStore, useEffectiveOffline } from '@/client/features/settings';
 
 const MyComponent = () => {
     // User's manual offline mode setting
@@ -71,7 +71,7 @@ const MyComponent = () => {
 
 ## Available Settings
 
-Current settings fields (defined in `src/client/stores/types.ts`):
+Current settings fields (defined in `src/client/features/settings/types.ts`):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -82,7 +82,7 @@ Current settings fields (defined in `src/client/stores/types.ts`):
 
 ## Adding a New Settings Field
 
-1. **Update the `Settings` interface** in `src/client/stores/types.ts`:
+1. **Update the `Settings` interface** in `src/client/features/settings/types.ts`:
    ```typescript
    export interface Settings {
        aiModel: string;
@@ -93,9 +93,9 @@ Current settings fields (defined in `src/client/stores/types.ts`):
    }
    ```
 
-2. **Update `defaultSettings`** in `src/client/stores/settingsStore.ts`:
+2. **Update `defaultSettings`** in `src/client/features/settings/types.ts`:
    ```typescript
-   const defaultSettings: Settings = {
+   export const defaultSettings: Settings = {
        aiModel: '',
        theme: 'light',
        offlineMode: false,
@@ -127,24 +127,7 @@ const handleClearCache = async () => {
 
 ## Key Files
 
-- **Settings Types**: `src/client/stores/types.ts`
-- **Settings Store**: `src/client/stores/settingsStore.ts`
+- **Settings Types**: `src/client/features/settings/types.ts`
+- **Settings Store**: `src/client/features/settings/store.ts`
+- **Settings Feature Export**: `src/client/features/settings/index.ts`
 - **Settings Page UI**: `src/client/routes/Settings/Settings.tsx`
-- **All Stores Export**: `src/client/stores/index.ts`
-
-## Migration Note
-
-**Old pattern (deprecated):**
-```typescript
-// ❌ Don't use Context
-import { useSettings } from '@/client/settings/SettingsContext';
-const { settings, updateSettings } = useSettings();
-```
-
-**New pattern:**
-```typescript
-// ✅ Use Zustand store
-import { useSettingsStore } from '@/client/stores';
-const settings = useSettingsStore((state) => state.settings);
-const updateSettings = useSettingsStore((state) => state.updateSettings);
-```

@@ -343,23 +343,26 @@ Potential improvements for future iterations:
 
 ## Related Files
 
-### State Management (Zustand)
-- `src/client/stores/settingsStore.ts` - Settings state with offline mode
-- `src/client/stores/authStore.ts` - Auth state with instant-boot hints
-- `src/client/stores/uiStore.ts` - UI state (last route, filters)
+### Feature Stores (Zustand)
+- `src/client/features/settings/store.ts` - Settings state with offline mode
+- `src/client/features/auth/store.ts` - Auth state with instant-boot hints
+- `src/client/features/router/store.ts` - Route persistence for PWA
+
+### Centralized Configuration
+- `src/client/config/defaults.ts` - Centralized TTL/cache defaults
 
 ### React Query Persistence
 - `src/client/query/QueryProvider.tsx` - React Query with IndexedDB persistence
 - `src/client/query/persister.ts` - IndexedDB persister for React Query
-- `src/client/query/queryClient.ts` - Query client configuration
+- `src/client/query/defaults.ts` - Query defaults (uses config)
 
 ### Cache & Offline
 - `src/client/utils/indexedDBCache.ts` - IndexedDB cache provider (for apiClient)
 - `src/client/utils/apiClient.ts` - API client with offline handling
-- `src/client/utils/offlinePostQueue.ts` - POST request queue
+- `src/client/utils/offlinePostQueue.ts` - POST request queue + batch sync
 
 ### UI Components
-- `src/client/components/layout/TopNavBar.tsx` - Offline banner
+- `src/client/components/layout/TopNavBar.tsx` - Offline badge
 - `src/client/routes/Settings/Settings.tsx` - Cache management UI
 
 ### Configuration
