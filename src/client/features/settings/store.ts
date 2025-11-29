@@ -22,7 +22,8 @@ export const useSettingsStore = create<SettingsState>()(
         persist(
             (set) => ({
                 settings: defaultSettings,
-                isDeviceOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+                // Always start as online, let initializeOfflineListeners set the real value
+                isDeviceOffline: false,
 
                 updateSettings: (newSettings) => {
                     set((state) => ({
@@ -52,8 +53,10 @@ export function initializeOfflineListeners() {
         useSettingsStore.getState().setDeviceOffline(!navigator.onLine);
     };
 
+    // Set initial status
     updateStatus();
 
+    // Listen for network changes
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
 

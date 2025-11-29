@@ -1,4 +1,4 @@
-import { Menu, Moon, SunMedium, LogIn, User, LogOut, WifiOff } from 'lucide-react';
+import { Menu, Moon, SunMedium, LogIn, User, LogOut, WifiOff, Wifi } from 'lucide-react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
 import {
@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/client/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/client/components/ui/avatar';
-import { Badge } from '@/client/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/ui/dialog';
 
 interface TopNavBarProps {
   navItems: NavItem[];
@@ -31,6 +31,7 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
 
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
+  const isDeviceOffline = useSettingsStore((state) => state.isDeviceOffline);
   const effectiveOffline = useEffectiveOffline();
 
   // Use logout mutation
@@ -38,6 +39,11 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
 
   // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dropdown menu state
   const [open, setOpen] = useState(false);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog state
+  const [offlineDialogOpen, setOfflineDialogOpen] = useState(false);
+
+  // User can toggle back online only if device has network AND they manually enabled offline mode
+  const canToggleOnline = !isDeviceOffline && settings.offlineMode;
 
   // Determine if user is authenticated (validated or has hint for instant boot)
   const isAuthenticated = isValidated && !!user;
@@ -72,6 +78,11 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
 
   const getThemeIcon = () => settings.theme === 'light' ? <Moon size={18} /> : <SunMedium size={18} />;
 
+  const handleGoOnline = () => {
+    updateSettings({ offlineMode: false });
+    setOfflineDialogOpen(false);
+  };
+
   return (
     <>
       <nav className={`sticky top-0 z-40 border-b bg-background/80 backdrop-blur ${isStandalone ? 'backdrop-blur-md' : ''}`}>
@@ -97,10 +108,18 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
 
           <div className="flex items-center gap-1">
             {effectiveOffline && (
-              <Badge variant="outline" className="gap-1 border-orange-500 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                <WifiOff size={12} />
+              <button
+                onClick={canToggleOnline ? () => setOfflineDialogOpen(true) : undefined}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-sm font-medium transition-colors ${
+                  isDeviceOffline
+                    ? 'border-slate-400 text-slate-500 dark:border-slate-600 dark:text-slate-500 cursor-default'
+                    : 'border-orange-500 text-orange-600 dark:border-orange-400 dark:text-orange-400 hover:bg-orange-500/10 cursor-pointer'
+                }`}
+                title={isDeviceOffline ? 'No network connection' : 'Click to go online'}
+              >
+                <WifiOff size={16} />
                 <span className="hidden sm:inline">Offline</span>
-              </Badge>
+              </button>
             )}
 
             <Button variant="ghost" size="icon" onClick={handleThemeToggle} title={`Current theme: ${settings.theme}`} aria-label="toggle theme">
@@ -143,6 +162,29 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
           </div>
         </div>
       </nav>
+
+      {/* Go Online Dialog */}
+      <Dialog open={offlineDialogOpen} onOpenChange={setOfflineDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wifi className="w-5 h-5 text-green-500" />
+              Go Online?
+            </DialogTitle>
+            <DialogDescription>
+              You&apos;re currently in offline mode. Any pending changes will be synced when you go back online.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setOfflineDialogOpen(false)}>
+              Stay Offline
+            </Button>
+            <Button className="flex-1" onClick={handleGoOnline}>
+              Go Online
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
