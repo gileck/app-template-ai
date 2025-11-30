@@ -3,7 +3,12 @@ import { User } from '@/server/database/collections/users/types';
 
 // Export constants and utility functions to be used by handlers
 export const SALT_ROUNDS = 10;
-export const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // Should be in environment variables
+
+if (!process.env.JWT_SECRET) {
+    console.error('[AUTH ERROR] JWT_SECRET environment variable is not set. Authentication will not work.');
+    throw new Error('JWT_SECRET environment variable is required');
+}
+export const JWT_SECRET = process.env.JWT_SECRET;
 export const JWT_EXPIRES_IN = '7d';
 export const COOKIE_NAME = 'auth_token';
 export const COOKIE_OPTIONS = {
