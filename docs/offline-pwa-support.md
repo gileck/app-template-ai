@@ -244,9 +244,14 @@ This ensures type consistency across:
 
 1. Network connection restored or user disables offline mode
 2. Offline banner disappears
-3. Queued POST requests automatically flush
-4. Fresh data fetched for new requests
-5. Cache updated with new responses
+3. **"Back Online" alert appears** at bottom of screen:
+   - Shows "You're back online" with Refresh button
+   - User can click "Refresh" to fetch fresh data from server
+   - Auto-dismisses after 10 seconds if user doesn't interact
+   - Can be manually dismissed with X button
+4. If user clicks "Refresh": all React Query caches are invalidated and refetched
+5. Queued POST requests automatically flush via batch sync
+6. Cache updated with new responses
 
 ### First-Time Offline
 
@@ -283,6 +288,10 @@ The implementation starts fresh with IndexedDB:
 - [ ] Online → POST queue flushes automatically
 - [ ] Clear cache → clears IndexedDB
 - [ ] Private browsing → falls back to localStorage gracefully
+- [ ] Coming back online (airplane mode off) → "Back online" alert appears
+- [ ] Toggling offline mode off → "Back online" alert appears
+- [ ] Back online alert → auto-dismisses after 10 seconds
+- [ ] Back online alert Refresh button → invalidates all queries and refetches
 
 ## Performance Considerations
 
@@ -363,6 +372,7 @@ Potential improvements for future iterations:
 
 ### UI Components
 - `src/client/components/layout/TopNavBar.tsx` - Offline badge
+- `src/client/components/BackOnlineDialog.tsx` - Back online alert with refresh prompt
 - `src/client/routes/Settings/Settings.tsx` - Cache management UI
 
 ### Configuration
