@@ -5,7 +5,8 @@ const nextConfig: NextConfig = withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+  // TEMPORARY: Disable SW to test if it's causing iOS reload on airplane mode
+  disable: true, // process.env.NODE_ENV === 'development',
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

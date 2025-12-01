@@ -92,7 +92,7 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
               <Menu size={18} />
             </Button>
             {/* Version indicator for debugging - remove after testing */}
-            <span className="text-xs text-muted-foreground">v4</span>
+            <span className="text-xs text-muted-foreground">v5-no-sw</span>
             <div className="hidden sm:block">
               {navItems.map((item) => (
                 <Button
