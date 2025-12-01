@@ -44,7 +44,7 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
       <Footer isStandalone={isStandalone} />
 
       {/* Bottom Navigation (mobile only) */}
-      <BottomNavBar navItems={navItems} isStandalone={isStandalone} />
+      <BottomNavBar navItems={navItems} />
     </div>
   );
 };

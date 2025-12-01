@@ -4,10 +4,9 @@ import { Button } from '@/client/components/ui/button';
 
 interface BottomNavBarProps {
   navItems: NavItem[];
-  isStandalone?: boolean;
 }
 
-export const BottomNavBar = ({ navItems, isStandalone }: BottomNavBarProps) => {
+export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
   const { currentPath, navigate } = useRouter();
 
   // Get the current navigation value based on the path
@@ -21,7 +20,7 @@ export const BottomNavBar = ({ navItems, isStandalone }: BottomNavBarProps) => {
   };
 
   return (
-    <div className={`fixed inset-x-0 bottom-0 z-40 block border-t bg-background/95 sm:hidden ${isStandalone ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}>
+    <div className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background/95 pb-[env(safe-area-inset-bottom)] sm:hidden">
       <div className="mx-auto flex max-w-screen-lg items-center justify-between px-2 py-2">
         {navItems.map((item, idx) => (
           <Button
