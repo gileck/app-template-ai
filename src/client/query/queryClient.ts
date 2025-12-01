@@ -17,8 +17,9 @@ export function createQueryClient(): QueryClient {
                 retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
                 // Don't refetch on window focus by default (can be overridden per query)
                 refetchOnWindowFocus: false,
-                // Refetch on reconnect
-                refetchOnReconnect: true,
+                // Don't auto-refetch on reconnect - gives user control over when to refresh
+                // Data is cached and user can manually refresh if needed
+                refetchOnReconnect: false,
             },
             mutations: {
                 // Retry mutations once on failure
