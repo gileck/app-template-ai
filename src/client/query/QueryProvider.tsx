@@ -10,15 +10,15 @@ interface QueryProviderProps {
 
 /**
  * Blocks rendering until React Query cache is restored from IndexedDB
- * Shows a white screen during restoration (typically <100ms)
+ * Shows themed background during restoration to prevent white flash
  */
 function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
     const isRestoring = useIsRestoring();
 
     if (isRestoring) {
-        // White screen while cache restores - keeps it simple
-        // This is typically very fast (<100ms)
-        return null;
+        // Show themed background instead of null to prevent white flash
+        // This is especially important on iOS when coming back from airplane mode
+        return <div className="min-h-screen bg-background" />;
     }
 
     return <>{children}</>;

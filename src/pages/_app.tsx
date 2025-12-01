@@ -16,7 +16,6 @@ import {
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { flushOfflineQueue, shouldFlushNow, onOfflineQueueSync } from '@/client/utils/offlinePostQueue';
 import { BatchSyncAlert, useBatchSyncAlertStore } from '@/client/components/BatchSyncAlert';
-import { BackOnlineDialog, useBackOnlineDetector } from '@/client/components/BackOnlineDialog';
 
 const RouterProvider = dynamic(() => import('@/client/router/index').then(module => module.RouterProvider), { ssr: false });
 
@@ -31,7 +30,6 @@ export default function App({ }: AppProps) {
           </RouterProvider>
         </AuthWrapper>
         <BatchSyncAlert />
-        <BackOnlineDialog />
       </AppThemeProvider>
     </QueryProvider>
   );
@@ -44,14 +42,10 @@ export default function App({ }: AppProps) {
  * - API client initialization with settings
  * - Offline queue flushing on reconnect
  * - Cache invalidation after offline sync
- * - Back online detection for refresh prompt
  */
 function AppInitializer() {
   const settings = useSettingsStore((state) => state.settings);
   const queryClient = useQueryClient();
-
-  // Detect when device comes back online and show refresh dialog
-  useBackOnlineDetector();
 
   // Initialize offline listeners on mount
   useEffect(() => {
