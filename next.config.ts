@@ -5,8 +5,7 @@ const nextConfig: NextConfig = withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  // TEMPORARY: Disable SW to test if it's causing iOS reload on airplane mode
-  disable: true, // process.env.NODE_ENV === 'development',
+  disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -58,16 +57,17 @@ const nextConfig: NextConfig = withPWA({
         },
       },
     },
+    // Use CacheFirst for catch-all to prevent iOS reload on airplane mode off
+    // NetworkFirst was causing iOS Safari to reload the page when coming back online
     {
       urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
+      handler: 'CacheFirst',
       options: {
         cacheName: 'offlineCache',
         expiration: {
           maxEntries: 200,
           maxAgeSeconds: 60 * 60 * 24, // 24 hours
         },
-        networkTimeoutSeconds: 3,
       },
     },
   ],
