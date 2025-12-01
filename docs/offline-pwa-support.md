@@ -129,7 +129,59 @@ A global banner appears below the top navigation when offline, providing constan
 - Sticky positioning keeps it visible while scrolling
 - Automatically appears/disappears based on connectivity
 
-### 4. Error Handling Pattern
+### 4. Batch Sync Alert
+
+**Feature**: `src/client/features/offline-sync/`
+
+When the device comes back online and queued offline calls are being synced, a beautiful alert appears showing sync progress and results.
+
+#### Alert States
+
+| State | Appearance | Description |
+|-------|------------|-------------|
+| **Syncing** | Blue gradient with shimmer animation | "Syncing X offline calls..." with progress bar |
+| **Success** | Green gradient | "All X calls synced successfully" - auto-dismisses after 4s |
+| **Partial** | Amber gradient | "X synced, Y failed" - expandable details |
+| **Error** | Red gradient | "X calls failed to sync" - expandable details |
+
+#### Feature Structure
+
+```
+src/client/features/offline-sync/
+├── types.ts              # BatchSyncFailure, BatchSyncSuccess, AlertStatus
+├── store.ts              # Zustand store for alert state
+├── hooks.ts              # useOfflineSyncInitializer hook
+├── BatchSyncAlert.tsx    # The alert UI component
+└── index.ts              # Public exports
+```
+
+#### Usage
+
+The sync initializer is called once in `_app.tsx`:
+
+```typescript
+import { useOfflineSyncInitializer, BatchSyncAlert } from '@/client/features';
+
+function AppInitializer() {
+  // Initialize offline sync system (queue flushing, alerts, cache invalidation)
+  useOfflineSyncInitializer();
+  return null;
+}
+
+// In App component JSX:
+<BatchSyncAlert />
+```
+
+#### Alert Features
+
+- **Expandable Details**: Click "View Details" to see individual call results
+- **Formatted API Names**: "todos/create" → "Create Todo"
+- **Error Information**: Shows error message and request parameters for failed calls
+- **Glassmorphism Design**: Backdrop blur with gradient backgrounds
+- **Dark Mode Support**: Appropriate colors for both themes
+- **Positioned Above Bottom Nav**: Won't overlap UI elements
+
+### 5. Error Handling Pattern
 
 **File**: `src/client/routes/AIChat/AIChat.tsx` (example)
 
@@ -162,7 +214,7 @@ This pattern:
 - Maintains consistent error handling across the app
 - Works with React Query hooks for data fetching
 
-### 5. Cache Management
+### 6. Cache Management
 
 **File**: `src/client/routes/Settings/Settings.tsx`
 
@@ -182,7 +234,7 @@ const clientCacheCleared = await clientCacheProvider.clearAllCache();
 - Handles partial failures gracefully
 - Updates UI text to reflect IndexedDB usage
 
-### 6. Service Worker Integration
+### 7. Service Worker Integration
 
 **File**: `next.config.ts`
 
@@ -284,6 +336,14 @@ The implementation starts fresh with IndexedDB:
 - [ ] Clear cache → clears IndexedDB
 - [ ] Private browsing → falls back to localStorage gracefully
 
+### Batch Sync Alert Testing
+- [ ] Queue multiple offline POSTs → come online → "Syncing X calls" alert appears
+- [ ] All calls succeed → success alert with "All X calls synced" (auto-dismisses)
+- [ ] Some calls fail → partial alert shows "X synced, Y failed"
+- [ ] Expand details → shows individual call results and errors
+- [ ] Dismiss button works on success/error states
+- [ ] Alert positioned above bottom nav bar
+
 ## Performance Considerations
 
 ### IndexedDB Benefits
@@ -383,6 +443,12 @@ const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
 - `src/client/utils/indexedDBCache.ts` - IndexedDB cache provider (for apiClient)
 - `src/client/utils/apiClient.ts` - API client with offline handling
 - `src/client/utils/offlinePostQueue.ts` - POST request queue + batch sync
+
+### Offline Sync Feature
+- `src/client/features/offline-sync/store.ts` - Batch sync alert Zustand store
+- `src/client/features/offline-sync/hooks.ts` - useOfflineSyncInitializer hook
+- `src/client/features/offline-sync/BatchSyncAlert.tsx` - Sync alert UI component
+- `src/client/features/offline-sync/types.ts` - Type definitions
 
 ### UI Components
 - `src/client/components/layout/TopNavBar.tsx` - Offline badge
