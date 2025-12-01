@@ -9,4 +9,5 @@
 export * from './auth';
 export * from './settings';
 export * from './router';
+export * from './offline-sync';
 

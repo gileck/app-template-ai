@@ -265,3 +265,26 @@
 .ios-button-press:active {
     transform: scale(0.98);
 }
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(200%);
+    }
+}
+
+/* Progress bar animation */
+@keyframes progress {
+    0% {
+        transform: translateX(-100%);
+    }
+    50% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(300%);
+    }
+}

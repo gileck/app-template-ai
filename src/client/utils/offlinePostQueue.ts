@@ -27,8 +27,18 @@ export interface SyncResult {
     }>;
 }
 
+/**
+ * Sync start event payload
+ */
+export interface SyncStartEvent {
+    totalItems: number;
+    items: OfflinePostQueueItem[];
+}
+
 // Callback to notify when sync completes (for cache invalidation and error display)
 let onSyncCallback: ((result: SyncResult) => void) | null = null;
+// Callback to notify when sync starts
+let onSyncStartCallback: ((event: SyncStartEvent) => void) | null = null;
 
 /**
  * Register a callback to be notified when offline sync completes.
@@ -37,6 +47,15 @@ let onSyncCallback: ((result: SyncResult) => void) | null = null;
 export function onOfflineQueueSync(callback: (result: SyncResult) => void): () => void {
     onSyncCallback = callback;
     return () => { onSyncCallback = null; };
+}
+
+/**
+ * Register a callback to be notified when offline sync starts.
+ * This allows UI to show "syncing X items" indicator.
+ */
+export function onOfflineQueueSyncStart(callback: (event: SyncStartEvent) => void): () => void {
+    onSyncStartCallback = callback;
+    return () => { onSyncStartCallback = null; };
 }
 
 export function loadOfflineQueue(): OfflinePostQueueItem[] {
@@ -91,6 +110,11 @@ export async function flushOfflineQueue(getSettings: () => Settings | null | und
     queueFlushInProgress = true;
     const syncedItems: OfflinePostQueueItem[] = [];
     const failedItems: Array<{ item: OfflinePostQueueItem; error: string }> = [];
+
+    // Notify listeners that sync is starting
+    if (onSyncStartCallback) {
+        onSyncStartCallback({ totalItems: q.length, items: q });
+    }
 
     try {
         // Build batch operations array
