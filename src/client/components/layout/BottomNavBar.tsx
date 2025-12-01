@@ -20,7 +20,14 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background/95 pb-[env(safe-area-inset-bottom)] sm:hidden">
+    <div 
+      className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background sm:hidden"
+      style={{
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+      }}
+    >
       <div className="mx-auto flex max-w-screen-lg items-center justify-between px-2 py-2">
         {navItems.map((item, idx) => (
           <Button
