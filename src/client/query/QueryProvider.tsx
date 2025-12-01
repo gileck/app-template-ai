@@ -8,6 +8,16 @@ interface QueryProviderProps {
     children: React.ReactNode;
 }
 
+// Debug logger
+function debugLog(message: string) {
+    if (typeof window === 'undefined') return;
+    const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
+    logs.push(`${new Date().toISOString()}: ${message}`);
+    if (logs.length > 50) logs.shift();
+    localStorage.setItem('_debug_logs', JSON.stringify(logs));
+    console.log('[DEBUG]', message);
+}
+
 /**
  * Waits for React Query cache to be restored from IndexedDB
  * 
@@ -16,9 +26,13 @@ interface QueryProviderProps {
  * Components handle their own loading states via isLoading checks.
  */
 function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
-    // We still use this hook to track restore status for debugging,
-    // but we always render children to avoid hydration mismatch
-    useIsRestoring();
+    const isRestoring = useIsRestoring();
+    
+    // Log restore status changes for debugging iOS issue
+    React.useEffect(() => {
+        debugLog(`WaitForCacheRestore: isRestoring=${isRestoring}`);
+    }, [isRestoring]);
+    
     return <>{children}</>;
 }
 

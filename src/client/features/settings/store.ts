@@ -43,22 +43,55 @@ export const useSettingsStore = create<SettingsState>()(
     )
 );
 
+// Debug logger for iOS network issues
+function debugLog(message: string) {
+    const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
+    logs.push(`${new Date().toISOString()}: ${message}`);
+    // Keep only last 50 logs
+    if (logs.length > 50) logs.shift();
+    localStorage.setItem('_debug_logs', JSON.stringify(logs));
+    console.log('[DEBUG]', message);
+}
+
+// Export for debugging - call window._getDebugLogs() in console
+if (typeof window !== 'undefined') {
+    (window as unknown as Record<string, unknown>)._getDebugLogs = () => {
+        const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
+        console.log(logs.join('\n'));
+        return logs;
+    };
+    (window as unknown as Record<string, unknown>)._clearDebugLogs = () => {
+        localStorage.removeItem('_debug_logs');
+        console.log('Debug logs cleared');
+    };
+}
+
 /**
  * Initialize device offline listeners
  */
 export function initializeOfflineListeners() {
     if (typeof window === 'undefined') return;
 
+    debugLog('initializeOfflineListeners called');
+
     const updateStatus = () => {
-        useSettingsStore.getState().setDeviceOffline(!navigator.onLine);
+        const online = navigator.onLine;
+        debugLog(`Network status changed: ${online ? 'ONLINE' : 'OFFLINE'}`);
+        useSettingsStore.getState().setDeviceOffline(!online);
     };
 
     // Set initial status
     updateStatus();
 
     // Listen for network changes
-    window.addEventListener('online', updateStatus);
-    window.addEventListener('offline', updateStatus);
+    window.addEventListener('online', () => {
+        debugLog('online event fired');
+        updateStatus();
+    });
+    window.addEventListener('offline', () => {
+        debugLog('offline event fired');
+        updateStatus();
+    });
 
     return () => {
         window.removeEventListener('online', updateStatus);
