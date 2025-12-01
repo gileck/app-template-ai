@@ -91,6 +91,8 @@ export const TopNavBar = ({ navItems, isStandalone, onDrawerToggle }: TopNavBarP
             <Button variant="ghost" size="icon" aria-label="open drawer" onClick={onDrawerToggle}>
               <Menu size={18} />
             </Button>
+            {/* Version indicator for debugging - remove after testing */}
+            <span className="text-xs text-muted-foreground">v2</span>
             <div className="hidden sm:block">
               {navItems.map((item) => (
                 <Button
