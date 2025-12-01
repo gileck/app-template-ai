@@ -8,31 +8,16 @@ interface QueryProviderProps {
     children: React.ReactNode;
 }
 
-// Debug logger
-function debugLog(message: string) {
-    if (typeof window === 'undefined') return;
-    const logs = JSON.parse(localStorage.getItem('_debug_logs') || '[]');
-    logs.push(`${new Date().toISOString()}: ${message}`);
-    if (logs.length > 50) logs.shift();
-    localStorage.setItem('_debug_logs', JSON.stringify(logs));
-    console.log('[DEBUG]', message);
-}
-
 /**
- * Waits for React Query cache to be restored from IndexedDB
+ * Wrapper that waits for React Query cache restoration.
  * 
- * Note: We no longer block rendering during restore. The singleton persister
- * pattern prevents re-restore on re-render, so there's no white flash issue.
+ * Note: We always render children immediately (no blocking).
+ * The singleton persister pattern prevents re-restore on re-render.
  * Components handle their own loading states via isLoading checks.
  */
 function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
-    const isRestoring = useIsRestoring();
-    
-    // Log restore status changes for debugging iOS issue
-    React.useEffect(() => {
-        debugLog(`WaitForCacheRestore: isRestoring=${isRestoring}`);
-    }, [isRestoring]);
-    
+    // Track restore status (used internally by React Query)
+    useIsRestoring();
     return <>{children}</>;
 }
 

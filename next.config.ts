@@ -8,6 +8,7 @@ const nextConfig: NextConfig = withPWA({
   disable: process.env.NODE_ENV === 'development',
   // Prevent automatic page reload when coming back online (iOS airplane mode fix)
   // Default is true, which calls location.reload() on the 'online' event
+  // @ts-expect-error - reloadOnOnline exists but types are outdated
   reloadOnOnline: false,
   runtimeCaching: [
     {
