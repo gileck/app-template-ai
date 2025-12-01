@@ -9,18 +9,16 @@ interface QueryProviderProps {
 }
 
 /**
- * Blocks rendering until React Query cache is restored from IndexedDB
- * Shows themed background during restoration to prevent white flash
+ * Waits for React Query cache to be restored from IndexedDB
+ * 
+ * Note: We no longer block rendering during restore. The singleton persister
+ * pattern prevents re-restore on re-render, so there's no white flash issue.
+ * Components handle their own loading states via isLoading checks.
  */
 function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
-    const isRestoring = useIsRestoring();
-
-    if (isRestoring) {
-        // Show themed background instead of null to prevent white flash
-        // This is especially important on iOS when coming back from airplane mode
-        return <div className="min-h-screen bg-background" />;
-    }
-
+    // We still use this hook to track restore status for debugging,
+    // but we always render children to avoid hydration mismatch
+    useIsRestoring();
     return <>{children}</>;
 }
 
