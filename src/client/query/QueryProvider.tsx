@@ -24,18 +24,41 @@ function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+// Module-level singleton - created once when module loads
+// This prevents re-restore on component re-render (e.g., on network state change)
+const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
+
+// Dehydrate options - stable reference at module level
+const dehydrateOptions = {
+    shouldDehydrateQuery: (query: { state: { status: string; error: unknown } }) => {
+        // Only persist successful queries
+        if (query.state.status !== 'success') {
+            return false;
+        }
+        // Don't persist queries with errors
+        if (query.state.error) {
+            return false;
+        }
+        // Don't persist mutations
+        return true;
+    },
+};
+
 /**
  * React Query provider with IndexedDB persistence
  * 
  * Blocks app rendering until cache is restored from IndexedDB.
  * This ensures all components can assume cached data is available
  * without needing to check isRestoring individually.
+ * 
+ * IMPORTANT: The persister is a module-level singleton to prevent re-restore
+ * when the component re-renders (e.g., on network state change).
  */
 export function QueryProvider({ children }: QueryProviderProps) {
     const queryClient = getQueryClient();
 
     // Only use persistence on client side
-    if (typeof window === 'undefined') {
+    if (!persister) {
         return (
             <QueryClientProvider client={queryClient}>
                 {children}
@@ -43,30 +66,13 @@ export function QueryProvider({ children }: QueryProviderProps) {
         );
     }
 
-    const persister = createIDBPersister();
-
     return (
         <PersistQueryClientProvider
             client={queryClient}
             persistOptions={{
                 persister,
-                // Maximum age for persisted cache (24 hours)
-                maxAge: 24 * 60 * 60 * 1000,
-                // Dehydrate options - what to persist
-                dehydrateOptions: {
-                    shouldDehydrateQuery: (query) => {
-                        // Only persist successful queries
-                        if (query.state.status !== 'success') {
-                            return false;
-                        }
-                        // Don't persist queries with errors
-                        if (query.state.error) {
-                            return false;
-                        }
-                        // Don't persist mutations
-                        return true;
-                    },
-                },
+                maxAge: 24 * 60 * 60 * 1000, // 24 hours
+                dehydrateOptions,
             }}
         >
             <WaitForCacheRestore>
