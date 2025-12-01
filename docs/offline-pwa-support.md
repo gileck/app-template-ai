@@ -341,6 +341,19 @@ Potential improvements for future iterations:
 3. Verify `shouldFlushNow()` logic
 4. Check browser console for errors
 
+### iOS White Flash on Airplane Mode Off
+
+**Problem**: On iOS, when coming back from airplane mode, the screen briefly flashes white.
+
+**Cause**: The React Query persister was being created inside the `QueryProvider` component. When the device came back online, components re-rendered, creating a new persister object. `PersistQueryClientProvider` detected the new persister reference and triggered a cache re-restore, causing `isRestoring` to become `true` and showing a white screen.
+
+**Solution**: The persister is now a module-level singleton (created once when the module loads). This ensures the same persister reference is used across re-renders, preventing unnecessary re-restore.
+
+```typescript
+// QueryProvider.tsx - persister is created once at module level
+const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
+```
+
 ## Related Files
 
 ### Feature Stores (Zustand)
