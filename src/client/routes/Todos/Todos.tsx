@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
 import { Alert } from '@/client/components/ui/alert';
@@ -10,6 +10,7 @@ import { CheckSquare, Eye, Plus, RefreshCcw, Save, X, Pencil, Trash2 } from 'luc
 import { useRouter } from '../../router';
 import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo } from './hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
+import { logger } from '@/client/features/session-logs';
 
 /**
  * Todos page component using React Query
@@ -48,6 +49,13 @@ export function Todos() {
     const todos = data?.todos || [];
     const isCreating = createTodoMutation.isPending;
 
+    // Log page view on mount
+    useEffect(() => {
+        logger.info('todos', 'Todos page viewed', { 
+            meta: { todoCount: todos.length } 
+        });
+    }, []);
+
     // Show loading only if fetching with no cached data
     // Cache restoration is handled globally by QueryProvider
     if (isLoading && !data) {
@@ -61,85 +69,143 @@ export function Todos() {
 
     const handleCreateTodo = async () => {
         if (!newTodoTitle.trim()) {
+            logger.warn('todos', 'Create todo attempted with empty title');
             setActionError('Please enter a todo title');
             return;
         }
 
+        const title = newTodoTitle.trim();
+        logger.info('todos', 'Creating new todo', { meta: { title } });
+        
         setActionError('');
         setNewTodoTitle('');
 
         createTodoMutation.mutate(
-            { title: newTodoTitle.trim() },
+            { title },
             {
+                onSuccess: () => {
+                    logger.info('todos', 'Todo created successfully', { meta: { title } });
+                },
                 onError: (err) => {
-                    setActionError(err instanceof Error ? err.message : 'Failed to create todo');
+                    const errorMessage = err instanceof Error ? err.message : 'Failed to create todo';
+                    logger.error('todos', 'Failed to create todo', { meta: { title, error: errorMessage } });
+                    setActionError(errorMessage);
                 },
             }
         );
     };
 
     const handleToggleComplete = async (todo: TodoItemClient) => {
+        const newCompletedState = !todo.completed;
+        logger.info('todos', `Toggling todo completion`, { 
+            meta: { todoId: todo._id, title: todo.title, completed: newCompletedState } 
+        });
+        
         setActionError('');
         setMutatingTodoId(todo._id);
 
         updateTodoMutation.mutate(
-            { todoId: todo._id, completed: !todo.completed },
+            { todoId: todo._id, completed: newCompletedState },
             {
                 onSettled: () => setMutatingTodoId(null),
+                onSuccess: () => {
+                    logger.info('todos', `Todo marked as ${newCompletedState ? 'completed' : 'incomplete'}`, { 
+                        meta: { todoId: todo._id, title: todo.title } 
+                    });
+                },
                 onError: (err) => {
-                    setActionError(err instanceof Error ? err.message : 'Failed to update todo');
+                    const errorMessage = err instanceof Error ? err.message : 'Failed to update todo';
+                    logger.error('todos', 'Failed to toggle todo completion', { 
+                        meta: { todoId: todo._id, error: errorMessage } 
+                    });
+                    setActionError(errorMessage);
                 },
             }
         );
     };
 
     const handleStartEdit = (todo: TodoItemClient) => {
+        logger.info('todos', 'Started editing todo', { 
+            meta: { todoId: todo._id, title: todo.title } 
+        });
         setEditingTodo(todo);
         setEditTitle(todo.title);
     };
 
     const handleSaveEdit = async () => {
         if (!editingTodo || !editTitle.trim()) {
+            logger.warn('todos', 'Save edit attempted with empty title');
             setActionError('Please enter a valid title');
             return;
         }
 
-        setActionError('');
         const todoId = editingTodo._id;
+        const oldTitle = editingTodo.title;
+        const newTitle = editTitle.trim();
+        
+        logger.info('todos', 'Saving todo edit', { 
+            meta: { todoId, oldTitle, newTitle } 
+        });
+
+        setActionError('');
         setMutatingTodoId(todoId);
         setEditingTodo(null);
         setEditTitle('');
 
         updateTodoMutation.mutate(
-            { todoId, title: editTitle.trim() },
+            { todoId, title: newTitle },
             {
                 onSettled: () => setMutatingTodoId(null),
+                onSuccess: () => {
+                    logger.info('todos', 'Todo title updated', { 
+                        meta: { todoId, oldTitle, newTitle } 
+                    });
+                },
                 onError: (err) => {
-                    setActionError(err instanceof Error ? err.message : 'Failed to update todo');
+                    const errorMessage = err instanceof Error ? err.message : 'Failed to update todo';
+                    logger.error('todos', 'Failed to update todo title', { 
+                        meta: { todoId, error: errorMessage } 
+                    });
+                    setActionError(errorMessage);
                 },
             }
         );
     };
 
     const handleCancelEdit = () => {
+        if (editingTodo) {
+            logger.info('todos', 'Cancelled editing todo', { 
+                meta: { todoId: editingTodo._id } 
+            });
+        }
         setEditingTodo(null);
         setEditTitle('');
     };
 
     const handleDeleteTodo = async (todo: TodoItemClient) => {
+        logger.info('todos', 'Delete confirmation opened', { 
+            meta: { todoId: todo._id, title: todo.title } 
+        });
         setTodoToDelete(todo);
         setDeleteConfirmOpen(true);
     };
 
     const handleViewTodo = (todo: TodoItemClient) => {
+        logger.info('todos', 'Navigating to todo detail', { 
+            meta: { todoId: todo._id, title: todo.title } 
+        });
         navigate(`/todos/${todo._id}`);
     };
 
     const confirmDelete = async () => {
         if (!todoToDelete) return;
 
-        setActionError('');
         const todoId = todoToDelete._id;
+        const title = todoToDelete.title;
+        
+        logger.info('todos', 'Deleting todo', { meta: { todoId, title } });
+
+        setActionError('');
         setMutatingTodoId(todoId);
         setDeleteConfirmOpen(false);
         setTodoToDelete(null);
@@ -148,8 +214,15 @@ export function Todos() {
             { todoId },
             {
                 onSettled: () => setMutatingTodoId(null),
+                onSuccess: () => {
+                    logger.info('todos', 'Todo deleted successfully', { meta: { todoId, title } });
+                },
                 onError: (err) => {
-                    setActionError(err instanceof Error ? err.message : 'Failed to delete todo');
+                    const errorMessage = err instanceof Error ? err.message : 'Failed to delete todo';
+                    logger.error('todos', 'Failed to delete todo', { 
+                        meta: { todoId, error: errorMessage } 
+                    });
+                    setActionError(errorMessage);
                 },
             }
         );
@@ -169,13 +242,27 @@ export function Todos() {
         }
     };
 
+    const handleRefresh = () => {
+        logger.info('todos', 'Manual refresh triggered', { meta: { currentCount: todos.length } });
+        refetch();
+    };
+
+    const handleCancelDelete = () => {
+        if (todoToDelete) {
+            logger.info('todos', 'Delete cancelled', { 
+                meta: { todoId: todoToDelete._id, title: todoToDelete.title } 
+            });
+        }
+        setDeleteConfirmOpen(false);
+    };
+
     const displayError = (error instanceof Error ? error.message : null) || actionError;
 
     return (
         <div className="mx-auto max-w-3xl p-3">
             <div className="mb-3 flex items-center justify-between">
                 <h1 className="text-2xl font-semibold">My Todos</h1>
-                <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
                     <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
                 </Button>
             </div>
@@ -268,14 +355,14 @@ export function Todos() {
             </Card>
 
             {/* Delete confirmation dialog */}
-            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <Dialog open={deleteConfirmOpen} onOpenChange={(open) => !open && handleCancelDelete()}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Delete Todo</DialogTitle>
                     </DialogHeader>
                     <p>Are you sure you want to delete &quot;{todoToDelete?.title}&quot;?</p>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={handleCancelDelete}>Cancel</Button>
                         <Button variant="destructive" onClick={confirmDelete} autoFocus>Delete</Button>
                     </DialogFooter>
                 </DialogContent>

@@ -5,6 +5,8 @@ import { DrawerMenu } from './layout/DrawerMenu';
 import { Footer } from './layout/Footer';
 import { NavigatorStandalone } from './layout/types';
 import { navItems, menuItems } from './NavLinks';
+import { BugReportDialog, useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
+import { ToastContainer } from './ui/toast';
 
 
 export const Layout = ({ children }: { children?: ReactNode }) => {
@@ -14,6 +16,12 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as NavigatorStandalone).standalone);
   const isMobile = typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false;
+
+  // Set up global error handler
+  useGlobalErrorHandler();
+
+  // Set up network status logger
+  useNetworkLogger();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -37,7 +45,9 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-screen-lg flex-1 px-2 py-3 pb-20 sm:px-4 sm:pb-4">
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
 
       {/* Footer (hidden on mobile) */}
@@ -45,6 +55,12 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
       {/* Bottom Navigation (mobile only) */}
       <BottomNavBar navItems={navItems} />
+
+      {/* Bug Report Dialog */}
+      <BugReportDialog />
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 };

@@ -10,4 +10,7 @@ export * from './auth';
 export * from './settings';
 export * from './router';
 export * from './offline-sync';
+export * from './session-logs';
+export * from './bug-report';
+export * from './error-tracking';
 

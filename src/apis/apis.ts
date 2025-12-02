@@ -3,9 +3,21 @@ import * as chat from "./chat/server";
 import * as clearCache from "./settings/clearCache/server";
 import * as auth from "./auth/server";
 import { todosApiHandlers } from "./todos/server";
+import { reportsApiHandlers } from "./reports/server";
 
 // Convert todos API handlers to the generic signature
 const typedTodosApiHandlers = Object.entries(todosApiHandlers).reduce(
+  (acc, [key, handler]) => {
+    acc[key] = {
+      process: handler.process as (params: unknown, context: ApiHandlerContext) => Promise<unknown>,
+    };
+    return acc;
+  },
+  {} as ApiHandlers
+);
+
+// Convert reports API handlers to the generic signature
+const typedReportsApiHandlers = Object.entries(reportsApiHandlers).reduce(
   (acc, [key, handler]) => {
     acc[key] = {
       process: handler.process as (params: unknown, context: ApiHandlerContext) => Promise<unknown>,
@@ -24,6 +36,7 @@ export const apiHandlers: ApiHandlers = {
   [auth.logout]: { process: auth.logoutUser as (params: unknown, context: ApiHandlerContext) => Promise<unknown> },
   [auth.updateProfile]: { process: auth.updateUserProfile as (params: unknown, context: ApiHandlerContext) => Promise<unknown> },
   ...typedTodosApiHandlers,
+  ...typedReportsApiHandlers,
 };
 
 

@@ -6,6 +6,7 @@ import { Todos } from './Todos';
 import { SingleTodo } from './SingleTodo';
 import { createRoutes } from '../router';
 import { Profile } from './Profile';
+import { Reports } from './Reports';
 // Define routes
 export const routes = createRoutes({
   '/': Home,
@@ -15,4 +16,5 @@ export const routes = createRoutes({
   '/settings': Settings,
   '/not-found': NotFound,
   '/profile': Profile,
+  '/reports': Reports,
 });
