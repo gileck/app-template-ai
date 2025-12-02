@@ -1,3 +1,14 @@
+/**
+ * ⚠️ CURRENTLY UNUSED - Kept for potential future use
+ * 
+ * This file provides a localStorage-based cache provider for API responses.
+ * As of Dec 2025, React Query handles all client-side caching, so this
+ * API cache layer is not being used. We're keeping it in case we need
+ * a separate API cache in the future (e.g., for non-React Query use cases).
+ * 
+ * See: apiClient.ts (simplified to use React Query only)
+ */
+
 import { CacheMetadata, CacheParams, CacheStatus, CacheProvider } from '@/common/cache/types';
 
 /**

@@ -1,3 +1,14 @@
+/**
+ * ⚠️ CURRENTLY UNUSED - Kept for potential future use
+ * 
+ * This file provides an IndexedDB-based cache provider for API responses.
+ * As of Dec 2025, React Query handles all client-side caching, so this
+ * API cache layer is not being used. We're keeping it in case we need
+ * a separate API cache in the future (e.g., for non-React Query use cases).
+ * 
+ * See: apiClient.ts (simplified to use React Query only)
+ */
+
 import { CacheMetadata, CacheParams, CacheStatus, CacheProvider } from '@/common/cache/types';
 import { localStorageCacheProvider } from './localStorageCache';
 
@@ -7,6 +18,13 @@ import { localStorageCacheProvider } from './localStorageCache';
 const DB_NAME = 'app_cache_db';
 const STORE_NAME = 'cache_entries';
 const DB_VERSION = 1;
+
+/**
+ * Use localStorage instead of IndexedDB for API cache.
+ * IndexedDB can be extremely slow on some systems (5+ seconds for small reads).
+ * localStorage is limited to ~5MB but is consistently fast.
+ */
+const USE_LOCALSTORAGE_CACHE = true;
 
 /**
  * Cache entry structure in IndexedDB
@@ -369,9 +387,13 @@ const createSmartProvider = (): CacheProvider => {
         }
 
         providerPromise = (async () => {
+            // Use localStorage for better performance (IndexedDB can be very slow)
+            if (USE_LOCALSTORAGE_CACHE) {
+                provider = localStorageCacheProvider;
+                return provider;
+            }
             const isAvailable = await isIndexedDBAvailable();
             provider = isAvailable ? indexedDBCacheProvider : localStorageCacheProvider;
-            console.log(`Using ${isAvailable ? 'IndexedDB' : 'localStorage'} cache provider`);
             return provider;
         })();
 

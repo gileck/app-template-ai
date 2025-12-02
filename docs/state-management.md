@@ -36,10 +36,10 @@ The application uses a **dual-store architecture** optimized for PWA with offlin
 │  └──────────┬───────────┘    └──────────┬───────────┘          │
 │             │                           │                       │
 │             ▼                           ▼                       │
-│  ┌──────────────────────┐    ┌──────────────────────┐          │
-│  │    localStorage      │    │     IndexedDB        │          │
-│  │    (sync, instant)   │    │   (async, larger)    │          │
-│  └──────────────────────┘    └──────────────────────┘          │
+│  ┌──────────────────────────────────────────────────┐          │
+│  │              localStorage                         │          │
+│  │   (fast, reliable, ~5MB limit)                   │          │
+│  └──────────────────────────────────────────────────┘          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -49,9 +49,11 @@ The application uses a **dual-store architecture** optimized for PWA with offlin
 | Aspect | Zustand | React Query |
 |--------|---------|-------------|
 | **Data Source** | Client-generated | Server API |
-| **Persistence** | localStorage (sync) | IndexedDB (async) |
-| **Boot Time** | Instant (sync) | ~50-100ms |
+| **Persistence** | localStorage (sync) | localStorage (async restore) |
+| **Boot Time** | Instant (sync) | ~1-5ms |
 | **Use Case** | Settings, hints, UI state | API data, caching |
+
+> **Note**: Both Zustand and React Query now use localStorage for persistence. IndexedDB was removed due to unreliable performance on some systems (5+ second reads). See [Caching Strategy](./caching-strategy.md) for details.
 
 ---
 
@@ -87,7 +89,7 @@ Use this flowchart to decide which solution to use:
 
 | State Type | Solution | Persistence | Examples |
 |------------|----------|-------------|----------|
-| API data | React Query | IndexedDB | Todos, user profile, any fetched data |
+| API data | React Query | localStorage | Todos, user profile, any fetched data |
 | User preferences | Zustand | localStorage | Theme, offline mode, AI model |
 | Auth hints | Zustand | localStorage | `isProbablyLoggedIn`, `userPublicHint` |
 | Route persistence | Zustand | localStorage | Last visited route |
@@ -438,8 +440,8 @@ The architecture enables **instant startup** after iOS kills the app:
    └── Zustand hydrates: isProbablyLoggedIn, userHint, settings, lastRoute
    └── App shell renders immediately
 
-2. IndexedDB (~50-100ms)
-   └── React Query cache restores
+2. React Query restore (~1-5ms)
+   └── React Query cache restores from localStorage
    └── Cached data available
 
 3. Background
@@ -454,7 +456,7 @@ The architecture enables **instant startup** after iOS kills the app:
 | Auth hint | localStorage | Instant |
 | User settings | localStorage | Instant |
 | Last route | localStorage | Instant |
-| Server data | IndexedDB | ~50-100ms |
+| Server data | localStorage (React Query) | ~1-5ms |
 
 ---
 
@@ -593,7 +595,7 @@ const [inputValue, setInputValue] = useState('');
 | `src/client/features/settings/store.ts` | User preferences |
 | `src/client/features/router/store.ts` | Route persistence |
 | `src/client/query/defaults.ts` | React Query defaults hook |
-| `src/client/query/QueryProvider.tsx` | React Query + IndexedDB persistence |
+| `src/client/query/QueryProvider.tsx` | React Query + localStorage persistence |
 | `src/client/utils/apiClient.ts` | API client with offline queue |
 | `src/client/utils/offlinePostQueue.ts` | POST request queue + batch sync |
 

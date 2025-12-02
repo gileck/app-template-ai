@@ -28,7 +28,7 @@ export function useCurrentUser(options?: { enabled?: boolean }) {
     return useQuery({
         queryKey: currentUserQueryKey,
         queryFn: async (): Promise<CurrentUserResponse> => {
-            const response = await apiFetchCurrentUser({});
+            const response = await apiFetchCurrentUser();
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
@@ -86,7 +86,7 @@ export function useAuthValidation() {
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: currentUserQueryKey,
         queryFn: async () => {
-            const response = await apiFetchCurrentUser({});
+            const response = await apiFetchCurrentUser();
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
@@ -245,19 +245,13 @@ async function clearAllLocalData(
     // Clear React Query cache
     queryClient.clear();
 
-    // Clear other Zustand stores by removing their localStorage keys
+    // Clear other storage by removing their localStorage keys
     if (typeof window !== 'undefined') {
         localStorage.removeItem('settings-storage');
         localStorage.removeItem('route-storage');
         localStorage.removeItem('apiClient_offline_post_queue_v1');
-    }
-
-    // Clear IndexedDB cache
-    try {
-        const { clientCacheProvider } = await import('@/client/utils/indexedDBCache');
-        await clientCacheProvider.clearAllCache();
-    } catch {
-        // IndexedDB might not be available
+        // Clear React Query persisted cache
+        localStorage.removeItem('react-query-cache-v2');
     }
 
     // Reload to reset all in-memory state

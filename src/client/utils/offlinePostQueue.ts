@@ -1,5 +1,6 @@
 import type { Settings } from "@/client/features/settings";
 import type { BatchSyncResponse } from "@/apis/batch-updates/types";
+import { logger } from "@/client/features/session-logs";
 
 type PrimitiveParam = string | number | boolean | undefined | null;
 export interface OfflinePostQueueItem<Params = Record<string, PrimitiveParam>> {
@@ -172,7 +173,7 @@ export async function flushOfflineQueue(getSettings: () => Settings | null | und
         // Save remaining items back to queue
         saveOfflineQueue(remainingQueue);
 
-        console.log(`Batch sync completed: ${result.successCount} succeeded, ${result.failureCount} failed`);
+        logger.info('offline-sync', `Batch sync completed: ${result.successCount} succeeded, ${result.failureCount} failed`);
     } catch (error) {
         console.error('Batch sync error:', error);
     } finally {

@@ -110,20 +110,29 @@ Current settings fields (defined in `src/client/features/settings/types.ts`):
 
 ## Clearing Cache
 
-Use the API client directly (cache clearing is now separate from settings):
+Use the API client and React Query directly:
 
 ```typescript
-import { clearCache } from '@/apis/settings/clearCache/client';
-import { clientCacheProvider } from '@/client/utils/indexedDBCache';
+import { useQueryClient } from '@tanstack/react-query';
+import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
+
+const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
 
 const handleClearCache = async () => {
-    // Clear server cache
-    const result = await clearCache({});
+    const queryClient = useQueryClient();
     
-    // Clear client IndexedDB cache
-    await clientCacheProvider.clearAllCache();
+    // Clear server cache
+    await clearCacheApi({});
+    
+    // Clear React Query in-memory cache
+    queryClient.clear();
+    
+    // Clear React Query persisted cache from localStorage
+    localStorage.removeItem(REACT_QUERY_CACHE_KEY);
 };
 ```
+
+> **Note**: As of Dec 2025, React Query handles all client-side caching. The old IndexedDB API cache (`clientCacheProvider`) is no longer used. See [Caching Strategy](docs/caching-strategy.md) for details.
 
 ## Key Files
 

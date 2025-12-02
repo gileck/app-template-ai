@@ -1,6 +1,4 @@
 import { CacheResult } from "@/common/cache/types";
-import { createCache } from "@/common/cache";
-import { clientCacheProvider } from "./indexedDBCache";
 import type { Settings } from "@/client/features/settings";
 import { useSettingsStore } from "@/client/features/settings";
 import {
@@ -9,8 +7,7 @@ import {
   flushOfflineQueue,
   shouldFlushNow,
 } from '@/client/utils/offlinePostQueue';
-
-const clientCache = createCache(clientCacheProvider)
+import { logger } from '@/client/features/session-logs';
 
 // Legacy callback support for initialization
 let getSettingsRef: (() => Settings) | null = null;
@@ -47,56 +44,50 @@ function getSettingsSafe(): Settings | null {
 
 export const apiClient = {
   /**
-   * Make a POST request to an API endpoint
-   * @param endpoint The API endpoint
-   * @param body Request body
-   * @param options Additional request options
+   * Make a GET-style request to an API endpoint (for queries).
+   * 
+   * Caching is handled by React Query - this method just does the fetch.
+   * When offline, returns an error result (React Query will use its cached data).
+   * 
+   * @param name The API endpoint name
+   * @param params Request parameters
    * @returns Promise with the typed response
    */
   call: async <ResponseType, Params = Record<string, string | number | boolean | undefined | null>>(
     name: string,
-    params?: Params,
-    options?: ApiOptions
+    params?: Params
   ): Promise<CacheResult<ResponseType>> => {
+    const startTime = Date.now();
     const settings = getSettingsSafe();
-    const cacheKey = clientCacheProvider.generateCacheKey({ key: name, params: params || {} });
 
-    // Helper to get cached data
-    const getCachedData = async (): Promise<CacheResult<ResponseType>> => {
-      if (options?.disableCache) {
-        return {
-          data: { error: 'Network unavailable while offline' } as ResponseType,
-          isFromCache: false
-        };
-      }
-      const cached = await clientCacheProvider.readCacheWithStale<ResponseType>(cacheKey);
-      if (cached) {
-        return { data: cached.data, isFromCache: true, metadata: cached.metadata };
-      }
-      return {
-        data: { error: "This content isn't available offline yet" } as ResponseType,
-        isFromCache: true
+    // Log the API request
+    logger.apiRequest(name, params);
+
+    const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
+
+    // Handle offline mode - let React Query handle cached data
+    if (effectiveOffline) {
+      const errorResult = {
+        data: { error: 'Network unavailable while offline' } as ResponseType,
+        isFromCache: false
       };
-    };
+      logger.apiResponse(name, errorResult.data, { 
+        duration: Date.now() - startTime, 
+        error: 'Network unavailable while offline' 
+      });
+      return errorResult;
+    }
 
-    const apiCall = async (): Promise<ResponseType> => {
-      if (settings?.offlineMode) {
-        throw new Error('OFFLINE_MODE_NETWORK_BLOCKED');
-      }
+    const doFetch = async (): Promise<ResponseType> => {
       // Convert slashes to underscores for URL
       const urlName = name.replace(/\//g, '_');
+      
       const response = await fetch(`/api/process/${urlName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          params,
-          options: {
-            ...options,
-            disableCache: false,
-          }
-        }),
+        body: JSON.stringify({ params }),
       });
 
       if (response.status !== 200) {
@@ -112,30 +103,25 @@ export const apiClient = {
       return result.data;
     };
 
-    const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
-    const globalSWR = settings?.staleWhileRevalidate === true;
-
-    // Handle offline mode - return cached data
-    if (effectiveOffline) {
-      return getCachedData();
-    }
-
-    // Try network request with retries, fall back to cache on persistent network errors
+    // Try network request with retries
     const maxRetries = 3;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await clientCache.withCache(apiCall, { key: name, params: params || {} }, {
-          bypassCache: !globalSWR,
-          staleWhileRevalidate: globalSWR,
-          disableCache: false,
-          ttl: options?.ttl,
-          maxStaleAge: options?.maxStaleAge,
-          isDataValidForCache: options?.isDataValidForCache,
+        const data = await doFetch();
+        
+        logger.apiResponse(name, data, { 
+          duration: Date.now() - startTime, 
+          cached: false 
         });
+        return { data, isFromCache: false };
       } catch (error) {
         // Only retry on network errors (TypeError from fetch)
         if (!(error instanceof TypeError)) {
+          logger.apiResponse(name, undefined, { 
+            duration: Date.now() - startTime, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
           throw error;
         }
         // Don't wait on last attempt
@@ -145,13 +131,20 @@ export const apiClient = {
       }
     }
 
-    // All retries failed, fall back to cache
-    return getCachedData();
+    // All retries failed
+    const errorResult = {
+      data: { error: 'Network request failed after retries' } as ResponseType,
+      isFromCache: false
+    };
+    logger.apiResponse(name, errorResult.data, { 
+      duration: Date.now() - startTime, 
+      error: 'Network request failed after retries' 
+    });
+    return errorResult;
   },
 
   /**
-   * Direct POST that bypasses client cache entirely.
-   * Used for mutations (create, update, delete).
+   * Direct POST for mutations (create, update, delete).
    * 
    * ⚠️ IMPORTANT: OFFLINE MODE BEHAVIOR
    * 
@@ -186,19 +179,28 @@ export const apiClient = {
    */
   post: async <ResponseType, Params = Record<string, string | number | boolean | undefined | null>>(
     name: string,
-    params?: Params,
-    options?: ApiOptions
+    params?: Params
   ): Promise<CacheResult<ResponseType>> => {
+    const startTime = Date.now();
     const settings = getSettingsSafe();
     const effectiveOffline = (settings?.offlineMode === true) || (typeof navigator !== 'undefined' && !navigator.onLine);
+
+    // Log the API request
+    logger.apiRequest(name, params);
+
     if (effectiveOffline) {
       // Queue for later sync when back online
       enqueueOfflinePost<Params>({
         id: generateQueueId(),
         name,
         params,
-        options,
         enqueuedAt: Date.now(),
+      });
+
+      // Log queued for offline
+      logger.apiResponse(name, {}, { 
+        duration: Date.now() - startTime, 
+        cached: false 
       });
 
       // Return empty object - NOT an error.
@@ -209,65 +211,53 @@ export const apiClient = {
 
     // Convert slashes to underscores for URL
     const urlName = name.replace(/\//g, '_');
-    const response = await fetch(`/api/process/${urlName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        params,
-        options: {
-          ...options,
-          disableCache: true,
-        }
-      }),
-    });
+    
+    try {
+      const response = await fetch(`/api/process/${urlName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ params }),
+      });
 
-    if (response.status !== 200) {
-      throw new Error(`Failed to call ${name}: HTTP ${response.status} ${response.statusText}`);
+      if (response.status !== 200) {
+        const error = `Failed to call ${name}: HTTP ${response.status} ${response.statusText}`;
+        logger.apiResponse(name, undefined, { 
+          duration: Date.now() - startTime, 
+          error 
+        });
+        throw new Error(error);
+      }
+
+      const result = await response.json();
+
+      if (result?.data && typeof result.data === 'object' && 'error' in result.data && result.data.error != null) {
+        const error = `Failed to call ${name}: ${result.data.error}`;
+        logger.apiResponse(name, result.data, { 
+          duration: Date.now() - startTime, 
+          error 
+        });
+        throw new Error(error);
+      }
+
+      logger.apiResponse(name, result.data, { 
+        duration: Date.now() - startTime, 
+        cached: false 
+      });
+
+      return { data: result.data as ResponseType, isFromCache: false };
+    } catch (error) {
+      if (!(error instanceof Error && error.message.startsWith('Failed to call'))) {
+        // Log unexpected errors that weren't already logged
+        logger.apiResponse(name, undefined, { 
+          duration: Date.now() - startTime, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+      throw error;
     }
-
-    const result = await response.json();
-
-    if (result?.data && typeof result.data === 'object' && 'error' in result.data && result.data.error != null) {
-      throw new Error(`Failed to call ${name}: ${result.data.error}`);
-    }
-
-    return { data: result.data as ResponseType, isFromCache: false };
   }
-};
-
-//
-
-export type ApiOptions = {
-  /**
-   * Disable caching for this API call - will not save the result to cache
-   */
-  disableCache?: boolean;
-  /**
-   * Bypass the cache for this API call - will save the result to cache
-   */
-  bypassCache?: boolean;
-  /**
-   * Use client-side cache for this API call
-   */
-  useClientCache?: boolean;
-  /**
-   * TTL for client-side cache
-   */
-  ttl?: number;
-  /**
-   * Max stale age for client-side cache
-   */
-  maxStaleAge?: number;
-  /**
-   * Stale while revalidate for client-side cache
-   */
-  staleWhileRevalidate?: boolean;
-  /**
-   * Callback to validate if data should be cached
-   */
-  isDataValidForCache?: <T>(data: T) => boolean;
 };
 
 export default apiClient;

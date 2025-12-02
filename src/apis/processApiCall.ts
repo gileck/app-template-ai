@@ -2,7 +2,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { apiHandlers } from "./apis";
 import { createCache } from "@/common/cache";
 import { CacheResult } from "@/common/cache/types";
-import type { ApiOptions } from "@/client/utils/apiClient";
 import { fsCacheProvider, s3CacheProvider } from "@/server/cache/providers";
 import { appConfig } from "@/app.config";
 import { getUserContext } from "./getUserContext";
@@ -10,8 +9,6 @@ import { getUserContext } from "./getUserContext";
 // Create server-side cache instance
 const provider = appConfig.cacheType === 's3' ? s3CacheProvider : fsCacheProvider;
 const serverCache = createCache(provider);
-
-// Constants
 
 export const processApiCall = async (
   req: NextApiRequest,
@@ -22,7 +19,6 @@ export const processApiCall = async (
   const nameParam = req.query.name as string;
   const name = nameParam.replace(/_/g, '/') as keyof typeof apiHandlers;
   const params = req.body.params;
-  const options = req.body.options as ApiOptions;
   const apiHandler = apiHandlers[name];
   if (!apiHandler) {
     throw new Error(`API handler not found for name: ${name}`);
@@ -42,6 +38,7 @@ export const processApiCall = async (
     }
   };
 
+  // Server-side caching is disabled - React Query handles client-side caching
   const result = await serverCache.withCache(
     processWithContext,
     {
@@ -49,7 +46,6 @@ export const processApiCall = async (
       params: { ...params, userId: userContext.userId },
     },
     {
-      bypassCache: options?.bypassCache || false,
       disableCache: true
     }
   );

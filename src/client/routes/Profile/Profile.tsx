@@ -41,7 +41,7 @@ export const Profile = () => {
     const fetchUserData = async () => {
         try {
             setLoadingUserData(true);
-            const response = await apiFetchCurrentUser({ bypassCache: true });
+            const response = await apiFetchCurrentUser();
             if (response.data?.user) {
                 setLocalUser(response.data.user);
                 setUsername(response.data.user.username);
@@ -110,8 +110,7 @@ export const Profile = () => {
                 profilePicture: previewImage !== localUser?.profilePicture ? previewImage : undefined
             };
 
-            // Use bypassCache to ensure we're not using cached data
-            const response = await apiUpdateProfile(updateData, { bypassCache: true });
+            const response = await apiUpdateProfile(updateData);
 
             if (response.data?.success && response.data.user) {
                 setLocalUser(response.data.user);

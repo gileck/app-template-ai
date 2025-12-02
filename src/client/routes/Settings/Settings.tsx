@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/client/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
 import { Switch } from '@/client/components/ui/switch';
@@ -9,8 +10,10 @@ import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
 import { useSettingsStore } from '@/client/features/settings';
-import { clientCacheProvider } from '@/client/utils/indexedDBCache';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
+
+// React Query persisted cache key (must match persister.ts)
+const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
 
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
@@ -18,6 +21,7 @@ export function Settings() {
   // Use Zustand store instead of context
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
+  const queryClient = useQueryClient();
 
   // eslint-disable-next-line state-management/prefer-state-architecture -- static data from sync function, not API
   const [models] = useState<AIModelDefinition[]>(getAllModels());
@@ -38,8 +42,16 @@ export function Settings() {
       // Clear server-side cache
       const result = await clearCacheApi({});
 
-      // Clear client-side cache (IndexedDB with localStorage fallback)
-      const clientCacheCleared = await clientCacheProvider.clearAllCache();
+      // Clear React Query in-memory cache
+      queryClient.clear();
+      
+      // Clear React Query persisted cache from localStorage
+      let clientCacheCleared = true;
+      try {
+        localStorage.removeItem(REACT_QUERY_CACHE_KEY);
+      } catch {
+        clientCacheCleared = false;
+      }
 
       // Determine overall success and message
       const overallSuccess = result.data?.success && clientCacheCleared;

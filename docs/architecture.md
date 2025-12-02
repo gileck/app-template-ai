@@ -38,17 +38,17 @@ This document provides a high-level overview of the application architecture, de
 │  │           │                            │                     │           │
 │  │           ▼                            ▼                     │           │
 │  │  ┌─────────────────┐          ┌─────────────────┐           │           │
-│  │  │  localStorage   │          │    IndexedDB    │           │           │
-│  │  │  (instant boot) │          │  (data cache)   │           │           │
-│  │  └─────────────────┘          └─────────────────┘           │           │
+│  │  │              localStorage                      │           │           │
+│  │  │   (instant boot + React Query cache)          │           │           │
+│  │  └───────────────────────────────────────────────┘           │           │
 │  └─────────────────────────────────────────────────────────────┘           │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                              API Layer                                       │
 │  ┌─────────────────────────────────────────────────────────────┐           │
 │  │  apiClient.call (GET)  │  apiClient.post (mutations)        │           │
-│  │  - Cache-first         │  - Offline queue                   │           │
-│  │  - SWR support         │  - Batch sync                      │           │
+│  │  - No client cache     │  - Offline queue                   │           │
+│  │  - React Query caches  │  - Batch sync                      │           │
 │  └─────────────────────────────────────────────────────────────┘           │
 │                                    │                                        │
 └────────────────────────────────────┼────────────────────────────────────────┘
@@ -81,8 +81,8 @@ User Opens App
       │
       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. React Query Cache Restore (~50-100ms)                       │
-│     - IndexedDB → Memory                                        │
+│  1. React Query Cache Restore (~1-5ms)                          │
+│     - localStorage → Memory                                     │
 │     - Server data available immediately                         │
 └─────────────────────────────────────────────────────────────────┘
       │
@@ -214,14 +214,14 @@ All API calls go through a centralized `apiClient`:
 ### GET Requests (Queries)
 
 ```typescript
-// Uses cache-first strategy
+// Direct network call (React Query handles caching)
 const response = await apiClient.call<ResponseType>('entity/list', params);
-// Returns: { data, isFromCache, metadata }
+// Returns: { data, isFromCache: false }
 ```
 
-- Cached in IndexedDB via React Query
-- Supports stale-while-revalidate
-- Returns cached data when offline
+- **apiClient** does NOT cache - it's a simple fetch wrapper
+- **React Query** handles all caching (localStorage persistence)
+- Returns error when offline (React Query serves cached data)
 
 ### POST Requests (Mutations)
 
@@ -268,9 +268,9 @@ const isOffline = useEffectiveOffline();
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  GET Request (offline)                                          │
-│  1. Check IndexedDB cache                                       │
-│  2. If cached → return cached data                              │
-│  3. If not cached → return error: "Not available offline"       │
+│  1. apiClient returns error: "Network unavailable"              │
+│  2. React Query serves stale cached data if available           │
+│  3. If not cached → user sees error message                     │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -453,7 +453,7 @@ export function MyFeature() {
 |------|---------|
 | `src/client/utils/apiClient.ts` | API client with offline support |
 | `src/client/utils/offlinePostQueue.ts` | Offline mutation queue |
-| `src/client/query/QueryProvider.tsx` | React Query + IndexedDB persistence |
+| `src/client/query/QueryProvider.tsx` | React Query + localStorage persistence |
 
 ### Documentation
 

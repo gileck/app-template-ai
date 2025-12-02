@@ -6,6 +6,7 @@
  */
 
 import type { PersistOptions } from 'zustand/middleware';
+import { logger } from '@/client/features/session-logs';
 
 // ============================================================================
 // Time Constants (single source of truth)
@@ -110,7 +111,7 @@ export function createPersistConfig<T>(
             if (timestamp && Date.now() - timestamp > ttl) {
                 // State is expired - clear it
                 // Note: This sets fields to undefined, the store should handle this
-                console.log(`[${name}] Persisted state expired (TTL: ${ttl}ms)`);
+                logger.debug('store', `Persisted state expired`, { meta: { name, ttl } });
             }
         },
     };

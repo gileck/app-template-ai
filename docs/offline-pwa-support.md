@@ -2,43 +2,26 @@
 
 ## Overview
 
-The application implements full offline Progressive Web App (PWA) support with IndexedDB-based caching, service worker integration, and user-friendly error handling. Users can work seamlessly offline with cached data and receive clear feedback when content isn't available.
+The application implements full offline Progressive Web App (PWA) support with localStorage-based caching, service worker integration, and user-friendly error handling. Users can work seamlessly offline with cached data and receive clear feedback when content isn't available.
 
 ## Architecture
 
-### 1. Client-Side Cache Provider (IndexedDB)
+### 1. Client-Side Caching (React Query + localStorage)
 
-**File**: `src/client/utils/indexedDBCache.ts`
+**Files**: 
+- `src/client/query/QueryProvider.tsx` - React Query persistence setup
+- `src/client/query/persister.ts` - localStorage persister
 
-The application uses IndexedDB as the primary client-side cache storage with automatic fallback to localStorage if IndexedDB is unavailable (e.g., private browsing mode).
+The application uses **React Query** for all API data caching, persisted to localStorage.
 
 #### Key Features:
-- **Database**: `app_cache_db` (version 1)
-- **Object Store**: `cache_entries` with keyPath `key`
-- **Smart Provider**: Automatically detects and uses the best available storage option
-- **TTL Support**: Time-to-live for cache entries with automatic expiration
-- **Stale Data Handling**: Can return stale data when fresh data isn't available
-- **LRU Updates**: Tracks last accessed time for cache management
+- **Storage**: localStorage (`react-query-cache-v2`)
+- **Capacity**: ~5MB (sufficient for most apps)
+- **Performance**: Fast and reliable (~1ms reads)
+- **Persistence**: Automatic via `PersistQueryClientProvider`
+- **Cache TTL**: 24 hours max age
 
-#### Implementation Details:
-
-```typescript
-// Cache entry structure
-interface CacheEntry {
-    key: string;
-    data: unknown;
-    metadata: CacheMetadata;
-}
-
-// Smart provider with fallback
-export const clientCacheProvider = createSmartProvider();
-```
-
-The smart provider:
-1. Tests IndexedDB availability on first use
-2. Falls back to localStorage if IndexedDB fails
-3. Logs which provider is being used
-4. Maintains consistent API regardless of underlying storage
+> **Note**: IndexedDB was previously used but removed due to unreliable performance (5+ second reads on some systems). The old IndexedDB implementation is preserved in `src/client/utils/indexedDBCache.ts` but marked as unused. See [Caching Strategy](./caching-strategy.md) for details.
 
 ### 2. API Client Offline Behavior
 
@@ -60,18 +43,11 @@ Two sources determine offline state:
 #### GET Requests (`apiClient.call`)
 
 When offline:
+- Returns: `{ data: { error: 'Network unavailable while offline' }, isFromCache: false }`
+- User sees: Clear message that network is required
+- **React Query** serves cached data if available (separate from apiClient)
 
-1. **If `disableCache: true`**:
-   - Returns: `{ data: { error: 'Network unavailable while offline' }, isFromCache: false }`
-   - User sees: Clear message that network is required
-
-2. **If cache exists**:
-   - Returns: Cached data with `isFromCache: true` and metadata
-   - User sees: Cached content (may be stale)
-
-3. **If no cache**:
-   - Returns: `{ data: { error: "This content isn't available offline yet" }, isFromCache: true }`
-   - User sees: Friendly message explaining content needs to be accessed online first
+> **Note**: The apiClient no longer has its own caching layer. React Query handles all caching. When offline, React Query will serve stale cached data if available.
 
 #### POST Requests (`apiClient.post`)
 
@@ -222,17 +198,19 @@ Users can clear both server-side and client-side caches from the Settings page.
 
 ```typescript
 // Clear server-side cache
-const result = await clearCache();
+const result = await clearCacheApi({});
 
-// Clear client-side cache (IndexedDB with localStorage fallback)
-const clientCacheCleared = await clientCacheProvider.clearAllCache();
+// Clear React Query in-memory cache
+queryClient.clear();
+
+// Clear React Query persisted cache from localStorage
+localStorage.removeItem('react-query-cache-v2');
 ```
 
 **Features**:
 - Clears both server and client caches
 - Provides detailed feedback on success/failure
 - Handles partial failures gracefully
-- Updates UI text to reflect IndexedDB usage
 
 ### 7. Service Worker Integration
 
@@ -346,19 +324,24 @@ The implementation starts fresh with IndexedDB:
 
 ## Performance Considerations
 
-### IndexedDB Benefits
+### localStorage Benefits
 
-1. **Larger Storage**: ~50MB+ vs localStorage's ~5-10MB
-2. **Async Operations**: Non-blocking I/O
-3. **Structured Data**: Native support for objects
-4. **Better Performance**: Optimized for large datasets
+1. **Fast & Reliable**: ~1ms read/write, consistent performance
+2. **Synchronous**: Simple API, predictable behavior
+3. **Sufficient Capacity**: ~5MB is enough for most API cache needs
+
+### Why Not IndexedDB?
+
+IndexedDB was previously used but removed because:
+- **Unreliable performance**: 50ms to 6+ seconds on some systems
+- **Complexity**: Async API harder to debug
+- **Overkill**: Our cache typically stays under 500KB
 
 ### Cache Strategy
 
-- **Online**: Stale-while-revalidate when enabled
-- **Offline**: Serve from cache only
-- **TTL**: 1 hour default, configurable per request
-- **Max Stale Age**: 7 days default, configurable per request
+- **Online**: React Query handles stale-while-revalidate
+- **Offline**: React Query serves cached data if available
+- **TTL**: 24 hours max age for persisted cache
 
 ## Security Considerations
 
@@ -435,14 +418,15 @@ const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
 - `src/client/config/defaults.ts` - Centralized TTL/cache defaults
 
 ### React Query Persistence
-- `src/client/query/QueryProvider.tsx` - React Query with IndexedDB persistence
-- `src/client/query/persister.ts` - IndexedDB persister for React Query
+- `src/client/query/QueryProvider.tsx` - React Query with localStorage persistence
+- `src/client/query/persister.ts` - localStorage persister for React Query
 - `src/client/query/defaults.ts` - Query defaults (uses config)
 
-### Cache & Offline
-- `src/client/utils/indexedDBCache.ts` - IndexedDB cache provider (for apiClient)
+### API Client & Offline
 - `src/client/utils/apiClient.ts` - API client with offline handling
 - `src/client/utils/offlinePostQueue.ts` - POST request queue + batch sync
+- `src/client/utils/indexedDBCache.ts` - **UNUSED** - Preserved for reference
+- `src/client/utils/localStorageCache.ts` - **UNUSED** - Preserved for reference
 
 ### Offline Sync Feature
 - `src/client/features/offline-sync/store.ts` - Batch sync alert Zustand store
@@ -457,4 +441,8 @@ const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
 ### Configuration
 - `src/common/cache/types.ts` - Cache type definitions
 - `next.config.ts` - Service worker configuration
+
+### Related Documentation
+- [Caching Strategy](./caching-strategy.md) - Comprehensive caching guide
+- [State Management](./state-management.md) - Zustand vs React Query
 
