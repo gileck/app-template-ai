@@ -30,9 +30,10 @@ function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
  * 
  * localStorage is limited to ~5MB but is consistently fast (~1ms reads).
  * Since React Query cache (excluding reports) is typically <100KB, localStorage works well.
+ * We plan to re-test IndexedDB periodically as the app grows and may need larger cache storage.
  * 
  * TO SWITCH BACK TO INDEXEDDB:
- * If you need more storage capacity, or if IndexedDB performance improves, change:
+ * When IndexedDB performance improves or larger storage is needed, change:
  *   createLocalStoragePersister() → createIDBPersister()
  * Both are implemented in ./persister.ts
  */

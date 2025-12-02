@@ -194,17 +194,17 @@ const mutation = useMutation({
 > 
 > React Query cache is persisted to **localStorage** (not IndexedDB). We originally used IndexedDB but switched due to severe performance issues - IndexedDB was causing **5+ second delays** during app startup on some systems (Dec 2025).
 > 
-> **Note:** This may be a browser bug or machine-specific issue that could be resolved in future browser updates. If you're experiencing good IndexedDB performance, or if the issue gets fixed, consider switching back to IndexedDB for its larger storage capacity.
+> **Note:** This may be a browser bug or machine-specific issue that could be resolved in future browser updates. We plan to re-evaluate IndexedDB performance periodically, especially as the app grows and larger queries need caching.
 > 
 > **Trade-offs:**
 > - ✅ localStorage: Fast (~1ms reads), consistent performance
-> - ❌ localStorage: Limited to ~5MB storage
-> - ✅ IndexedDB: Large capacity (100MB+)
+> - ❌ localStorage: Limited to ~5MB storage (may become a bottleneck)
+> - ✅ IndexedDB: Large capacity (100MB+), better for large queries
 > - ❌ IndexedDB: Can be extremely slow on some systems (possibly a browser bug)
 > 
-> Since React Query cache (excluding large queries like reports) is typically <100KB, localStorage works well. Large queries are excluded from persistence via `shouldDehydrateQuery`.
+> Currently, React Query cache (excluding large queries like reports) is typically <100KB, so localStorage works well. Large queries are excluded from persistence via `shouldDehydrateQuery`. However, if the app needs to cache larger datasets, we'll need to revisit IndexedDB.
 > 
-> **To switch back to IndexedDB** (if needed for larger capacity or when performance improves): Change `createLocalStoragePersister()` to `createIDBPersister()` in `src/client/query/QueryProvider.tsx`.
+> **To switch back to IndexedDB** (when performance improves or larger storage is needed): Change `createLocalStoragePersister()` to `createIDBPersister()` in `src/client/query/QueryProvider.tsx`.
 
 ### When to Use What
 
