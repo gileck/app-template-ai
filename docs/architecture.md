@@ -110,7 +110,7 @@ User Opens App
 
 This enables **instant startup** - the app appears immediately with cached data while fresh data loads in the background.
 
-> **Why localStorage?** We use localStorage (not IndexedDB) for React Query persistence because IndexedDB can be extremely slow on some systems (5+ second startup delays). localStorage is limited to ~5MB but is consistently fast. See the [State Management](#state-management) section for details on this architecture decision.
+> **Why localStorage?** We use localStorage (not IndexedDB) for React Query persistence because IndexedDB was causing 5+ second startup delays on some systems (Dec 2025 - possibly a browser bug). localStorage is limited to ~5MB but is consistently fast. See the [State Management](#state-management) section for details and how to switch back if IndexedDB performance improves.
 
 ---
 
@@ -192,17 +192,19 @@ const mutation = useMutation({
 
 > **📌 Architecture Decision: localStorage vs IndexedDB**
 > 
-> React Query cache is persisted to **localStorage** (not IndexedDB). We originally used IndexedDB but switched due to severe performance issues - IndexedDB was causing **5+ second delays** during app startup on some systems.
+> React Query cache is persisted to **localStorage** (not IndexedDB). We originally used IndexedDB but switched due to severe performance issues - IndexedDB was causing **5+ second delays** during app startup on some systems (Dec 2025).
+> 
+> **Note:** This may be a browser bug or machine-specific issue that could be resolved in future browser updates. If you're experiencing good IndexedDB performance, or if the issue gets fixed, consider switching back to IndexedDB for its larger storage capacity.
 > 
 > **Trade-offs:**
 > - ✅ localStorage: Fast (~1ms reads), consistent performance
 > - ❌ localStorage: Limited to ~5MB storage
 > - ✅ IndexedDB: Large capacity (100MB+)
-> - ❌ IndexedDB: Can be extremely slow on some systems
+> - ❌ IndexedDB: Can be extremely slow on some systems (possibly a browser bug)
 > 
 > Since React Query cache (excluding large queries like reports) is typically <100KB, localStorage works well. Large queries are excluded from persistence via `shouldDehydrateQuery`.
 > 
-> **To switch back to IndexedDB** (if needed for larger capacity): Change `createLocalStoragePersister()` to `createIDBPersister()` in `src/client/query/QueryProvider.tsx`.
+> **To switch back to IndexedDB** (if needed for larger capacity or when performance improves): Change `createLocalStoragePersister()` to `createIDBPersister()` in `src/client/query/QueryProvider.tsx`.
 
 ### When to Use What
 
