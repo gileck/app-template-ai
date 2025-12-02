@@ -82,7 +82,7 @@ User Opens App
       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. React Query Cache Restore (~1-5ms)                          │
-│     - localStorage → Memory                                     │
+│     - localStorage → Memory (fast! see note below)              │
 │     - Server data available immediately                         │
 └─────────────────────────────────────────────────────────────────┘
       │
@@ -109,6 +109,8 @@ User Opens App
 ```
 
 This enables **instant startup** - the app appears immediately with cached data while fresh data loads in the background.
+
+> **Why localStorage?** We use localStorage (not IndexedDB) for React Query persistence because IndexedDB can be extremely slow on some systems (5+ second startup delays). localStorage is limited to ~5MB but is consistently fast. See the [State Management](#state-management) section for details on this architecture decision.
 
 ---
 
@@ -187,6 +189,20 @@ const mutation = useMutation({
 - Any data fetched from APIs
 - Data that needs caching/revalidation
 - Server state with loading/error states
+
+> **📌 Architecture Decision: localStorage vs IndexedDB**
+> 
+> React Query cache is persisted to **localStorage** (not IndexedDB). We originally used IndexedDB but switched due to severe performance issues - IndexedDB was causing **5+ second delays** during app startup on some systems.
+> 
+> **Trade-offs:**
+> - ✅ localStorage: Fast (~1ms reads), consistent performance
+> - ❌ localStorage: Limited to ~5MB storage
+> - ✅ IndexedDB: Large capacity (100MB+)
+> - ❌ IndexedDB: Can be extremely slow on some systems
+> 
+> Since React Query cache (excluding large queries like reports) is typically <100KB, localStorage works well. Large queries are excluded from persistence via `shouldDehydrateQuery`.
+> 
+> **To switch back to IndexedDB** (if needed for larger capacity): Change `createLocalStoragePersister()` to `createIDBPersister()` in `src/client/query/QueryProvider.tsx`.
 
 ### When to Use What
 
@@ -461,6 +477,7 @@ export function MyFeature() {
 |------|-------|
 | `docs/authentication.md` | Auth flow details |
 | `docs/offline-pwa-support.md` | Offline architecture details |
+| `docs/caching-strategy.md` | Caching architecture & localStorage vs IndexedDB |
 | `docs/api-endpoint-format.md` | API structure |
 | `.cursor/rules/state-management-guidelines.mdc` | State management patterns |
 | `.cursor/rules/feature-based-structure.mdc` | Code organization |
