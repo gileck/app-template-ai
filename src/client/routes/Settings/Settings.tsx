@@ -36,6 +36,45 @@ function getCacheSize(): { bytes: number; formatted: string } {
   }
 }
 
+/**
+ * Print the React Query cache to console for debugging
+ */
+function printCacheToConsole(): void {
+  try {
+    const cacheStr = localStorage.getItem(REACT_QUERY_CACHE_KEY);
+    if (!cacheStr) {
+      console.log('[Cache Debug] No cache found in localStorage');
+      return;
+    }
+    
+    const cache = JSON.parse(cacheStr);
+    const queries = cache?.clientState?.queries || [];
+    
+    console.group('[Cache Debug] React Query Cache Contents');
+    console.log('Total queries:', queries.length);
+    console.log('Cache timestamp:', cache?.timestamp ? new Date(cache.timestamp).toLocaleString() : 'N/A');
+    console.log('---');
+    
+    // Print each query with its size
+    queries.forEach((query: { queryKey: unknown; state: { data: unknown } }, index: number) => {
+      const querySize = new Blob([JSON.stringify(query)]).size;
+      const sizeFormatted = querySize < 1024 
+        ? `${querySize}B` 
+        : querySize < 1024 * 1024 
+          ? `${(querySize / 1024).toFixed(1)}KB`
+          : `${(querySize / (1024 * 1024)).toFixed(2)}MB`;
+      
+      console.log(`${index + 1}. [${sizeFormatted}]`, query.queryKey);
+    });
+    
+    console.log('---');
+    console.log('Full cache object:', cache);
+    console.groupEnd();
+  } catch (error) {
+    console.error('[Cache Debug] Failed to parse cache:', error);
+  }
+}
+
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
 export function Settings() {
@@ -152,7 +191,10 @@ export function Settings() {
           </div>
         </div>
         
-        <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
+        <div className="flex gap-2">
+          <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
+          <Button variant="outline" onClick={printCacheToConsole}>Print to Console</Button>
+        </div>
         {isClearing && <LinearProgress className="mt-2" />}
 
         <Separator className="my-3" />
