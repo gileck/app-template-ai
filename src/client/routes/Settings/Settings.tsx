@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/client/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
@@ -14,6 +14,27 @@ import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 
 // React Query persisted cache key (must match persister.ts)
 const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
+
+// localStorage limit is typically ~5MB
+const LOCAL_STORAGE_LIMIT = 5 * 1024 * 1024;
+
+/**
+ * Calculate the size of React Query cache in localStorage
+ */
+function getCacheSize(): { bytes: number; formatted: string } {
+  try {
+    const cache = localStorage.getItem(REACT_QUERY_CACHE_KEY);
+    if (!cache) return { bytes: 0, formatted: '0 KB' };
+    
+    const bytes = new Blob([cache]).size;
+    
+    if (bytes < 1024) return { bytes, formatted: `${bytes} B` };
+    if (bytes < 1024 * 1024) return { bytes, formatted: `${(bytes / 1024).toFixed(1)} KB` };
+    return { bytes, formatted: `${(bytes / (1024 * 1024)).toFixed(2)} MB` };
+  } catch {
+    return { bytes: 0, formatted: 'Unknown' };
+  }
+}
 
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
 
@@ -33,6 +54,18 @@ export function Settings() {
     message: '',
     severity: 'info'
   });
+  // eslint-disable-next-line state-management/prefer-state-architecture -- local cache size display
+  const [cacheSize, setCacheSize] = useState<{ bytes: number; formatted: string }>({ bytes: 0, formatted: '0 KB' });
+
+  // Refresh cache size
+  const refreshCacheSize = useCallback(() => {
+    setCacheSize(getCacheSize());
+  }, []);
+
+  // Calculate cache size on mount and after clearing
+  useEffect(() => {
+    refreshCacheSize();
+  }, [refreshCacheSize]);
 
   const handleModelChange = (value: string) => { updateSettings({ aiModel: value }); };
 
@@ -72,6 +105,9 @@ export function Settings() {
         message,
         severity: overallSuccess ? 'success' : 'warning'
       });
+      
+      // Refresh cache size after clearing
+      refreshCacheSize();
     } catch (error) {
       setSnackbar({
         open: true,
@@ -89,7 +125,33 @@ export function Settings() {
 
       <Card className="mt-3 p-4">
         <h2 className="mb-2 text-lg font-medium">Cache Management</h2>
-        <p className="mb-3 text-sm text-muted-foreground">Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and client-side caches (IndexedDB).</p>
+        <p className="mb-3 text-sm text-muted-foreground">Clear the application cache to fetch fresh data from AI models and external services. This will clear both server-side and client-side caches.</p>
+        
+        {/* Cache Size Display */}
+        <div className="mb-3 rounded-md bg-muted p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Client Cache Size</span>
+            <span className="text-sm font-mono">{cacheSize.formatted}</span>
+          </div>
+          <div className="mt-2">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-background">
+              <div 
+                className={`h-full transition-all ${
+                  cacheSize.bytes / LOCAL_STORAGE_LIMIT > 0.8 
+                    ? 'bg-destructive' 
+                    : cacheSize.bytes / LOCAL_STORAGE_LIMIT > 0.5 
+                      ? 'bg-yellow-500' 
+                      : 'bg-primary'
+                }`}
+                style={{ width: `${Math.min((cacheSize.bytes / LOCAL_STORAGE_LIMIT) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {((cacheSize.bytes / LOCAL_STORAGE_LIMIT) * 100).toFixed(1)}% of ~5MB limit
+            </p>
+          </div>
+        </div>
+        
         <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
         {isClearing && <LinearProgress className="mt-2" />}
 
