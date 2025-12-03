@@ -12,67 +12,133 @@ import { AIModelDefinition } from '@/server/ai/models';
 import { useSettingsStore } from '@/client/features/settings';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 
-// React Query persisted cache key (must match persister.ts)
-const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
+// localStorage keys for all persisted stores
+const CACHE_KEYS = {
+  reactQuery: 'react-query-cache-v2',
+  settings: 'settings-storage',
+  auth: 'auth-storage',
+  router: 'route-storage',
+} as const;
 
 // localStorage limit is typically ~5MB
 const LOCAL_STORAGE_LIMIT = 5 * 1024 * 1024;
 
+interface CacheSizeInfo {
+  total: { bytes: number; formatted: string };
+  breakdown: Array<{ name: string; key: string; bytes: number; formatted: string }>;
+}
+
 /**
- * Calculate the size of React Query cache in localStorage
+ * Format bytes to human readable string
  */
-function getCacheSize(): { bytes: number; formatted: string } {
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
+ * Calculate the size of all cached data in localStorage
+ */
+function getCacheSize(): CacheSizeInfo {
+  const breakdown: CacheSizeInfo['breakdown'] = [];
+  let totalBytes = 0;
+
+  const keyNames: Record<string, string> = {
+    [CACHE_KEYS.reactQuery]: 'React Query',
+    [CACHE_KEYS.settings]: 'Settings',
+    [CACHE_KEYS.auth]: 'Auth',
+    [CACHE_KEYS.router]: 'Router',
+  };
+
   try {
-    const cache = localStorage.getItem(REACT_QUERY_CACHE_KEY);
-    if (!cache) return { bytes: 0, formatted: '0 KB' };
-    
-    const bytes = new Blob([cache]).size;
-    
-    if (bytes < 1024) return { bytes, formatted: `${bytes} B` };
-    if (bytes < 1024 * 1024) return { bytes, formatted: `${(bytes / 1024).toFixed(1)} KB` };
-    return { bytes, formatted: `${(bytes / (1024 * 1024)).toFixed(2)} MB` };
+    Object.entries(CACHE_KEYS).forEach(([, key]) => {
+      const data = localStorage.getItem(key);
+      const bytes = data ? new Blob([data]).size : 0;
+      totalBytes += bytes;
+      breakdown.push({
+        name: keyNames[key] || key,
+        key,
+        bytes,
+        formatted: formatBytes(bytes),
+      });
+    });
+
+    // Sort by size descending
+    breakdown.sort((a, b) => b.bytes - a.bytes);
+
+    return {
+      total: { bytes: totalBytes, formatted: formatBytes(totalBytes) },
+      breakdown,
+    };
   } catch {
-    return { bytes: 0, formatted: 'Unknown' };
+    return {
+      total: { bytes: 0, formatted: 'Unknown' },
+      breakdown: [],
+    };
   }
 }
 
 /**
- * Print the React Query cache to console for debugging
+ * Print all cached data to console for debugging
  */
 function printCacheToConsole(): void {
+  console.group('[Cache Debug] All Persisted Data');
+  
+  // Print React Query cache
   try {
-    const cacheStr = localStorage.getItem(REACT_QUERY_CACHE_KEY);
-    if (!cacheStr) {
-      console.log('[Cache Debug] No cache found in localStorage');
-      return;
-    }
-    
-    const cache = JSON.parse(cacheStr);
-    const queries = cache?.clientState?.queries || [];
-    
-    console.group('[Cache Debug] React Query Cache Contents');
-    console.log('Total queries:', queries.length);
-    console.log('Cache timestamp:', cache?.timestamp ? new Date(cache.timestamp).toLocaleString() : 'N/A');
-    console.log('---');
-    
-    // Print each query with its size
-    queries.forEach((query: { queryKey: unknown; state: { data: unknown } }, index: number) => {
-      const querySize = new Blob([JSON.stringify(query)]).size;
-      const sizeFormatted = querySize < 1024 
-        ? `${querySize}B` 
-        : querySize < 1024 * 1024 
-          ? `${(querySize / 1024).toFixed(1)}KB`
-          : `${(querySize / (1024 * 1024)).toFixed(2)}MB`;
+    const cacheStr = localStorage.getItem(CACHE_KEYS.reactQuery);
+    if (cacheStr) {
+      const cache = JSON.parse(cacheStr);
+      const queries = cache?.clientState?.queries || [];
       
-      console.log(`${index + 1}. [${sizeFormatted}]`, query.queryKey);
-    });
-    
-    console.log('---');
-    console.log('Full cache object:', cache);
-    console.groupEnd();
+      console.group('📦 React Query Cache');
+      console.log('Total queries:', queries.length);
+      console.log('Cache timestamp:', cache?.timestamp ? new Date(cache.timestamp).toLocaleString() : 'N/A');
+      console.log('Total size:', formatBytes(new Blob([cacheStr]).size));
+      console.log('---');
+      
+      // Print each query with its size
+      queries.forEach((query: { queryKey: unknown; state: { data: unknown } }, index: number) => {
+        const querySize = new Blob([JSON.stringify(query)]).size;
+        console.log(`${index + 1}. [${formatBytes(querySize)}]`, query.queryKey);
+      });
+      
+      console.log('---');
+      console.log('Full cache object:', cache);
+      console.groupEnd();
+    } else {
+      console.log('📦 React Query Cache: (empty)');
+    }
   } catch (error) {
-    console.error('[Cache Debug] Failed to parse cache:', error);
+    console.error('📦 React Query Cache: Failed to parse', error);
   }
+
+  // Print Zustand stores
+  const zustandStores = [
+    { key: CACHE_KEYS.settings, name: '⚙️ Settings Store' },
+    { key: CACHE_KEYS.auth, name: '🔐 Auth Store' },
+    { key: CACHE_KEYS.router, name: '🔀 Router Store' },
+  ];
+
+  zustandStores.forEach(({ key, name }) => {
+    try {
+      const data = localStorage.getItem(key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        console.group(name);
+        console.log('Size:', formatBytes(new Blob([data]).size));
+        console.log('Data:', parsed);
+        console.groupEnd();
+      } else {
+        console.log(`${name}: (empty)`);
+      }
+    } catch (error) {
+      console.error(`${name}: Failed to parse`, error);
+    }
+  });
+
+  console.groupEnd();
 }
 
 interface SnackbarState { open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning'; }
@@ -94,7 +160,10 @@ export function Settings() {
     severity: 'info'
   });
   // eslint-disable-next-line state-management/prefer-state-architecture -- local cache size display
-  const [cacheSize, setCacheSize] = useState<{ bytes: number; formatted: string }>({ bytes: 0, formatted: '0 KB' });
+  const [cacheSize, setCacheSize] = useState<CacheSizeInfo>({ 
+    total: { bytes: 0, formatted: '0 KB' },
+    breakdown: [],
+  });
 
   // Refresh cache size
   const refreshCacheSize = useCallback(() => {
@@ -120,7 +189,7 @@ export function Settings() {
       // Clear React Query persisted cache from localStorage
       let clientCacheCleared = true;
       try {
-        localStorage.removeItem(REACT_QUERY_CACHE_KEY);
+        localStorage.removeItem(CACHE_KEYS.reactQuery);
       } catch {
         clientCacheCleared = false;
       }
@@ -169,26 +238,38 @@ export function Settings() {
         {/* Cache Size Display */}
         <div className="mb-3 rounded-md bg-muted p-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Client Cache Size</span>
-            <span className="text-sm font-mono">{cacheSize.formatted}</span>
+            <span className="text-sm font-medium">Total Client Cache</span>
+            <span className="text-sm font-mono">{cacheSize.total.formatted}</span>
           </div>
           <div className="mt-2">
             <div className="h-2 w-full overflow-hidden rounded-full bg-background">
               <div 
                 className={`h-full transition-all ${
-                  cacheSize.bytes / LOCAL_STORAGE_LIMIT > 0.8 
+                  cacheSize.total.bytes / LOCAL_STORAGE_LIMIT > 0.8 
                     ? 'bg-destructive' 
-                    : cacheSize.bytes / LOCAL_STORAGE_LIMIT > 0.5 
+                    : cacheSize.total.bytes / LOCAL_STORAGE_LIMIT > 0.5 
                       ? 'bg-yellow-500' 
                       : 'bg-primary'
                 }`}
-                style={{ width: `${Math.min((cacheSize.bytes / LOCAL_STORAGE_LIMIT) * 100, 100)}%` }}
+                style={{ width: `${Math.min((cacheSize.total.bytes / LOCAL_STORAGE_LIMIT) * 100, 100)}%` }}
               />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {((cacheSize.bytes / LOCAL_STORAGE_LIMIT) * 100).toFixed(1)}% of ~5MB limit
+              {((cacheSize.total.bytes / LOCAL_STORAGE_LIMIT) * 100).toFixed(1)}% of ~5MB limit
             </p>
           </div>
+          
+          {/* Breakdown by store */}
+          {cacheSize.breakdown.length > 0 && (
+            <div className="mt-3 space-y-1 border-t border-border pt-2">
+              {cacheSize.breakdown.map((item) => (
+                <div key={item.key} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{item.name}</span>
+                  <span className="font-mono text-muted-foreground">{item.formatted}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         <div className="flex gap-2">
