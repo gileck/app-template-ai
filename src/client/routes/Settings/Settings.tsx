@@ -11,88 +11,90 @@ import { getAllModels } from '@/server/ai';
 import { AIModelDefinition } from '@/server/ai/models';
 import { useSettingsStore } from '@/client/features/settings';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
+import {
+  getTotalCacheSize,
+  getCacheSizeBreakdown,
+  clearAllPersistedStores,
+  printAllStores,
+  type CacheSizeInfo,
+} from '@/client/stores';
+import { formatBytes } from '@/client/lib/utils';
 
-// localStorage keys for all persisted stores
-const CACHE_KEYS = {
-  reactQuery: 'react-query-cache-v2',
-  settings: 'settings-storage',
-  auth: 'auth-storage',
-  router: 'route-storage',
-} as const;
+// React Query cache key (not managed by store registry)
+const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
 
 // localStorage limit is typically ~5MB
 const LOCAL_STORAGE_LIMIT = 5 * 1024 * 1024;
 
-interface CacheSizeInfo {
+interface CacheSizeState {
   total: { bytes: number; formatted: string };
   breakdown: Array<{ name: string; key: string; bytes: number; formatted: string }>;
 }
 
 /**
- * Format bytes to human readable string
+ * Get combined cache size including both store registry and React Query
  */
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-/**
- * Calculate the size of all cached data in localStorage
- */
-function getCacheSize(): CacheSizeInfo {
-  const breakdown: CacheSizeInfo['breakdown'] = [];
-  let totalBytes = 0;
-
-  const keyNames: Record<string, string> = {
-    [CACHE_KEYS.reactQuery]: 'React Query',
-    [CACHE_KEYS.settings]: 'Settings',
-    [CACHE_KEYS.auth]: 'Auth',
-    [CACHE_KEYS.router]: 'Router',
-  };
-
+function getCombinedCacheSize(): CacheSizeState {
+  // Get store registry sizes
+  const storeTotal = getTotalCacheSize();
+  const storeBreakdown = getCacheSizeBreakdown();
+  
+  // Get React Query cache size
+  let reactQueryBytes = 0;
   try {
-    Object.entries(CACHE_KEYS).forEach(([, key]) => {
-      const data = localStorage.getItem(key);
-      const bytes = data ? new Blob([data]).size : 0;
-      totalBytes += bytes;
-      breakdown.push({
-        name: keyNames[key] || key,
-        key,
-        bytes,
-        formatted: formatBytes(bytes),
-      });
-    });
-
-    // Sort by size descending
-    breakdown.sort((a, b) => b.bytes - a.bytes);
-
-    return {
-      total: { bytes: totalBytes, formatted: formatBytes(totalBytes) },
-      breakdown,
-    };
+    const rqData = localStorage.getItem(REACT_QUERY_CACHE_KEY);
+    reactQueryBytes = rqData ? new Blob([rqData]).size : 0;
   } catch {
-    return {
-      total: { bytes: 0, formatted: 'Unknown' },
-      breakdown: [],
-    };
+    reactQueryBytes = 0;
   }
+  
+  // Combine totals
+  const totalBytes = storeTotal.bytes + reactQueryBytes;
+  
+  // Build breakdown with React Query included
+  const breakdown: CacheSizeState['breakdown'] = [
+    ...storeBreakdown.map((item: CacheSizeInfo) => ({
+      name: item.label,
+      key: item.key,
+      bytes: item.bytes,
+      formatted: item.formatted,
+    })),
+  ];
+  
+  // Add React Query to breakdown
+  if (reactQueryBytes > 0) {
+    breakdown.push({
+      name: 'React Query',
+      key: REACT_QUERY_CACHE_KEY,
+      bytes: reactQueryBytes,
+      formatted: formatBytes(reactQueryBytes),
+    });
+  }
+  
+  // Sort by size descending
+  breakdown.sort((a, b) => b.bytes - a.bytes);
+  
+  return {
+    total: { bytes: totalBytes, formatted: formatBytes(totalBytes) },
+    breakdown,
+  };
 }
 
 /**
  * Print all cached data to console for debugging
  */
 function printCacheToConsole(): void {
-  console.group('[Cache Debug] All Persisted Data');
+  // Print store registry data
+  printAllStores();
   
-  // Print React Query cache
+  // Also print React Query cache
+  console.group('[Cache Debug] React Query');
   try {
-    const cacheStr = localStorage.getItem(CACHE_KEYS.reactQuery);
+    const cacheStr = localStorage.getItem(REACT_QUERY_CACHE_KEY);
     if (cacheStr) {
       const cache = JSON.parse(cacheStr);
       const queries = cache?.clientState?.queries || [];
       
-      console.group('📦 React Query Cache');
       console.log('Total queries:', queries.length);
       console.log('Cache timestamp:', cache?.timestamp ? new Date(cache.timestamp).toLocaleString() : 'N/A');
       console.log('Total size:', formatBytes(new Blob([cacheStr]).size));
@@ -106,38 +108,12 @@ function printCacheToConsole(): void {
       
       console.log('---');
       console.log('Full cache object:', cache);
-      console.groupEnd();
     } else {
-      console.log('📦 React Query Cache: (empty)');
+      console.log('(empty)');
     }
   } catch (error) {
-    console.error('📦 React Query Cache: Failed to parse', error);
+    console.error('Failed to parse React Query cache', error);
   }
-
-  // Print Zustand stores
-  const zustandStores = [
-    { key: CACHE_KEYS.settings, name: '⚙️ Settings Store' },
-    { key: CACHE_KEYS.auth, name: '🔐 Auth Store' },
-    { key: CACHE_KEYS.router, name: '🔀 Router Store' },
-  ];
-
-  zustandStores.forEach(({ key, name }) => {
-    try {
-      const data = localStorage.getItem(key);
-      if (data) {
-        const parsed = JSON.parse(data);
-        console.group(name);
-        console.log('Size:', formatBytes(new Blob([data]).size));
-        console.log('Data:', parsed);
-        console.groupEnd();
-      } else {
-        console.log(`${name}: (empty)`);
-      }
-    } catch (error) {
-      console.error(`${name}: Failed to parse`, error);
-    }
-  });
-
   console.groupEnd();
 }
 
@@ -160,14 +136,16 @@ export function Settings() {
     severity: 'info'
   });
   // eslint-disable-next-line state-management/prefer-state-architecture -- local cache size display
-  const [cacheSize, setCacheSize] = useState<CacheSizeInfo>({ 
+  const [cacheSize, setCacheSize] = useState<CacheSizeState>({ 
     total: { bytes: 0, formatted: '0 KB' },
     breakdown: [],
   });
+  // eslint-disable-next-line state-management/prefer-state-architecture -- local UI toggle for breakdown visibility
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Refresh cache size
   const refreshCacheSize = useCallback(() => {
-    setCacheSize(getCacheSize());
+    setCacheSize(getCombinedCacheSize());
   }, []);
 
   // Calculate cache size on mount and after clearing
@@ -189,7 +167,9 @@ export function Settings() {
       // Clear React Query persisted cache from localStorage
       let clientCacheCleared = true;
       try {
-        localStorage.removeItem(CACHE_KEYS.reactQuery);
+        localStorage.removeItem(REACT_QUERY_CACHE_KEY);
+        // Also clear all persisted stores via registry
+        clearAllPersistedStores();
       } catch {
         clientCacheCleared = false;
       }
@@ -259,15 +239,26 @@ export function Settings() {
             </p>
           </div>
           
-          {/* Breakdown by store */}
+          {/* Breakdown by store (collapsible) */}
           {cacheSize.breakdown.length > 0 && (
-            <div className="mt-3 space-y-1 border-t border-border pt-2">
-              {cacheSize.breakdown.map((item) => (
-                <div key={item.key} className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">{item.name}</span>
-                  <span className="font-mono text-muted-foreground">{item.formatted}</span>
+            <div className="mt-3 border-t border-border pt-2">
+              <button
+                onClick={() => setShowBreakdown(!showBreakdown)}
+                className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>Show details ({cacheSize.breakdown.length} stores)</span>
+                <span className="text-xs">{showBreakdown ? '▲' : '▼'}</span>
+              </button>
+              {showBreakdown && (
+                <div className="mt-2 space-y-1">
+                  {cacheSize.breakdown.map((item) => (
+                    <div key={item.key} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{item.name}</span>
+                      <span className="font-mono text-muted-foreground">{item.formatted}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

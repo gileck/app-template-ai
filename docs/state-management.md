@@ -78,10 +78,11 @@ Use this flowchart to decide which solution to use:
 └─────────────────────┘            ▼               ▼
                         ┌─────────────────┐ ┌─────────────────┐
                         │  Use Zustand    │ │  Use useState   │
-                        │                 │ │                 │
-                        │  • Stores in    │ │  • Modal open   │
-                        │    features/    │ │  • Form inputs  │
-                        │  • Persisted    │ │  • Loading UI   │
+                        │  (createStore)  │ │                 │
+                        │                 │ │  • Modal open   │
+                        │  • Stores in    │ │  • Form inputs  │
+                        │    features/    │ │  • Loading UI   │
+                        │  • Persisted    │ │                 │
                         └─────────────────┘ └─────────────────┘
 ```
 
@@ -101,6 +102,51 @@ Use this flowchart to decide which solution to use:
 
 ## Zustand (Client State)
 
+### Store Factory: `createStore`
+
+All Zustand stores **must** be created using the `createStore` factory from `@/client/stores`:
+
+```typescript
+import { createStore } from '@/client/stores';
+
+// PERSISTED store (default) - persistOptions REQUIRED
+const useSettingsStore = createStore<SettingsState>({
+    key: 'settings-storage',
+    label: 'Settings',
+    creator: (set) => ({
+        theme: 'light',
+        setTheme: (theme) => set({ theme }),
+    }),
+    persistOptions: {
+        partialize: (state) => ({ theme: state.theme }),
+    },
+});
+
+// IN-MEMORY store (explicit opt-out) - inMemoryOnly REQUIRED
+const useModalStore = createStore<ModalState>({
+    key: 'modal',
+    label: 'Modal',
+    inMemoryOnly: true,
+    creator: (set) => ({
+        isOpen: false,
+        open: () => set({ isOpen: true }),
+        close: () => set({ isOpen: false }),
+    }),
+});
+```
+
+### Why createStore?
+
+| Feature | Direct Zustand | createStore Factory |
+|---------|----------------|---------------------|
+| **Persistence** | Manual setup | Default (opt-out explicit) |
+| **Registry** | None | Auto-registered |
+| **subscribeWithSelector** | Manual | Auto-applied |
+| **Cache management** | Manual | Registry utilities |
+| **ESLint enforcement** | None | Blocked outside stores/ |
+
+📚 **Full Documentation**: [zustand-stores.md](./zustand-stores.md)
+
 ### Philosophy: Many Small Stores
 
 Zustand recommends **separate, focused stores** over a single large store:
@@ -117,9 +163,15 @@ Zustand recommends **separate, focused stores** over a single large store:
 
 ```
 src/client/features/
-├── auth/store.ts       # Auth state + instant-boot hints
-├── settings/store.ts   # User preferences + offline mode
-└── router/store.ts     # Route persistence for PWA
+├── auth/store.ts           # Auth state + instant-boot hints (persisted)
+├── settings/store.ts       # User preferences + offline mode (persisted)
+├── router/store.ts         # Route persistence for PWA (persisted)
+├── session-logs/store.ts   # Debug logs (in-memory)
+├── bug-report/store.ts     # Bug report dialog (in-memory)
+└── offline-sync/store.ts   # Batch sync alert (in-memory)
+
+src/client/components/ui/
+└── toast.tsx               # Toast notifications (in-memory)
 ```
 
 ### Using Zustand Stores
@@ -175,32 +227,31 @@ const setLastRoute = useRouteStore((state) => state.setLastRoute);
 setLastRoute('/todos');
 ```
 
-### Store Internals
+### Store Registry Utilities
 
-Each store uses Zustand's `persist` middleware for localStorage:
+All stores are auto-registered, enabling cache management:
 
 ```typescript
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import {
+    getAllStores,
+    getPersistedStores,
+    getTotalCacheSize,
+    getCacheSizeBreakdown,
+    clearAllPersistedStores,
+    printAllStores,
+} from '@/client/stores';
 
-export const useMyStore = create<MyState>()(
-    persist(
-        (set, get) => ({
-            // State
-            value: 'default',
-            
-            // Actions
-            setValue: (value) => set({ value }),
-        }),
-        {
-            name: 'my-storage',  // localStorage key
-            partialize: (state) => ({ value: state.value }), // What to persist
-            onRehydrateStorage: () => (state) => {
-                // Run after hydration (TTL checks, migrations)
-            },
-        }
-    )
-);
+// Get all registered stores
+const stores = getAllStores();
+
+// Get total localStorage usage
+const { bytes, formatted } = getTotalCacheSize();
+
+// Clear all persisted data
+clearAllPersistedStores();
+
+// Debug output
+printAllStores();
 ```
 
 ---
@@ -215,7 +266,7 @@ React Query handles all the complexity of server state:
 - **Deduplication**: Multiple components share one request
 - **Background refresh**: Updates stale data automatically
 - **Optimistic updates**: UI updates before server confirms
-- **Persistence**: IndexedDB for offline support
+- **Persistence**: localStorage for offline support
 
 ### Query Hook Pattern
 
@@ -391,9 +442,9 @@ const isOffline = useEffectiveOffline();
 ### GET Requests (Queries)
 
 When offline, `apiClient.call`:
-1. Checks IndexedDB cache
-2. If cached → returns cached data
-3. If not cached → returns error: `"This content isn't available offline yet"`
+1. Returns error: `"Network unavailable"`
+2. React Query serves stale cached data if available
+3. If not cached → user sees error message
 
 ### POST Requests (Mutations)
 
@@ -464,10 +515,11 @@ The architecture enables **instant startup** after iOS kills the app:
 
 ### Step 1: Create Store File
 
+Use the `createStore` factory:
+
 ```typescript
 // src/client/features/notifications/store.ts
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createStore } from '@/client/stores';
 import { STORE_DEFAULTS, createTTLValidator } from '@/client/config';
 
 const isValid = createTTLValidator(STORE_DEFAULTS.TTL);
@@ -480,33 +532,36 @@ interface NotificationState {
     markAllRead: () => void;
 }
 
-export const useNotificationStore = create<NotificationState>()(
-    persist(
-        (set) => ({
-            unreadCount: 0,
-            lastCheckedAt: null,
-            
-            setUnreadCount: (count) => set({ 
-                unreadCount: count, 
-                lastCheckedAt: Date.now() 
-            }),
-            
-            markAllRead: () => set({ 
-                unreadCount: 0, 
-                lastCheckedAt: Date.now() 
-            }),
+export const useNotificationStore = createStore<NotificationState>({
+    key: 'notification-storage',
+    label: 'Notifications',
+    creator: (set) => ({
+        unreadCount: 0,
+        lastCheckedAt: null,
+        
+        setUnreadCount: (count) => set({ 
+            unreadCount: count, 
+            lastCheckedAt: Date.now() 
         }),
-        {
-            name: 'notification-storage',
-            onRehydrateStorage: () => (state) => {
-                if (state && !isValid(state.lastCheckedAt)) {
-                    state.unreadCount = 0;
-                    state.lastCheckedAt = null;
-                }
-            },
-        }
-    )
-);
+        
+        markAllRead: () => set({ 
+            unreadCount: 0, 
+            lastCheckedAt: Date.now() 
+        }),
+    }),
+    persistOptions: {
+        partialize: (state) => ({
+            unreadCount: state.unreadCount,
+            lastCheckedAt: state.lastCheckedAt,
+        }),
+        onRehydrateStorage: () => (state) => {
+            if (state && !isValid(state.lastCheckedAt)) {
+                state.unreadCount = 0;
+                state.lastCheckedAt = null;
+            }
+        },
+    },
+});
 
 // Selector hooks
 export function useUnreadCount(): number {
@@ -531,6 +586,32 @@ export * from './router';
 export * from './notifications'; // Add new feature
 ```
 
+### In-Memory Store Example
+
+For ephemeral state that shouldn't persist:
+
+```typescript
+// src/client/features/modal/store.ts
+import { createStore } from '@/client/stores';
+
+interface ModalState {
+    isOpen: boolean;
+    open: () => void;
+    close: () => void;
+}
+
+export const useModalStore = createStore<ModalState>({
+    key: 'modal',
+    label: 'Modal',
+    inMemoryOnly: true,  // No persistence
+    creator: (set) => ({
+        isOpen: false,
+        open: () => set({ isOpen: true }),
+        close: () => set({ isOpen: false }),
+    }),
+});
+```
+
 ---
 
 ## Best Practices
@@ -538,6 +619,9 @@ export * from './notifications'; // Add new feature
 ### DO ✅
 
 ```typescript
+// Use createStore factory (required)
+import { createStore } from '@/client/stores';
+
 // Use selector hooks for fine-grained subscriptions
 const theme = useSettingsStore((s) => s.settings.theme);
 
@@ -551,11 +635,17 @@ onSuccess: (data) => {
 
 // Use centralized config
 const isValid = createTTLValidator(STORE_DEFAULTS.TTL);
+
+// Use registry utilities for cache management
+import { getTotalCacheSize } from '@/client/stores';
 ```
 
 ### DON'T ❌
 
 ```typescript
+// Don't import zustand directly (blocked by ESLint)
+import { create } from 'zustand'; // ERROR!
+
 // Don't subscribe to entire store (causes unnecessary re-renders)
 const store = useSettingsStore(); // BAD
 
@@ -573,7 +663,17 @@ const [todos, setTodos] = useState([]); // BAD - use React Query
 
 ### ESLint Enforcement
 
-The codebase has an ESLint rule that warns on `useState`:
+Direct zustand imports are **blocked** outside `src/client/stores/`:
+
+```typescript
+// This will ERROR - use createStore instead
+import { create } from 'zustand';
+
+// This is correct
+import { createStore } from '@/client/stores';
+```
+
+The codebase also has a rule that warns on `useState`:
 
 ```typescript
 // This will warn - forces you to think about state location
@@ -590,6 +690,9 @@ const [inputValue, setInputValue] = useState('');
 
 | File | Purpose |
 |------|---------|
+| `src/client/stores/createStore.ts` | Store factory |
+| `src/client/stores/registry.ts` | Cache management utilities |
+| `src/client/stores/index.ts` | Public exports |
 | `src/client/config/defaults.ts` | Centralized TTL/cache constants |
 | `src/client/features/auth/store.ts` | Auth state + instant-boot hints |
 | `src/client/features/settings/store.ts` | User preferences |
@@ -598,4 +701,4 @@ const [inputValue, setInputValue] = useState('');
 | `src/client/query/QueryProvider.tsx` | React Query + localStorage persistence |
 | `src/client/utils/apiClient.ts` | API client with offline queue |
 | `src/client/utils/offlinePostQueue.ts` | POST request queue + batch sync |
-
+| `docs/zustand-stores.md` | Store factory documentation |

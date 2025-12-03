@@ -74,6 +74,19 @@ const eslintConfig = [
           '**/actions/index.ts'
         ]
       }],
+      // Block direct zustand imports - use createStore from @/client/stores
+      "no-restricted-imports": ["error", {
+        "paths": [
+          {
+            "name": "zustand",
+            "message": "Use createStore from @/client/stores. See docs/zustand-stores.md"
+          },
+          {
+            "name": "zustand/middleware",
+            "message": "Use createStore from @/client/stores. See docs/zustand-stores.md"
+          }
+        ]
+      }],
       // State management rule - warn on useState to encourage thinking
       // Disabled for now - enable after fixing existing code
       // "state-management/prefer-state-architecture": "warn"
@@ -91,6 +104,13 @@ const eslintConfig = [
     ],
     rules: {
       "state-management/prefer-state-architecture": "warn"
+    }
+  },
+  // Allow direct zustand imports in the stores factory folder
+  {
+    files: ["src/client/stores/**/*.ts"],
+    rules: {
+      "no-restricted-imports": "off"
     }
   }
 ];

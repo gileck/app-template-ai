@@ -5,8 +5,7 @@
  * Persists only "hint" data for immediate UI rendering.
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createStore } from '@/client/stores';
 import type { UserPublicHint } from './types';
 import { userToHint } from './types';
 import type { UserResponse } from '@/apis/auth/types';
@@ -36,77 +35,76 @@ interface AuthState extends PersistedAuthState {
     clearAuth: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-    persist(
-        (set) => ({
-            // Persisted state
-            isProbablyLoggedIn: false,
-            userPublicHint: null,
-            hintTimestamp: null,
+export const useAuthStore = createStore<AuthState>({
+    key: 'auth-storage',
+    label: 'Auth',
+    creator: (set) => ({
+        // Persisted state
+        isProbablyLoggedIn: false,
+        userPublicHint: null,
+        hintTimestamp: null,
 
-            // Runtime state
-            user: null,
-            isValidated: false,
-            isValidating: false,
-            error: null,
+        // Runtime state
+        user: null,
+        isValidated: false,
+        isValidating: false,
+        error: null,
 
-            setUserHint: (user) => {
-                set({
-                    isProbablyLoggedIn: true,
-                    userPublicHint: user,
-                    hintTimestamp: Date.now(),
-                });
-            },
+        setUserHint: (user) => {
+            set({
+                isProbablyLoggedIn: true,
+                userPublicHint: user,
+                hintTimestamp: Date.now(),
+            });
+        },
 
-            setValidatedUser: (user) => {
-                set({
-                    user,
-                    isValidated: true,
-                    isValidating: false,
-                    error: null,
-                    isProbablyLoggedIn: true,
-                    userPublicHint: userToHint(user),
-                    hintTimestamp: Date.now(),
-                });
-            },
+        setValidatedUser: (user) => {
+            set({
+                user,
+                isValidated: true,
+                isValidating: false,
+                error: null,
+                isProbablyLoggedIn: true,
+                userPublicHint: userToHint(user),
+                hintTimestamp: Date.now(),
+            });
+        },
 
-            setValidating: (validating) => {
-                set({ isValidating: validating });
-            },
+        setValidating: (validating) => {
+            set({ isValidating: validating });
+        },
 
-            setError: (error) => {
-                set({ error, isValidating: false });
-            },
+        setError: (error) => {
+            set({ error, isValidating: false });
+        },
 
-            clearAuth: () => {
-                set({
-                    isProbablyLoggedIn: false,
-                    userPublicHint: null,
-                    hintTimestamp: null,
-                    user: null,
-                    isValidated: false,
-                    isValidating: false,
-                    error: null,
-                });
-            },
+        clearAuth: () => {
+            set({
+                isProbablyLoggedIn: false,
+                userPublicHint: null,
+                hintTimestamp: null,
+                user: null,
+                isValidated: false,
+                isValidating: false,
+                error: null,
+            });
+        },
+    }),
+    persistOptions: {
+        partialize: (state) => ({
+            isProbablyLoggedIn: state.isProbablyLoggedIn,
+            userPublicHint: state.userPublicHint,
+            hintTimestamp: state.hintTimestamp,
         }),
-        {
-            name: 'auth-storage',
-            partialize: (state) => ({
-                isProbablyLoggedIn: state.isProbablyLoggedIn,
-                userPublicHint: state.userPublicHint,
-                hintTimestamp: state.hintTimestamp,
-            }),
-            onRehydrateStorage: () => (state) => {
-                if (state && !isHintValid(state.hintTimestamp)) {
-                    state.isProbablyLoggedIn = false;
-                    state.userPublicHint = null;
-                    state.hintTimestamp = null;
-                }
-            },
-        }
-    )
-);
+        onRehydrateStorage: () => (state) => {
+            if (state && !isHintValid(state.hintTimestamp)) {
+                state.isProbablyLoggedIn = false;
+                state.userPublicHint = null;
+                state.hintTimestamp = null;
+            }
+        },
+    },
+});
 
 // Selector hooks
 export function useIsAuthenticated(): boolean {

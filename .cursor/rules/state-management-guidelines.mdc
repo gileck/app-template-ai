@@ -6,6 +6,7 @@ alwaysApply: true
 # State Management Guidelines
 
 📚 **Full Documentation**: [docs/state-management.md](mdc:docs/state-management.md)
+📚 **Store Factory**: [docs/zustand-stores.md](mdc:docs/zustand-stores.md)
 
 ## Quick Decision
 
@@ -19,9 +20,35 @@ alwaysApply: true
 
 ```
 API data? → React Query
-Persist across restarts? → Zustand
+Persist across restarts? → Zustand (createStore)
 Otherwise → useState
 ```
+
+## Zustand Store Factory (REQUIRED)
+
+All Zustand stores MUST use `createStore` from `@/client/stores`:
+
+```typescript
+import { createStore } from '@/client/stores';
+
+// PERSISTED store (default) - persistOptions REQUIRED
+const useMyStore = createStore<MyState>({
+    key: 'my-storage',
+    label: 'My Store',
+    creator: (set) => ({ ... }),
+    persistOptions: { partialize: (state) => ({ ... }) },
+});
+
+// IN-MEMORY store (explicit opt-out) - inMemoryOnly REQUIRED
+const useModalStore = createStore<ModalState>({
+    key: 'modal',
+    label: 'Modal',
+    inMemoryOnly: true,
+    creator: (set) => ({ ... }),
+});
+```
+
+**Direct zustand imports are BLOCKED by ESLint** outside `src/client/stores/`.
 
 ## Zustand Imports
 
@@ -73,7 +100,18 @@ import { TIME, STORE_DEFAULTS, QUERY_DEFAULTS } from '@/client/config';
 
 ## New Store Checklist
 
-1. Create `src/client/features/{name}/store.ts`
-2. Create `src/client/features/{name}/index.ts`
-3. Export from `src/client/features/index.ts`
-4. Use `createTTLValidator(STORE_DEFAULTS.TTL)` for expiry
+1. Create `src/client/features/{name}/store.ts` using `createStore`
+2. Choose: `persistOptions` (persisted) OR `inMemoryOnly: true` (in-memory)
+3. Create `src/client/features/{name}/index.ts`
+4. Export from `src/client/features/index.ts`
+5. For TTL validation: use `createTTLValidator(STORE_DEFAULTS.TTL)`
+
+## Registry Utilities
+
+```typescript
+import { 
+    getAllStores, 
+    getTotalCacheSize, 
+    clearAllPersistedStores 
+} from '@/client/stores';
+```

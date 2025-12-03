@@ -144,7 +144,11 @@ The app uses two complementary state management solutions:
 
 ### Zustand (Client State)
 
-For state that belongs to the client and should persist across sessions:
+All Zustand stores are created using the `createStore` factory from `@/client/stores`. This factory provides:
+- **Automatic persistence** to localStorage (default behavior)
+- **Central registry** for cache management
+- **subscribeWithSelector** middleware for granular subscriptions
+- **ESLint enforcement** blocking direct zustand imports
 
 ```typescript
 import { useAuthStore } from '@/client/features/auth';
@@ -164,6 +168,8 @@ updateSettings({ theme: 'dark' });
 - User preferences (theme, offline mode)
 - Route persistence (last visited page)
 - Any UI state that should survive app restart
+
+📚 **Store Factory Documentation**: [zustand-stores.md](./zustand-stores.md)
 
 ### React Query (Server State)
 
@@ -214,7 +220,7 @@ Does this state come from an API?
   NO ↓
 
 Should it persist across app restarts?
-  YES → Zustand store
+  YES → Zustand store (use createStore factory)
   NO ↓
 
 Is it temporary UI state (modal, form)?
@@ -375,13 +381,19 @@ Code is organized by **feature**, not by type:
 src/client/
 ├── features/                    # Cross-cutting features
 │   ├── auth/                    # Authentication
-│   │   ├── store.ts             # Zustand store
+│   │   ├── store.ts             # Zustand store (uses createStore)
 │   │   ├── hooks.ts             # React Query hooks
 │   │   ├── types.ts             # TypeScript types
 │   │   ├── AuthWrapper.tsx      # Component
 │   │   └── index.ts             # Public exports
 │   ├── settings/                # User settings
 │   └── router/                  # Route persistence
+│
+├── stores/                      # Store factory & registry
+│   ├── createStore.ts           # Store factory
+│   ├── registry.ts              # Cache management utilities
+│   ├── types.ts                 # Store types
+│   └── index.ts                 # Public exports
 │
 ├── routes/                      # Page components
 │   ├── Todos/                   # Todo list page
@@ -438,6 +450,7 @@ export function MyFeature() {
 | What | Import From |
 |------|-------------|
 | Cross-cutting stores/hooks | `@/client/features/{name}` |
+| Store factory | `@/client/stores` |
 | Route-specific hooks | `./hooks` (colocated) |
 | Shared UI components | `@/client/components/ui/*` |
 | API types | `@/apis/{name}/types` |
@@ -455,6 +468,15 @@ export function MyFeature() {
 |------|---------|
 | `src/client/config/defaults.ts` | Centralized TTL and cache constants |
 | `src/client/query/defaults.ts` | React Query default options |
+
+### Store Factory
+
+| File | Purpose |
+|------|---------|
+| `src/client/stores/createStore.ts` | Store factory with persistence |
+| `src/client/stores/registry.ts` | Cache management utilities |
+| `src/client/stores/types.ts` | Store config interfaces |
+| `src/client/stores/index.ts` | Public exports |
 
 ### Features
 
@@ -481,6 +503,7 @@ export function MyFeature() {
 | `docs/offline-pwa-support.md` | Offline architecture details |
 | `docs/caching-strategy.md` | Caching architecture & localStorage vs IndexedDB |
 | `docs/api-endpoint-format.md` | API structure |
+| `docs/zustand-stores.md` | Store factory & registry |
 | `.cursor/rules/state-management-guidelines.mdc` | State management patterns |
 | `.cursor/rules/feature-based-structure.mdc` | Code organization |
 
@@ -495,4 +518,4 @@ This architecture enables:
 ✅ **Native-like UX** - Optimistic updates, no loading spinners  
 ✅ **Maintainable code** - Feature-based organization  
 ✅ **Type safety** - End-to-end TypeScript  
-
+✅ **Enforced patterns** - ESLint rules ensure consistency

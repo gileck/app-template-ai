@@ -4,7 +4,7 @@
  * Manages the bug report dialog open state.
  */
 
-import { create } from 'zustand';
+import { createStore } from '@/client/stores';
 
 interface BugReportState {
     isOpen: boolean;
@@ -14,17 +14,22 @@ interface BugReportState {
     closeDialog: () => void;
 }
 
-export const useBugReportStore = create<BugReportState>((set) => ({
-    isOpen: false,
+export const useBugReportStore = createStore<BugReportState>({
+    key: 'bug-report',
+    label: 'Bug Report',
+    inMemoryOnly: true,
+    creator: (set) => ({
+        isOpen: false,
 
-    openDialog: () => {
-        set({ isOpen: true });
-    },
+        openDialog: () => {
+            set({ isOpen: true });
+        },
 
-    closeDialog: () => {
-        set({ isOpen: false });
-    },
-}));
+        closeDialog: () => {
+            set({ isOpen: false });
+        },
+    }),
+});
 
 // Selector hooks
 export function useBugReportDialogOpen(): boolean {
@@ -38,4 +43,3 @@ export function useOpenBugReportDialog() {
 export function useCloseBugReportDialog() {
     return useBugReportStore((state) => state.closeDialog);
 }
-

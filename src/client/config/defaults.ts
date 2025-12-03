@@ -5,7 +5,6 @@
  * Features use these defaults automatically, with ability to override.
  */
 
-import type { PersistOptions } from 'zustand/middleware';
 import { logger } from '@/client/features/session-logs';
 
 // ============================================================================
@@ -68,20 +67,20 @@ export const MUTATION_DEFAULTS = {
 // ============================================================================
 
 /**
- * Default persist options with TTL validation.
- * Use this when creating new Zustand stores with persistence.
+ * @deprecated Use createStore from @/client/stores instead.
+ * This helper is kept for backwards compatibility.
  * 
- * @example
- * ```typescript
- * export const useMyStore = create<MyState>()(
- *     persist(
- *         (set) => ({ ... }),
- *         createPersistConfig('my-store', {
- *             ttl: STORE_DEFAULTS.TTL_SHORT, // Override TTL
- *         })
- *     )
- * );
- * ```
+ * Default persist options with TTL validation.
+ */
+export interface PersistConfig<T> {
+    name: string;
+    partialize?: (state: T) => Partial<T>;
+    onRehydrateStorage?: () => (state: T | undefined) => void;
+}
+
+/**
+ * @deprecated Use createStore from @/client/stores instead.
+ * This helper is kept for backwards compatibility.
  */
 export function createPersistConfig<T>(
     name: string,
@@ -93,7 +92,7 @@ export function createPersistConfig<T>(
         /** Field name for timestamp. Default: '_persistedAt' */
         timestampField?: string;
     }
-): PersistOptions<T, Partial<T>> {
+): PersistConfig<T> {
     const ttl = options?.ttl ?? STORE_DEFAULTS.TTL;
     const timestampField = options?.timestampField ?? '_persistedAt';
 
@@ -103,7 +102,7 @@ export function createPersistConfig<T>(
             // Add timestamp to persisted state
             return { ...state, [timestampField]: Date.now() } as Partial<T>;
         }),
-        onRehydrateStorage: () => (state) => {
+        onRehydrateStorage: () => (state: T | undefined) => {
             if (!state) return;
             
             // Check TTL on rehydration
@@ -145,4 +144,3 @@ export function createTTLValidator(ttl: number) {
 export interface WithTimestamp {
     _persistedAt?: number;
 }
-

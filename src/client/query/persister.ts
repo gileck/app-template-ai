@@ -1,6 +1,7 @@
 import { get, set, del } from 'idb-keyval';
 import type { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 import { logger } from '@/client/features/session-logs';
+import { formatBytes } from '@/client/lib/utils';
 
 const CACHE_KEY = 'react-query-cache';
 const CACHE_BUSTER = 'v2'; // Increment to invalidate all cached data (v2: excluded reports from cache)
@@ -28,15 +29,6 @@ function getObjectSize(obj: unknown): number {
     } catch {
         return 0;
     }
-}
-
-/**
- * Format bytes to human readable string
- */
-function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 /**

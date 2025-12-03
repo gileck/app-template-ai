@@ -4,8 +4,7 @@
  * Manages user preferences with localStorage persistence.
  */
 
-import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
+import { createStore } from '@/client/stores';
 import type { Settings } from './types';
 import { defaultSettings } from './types';
 
@@ -17,31 +16,28 @@ interface SettingsState {
     setDeviceOffline: (offline: boolean) => void;
 }
 
-export const useSettingsStore = create<SettingsState>()(
-    subscribeWithSelector(
-        persist(
-            (set) => ({
-                settings: defaultSettings,
-                // Always start as online, let initializeOfflineListeners set the real value
-                isDeviceOffline: false,
+export const useSettingsStore = createStore<SettingsState>({
+    key: 'settings-storage',
+    label: 'Settings',
+    creator: (set) => ({
+        settings: defaultSettings,
+        // Always start as online, let initializeOfflineListeners set the real value
+        isDeviceOffline: false,
 
-                updateSettings: (newSettings) => {
-                    set((state) => ({
-                        settings: { ...state.settings, ...newSettings },
-                    }));
-                },
+        updateSettings: (newSettings) => {
+            set((state) => ({
+                settings: { ...state.settings, ...newSettings },
+            }));
+        },
 
-                setDeviceOffline: (offline) => {
-                    set({ isDeviceOffline: offline });
-                },
-            }),
-            {
-                name: 'settings-storage',
-                partialize: (state) => ({ settings: state.settings }),
-            }
-        )
-    )
-);
+        setDeviceOffline: (offline) => {
+            set({ isDeviceOffline: offline });
+        },
+    }),
+    persistOptions: {
+        partialize: (state) => ({ settings: state.settings }),
+    },
+});
 
 /**
  * Initialize device offline listeners
@@ -101,4 +97,3 @@ export function useEffectiveOffline(): boolean {
     const isDeviceOffline = useSettingsStore((state) => state.isDeviceOffline);
     return offlineMode || isDeviceOffline;
 }
-

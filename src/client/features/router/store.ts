@@ -5,8 +5,7 @@
  * When iOS kills the app and user reopens, they return to the same page.
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createStore } from '@/client/stores';
 import { STORE_DEFAULTS, createTTLValidator } from '@/client/config';
 
 // Use centralized TTL
@@ -25,49 +24,48 @@ interface RouteState {
     getValidLastRoute: () => string | null;
 }
 
-export const useRouteStore = create<RouteState>()(
-    persist(
-        (set, get) => ({
-            lastRoute: null,
-            lastRouteTimestamp: null,
+export const useRouteStore = createStore<RouteState>({
+    key: 'route-storage',
+    label: 'Router',
+    creator: (set, get) => ({
+        lastRoute: null,
+        lastRouteTimestamp: null,
 
-            setLastRoute: (route) => {
-                if (EXCLUDED_ROUTES.some(excluded => route.startsWith(excluded))) {
-                    return;
-                }
-                set({
-                    lastRoute: route,
-                    lastRouteTimestamp: Date.now(),
-                });
-            },
+        setLastRoute: (route) => {
+            if (EXCLUDED_ROUTES.some(excluded => route.startsWith(excluded))) {
+                return;
+            }
+            set({
+                lastRoute: route,
+                lastRouteTimestamp: Date.now(),
+            });
+        },
 
-            getValidLastRoute: () => {
-                const state = get();
-                if (!state.lastRoute || !state.lastRouteTimestamp) {
-                    return null;
-                }
+        getValidLastRoute: () => {
+            const state = get();
+            if (!state.lastRoute || !state.lastRouteTimestamp) {
+                return null;
+            }
+            if (!isRouteValid(state.lastRouteTimestamp)) {
+                return null;
+            }
+            if (EXCLUDED_ROUTES.some(excluded => state.lastRoute?.startsWith(excluded))) {
+                return null;
+            }
+            return state.lastRoute;
+        },
+    }),
+    persistOptions: {
+        onRehydrateStorage: () => (state) => {
+            if (state && state.lastRouteTimestamp) {
                 if (!isRouteValid(state.lastRouteTimestamp)) {
-                    return null;
+                    state.lastRoute = null;
+                    state.lastRouteTimestamp = null;
                 }
-                if (EXCLUDED_ROUTES.some(excluded => state.lastRoute?.startsWith(excluded))) {
-                    return null;
-                }
-                return state.lastRoute;
-            },
-        }),
-        {
-            name: 'route-storage',
-            onRehydrateStorage: () => (state) => {
-                if (state && state.lastRouteTimestamp) {
-                    if (!isRouteValid(state.lastRouteTimestamp)) {
-                        state.lastRoute = null;
-                        state.lastRouteTimestamp = null;
-                    }
-                }
-            },
-        }
-    )
-);
+            }
+        },
+    },
+});
 
 export function useLastRoute(): string | null {
     return useRouteStore((state) => state.getValidLastRoute());

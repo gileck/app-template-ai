@@ -5,7 +5,7 @@
  * Logs are kept for the current session and sent with bug reports.
  */
 
-import { create } from 'zustand';
+import { createStore } from '@/client/stores';
 import type { SessionLog, LogLevel, NetworkStatus } from './types';
 
 const MAX_LOGS = 500; // Keep last 500 logs to prevent memory issues
@@ -39,44 +39,49 @@ function getPerformanceTime(): number | undefined {
     return undefined;
 }
 
-export const useSessionLogsStore = create<SessionLogsState>((set, get) => ({
-    logs: [],
+export const useSessionLogsStore = createStore<SessionLogsState>({
+    key: 'session-logs',
+    label: 'Session Logs',
+    inMemoryOnly: true,
+    creator: (set, get) => ({
+        logs: [],
 
-    addLog: (logData) => {
-        const log: SessionLog = {
-            id: generateLogId(),
-            timestamp: new Date().toISOString(),
-            networkStatus: logData.networkStatus ?? getNetworkStatus(),
-            performanceTime: getPerformanceTime(),
-            ...logData,
-        };
+        addLog: (logData) => {
+            const log: SessionLog = {
+                id: generateLogId(),
+                timestamp: new Date().toISOString(),
+                networkStatus: logData.networkStatus ?? getNetworkStatus(),
+                performanceTime: getPerformanceTime(),
+                ...logData,
+            };
 
-        set((state) => {
-            const newLogs = [...state.logs, log];
-            // Keep only the last MAX_LOGS entries
-            if (newLogs.length > MAX_LOGS) {
-                return { logs: newLogs.slice(-MAX_LOGS) };
-            }
-            return { logs: newLogs };
-        });
-    },
+            set((state) => {
+                const newLogs = [...state.logs, log];
+                // Keep only the last MAX_LOGS entries
+                if (newLogs.length > MAX_LOGS) {
+                    return { logs: newLogs.slice(-MAX_LOGS) };
+                }
+                return { logs: newLogs };
+            });
+        },
 
-    clearLogs: () => {
-        set({ logs: [] });
-    },
+        clearLogs: () => {
+            set({ logs: [] });
+        },
 
-    getLogs: () => {
-        return get().logs;
-    },
+        getLogs: () => {
+            return get().logs;
+        },
 
-    getLogsByLevel: (level) => {
-        return get().logs.filter((log) => log.level === level);
-    },
+        getLogsByLevel: (level) => {
+            return get().logs.filter((log) => log.level === level);
+        },
 
-    getLogsByFeature: (feature) => {
-        return get().logs.filter((log) => log.feature === feature);
-    },
-}));
+        getLogsByFeature: (feature) => {
+            return get().logs.filter((log) => log.feature === feature);
+        },
+    }),
+});
 
 // Selector hooks for convenience
 export function useSessionLogs(): SessionLog[] {
@@ -86,4 +91,3 @@ export function useSessionLogs(): SessionLog[] {
 export function useAddLog() {
     return useSessionLogsStore((state) => state.addLog);
 }
-

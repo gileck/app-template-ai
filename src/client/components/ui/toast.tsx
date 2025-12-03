@@ -4,7 +4,7 @@
  * Simple toast notifications with auto-dismiss.
  */
 
-import { create } from 'zustand';
+import { createStore } from '@/client/stores';
 import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -21,26 +21,31 @@ interface ToastStore {
     removeToast: (id: string) => void;
 }
 
-const useToastStore = create<ToastStore>((set) => ({
-    toasts: [],
-    addToast: (message, type) => {
-        const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        set((state) => ({
-            toasts: [...state.toasts, { id, message, type }],
-        }));
-        // Auto-remove after 4 seconds
-        setTimeout(() => {
+const useToastStore = createStore<ToastStore>({
+    key: 'toast',
+    label: 'Toast',
+    inMemoryOnly: true,
+    creator: (set) => ({
+        toasts: [],
+        addToast: (message, type) => {
+            const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+            set((state) => ({
+                toasts: [...state.toasts, { id, message, type }],
+            }));
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                set((state) => ({
+                    toasts: state.toasts.filter((t) => t.id !== id),
+                }));
+            }, 4000);
+        },
+        removeToast: (id) => {
             set((state) => ({
                 toasts: state.toasts.filter((t) => t.id !== id),
             }));
-        }, 4000);
-    },
-    removeToast: (id) => {
-        set((state) => ({
-            toasts: state.toasts.filter((t) => t.id !== id),
-        }));
-    },
-}));
+        },
+    }),
+});
 
 // Toast API for use anywhere in the app
 export const toast = {
@@ -92,4 +97,3 @@ export function ToastContainer() {
         </div>
     );
 }
-
