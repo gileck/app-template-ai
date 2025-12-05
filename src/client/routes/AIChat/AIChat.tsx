@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { Badge } from '@/client/components/ui/badge';
 import { Send, MessageSquare } from 'lucide-react';
-import { AIModelDefinition, getAllModels } from '@/server/ai/models';
+import { type AIModelDefinition, getAllModels } from '@/common/ai/models';
 import { sendChatMessage } from '@/apis/chat/client';
 import { useSettingsStore } from '@/client/features/settings';
 

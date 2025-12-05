@@ -54,18 +54,12 @@ export type {
 } from './types';
 
 // ============================================================================
-// Re-exports from features (backwards compatibility)
+// NOTE: Feature re-exports removed to prevent circular dependencies
 // ============================================================================
 
 /**
- * @deprecated - Import from @/client/features instead
- * 
- * These re-exports are for backwards compatibility.
- * New code should import directly from:
+ * Import directly from @/client/features instead:
  * - @/client/features/auth
  * - @/client/features/settings
  * - @/client/features/router
  */
-export * from '@/client/features/auth';
-export * from '@/client/features/settings';
-export * from '@/client/features/router';

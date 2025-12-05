@@ -7,8 +7,7 @@ import { Card } from '@/client/components/ui/card';
 import { Separator } from '@/client/components/ui/separator';
 import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { getAllModels } from '@/server/ai';
-import { AIModelDefinition } from '@/server/ai/models';
+import { getAllModels, type AIModelDefinition } from '@/common/ai/models';
 import { useSettingsStore } from '@/client/features/settings';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 import {
