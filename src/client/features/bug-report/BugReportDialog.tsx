@@ -4,16 +4,20 @@
  * Modal dialog for users to report bugs with description and optional screenshot.
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/ui/dialog';
 import { Button } from '@/client/components/ui/button';
 import { Label } from '@/client/components/ui/label';
 import { Input } from '@/client/components/ui/input';
-import { Bug, Upload, X, Send, Loader2, Gauge } from 'lucide-react';
+import { Bug, Upload, X, Send, Loader2, Gauge, Clipboard } from 'lucide-react';
 import { useBugReportStore } from './store';
 import { useSubmitBugReport } from './hooks';
 import { toast } from '@/client/components/ui/toast';
+import { compressImage, formatBytes } from '@/client/utils/imageCompression';
 import type { BugCategory } from './types';
+
+// Maximum allowed image size: 800KB (leaves room for other data in 1MB request limit)
+const MAX_IMAGE_SIZE = 800 * 1024;
 
 export function BugReportDialog() {
     const isOpen = useBugReportStore((state) => state.isOpen);
@@ -27,6 +31,8 @@ export function BugReportDialog() {
     const [screenshot, setScreenshot] = useState<string | null>(null);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form state
     const [screenshotName, setScreenshotName] = useState<string>('');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form state
+    const [isCompressing, setIsCompressing] = useState(false);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const submitMutation = useSubmitBugReport();
@@ -39,29 +45,85 @@ export function BugReportDialog() {
         closeDialog();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    // Process an image file (shared between file input and paste)
+    const processImageFile = useCallback(async (file: File, sourceName: string) => {
         // Validate file type
         if (!file.type.startsWith('image/')) {
             toast.error('Please select an image file');
             return;
         }
 
-        // Validate file size (max 5MB)
+        // Warn if original file is very large (> 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            toast.error('Image must be less than 5MB');
+            toast.error(`Image is too large (${formatBytes(file.size)}). Please use an image smaller than 5MB.`);
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            setScreenshot(event.target?.result as string);
-            setScreenshotName(file.name);
-        };
-        reader.readAsDataURL(file);
+        try {
+            setIsCompressing(true);
+
+            // Compress the image
+            const result = await compressImage(file, MAX_IMAGE_SIZE);
+
+            // Check if compressed image is still too large
+            if (result.compressedSize > MAX_IMAGE_SIZE) {
+                toast.error(
+                    `Image is still too large after compression (${formatBytes(result.compressedSize)}). ` +
+                    `Please use a smaller image or lower resolution screenshot.`
+                );
+                return;
+            }
+
+            // Show compression info if significant
+            if (result.compressionRatio < 0.9) {
+                toast.success(
+                    `Image compressed from ${formatBytes(result.originalSize)} to ${formatBytes(result.compressedSize)}`
+                );
+            }
+
+            setScreenshot(result.dataUrl);
+            setScreenshotName(sourceName);
+        } catch (error) {
+            console.error('Image compression failed:', error);
+            toast.error('Failed to process image. Please try a different image.');
+        } finally {
+            setIsCompressing(false);
+        }
+    }, []);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        processImageFile(file, file.name);
     };
+
+    // Handle paste events for screenshots
+    const handlePaste = useCallback((e: ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) {
+                    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                    processImageFile(file, `pasted-screenshot-${timestamp}.png`);
+                }
+                return;
+            }
+        }
+    }, [processImageFile]);
+
+    // Listen for paste events at document level when dialog is open
+    useEffect(() => {
+        if (!isOpen) return;
+
+        document.addEventListener('paste', handlePaste);
+        return () => {
+            document.removeEventListener('paste', handlePaste);
+        };
+    }, [isOpen, handlePaste]);
 
     const handleRemoveScreenshot = () => {
         setScreenshot(null);
@@ -91,8 +153,19 @@ export function BugReportDialog() {
                 ? 'Performance report submitted with timing data. Thank you!'
                 : 'Bug report submitted successfully. Thank you!';
             toast.success(message);
-        } catch {
-            toast.error('Failed to submit report. Please try again.');
+        } catch (error) {
+            // Provide user-friendly error messages
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            
+            if (errorMessage.includes('413') || errorMessage.includes('Body exceeded') || errorMessage.includes('1mb limit')) {
+                toast.error('Report is too large. Try removing the screenshot or reducing its size.');
+            } else if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
+                toast.error('Network error. Please check your connection and try again.');
+            } else if (errorMessage.includes('timeout')) {
+                toast.error('Request timed out. Please try again.');
+            } else {
+                toast.error('Failed to submit report. Please try again.');
+            }
         }
     };
 
@@ -197,16 +270,32 @@ export function BugReportDialog() {
                                 </div>
                             </div>
                         ) : (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={submitMutation.isPending}
-                            >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload Screenshot
-                            </Button>
+                            <div className="space-y-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={submitMutation.isPending || isCompressing}
+                                >
+                                    {isCompressing ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Compressing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            Upload Screenshot
+                                        </>
+                                    )}
+                                </Button>
+                                <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                                    <Clipboard className="h-3 w-3" />
+                                    <span>or paste from clipboard (Ctrl/⌘+V)</span>
+                                    <span className="ml-2 text-muted-foreground/70">· Max: {formatBytes(MAX_IMAGE_SIZE)}</span>
+                                </p>
+                            </div>
                         )}
                     </div>
 
@@ -216,19 +305,24 @@ export function BugReportDialog() {
                             variant="outline"
                             className="flex-1"
                             onClick={handleClose}
-                            disabled={submitMutation.isPending}
+                            disabled={submitMutation.isPending || isCompressing}
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             className="flex-1"
-                            disabled={submitMutation.isPending || !description.trim()}
+                            disabled={submitMutation.isPending || isCompressing || !description.trim()}
                         >
                             {submitMutation.isPending ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Sending...
+                                </>
+                            ) : isCompressing ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Compressing...
                                 </>
                             ) : (
                                 <>

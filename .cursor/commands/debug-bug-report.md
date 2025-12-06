@@ -24,6 +24,7 @@ The user will provide either:
 - User and browser information
 - Performance entries (for performance bugs)
 - Session logs with timestamps and performance timing
+- Screenshot (optional) - Public URL to Vercel Blob storage
 
 ## Analysis Steps
 
@@ -68,29 +69,57 @@ Look for:
 - Large transfer sizes
 - Waterfall blocking issues
 
-### 5. Correlate Data
+### 5. Analyze Screenshot (if available)
+
+If the report includes a screenshot URL (public Vercel Blob URL):
+
+1. **Navigate to the screenshot** using the browser tools:
+   ```typescript
+   mcp_cursor-ide-browser_browser_navigate({ url: "screenshot-url" })
+   mcp_cursor-ide-browser_browser_take_screenshot()
+   ```
+
+2. **Visual analysis** - Look for:
+   - UI state that might indicate the issue (error messages, loading states, broken layouts)
+   - What page/route the user was on
+   - What actions they might have been taking
+   - Any visible errors or unexpected UI states
+   - Network/console errors visible in dev tools (if captured)
+   - Form states or data that might be relevant
+
+3. **Correlate with description**: Match what you see in the screenshot with the user's description
+
+### 6. Correlate All Data
 
 - Match session log timestamps with performance entries
 - Check if network status changes correlate with issues
+- Cross-reference screenshot with the reported route and timing
 - Identify the exact moment things went wrong
 
 ## Debugging Actions
 
 After analysis, take these actions:
 
-1. **Search the codebase** for relevant files mentioned in:
+1. **View the screenshot** (if provided):
+   - Navigate to the screenshot URL using browser tools
+   - Take a screenshot to see the visual context
+   - Note any visible UI issues or states
+
+2. **Search the codebase** for relevant files mentioned in:
    - Stack traces
    - Session log features
    - Routes
+   - Components visible in screenshot
 
-2. **Read the source code** at the identified locations
+3. **Read the source code** at the identified locations
 
-3. **Identify the root cause** by understanding:
+4. **Identify the root cause** by understanding:
    - What the code is trying to do
    - What state/data it expects
    - What could cause it to fail
+   - What the screenshot reveals about the actual state
 
-4. **Propose a fix** with specific code changes
+5. **Propose a fix** with specific code changes
 
 ## Output Format
 
@@ -106,6 +135,7 @@ The specific reason for the bug/error
 - Relevant session log entries
 - Stack trace analysis
 - Performance data (if applicable)
+- Screenshot analysis (if available)
 
 ### Affected Code
 File paths and code sections involved

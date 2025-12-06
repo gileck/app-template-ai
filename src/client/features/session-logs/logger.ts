@@ -22,6 +22,73 @@ function getCurrentRoute(): string | undefined {
     return undefined;
 }
 
+// Maximum size for logged data (2KB is reasonable for debugging small payloads)
+const MAX_LOG_DATA_SIZE = 2048;
+
+/**
+ * Sanitize data for logging
+ * - Removes base64 image data (always)
+ * - Limits total data size to prevent bloat
+ * - Allows small JSON for debugging
+ */
+function sanitizeLogData(data: unknown): unknown {
+    if (data === null || data === undefined) {
+        return data;
+    }
+
+    // First pass: remove base64 images and sensitive data
+    const cleaned = removeBase64Images(data);
+
+    // Second pass: check total size after stringifying
+    try {
+        const serialized = JSON.stringify(cleaned);
+        const sizeBytes = serialized.length;
+
+        // If under limit, return the cleaned data
+        if (sizeBytes <= MAX_LOG_DATA_SIZE) {
+            return cleaned;
+        }
+
+        // If over limit, return summary instead
+        const sizeKB = Math.round(sizeBytes / 1024);
+        return `[Data too large for logs - ${sizeKB}KB]`;
+    } catch {
+        // If we can't serialize (circular refs, etc), return placeholder
+        return '[Data not serializable]';
+    }
+}
+
+/**
+ * Remove base64 image data from objects
+ */
+function removeBase64Images(data: unknown): unknown {
+    if (!data || typeof data !== 'object') {
+        return data;
+    }
+
+    if (Array.isArray(data)) {
+        return data.map(removeBase64Images);
+    }
+
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+        // Detect and remove base64 image data
+        if (typeof value === 'string' && value.startsWith('data:image/')) {
+            const sizeKB = Math.round(value.length / 1024);
+            cleaned[key] = `[Image ${sizeKB}KB]`;
+        }
+        // Recursively clean nested objects
+        else if (value && typeof value === 'object') {
+            cleaned[key] = removeBase64Images(value);
+        }
+        else {
+            cleaned[key] = value;
+        }
+    }
+
+    return cleaned;
+}
+
 interface LogOptions {
     meta?: Record<string, unknown>;
     route?: string;
@@ -189,6 +256,9 @@ export const logger = {
     apiRequest: (apiName: string, params?: unknown) => {
         const addLog = useSessionLogsStore.getState().addLog;
         
+        // Sanitize params to remove large data like screenshots
+        const sanitizedParams = sanitizeLogData(params);
+        
         addLog({
             level: 'info',
             feature: 'api',
@@ -196,13 +266,13 @@ export const logger = {
             meta: {
                 apiName,
                 type: 'request',
-                params,
+                params: sanitizedParams,
             } as ApiLogMeta,
             route: getCurrentRoute(),
         });
 
         if (shouldLogToConsole('info', 'api')) {
-            console.log(`[api] Request: ${apiName}`, params ?? '');
+            console.log(`[api] Request: ${apiName}`, sanitizedParams ?? '');
         }
     },
 
@@ -217,6 +287,9 @@ export const logger = {
         const addLog = useSessionLogsStore.getState().addLog;
         const level: LogLevel = options?.error ? 'error' : 'info';
         
+        // Sanitize response to remove large data
+        const sanitizedResponse = options?.error ? undefined : sanitizeLogData(response);
+        
         addLog({
             level,
             feature: 'api',
@@ -226,7 +299,7 @@ export const logger = {
             meta: {
                 apiName,
                 type: 'response',
-                response: options?.error ? undefined : response,
+                response: sanitizedResponse,
                 duration: options?.duration,
                 cached: options?.cached,
                 error: options?.error,
@@ -242,7 +315,7 @@ export const logger = {
                     `[api] Response: ${apiName}`,
                     options?.cached ? '(cached)' : '',
                     options?.duration ? `${options.duration}ms` : '',
-                    response
+                    sanitizedResponse
                 );
             }
         }

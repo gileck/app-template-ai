@@ -73,7 +73,7 @@ export interface ReportDocument {
     type: ReportType;
     status: ReportStatus;
     description?: string;
-    screenshot?: string; // base64 encoded image
+    screenshot?: string; // URL to Vercel Blob (or legacy base64 data)
     sessionLogs: SessionLogEntry[];
     userInfo?: ReportUserInfo;
     browserInfo: ReportBrowserInfo;

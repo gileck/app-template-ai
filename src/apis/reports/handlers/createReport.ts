@@ -2,6 +2,7 @@ import { API_CREATE_REPORT } from '../index';
 import { CreateReportRequest, CreateReportResponse } from '../types';
 import { reports } from '@/server/database';
 import { ApiHandlerContext } from '@/apis/types';
+import { fileStorageAPI } from '@/server/blob';
 
 export const createReport = async (
     request: CreateReportRequest,
@@ -15,11 +16,25 @@ export const createReport = async (
             userId: context.userId,
         } : undefined);
 
+        // Upload screenshot to file storage if provided as base64
+        let screenshotUrl: string | undefined;
+        if (request.screenshot && request.screenshot.startsWith('data:')) {
+            try {
+                const result = await fileStorageAPI.uploadBase64Image(request.screenshot, {
+                    folder: 'reports/screenshots',
+                });
+                screenshotUrl = result.url;
+            } catch (uploadError) {
+                console.error(`Failed to upload screenshot to ${fileStorageAPI.getProviderName()}:`, uploadError);
+                // Continue without screenshot rather than failing the report
+            }
+        }
+
         const reportData = {
             type: request.type,
             status: 'new' as const,
             description: request.description,
-            screenshot: request.screenshot,
+            screenshot: screenshotUrl, // Store URL instead of base64
             sessionLogs: request.sessionLogs || [],
             userInfo,
             browserInfo: request.browserInfo,
@@ -63,4 +78,3 @@ export const createReport = async (
 };
 
 export { API_CREATE_REPORT };
-

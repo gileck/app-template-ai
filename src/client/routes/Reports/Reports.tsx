@@ -118,8 +118,9 @@ BROWSER/DEVICE INFORMATION
 
 ${report.screenshot ? `SCREENSHOT
 ----------
-[Base64 image data included - ${Math.round(report.screenshot.length / 1024)}KB]
-${report.screenshot}
+${report.screenshot.startsWith('data:') 
+    ? `[Base64 image data - ${Math.round(report.screenshot.length / 1024)}KB]` 
+    : report.screenshot}
 ` : ''}
 ${performanceEntriesFormatted ? `PERFORMANCE ENTRIES (${report.performanceEntries?.length || 0} entries)
 --------------------------------------------------------
