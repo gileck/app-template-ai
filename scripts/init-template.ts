@@ -47,6 +47,7 @@ const DEFAULT_IGNORED_FILES = [
   'src/client/routes/Todos',
   'src/client/routes/Chat',
   'src/client/routes/SingleTodo',
+  'src/client/routes/Home',
   'src/apis/todos',
   'src/apis/chat',
   'src/client/features/todos',
