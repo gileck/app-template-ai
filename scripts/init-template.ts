@@ -35,6 +35,7 @@ const DEFAULT_IGNORED_FILES = [
   'README.md',
   '.env',
   '.env.local',
+  '.gitignore',
   '.git',
   'node_modules',
   'dist',
