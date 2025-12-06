@@ -123,6 +123,16 @@ export const deleteReport = async (
 };
 
 /**
+ * Delete all reports
+ * @returns Number of reports deleted
+ */
+export const deleteAllReports = async (): Promise<number> => {
+    const collection = await getReportsCollection();
+    const result = await collection.deleteMany({});
+    return result.deletedCount;
+};
+
+/**
  * Get report counts by status
  * @returns Object with counts for each status
  */

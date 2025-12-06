@@ -5,7 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getReports, updateReportStatus } from '@/apis/reports/client';
+import { getReports, updateReportStatus, deleteReport, deleteAllReports } from '@/apis/reports/client';
 import type { GetReportsRequest, ReportStatus } from '@/apis/reports/types';
 import { useQueryDefaults } from '@/client/query';
 
@@ -35,6 +35,42 @@ export function useUpdateReportStatus() {
                 throw new Error(result.data.error);
             }
             return result.data.report;
+        },
+        onSuccess: () => {
+            // Invalidate reports query to refresh the list
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+        },
+    });
+}
+
+export function useDeleteReport() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (reportId: string) => {
+            const result = await deleteReport({ reportId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSuccess: () => {
+            // Invalidate reports query to refresh the list
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+        },
+    });
+}
+
+export function useDeleteAllReports() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async () => {
+            const result = await deleteAllReports();
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
         },
         onSuccess: () => {
             // Invalidate reports query to refresh the list

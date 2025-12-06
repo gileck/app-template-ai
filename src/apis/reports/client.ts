@@ -1,6 +1,13 @@
 import apiClient from '@/client/utils/apiClient';
 import { CacheResult } from '@/common/cache/types';
-import { API_CREATE_REPORT, API_GET_REPORTS, API_GET_REPORT, API_UPDATE_REPORT_STATUS } from './index';
+import { 
+    API_CREATE_REPORT, 
+    API_GET_REPORTS, 
+    API_GET_REPORT, 
+    API_UPDATE_REPORT_STATUS,
+    API_DELETE_REPORT,
+    API_DELETE_ALL_REPORTS
+} from './index';
 import {
     CreateReportRequest,
     CreateReportResponse,
@@ -10,6 +17,10 @@ import {
     GetReportResponse,
     UpdateReportStatusRequest,
     UpdateReportStatusResponse,
+    DeleteReportRequest,
+    DeleteReportResponse,
+    DeleteAllReportsRequest,
+    DeleteAllReportsResponse,
 } from './types';
 
 /**
@@ -48,4 +59,22 @@ export const updateReportStatus = async (
     params: UpdateReportStatusRequest
 ): Promise<CacheResult<UpdateReportStatusResponse>> => {
     return apiClient.post(API_UPDATE_REPORT_STATUS, params);
+};
+
+/**
+ * Delete a single report
+ */
+export const deleteReport = async (
+    params: DeleteReportRequest
+): Promise<CacheResult<DeleteReportResponse>> => {
+    return apiClient.post(API_DELETE_REPORT, params);
+};
+
+/**
+ * Delete all reports
+ */
+export const deleteAllReports = async (
+    params: DeleteAllReportsRequest = {}
+): Promise<CacheResult<DeleteAllReportsResponse>> => {
+    return apiClient.post(API_DELETE_ALL_REPORTS, params);
 };

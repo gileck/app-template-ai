@@ -4,18 +4,18 @@
  * Public dashboard to view and manage bug/error reports.
  */
 
-import { useState } from 'react';
-import { useReports, useUpdateReportStatus } from './hooks';
+import { useState, useEffect, useRef } from 'react';
+import { useReports, useUpdateReportStatus, useDeleteReport, useDeleteAllReports } from './hooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
 import { Button } from '@/client/components/ui/button';
 import { Badge } from '@/client/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
-import { 
-    Bug, 
-    AlertCircle, 
-    Copy, 
-    ChevronDown, 
-    ChevronUp, 
+import {
+    Bug,
+    AlertCircle,
+    Copy,
+    ChevronDown,
+    ChevronUp,
     Filter,
     Loader2,
     CheckCircle,
@@ -24,9 +24,13 @@ import {
     XCircle,
     Layers,
     List,
-    Gauge
+    Gauge,
+    Trash2,
+    MoreVertical
 } from 'lucide-react';
 import type { ReportClient, ReportType, ReportStatus } from '@/apis/reports/types';
+import { ConfirmDialog } from './ConfirmDialog';
+import { toast } from '@/client/components/ui/toast';
 
 // Types for grouped view
 interface GroupedReport {
@@ -59,17 +63,37 @@ function formatDate(dateString: string): string {
 function ReportCard({ report }: { report: ReportClient }) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state
     const [isExpanded, setIsExpanded] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state
+    const [showActionsMenu, setShowActionsMenu] = useState(false);
     const updateStatusMutation = useUpdateReportStatus();
+    const deleteReportMutation = useDeleteReport();
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        if (!showActionsMenu) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowActionsMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showActionsMenu]);
 
     const handleCopyDetails = async () => {
         const sessionLogsFormatted = report.sessionLogs.length > 0
-            ? report.sessionLogs.map(log => 
+            ? report.sessionLogs.map(log =>
                 `  [${log.timestamp}]${log.performanceTime !== undefined ? ` [+${log.performanceTime}ms]` : ''} [${log.level.toUpperCase()}] [${log.feature}] ${log.message}${log.meta ? ` | Meta: ${JSON.stringify(log.meta)}` : ''}${log.route ? ` | Route: ${log.route}` : ''} | Network: ${log.networkStatus}`
             ).join('\n')
             : '  No session logs';
 
         const performanceEntriesFormatted = report.performanceEntries && report.performanceEntries.length > 0
-            ? report.performanceEntries.map(entry => 
+            ? report.performanceEntries.map(entry =>
                 `  [${entry.entryType}] ${entry.name} | Start: ${entry.startTime}ms | Duration: ${entry.duration}ms${entry.transferSize ? ` | Size: ${entry.transferSize}B` : ''}`
             ).join('\n')
             : null;
@@ -118,9 +142,9 @@ BROWSER/DEVICE INFORMATION
 
 ${report.screenshot ? `SCREENSHOT
 ----------
-${report.screenshot.startsWith('data:') 
-    ? `[Base64 image data - ${Math.round(report.screenshot.length / 1024)}KB]` 
-    : report.screenshot}
+${report.screenshot.startsWith('data:')
+                    ? `[Base64 image data - ${Math.round(report.screenshot.length / 1024)}KB]`
+                    : report.screenshot}
 ` : ''}
 ${performanceEntriesFormatted ? `PERFORMANCE ENTRIES (${report.performanceEntries?.length || 0} entries)
 --------------------------------------------------------
@@ -135,20 +159,24 @@ END OF REPORT
 ================================================================================
         `.trim();
 
-        try {
-            await navigator.clipboard.writeText(details);
-            // Could show a toast here
-        } catch {
-            // Fallback for older browsers
-            console.error('Failed to copy to clipboard');
-        }
+        await navigator.clipboard.writeText(details);
     };
 
     const handleCopyId = async () => {
         try {
             await navigator.clipboard.writeText(report._id);
+            toast.success('Report ID copied');
         } catch {
-            console.error('Failed to copy ID to clipboard');
+            toast.error('Failed to copy ID');
+        }
+    };
+
+    const handleCopyDetailsWithToast = async () => {
+        try {
+            await handleCopyDetails();
+            toast.success('Report details copied');
+        } catch {
+            toast.error('Failed to copy details');
         }
     };
 
@@ -156,189 +184,279 @@ END OF REPORT
         updateStatusMutation.mutate({ reportId: report._id, status: newStatus });
     };
 
+    const handleDelete = () => {
+        deleteReportMutation.mutate(report._id, {
+            onSuccess: () => {
+                toast.success('Report deleted successfully');
+                setShowDeleteDialog(false);
+            },
+            onError: (error) => {
+                toast.error(`Failed to delete report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            },
+        });
+    };
+
     return (
-        <Card className="mb-4">
-            <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                        {report.type === 'bug' && report.category === 'performance' ? (
-                            <Gauge className="h-5 w-5 text-purple-500" />
-                        ) : report.type === 'bug' ? (
-                            <Bug className="h-5 w-5 text-red-500" />
-                        ) : (
-                            <AlertCircle className="h-5 w-5 text-orange-500" />
-                        )}
-                        <CardTitle className="text-base">
-                            {report.type === 'bug' && report.category === 'performance' 
-                                ? 'Performance Issue' 
-                                : report.type === 'bug' 
-                                    ? 'Bug Report' 
-                                    : 'Error'}
-                        </CardTitle>
-                        <Badge variant="outline" className={`${STATUS_COLORS[report.status]} text-white`}>
-                            <span className="mr-1">{STATUS_ICONS[report.status]}</span>
-                            {report.status}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {formatDate(report.createdAt)}
+        <Card className="mb-3 overflow-visible border shadow-sm bg-card relative">
+            {/* Loading overlay */}
+            {deleteReportMutation.isPending && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-30 flex items-center justify-center rounded-lg">
+                    <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-sm font-medium">Deleting report...</p>
                     </div>
                 </div>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                    {/* Summary */}
-                    <div className="text-sm">
-                        {report.description && (
-                            <p className="rounded bg-muted px-2 py-1 text-foreground">{report.description}</p>
-                        )}
-                        {report.errorMessage && (
-                            <p className="rounded bg-red-500/10 px-2 py-1 font-mono text-red-600 dark:bg-red-500/20 dark:text-red-400">
-                                {report.errorMessage}
-                            </p>
-                        )}
+            )}
+            <CardContent className="p-0">
+                {/* Mobile-first header */}
+                <div className="p-4 pb-3">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {report.type === 'bug' && report.category === 'performance' ? (
+                                <Gauge className="h-5 w-5 text-purple-500 flex-shrink-0" />
+                            ) : report.type === 'bug' ? (
+                                <Bug className="h-5 w-5 text-red-500 flex-shrink-0" />
+                            ) : (
+                                <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <div className="font-semibold text-sm truncate">
+                                    {report.type === 'bug' && report.category === 'performance'
+                                        ? 'Performance Issue'
+                                        : report.type === 'bug'
+                                            ? 'Bug Report'
+                                            : 'Error'}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                    <Clock className="h-3 w-3" />
+                                    {formatDate(report.createdAt)}
+                                </div>
+                            </div>
+                        </div>
+                        <Badge variant="outline" className={`${STATUS_COLORS[report.status]} text-white flex-shrink-0 text-xs`}>
+                            {STATUS_ICONS[report.status]}
+                        </Badge>
                     </div>
 
-                    {/* Quick Info */}
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span className="rounded bg-muted px-2 py-1">
-                            Route: {report.route}
-                        </span>
-                        <span className="rounded bg-muted px-2 py-1">
-                            Network: {report.networkStatus}
+                    {/* Description */}
+                    {report.description && (
+                        <p className="text-sm text-foreground mb-3 line-clamp-2">{report.description}</p>
+                    )}
+                    {report.errorMessage && (
+                        <p className="text-sm font-mono text-red-600 dark:text-red-400 mb-3 line-clamp-2 bg-red-500/10 rounded px-2 py-1">
+                            {report.errorMessage}
+                        </p>
+                    )}
+
+                    {/* Quick Info Pills */}
+                    <div className="flex flex-wrap gap-1.5 text-xs mb-3">
+                        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                            {report.route}
                         </span>
                         {report.userInfo?.username && (
-                            <span className="rounded bg-muted px-2 py-1">
-                                User: {report.userInfo.username}
+                            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                                {report.userInfo.username}
                             </span>
                         )}
                         {report.performanceEntries && report.performanceEntries.length > 0 && (
-                            <span className="rounded bg-purple-500/20 px-2 py-1 text-purple-600 dark:text-purple-400">
+                            <span className="inline-flex items-center rounded-full bg-purple-500/20 px-2.5 py-0.5 text-purple-600 dark:text-purple-400">
                                 <Gauge className="mr-1 inline h-3 w-3" />
-                                {report.performanceEntries.length} perf entries
+                                {report.performanceEntries.length}
                             </span>
                         )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
+                    {/* Mobile Action Bar */}
+                    <div className="flex items-center gap-2 pt-3 mt-3 border-t">
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => setIsExpanded(!isExpanded)}
+                            className="flex-1 h-9"
                         >
                             {isExpanded ? (
                                 <>
-                                    <ChevronUp className="mr-1 h-4 w-4" />
+                                    <ChevronUp className="mr-1.5 h-4 w-4" />
                                     Less
                                 </>
                             ) : (
                                 <>
-                                    <ChevronDown className="mr-1 h-4 w-4" />
-                                    More
+                                    <ChevronDown className="mr-1.5 h-4 w-4" />
+                                    Details
                                 </>
                             )}
                         </Button>
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={handleCopyId}
-                            title="Copy report ID for debugging"
+                            onClick={handleCopyDetailsWithToast}
+                            className="flex-1 h-9"
                         >
-                            <Copy className="mr-1 h-4 w-4" />
-                            Copy ID
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyDetails}
-                        >
-                            <Copy className="mr-1 h-4 w-4" />
+                            <Copy className="mr-1.5 h-4 w-4" />
                             Copy Details
                         </Button>
-                        <Select
-                            value={report.status}
-                            onValueChange={(value) => handleStatusChange(value as ReportStatus)}
-                            disabled={updateStatusMutation.isPending}
-                        >
-                            <SelectTrigger className="w-[140px] h-8 text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="investigating">Investigating</SelectItem>
-                                <SelectItem value="resolved">Resolved</SelectItem>
-                                <SelectItem value="closed">Closed</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                        <div className="mt-4 space-y-4 border-t pt-4">
-                            {/* Screenshot */}
-                            {report.screenshot && (
-                                <div>
-                                    <h4 className="mb-2 text-sm font-medium">Screenshot</h4>
-                                    {/* eslint-disable-next-line @next/next/no-img-element -- base64 user-uploaded screenshot */}
-                                    <img
-                                        src={report.screenshot}
-                                        alt="Bug screenshot"
-                                        className="max-h-64 rounded border object-contain"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Stack Trace */}
-                            {report.stackTrace && (
-                                <div>
-                                    <h4 className="mb-2 text-sm font-medium">Stack Trace</h4>
-                                    <pre className="max-h-48 overflow-auto rounded bg-muted p-3 text-xs">
-                                        {report.stackTrace}
-                                    </pre>
-                                </div>
-                            )}
-
-                            {/* Browser Info */}
-                            <div>
-                                <h4 className="mb-2 text-sm font-medium">Browser Info</h4>
-                                <div className="rounded bg-muted p-3 text-xs">
-                                    <p><strong>User Agent:</strong> {report.browserInfo.userAgent}</p>
-                                    <p><strong>Viewport:</strong> {report.browserInfo.viewport.width}x{report.browserInfo.viewport.height}</p>
-                                    <p><strong>Language:</strong> {report.browserInfo.language}</p>
-                                </div>
-                            </div>
-
-                            {/* Session Logs */}
-                            {report.sessionLogs.length > 0 && (
-                                <div>
-                                    <h4 className="mb-2 text-sm font-medium">
-                                        Session Logs ({report.sessionLogs.length})
-                                    </h4>
-                                    <div className="max-h-64 overflow-auto rounded bg-muted p-3">
-                                        {report.sessionLogs.map((log) => (
-                                            <div
-                                                key={log.id}
-                                                className={`mb-1 text-xs ${
-                                                    log.level === 'error' ? 'text-destructive' :
-                                                    log.level === 'warn' ? 'text-yellow-600' :
-                                                    'text-muted-foreground'
-                                                }`}
+                        <div className="relative" ref={menuRef}>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                                className="h-9 w-9 p-0"
+                            >
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                            {showActionsMenu && (
+                                <>
+                                    {/* Backdrop */}
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
+                                    {/* Menu */}
+                                    <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border bg-background shadow-lg z-50">
+                                        <div className="p-1">
+                                            <button
+                                                onClick={() => {
+                                                    handleCopyId();
+                                                    setShowActionsMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent text-left"
                                             >
-                                                <span className="font-mono">
-                                                    [{new Date(log.timestamp).toLocaleTimeString()}]
-                                                </span>
-                                                <span className="ml-1 font-medium">[{log.feature}]</span>
-                                                <span className="ml-1">{log.message}</span>
+                                                <Copy className="h-4 w-4" />
+                                                Copy ID
+                                            </button>
+                                            <div className="my-1 border-t border-b py-1">
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusChange('new');
+                                                        setShowActionsMenu(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent text-left ${report.status === 'new' ? 'bg-accent' : ''}`}
+                                                >
+                                                    <span>New</span>
+                                                    {report.status === 'new' && <CheckCircle className="h-4 w-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusChange('investigating');
+                                                        setShowActionsMenu(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent text-left ${report.status === 'investigating' ? 'bg-accent' : ''}`}
+                                                >
+                                                    <span>Investigating</span>
+                                                    {report.status === 'investigating' && <Search className="h-4 w-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusChange('resolved');
+                                                        setShowActionsMenu(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent text-left ${report.status === 'resolved' ? 'bg-accent' : ''}`}
+                                                >
+                                                    <span>Resolved</span>
+                                                    {report.status === 'resolved' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusChange('closed');
+                                                        setShowActionsMenu(false);
+                                                    }}
+                                                    className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent text-left ${report.status === 'closed' ? 'bg-accent' : ''}`}
+                                                >
+                                                    <span>Closed</span>
+                                                    {report.status === 'closed' && <XCircle className="h-4 w-4" />}
+                                                </button>
                                             </div>
-                                        ))}
+                                            <button
+                                                onClick={() => {
+                                                    setShowDeleteDialog(true);
+                                                    setShowActionsMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 text-left"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Delete Report
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                    <div className="px-4 pb-4 space-y-4 border-t bg-muted/30 pt-4">
+                        {/* Screenshot */}
+                        {report.screenshot && (
+                            <div>
+                                <h4 className="mb-2 text-sm font-medium">Screenshot</h4>
+                                {/* eslint-disable-next-line @next/next/no-img-element -- base64 user-uploaded screenshot */}
+                                <img
+                                    src={report.screenshot}
+                                    alt="Bug screenshot"
+                                    className="w-full rounded border object-contain"
+                                />
+                            </div>
+                        )}
+
+                        {/* Stack Trace */}
+                        {report.stackTrace && (
+                            <div>
+                                <h4 className="mb-2 text-sm font-medium">Stack Trace</h4>
+                                <pre className="max-h-48 overflow-auto rounded bg-muted p-3 text-xs">
+                                    {report.stackTrace}
+                                </pre>
+                            </div>
+                        )}
+
+                        {/* Browser Info */}
+                        <div>
+                            <h4 className="mb-2 text-sm font-medium">Browser Info</h4>
+                            <div className="rounded bg-muted p-3 text-xs space-y-1">
+                                <div><span className="text-muted-foreground">Viewport:</span> {report.browserInfo.viewport.width}x{report.browserInfo.viewport.height}</div>
+                                <div className="text-muted-foreground truncate">{report.browserInfo.userAgent}</div>
+                            </div>
+                        </div>
+
+                        {/* Session Logs */}
+                        {report.sessionLogs.length > 0 && (
+                            <div>
+                                <h4 className="mb-2 text-sm font-medium">
+                                    Session Logs ({report.sessionLogs.length})
+                                </h4>
+                                <div className="max-h-64 overflow-auto rounded bg-muted p-3">
+                                    {report.sessionLogs.map((log) => (
+                                        <div
+                                            key={log.id}
+                                            className={`mb-1 text-xs ${log.level === 'error' ? 'text-destructive' :
+                                                    log.level === 'warn' ? 'text-yellow-600' :
+                                                        'text-muted-foreground'
+                                                }`}
+                                        >
+                                            <span className="font-mono">
+                                                [{new Date(log.timestamp).toLocaleTimeString()}]
+                                            </span>
+                                            <span className="ml-1 font-medium">[{log.feature}]</span>
+                                            <span className="ml-1">{log.message}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <ConfirmDialog
+                    open={showDeleteDialog}
+                    onOpenChange={(open) => {
+                        if (!deleteReportMutation.isPending) {
+                            setShowDeleteDialog(open);
+                        }
+                    }}
+                    title="Delete Report"
+                    description={`Are you sure you want to delete this ${report.type} report? This action cannot be undone and will permanently delete the report and any associated files from storage.`}
+                    confirmText={deleteReportMutation.isPending ? "Deleting..." : "Delete Report"}
+                    variant="destructive"
+                    onConfirm={handleDelete}
+                />
             </CardContent>
         </Card>
     );
@@ -347,16 +465,16 @@ END OF REPORT
 // Group reports by error message or description
 function groupReports(reports: ReportClient[]): GroupedReport[] {
     const groups = new Map<string, GroupedReport>();
-    
+
     for (const report of reports) {
         // Use error message for errors, description for bugs
         const key = report.errorMessage || report.description || 'Unknown';
-        
+
         if (groups.has(key)) {
             const group = groups.get(key)!;
             group.count++;
             group.reports.push(report);
-            
+
             // Update first/last occurrence
             if (new Date(report.createdAt) < new Date(group.firstOccurrence)) {
                 group.firstOccurrence = report.createdAt;
@@ -375,7 +493,7 @@ function groupReports(reports: ReportClient[]): GroupedReport[] {
             });
         }
     }
-    
+
     // Sort by last occurrence (most recent first)
     return Array.from(groups.values()).sort(
         (a, b) => new Date(b.lastOccurrence).getTime() - new Date(a.lastOccurrence).getTime()
@@ -472,6 +590,8 @@ export function Reports() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral view state
     const [viewMode, setViewMode] = useState<'individual' | 'grouped'>('individual');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state
+    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
 
     const { data: reports, isLoading, error } = useReports({
         type: typeFilter === 'all' ? undefined : typeFilter,
@@ -479,98 +599,124 @@ export function Reports() {
         sortOrder,
     });
 
-    return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Reports Dashboard</h1>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Filter className="h-4 w-4" />
-                    {viewMode === 'grouped' && reports ? (
-                        <span>{groupReports(reports).length} unique errors ({reports.length} total)</span>
-                    ) : (
-                        <span>{reports?.length || 0} reports</span>
-                    )}
-                </div>
-            </div>
+    const deleteAllMutation = useDeleteAllReports();
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">View:</span>
-                    <div className="flex rounded-md border">
-                        <Button
-                            variant={viewMode === 'individual' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="rounded-r-none"
-                            onClick={() => setViewMode('individual')}
-                        >
-                            <List className="mr-1 h-4 w-4" />
-                            Individual
-                        </Button>
-                        <Button
-                            variant={viewMode === 'grouped' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="rounded-l-none"
-                            onClick={() => setViewMode('grouped')}
-                        >
-                            <Layers className="mr-1 h-4 w-4" />
-                            Grouped
-                        </Button>
+    const handleDeleteAll = () => {
+        deleteAllMutation.mutate(undefined, {
+            onSuccess: (data) => {
+                toast.success(`Successfully deleted ${data.deletedCount || 0} reports`);
+                setShowDeleteAllDialog(false);
+            },
+            onError: (error) => {
+                toast.error(`Failed to delete reports: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            },
+        });
+    };
+
+    return (
+        <div className="space-y-4 pb-6">
+            {/* Mobile-first Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold">Reports</h1>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-0.5">
+                        <Filter className="h-3.5 w-3.5" />
+                        {viewMode === 'grouped' && reports ? (
+                            <span>{groupReports(reports).length} unique · {reports.length} total</span>
+                        ) : (
+                            <span>{reports?.length || 0} reports</span>
+                        )}
                     </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Type:</span>
-                    <Select
-                        value={typeFilter}
-                        onValueChange={(value) => setTypeFilter(value as ReportType | 'all')}
+                {reports && reports.length > 0 && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDeleteAllDialog(true)}
+                        disabled={deleteAllMutation.isPending}
+                        className="text-destructive hover:text-destructive h-8 sm:h-9"
                     >
-                        <SelectTrigger className="w-[120px]">
+                        <Trash2 className="h-4 w-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Delete All</span>
+                    </Button>
+                )}
+            </div>
+
+            {/* Compact Mobile Filters */}
+            <div className="space-y-2">
+                {/* View Mode */}
+                <div className="flex gap-2">
+                    <Button
+                        variant={viewMode === 'individual' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('individual')}
+                        className="flex-1 h-9"
+                    >
+                        <List className="mr-1.5 h-4 w-4" />
+                        <span className="hidden xs:inline">Individual</span>
+                    </Button>
+                    <Button
+                        variant={viewMode === 'grouped' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('grouped')}
+                        className="flex-1 h-9"
+                    >
+                        <Layers className="mr-1.5 h-4 w-4" />
+                        <span className="hidden xs:inline">Grouped</span>
+                    </Button>
+                </div>
+
+                {/* Filters Row */}
+                <div className="grid grid-cols-3 gap-2">
+                    <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as ReportType | 'all')}>
+                        <SelectTrigger className="h-9 text-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="all">All Types</SelectItem>
                             <SelectItem value="bug">Bugs</SelectItem>
                             <SelectItem value="error">Errors</SelectItem>
                         </SelectContent>
                     </Select>
-                </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Status:</span>
-                    <Select
-                        value={statusFilter}
-                        onValueChange={(value) => setStatusFilter(value as ReportStatus | 'all')}
-                    >
-                        <SelectTrigger className="w-[140px]">
+                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ReportStatus | 'all')}>
+                        <SelectTrigger className="h-9 text-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="new">New</SelectItem>
                             <SelectItem value="investigating">Investigating</SelectItem>
                             <SelectItem value="resolved">Resolved</SelectItem>
                             <SelectItem value="closed">Closed</SelectItem>
                         </SelectContent>
                     </Select>
-                </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Sort:</span>
-                    <Select
-                        value={sortOrder}
-                        onValueChange={(value) => setSortOrder(value as 'asc' | 'desc')}
-                    >
-                        <SelectTrigger className="w-[140px]">
+                    <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as 'asc' | 'desc')}>
+                        <SelectTrigger className="h-9 text-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="desc">Newest First</SelectItem>
-                            <SelectItem value="asc">Oldest First</SelectItem>
+                            <SelectItem value="desc">Newest</SelectItem>
+                            <SelectItem value="asc">Oldest</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={showDeleteAllDialog}
+                onOpenChange={(open) => {
+                    if (!deleteAllMutation.isPending) {
+                        setShowDeleteAllDialog(open);
+                    }
+                }}
+                title="Delete All Reports"
+                description={`Are you sure you want to delete ALL ${reports?.length || 0} reports? This action cannot be undone and will permanently delete all reports and their associated files from storage.`}
+                confirmText={deleteAllMutation.isPending ? "Deleting..." : "Delete All Reports"}
+                variant="destructive"
+                onConfirm={handleDeleteAll}
+            />
 
             {/* Reports List */}
             {isLoading ? (

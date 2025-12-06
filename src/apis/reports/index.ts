@@ -12,4 +12,6 @@ export const API_CREATE_REPORT = 'reports/create';
 export const API_GET_REPORTS = 'reports/list';
 export const API_GET_REPORT = 'reports/get';
 export const API_UPDATE_REPORT_STATUS = 'reports/updateStatus';
+export const API_DELETE_REPORT = 'reports/delete';
+export const API_DELETE_ALL_REPORTS = 'reports/deleteAll';
 

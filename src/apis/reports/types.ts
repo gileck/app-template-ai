@@ -66,6 +66,24 @@ export interface UpdateReportStatusResponse {
     error?: string;
 }
 
+// Delete report
+export interface DeleteReportRequest {
+    reportId: string;
+}
+
+export interface DeleteReportResponse {
+    success?: boolean;
+    error?: string;
+}
+
+// Delete all reports
+export type DeleteAllReportsRequest = Record<string, never>;
+
+export interface DeleteAllReportsResponse {
+    deletedCount?: number;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type { ReportClient, ReportType, ReportStatus, SessionLogEntry, ReportUserInfo, ReportBrowserInfo };
 
