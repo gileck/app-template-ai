@@ -86,14 +86,18 @@ yarn init-template https://github.com/yourusername/app-template-ai.git
 # Preview changes
 yarn sync-template --dry-run
 
-# Apply updates
+# Apply updates (interactive)
 yarn sync-template
 ```
 
 The sync system will:
-- ✅ Auto-merge files that only changed in the template
-- ⚠️ Flag conflicts for files changed in both places
-- 📁 Preserve your project-specific code
+1. **Analyze changes** and show you what's different
+2. **Ask you to choose**:
+   - Apply only safe changes (no conflicts)
+   - Apply all changes (may need manual merge)
+   - Cancel
+3. **Auto-merge** or **flag conflicts** based on your choice
+4. **Preserve** your project-specific code
 
 **📚 Full Documentation:** [docs/template-sync.md](docs/template-sync.md)
 

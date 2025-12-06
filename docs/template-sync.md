@@ -80,17 +80,57 @@ yarn sync-template --dry-run
 
 This shows what would be synced without making any changes.
 
-### Sync Updates
+### Sync Updates (Interactive Mode)
 
 ```bash
 yarn sync-template
 ```
 
-This will:
+The script will:
 1. Clone the latest template
-2. Compare all files
-3. Auto-merge safe changes
-4. Create `.template` files for conflicts
+2. **Analyze and categorize all changes**:
+   - ✅ **Safe changes**: Only changed in template (no conflicts)
+   - ⚠️ **Potential conflicts**: Changed in both template and your project
+   - ⏭️ **Skipped**: Ignored or project-specific files
+3. **Ask you what to do**:
+   - `[1] Safe only` - Apply only safe changes (recommended first step)
+   - `[2] All changes` - Apply everything, creates `.template` files for conflicts
+   - `[3] Cancel` - Don't apply any changes
+
+**Example interaction:**
+
+```
+📊 ANALYSIS SUMMARY
+============================================================
+
+✅ Safe changes (12 files):
+   Only changed in template, no conflicts:
+   • src/client/components/ui/button.tsx
+   • src/server/middleware/auth.ts
+   ...
+
+⚠️  Potential conflicts (3 files):
+   Changed in both template and your project:
+   • src/server/index.ts
+   • package.json
+   ...
+
+🤔 What would you like to do?
+
+  [1] Safe only  - Apply only safe changes (no conflicts)
+  [2] All changes - Apply all changes (may need manual merge)
+  [3] Cancel     - Don't apply any changes
+
+Enter your choice (1/2/3):
+```
+
+### Auto Mode (Non-Interactive)
+
+```bash
+yarn sync-template --auto
+```
+
+Applies all changes without prompting (old behavior). Use this for automated workflows.
 
 ### Handling Conflicts
 

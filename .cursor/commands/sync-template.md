@@ -87,14 +87,32 @@ yarn sync-template
 The sync script will:
 
 1. **Clone template** - Downloads latest version to `.template-sync-temp/`
-2. **Compare files** - Uses file hashing and git history
-3. **Categorize changes**:
-   - Files only changed in template → Auto-merge ✅
-   - Files changed in both → Create `.template` file ⚠️
-   - Ignored/project-specific → Skip ⏭️
-4. **Apply changes** - Copies safe updates, creates conflict markers
+2. **Analyze changes** - Categorizes files into:
+   - ✅ Safe changes (only template modified)
+   - ⚠️ Potential conflicts (both template and project modified)
+   - ⏭️ Skipped (ignored/project-specific files)
+3. **Prompt for choice**:
+   ```
+   🤔 What would you like to do?
+   
+   [1] Safe only  - Apply only safe changes (no conflicts)
+   [2] All changes - Apply all changes (may need manual merge)
+   [3] Cancel     - Don't apply any changes
+   ```
+4. **Apply selected changes**
 5. **Update config** - Saves last sync commit and date
-6. **Cleanup** - Removes temporary directory
+6. **Report results** - Shows what was applied
+
+**Recommended workflow:**
+1. First, choose `[1] Safe only` to get non-conflicting updates
+2. Test those changes: `yarn checks && yarn dev`
+3. If all good, run again and choose `[2] All changes` for conflicts
+4. Manually merge any `.template` files
+
+**Auto mode (skip prompts):**
+```bash
+yarn sync-template --auto
+```
 
 ### Step 5: Review Results
 

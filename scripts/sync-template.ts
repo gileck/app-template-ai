@@ -7,17 +7,19 @@
  * that was created from the template.
  * 
  * Usage:
- *   yarn sync-template [--dry-run] [--force]
+ *   yarn sync-template [--dry-run] [--force] [--auto]
  * 
  * Options:
  *   --dry-run    Show what would be done without making changes
  *   --force      Force update even if there are uncommitted changes
+ *   --auto       Skip interactive prompts, take all changes (old behavior)
  */
 
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as readline from 'readline';
 
 interface TemplateSyncConfig {
   templateRepo: string;
@@ -43,6 +45,14 @@ interface SyncResult {
   errors: string[];
 }
 
+interface AnalysisResult {
+  safeChanges: FileChange[];    // Only changed in template
+  conflictChanges: FileChange[]; // Changed in both
+  skipped: string[];
+}
+
+type SyncMode = 'safe' | 'all' | 'none';
+
 const CONFIG_FILE = '.template-sync.json';
 const TEMPLATE_DIR = '.template-sync-temp';
 
@@ -51,12 +61,19 @@ class TemplateSyncTool {
   private projectRoot: string;
   private dryRun: boolean;
   private force: boolean;
+  private auto: boolean;
+  private rl: readline.Interface;
 
-  constructor(dryRun = false, force = false) {
+  constructor(dryRun = false, force = false, auto = false) {
     this.projectRoot = process.cwd();
     this.dryRun = dryRun;
     this.force = force;
+    this.auto = auto;
     this.config = this.loadConfig();
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
   }
 
   private loadConfig(): TemplateSyncConfig {
@@ -240,29 +257,130 @@ class TemplateSyncTool {
     }
   }
 
-  private async syncFiles(changes: FileChange[]): Promise<SyncResult> {
+  private analyzeChanges(changes: FileChange[]): AnalysisResult {
+    const result: AnalysisResult = {
+      safeChanges: [],
+      conflictChanges: [],
+      skipped: [],
+    };
+
+    for (const change of changes) {
+      // Skip project-specific files
+      if (this.config.projectSpecificFiles.includes(change.path)) {
+        result.skipped.push(change.path);
+        continue;
+      }
+
+      if (change.status === 'added') {
+        // New file - safe to add
+        result.safeChanges.push(change);
+      } else if (change.status === 'modified') {
+        // Check if project has changes
+        const projectHasChanges = this.hasProjectChanges(change.path);
+        
+        if (!projectHasChanges) {
+          // Only template changed - safe
+          result.safeChanges.push(change);
+        } else {
+          // Both changed - conflict
+          result.conflictChanges.push(change);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private async promptUser(analysis: AnalysisResult): Promise<SyncMode> {
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 ANALYSIS SUMMARY');
+    console.log('='.repeat(60));
+    
+    if (analysis.safeChanges.length > 0) {
+      console.log(`\n✅ Safe changes (${analysis.safeChanges.length} files):`);
+      console.log('   Only changed in template, no conflicts:');
+      analysis.safeChanges.slice(0, 10).forEach(f => 
+        console.log(`   • ${f.path}`)
+      );
+      if (analysis.safeChanges.length > 10) {
+        console.log(`   ... and ${analysis.safeChanges.length - 10} more`);
+      }
+    }
+
+    if (analysis.conflictChanges.length > 0) {
+      console.log(`\n⚠️  Potential conflicts (${analysis.conflictChanges.length} files):`);
+      console.log('   Changed in both template and your project:');
+      analysis.conflictChanges.slice(0, 10).forEach(f => 
+        console.log(`   • ${f.path}`)
+      );
+      if (analysis.conflictChanges.length > 10) {
+        console.log(`   ... and ${analysis.conflictChanges.length - 10} more`);
+      }
+    }
+
+    if (analysis.skipped.length > 0) {
+      console.log(`\n⏭️  Skipped (${analysis.skipped.length} files):`);
+      console.log('   Project-specific files (ignored):');
+      analysis.skipped.slice(0, 5).forEach(f => 
+        console.log(`   • ${f}`)
+      );
+      if (analysis.skipped.length > 5) {
+        console.log(`   ... and ${analysis.skipped.length - 5} more`);
+      }
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log('\n🤔 What would you like to do?\n');
+    console.log('  [1] Safe only  - Apply only safe changes (no conflicts)');
+    console.log('  [2] All changes - Apply all changes (may need manual merge)');
+    console.log('  [3] Cancel     - Don\'t apply any changes\n');
+
+    return new Promise((resolve) => {
+      this.rl.question('Enter your choice (1/2/3): ', (answer) => {
+        const choice = answer.trim();
+        
+        if (choice === '1') {
+          resolve('safe');
+        } else if (choice === '2') {
+          resolve('all');
+        } else if (choice === '3') {
+          resolve('none');
+        } else {
+          console.log('Invalid choice. Please enter 1, 2, or 3.');
+          this.promptUser(analysis).then(resolve);
+        }
+      });
+    });
+  }
+
+  private async syncFiles(analysis: AnalysisResult, mode: SyncMode): Promise<SyncResult> {
     const result: SyncResult = {
       autoMerged: [],
       conflicts: [],
-      skipped: [],
+      skipped: analysis.skipped,
       errors: [],
     };
 
-    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+    if (mode === 'none') {
+      console.log('\n❌ Cancelled. No changes applied.');
+      return result;
+    }
 
-    for (const change of changes) {
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+    const changesToApply: FileChange[] = mode === 'safe' 
+      ? analysis.safeChanges 
+      : [...analysis.safeChanges, ...analysis.conflictChanges];
+
+    console.log(`\n🔄 Applying ${changesToApply.length} changes...\n`);
+
+    for (const change of changesToApply) {
       const templateFilePath = path.join(templatePath, change.path);
       const projectFilePath = path.join(this.projectRoot, change.path);
+      const isConflict = analysis.conflictChanges.includes(change);
 
       try {
-        // Skip project-specific files
-        if (this.config.projectSpecificFiles.includes(change.path)) {
-          result.skipped.push(change.path);
-          continue;
-        }
-
-        if (change.status === 'added') {
-          // New file - safe to copy
+        if (change.status === 'added' || !isConflict) {
+          // New file or safe change - copy directly
           if (!this.dryRun) {
             const dir = path.dirname(projectFilePath);
             if (!fs.existsSync(dir)) {
@@ -271,24 +389,12 @@ class TemplateSyncTool {
             fs.copyFileSync(templateFilePath, projectFilePath);
           }
           result.autoMerged.push(change.path);
-        } else if (change.status === 'modified') {
-          // File modified - check if project has changes
-          const projectHasChanges = this.hasProjectChanges(change.path);
-
-          if (!projectHasChanges) {
-            // Only template changed - safe to overwrite
-            if (!this.dryRun) {
-              fs.copyFileSync(templateFilePath, projectFilePath);
-            }
-            result.autoMerged.push(change.path);
-          } else {
-            // Both changed - needs manual merge
-            result.conflicts.push(change.path);
-            
-            // Save template version with .template extension for manual review
-            if (!this.dryRun) {
-              fs.copyFileSync(templateFilePath, projectFilePath + '.template');
-            }
+        } else {
+          // Conflict - save template version for manual merge
+          result.conflicts.push(change.path);
+          
+          if (!this.dryRun) {
+            fs.copyFileSync(templateFilePath, projectFilePath + '.template');
           }
         }
       } catch (error: any) {
@@ -348,7 +454,7 @@ class TemplateSyncTool {
     }
 
     // Step 1: Check git status
-    if (!this.dryRun) {
+    if (!this.dryRun && !this.force) {
       this.checkGitStatus();
     }
 
@@ -366,35 +472,67 @@ class TemplateSyncTool {
       console.log(`📍 Template commit: ${templateCommit}\n`);
 
       // Step 4: Compare files
-      console.log('🔍 Analyzing changes...\n');
+      console.log('🔍 Analyzing changes...');
       const changes = this.compareFiles();
 
       if (changes.length === 0) {
         console.log('✅ No changes detected. Your project is up to date!');
+        this.rl.close();
         return;
       }
 
-      console.log(`📝 Found ${changes.length} changed files\n`);
+      // Step 5: Analyze changes (categorize into safe/conflict)
+      const analysis = this.analyzeChanges(changes);
 
-      // Step 5: Sync files
-      const result = await this.syncFiles(changes);
+      // Step 6: Prompt user for choice (unless auto mode or dry-run)
+      let mode: SyncMode;
+      
+      if (this.dryRun) {
+        // In dry-run, show analysis but don't apply
+        mode = 'all'; // Show everything
+        const result = await this.syncFiles(analysis, mode);
+        this.printResults(result);
+        console.log('\n🔍 DRY RUN - No changes were actually applied.');
+        this.rl.close();
+        return;
+      } else if (this.auto) {
+        // Auto mode: apply all changes (old behavior)
+        mode = 'all';
+        console.log('\n🤖 AUTO MODE - Applying all changes...');
+      } else {
+        // Interactive mode: ask user
+        mode = await this.promptUser(analysis);
+      }
 
-      // Step 6: Update config
+      this.rl.close();
+
+      if (mode === 'none') {
+        console.log('\n✅ No changes applied.');
+        return;
+      }
+
+      // Step 7: Apply changes based on mode (mode is 'safe' or 'all' here)
+      const result = await this.syncFiles(analysis, mode);
+
+      // Step 8: Update config (only if not dry-run)
       if (!this.dryRun) {
         this.config.lastSyncCommit = templateCommit;
         this.config.lastSyncDate = new Date().toISOString();
         this.saveConfig();
       }
 
-      // Step 7: Print results
+      // Step 9: Print results
       this.printResults(result);
 
-      if (!this.dryRun && result.autoMerged.length > 0) {
+      if (result.autoMerged.length > 0) {
         console.log('\n✅ Template sync completed!');
         if (result.conflicts.length === 0) {
           console.log('   All changes were auto-merged successfully.');
         }
       }
+    } catch (error: any) {
+      this.rl.close();
+      throw error;
     } finally {
       // Cleanup
       this.cleanupTemplate();
@@ -406,8 +544,9 @@ class TemplateSyncTool {
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const force = args.includes('--force');
+const auto = args.includes('--auto');
 
-const tool = new TemplateSyncTool(dryRun, force);
+const tool = new TemplateSyncTool(dryRun, force, auto);
 tool.run().catch(error => {
   console.error('❌ Error:', error.message);
   process.exit(1);
