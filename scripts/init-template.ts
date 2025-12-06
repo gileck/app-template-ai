@@ -44,15 +44,16 @@ const DEFAULT_IGNORED_FILES = [
   'package-lock.json',
   'pnpm-lock.yaml',
   // Example features (not needed in new projects)
-  'src/client/routes/Todos',
-  'src/client/routes/Chat',
-  'src/client/routes/AIChat',
-  'src/client/routes/SingleTodo',
-  'src/client/routes/Home',
-  'src/apis/todos',
-  'src/apis/chat',
-  'src/client/features/todos',
-  'src/client/features/chat',
+  'src/client/routes/Todos/**',
+  'src/client/routes/Chat/**',
+  'src/client/routes/AIChat/**',
+  'src/client/routes/SingleTodo/**',
+  'src/client/routes/Home/**',
+  'src/pages/index.tsx',  // Home page (users customize)
+  'src/apis/todos/**',
+  'src/apis/chat/**',
+  'src/client/features/todos/**',
+  'src/client/features/chat/**',
   // User-specific registry/index files (users customize these)
   'src/client/routes/index.ts',           // Route registrations
   'src/client/components/NavLinks.tsx',    // Navigation menu items
