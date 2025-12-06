@@ -249,7 +249,14 @@ Edit `.template-sync.json` to customize sync behavior:
     "src/apis/todos",
     "src/apis/chat",
     "src/client/features/todos",
-    "src/client/features/chat"
+    "src/client/features/chat",
+    // Registry/index files (users customize these)
+    "src/client/routes/index.ts",
+    "src/client/components/NavLinks.tsx",
+    "src/apis/apis.ts",
+    "src/server/database/collections/index.ts",
+    "src/server/database/collections/todos",
+    "src/server/database/collections/reports"
   ],
   
   // Your custom code (skip even if exists in template)
@@ -262,10 +269,10 @@ Edit `.template-sync.json` to customize sync behavior:
 ```
 
 **Key fields**:
-- `ignoredFiles`: Never touched during sync (system files, config, example features)
+- `ignoredFiles`: Never touched during sync (system files, config, example features, registry files)
 - `projectSpecificFiles`: Your custom code that shouldn't be overwritten
 
-**Note:** Example features like Todos and Chat are ignored by default since they're just demonstrations and not needed in new projects.
+**Note:** Example features (Todos, Chat) and registry files (routes/index.ts, apis.ts, NavLinks.tsx, collections/index.ts) are ignored by default since users customize these when creating a new project from the template.
 
 ## Common Scenarios
 

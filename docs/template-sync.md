@@ -48,7 +48,13 @@ Edit `.template-sync.json` to specify:
     "src/client/routes/Todos",
     "src/client/routes/Chat",
     "src/apis/todos",
-    "src/apis/chat"
+    "src/apis/chat",
+    "src/client/routes/index.ts",
+    "src/client/components/NavLinks.tsx",
+    "src/apis/apis.ts",
+    "src/server/database/collections/index.ts",
+    "src/server/database/collections/todos",
+    "src/server/database/collections/reports"
   ],
   "projectSpecificFiles": [
     "src/client/features/myCustomFeature",
@@ -58,10 +64,10 @@ Edit `.template-sync.json` to specify:
 ```
 
 **Key fields:**
-- `ignoredFiles`: Files that should never be synced (config files, example features)
-- `projectSpecificFiles`: Files to skip even if they exist in template (your custom code)
+- `ignoredFiles`: Files that should never be synced (config files, example features, registry files)
+- `projectSpecificFiles`: Additional files to skip (your heavily customized code)
 
-**Note:** Example features like Todos and Chat are ignored by default since they're just demonstrations and not needed in new projects.
+**Note:** Example features (Todos, Chat) and registry files (route/API/collection registrations, navigation menus) are ignored by default since users customize these when creating a new project.
 
 ### 3. Commit the Configuration
 

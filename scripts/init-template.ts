@@ -46,10 +46,18 @@ const DEFAULT_IGNORED_FILES = [
   // Example features (not needed in new projects)
   'src/client/routes/Todos',
   'src/client/routes/Chat',
+  'src/client/routes/SingleTodo',
   'src/apis/todos',
   'src/apis/chat',
   'src/client/features/todos',
   'src/client/features/chat',
+  // User-specific registry/index files (users customize these)
+  'src/client/routes/index.ts',           // Route registrations
+  'src/client/components/NavLinks.tsx',    // Navigation menu items
+  'src/apis/apis.ts',                      // API handler registrations
+  'src/server/database/collections/index.ts', // Collection exports
+  'src/server/database/collections/todos',    // Example collection
+  'src/server/database/collections/reports',  // Example collection
 ];
 
 function exec(command: string, silent = true): string {
