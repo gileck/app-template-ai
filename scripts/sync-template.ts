@@ -364,34 +364,25 @@ class TemplateSyncTool {
     if (analysis.safeChanges.length > 0) {
       console.log(`\n✅ Safe changes (${analysis.safeChanges.length} files):`);
       console.log('   Only changed in template, no conflicts:');
-      analysis.safeChanges.slice(0, 10).forEach(f => 
+      analysis.safeChanges.forEach(f => 
         console.log(`   • ${f.path}`)
       );
-      if (analysis.safeChanges.length > 10) {
-        console.log(`   ... and ${analysis.safeChanges.length - 10} more`);
-      }
     }
 
     if (analysis.conflictChanges.length > 0) {
       console.log(`\n⚠️  Potential conflicts (${analysis.conflictChanges.length} files):`);
       console.log('   Changed in both template and your project:');
-      analysis.conflictChanges.slice(0, 10).forEach(f => 
+      analysis.conflictChanges.forEach(f => 
         console.log(`   • ${f.path}`)
       );
-      if (analysis.conflictChanges.length > 10) {
-        console.log(`   ... and ${analysis.conflictChanges.length - 10} more`);
-      }
     }
 
     if (analysis.skipped.length > 0) {
       console.log(`\n⏭️  Skipped (${analysis.skipped.length} files):`);
       console.log('   Project-specific files (ignored):');
-      analysis.skipped.slice(0, 5).forEach(f => 
+      analysis.skipped.forEach(f => 
         console.log(`   • ${f}`)
       );
-      if (analysis.skipped.length > 5) {
-        console.log(`   ... and ${analysis.skipped.length - 5} more`);
-      }
     }
 
     console.log('\n' + '='.repeat(60));
@@ -558,12 +549,7 @@ class TemplateSyncTool {
         console.log('='.repeat(60));
         console.log(`\n⏭️  All changes skipped (${analysis.skipped.length} files):`);
         console.log('   These files are in your ignored/project-specific list.');
-        if (analysis.skipped.length <= 5) {
-          analysis.skipped.forEach(f => console.log(`   • ${f}`));
-        } else {
-          analysis.skipped.slice(0, 5).forEach(f => console.log(`   • ${f}`));
-          console.log(`   ... and ${analysis.skipped.length - 5} more`);
-        }
+        analysis.skipped.forEach(f => console.log(`   • ${f}`));
         console.log('\n' + '='.repeat(60));
         console.log('\n✅ Nothing to sync. All template changes are in ignored files.');
         console.log('   Your project is effectively up to date!');
