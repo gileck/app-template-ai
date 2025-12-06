@@ -50,6 +50,11 @@ const eslintConfig = [
     rules: {
       "restrict-api-routes/no-direct-api-routes": "error",
       "react-hooks/exhaustive-deps": "off",
+      // Allow unused vars that start with underscore (common convention)
+      "@typescript-eslint/no-unused-vars": ["error", {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }],
       // Add API Guidelines rules
       "api-guidelines/no-server-import-in-client": ["warn", {
         // Import type imports from server are fine
