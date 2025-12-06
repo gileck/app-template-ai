@@ -85,7 +85,25 @@ Review components in `client/components` (shared UI only):
 
 **Reference**: See react-component-organization for detailed guidelines on components
 
-## 6. Server Code Check
+## 6. shadcn/ui Component Library Check
+
+Review all UI components to ensure shadcn/ui is used exclusively:
+
+- **ALL UI components MUST use shadcn/ui** (no Material-UI, Ant Design, Chakra, etc.)
+- Verify imports are from `@/client/components/ui/*`
+- Check that semantic color tokens are used (never hardcoded colors)
+  - Use `bg-background`, `text-foreground`, `border-border`, etc.
+  - NEVER use `bg-white`, `text-black`, `bg-blue-500`, etc.
+- Confirm Button component uses proper variants: `default`, `secondary`, `outline`, `ghost`, `destructive`
+- Ensure proper icon usage with `lucide-react` (not Material Icons or others)
+- Verify `asChild` is used for proper component composition
+- Check that all form inputs have associated Labels with `htmlFor`/`id`
+- Confirm controlled components are used (Dialog, Select, Switch with `open`/`value`/`checked` props)
+- Verify mobile-first responsive patterns with Sheet for mobile navigation
+
+**Reference**: See [shadcn-usage](mdc:.cursor/rules/shadcn-usage.mdc) for detailed guidelines and [docs/shadcn-component-library.md](mdc:docs/shadcn-component-library.md) for comprehensive component documentation
+
+## 7. Server Code Check
 
 Review code in the `server` folder:
 
@@ -95,7 +113,7 @@ Review code in the `server` folder:
 
 **Reference**: See general-code-guidelines and ai-models-api-usage for server-side practices
 
-## 7. TypeScript and Coding Standards Check
+## 8. TypeScript and Coding Standards Check
 
 - Verify consistent type definitions
 - Check for any usage of `any` type (should be avoided)
@@ -107,7 +125,7 @@ Review code in the `server` folder:
 
 **Reference**: See Typescript-guildelines for TypeScript best practices
 
-## 8. Final Verification
+## 9. Final Verification
 
 Run the Project checks (typescript and lint)
 ```bash

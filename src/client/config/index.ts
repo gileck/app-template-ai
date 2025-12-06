@@ -9,7 +9,6 @@ export {
     STORE_DEFAULTS,
     QUERY_DEFAULTS,
     MUTATION_DEFAULTS,
-    createPersistConfig,
     createTTLValidator,
 } from './defaults';
 

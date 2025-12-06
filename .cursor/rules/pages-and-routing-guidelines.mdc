@@ -132,20 +132,20 @@ Route path naming conventions:
 Update the navigation items in [src/client/components/NavLinks.tsx](mdc:src/client/components) to include your new route:
 
 ```tsx
-import NewRouteIcon from '@mui/icons-material/Extension'; // Choose an appropriate icon
+import { Extension } from 'lucide-react'; // Choose an appropriate icon
 
 export const navItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <HomeIcon /> },
-  { path: '/ai-chat', label: 'AI Chat', icon: <ChatIcon /> },
-  { path: '/file-manager', label: 'Files', icon: <FolderIcon /> },
-  { path: '/new-route', label: 'New Route', icon: <NewRouteIcon /> }, // Add your new route here
-  { path: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { path: '/', label: 'Home', icon: <Home /> },
+  { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare /> },
+  { path: '/file-manager', label: 'Files', icon: <Folder /> },
+  { path: '/new-route', label: 'New Route', icon: <Extension /> }, // Add your new route here
+  { path: '/settings', label: 'Settings', icon: <Settings /> },
 ];
 ```
 
 Navigation item guidelines:
 - Choose a descriptive but concise label
-- Select an appropriate Material UI icon that represents the route's purpose
+- Select an appropriate icon from lucide-react that represents the route's purpose
 - Consider the order of items in the navigation (most important/frequently used routes should be more accessible)
 
 ## Using the Router

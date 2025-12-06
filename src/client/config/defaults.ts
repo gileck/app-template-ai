@@ -5,8 +5,6 @@
  * Features use these defaults automatically, with ability to override.
  */
 
-import { logger } from '@/client/features/session-logs';
-
 // ============================================================================
 // Time Constants (single source of truth)
 // ============================================================================
@@ -65,56 +63,6 @@ export const MUTATION_DEFAULTS = {
 // ============================================================================
 // Zustand Store Helpers
 // ============================================================================
-
-/**
- * @deprecated Use createStore from @/client/stores instead.
- * This helper is kept for backwards compatibility.
- * 
- * Default persist options with TTL validation.
- */
-export interface PersistConfig<T> {
-    name: string;
-    partialize?: (state: T) => Partial<T>;
-    onRehydrateStorage?: () => (state: T | undefined) => void;
-}
-
-/**
- * @deprecated Use createStore from @/client/stores instead.
- * This helper is kept for backwards compatibility.
- */
-export function createPersistConfig<T>(
-    name: string,
-    options?: {
-        /** TTL in ms. Default: STORE_DEFAULTS.TTL (7 days) */
-        ttl?: number;
-        /** Fields to persist. Default: all fields */
-        partialize?: (state: T) => Partial<T>;
-        /** Field name for timestamp. Default: '_persistedAt' */
-        timestampField?: string;
-    }
-): PersistConfig<T> {
-    const ttl = options?.ttl ?? STORE_DEFAULTS.TTL;
-    const timestampField = options?.timestampField ?? '_persistedAt';
-
-    return {
-        name: `${name}-storage`,
-        partialize: options?.partialize ?? ((state) => {
-            // Add timestamp to persisted state
-            return { ...state, [timestampField]: Date.now() } as Partial<T>;
-        }),
-        onRehydrateStorage: () => (state: T | undefined) => {
-            if (!state) return;
-            
-            // Check TTL on rehydration
-            const timestamp = (state as Record<string, unknown>)[timestampField] as number | undefined;
-            if (timestamp && Date.now() - timestamp > ttl) {
-                // State is expired - clear it
-                // Note: This sets fields to undefined, the store should handle this
-                logger.debug('store', `Persisted state expired`, { meta: { name, ttl } });
-            }
-        },
-    };
-}
 
 /**
  * Create TTL validation helper for stores that need custom expiry logic.

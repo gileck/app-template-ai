@@ -26,28 +26,41 @@ alwaysApply: false
 - Maintain 3:1 contrast ratio for non-text elements (icons, borders, focus indicators)
 
 ### Dark/Light Mode Implementation
-- Implement user-controlled theme toggle with persistent storage
-- Use Material-UI `createTheme` with dynamic `palette.mode` based on settings
+- Implement user-controlled theme toggle with persistent storage using `next-themes`
+- Use HTML `.dark` class for dark mode switching (shadcn + next-themes pattern)
 - Store theme preference in app settings with localStorage persistence
 - Provide theme toggle button in header navigation with appropriate icons
 - Ensure proper SSR handling with client-side theme initialization
-- Remove conflicting CSS that overrides theme provider (hardcoded body styles)
-- Apply Material-UI `CssBaseline` for consistent global theme application
+- Apply semantic color tokens from `globals.css` for theme-aware colors
 
 ### Theme Provider Architecture
 ```tsx
-// ThemeProvider implementation
-const theme = createTheme({
-  palette: {
-    mode: settings.theme, // 'light' | 'dark'
-    primary: { main: '#1976d2' },
-    secondary: { main: '#dc004e' }
-  }
-});
+// ThemeProvider implementation using next-themes
+import { ThemeProvider } from 'next-themes';
+
+export const AppThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      {children}
+    </ThemeProvider>
+  );
+};
 
 // Theme toggle implementation
-const toggleTheme = () => {
-  updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
+import { useTheme } from 'next-themes';
+
+const ThemeToggle = () => {
+  const { theme, setTheme } = useTheme();
+  
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+  
+  return (
+    <Button variant="ghost" size="icon" onClick={toggleTheme}>
+      {theme === 'light' ? <Moon /> : <Sun />}
+    </Button>
+  );
 };
 ```
 
@@ -192,12 +205,12 @@ const toggleTheme = () => {
 - Avoid `backdrop-filter` on huge full-screen elements (GPU memory impact)
 
 ### Theme Implementation Best Practices
-- Avoid multiple conflicting theme providers in the component tree
-- Remove hardcoded CSS background/color styles that override theme providers
-- Use Material-UI components that automatically adapt to theme changes
-- Implement proper SSR handling: check `typeof window !== 'undefined'` before accessing localStorage
+- Use a single ThemeProvider (next-themes) at the root level
+- Rely on semantic color tokens from `globals.css` that adapt automatically
+- Use shadcn components that automatically adapt to theme changes
+- Implement proper SSR handling: `suppressHydrationWarning` on html element
 - Place theme toggle in header navigation for consistent access across all pages
-- Use semantic theme naming ('light'/'dark') rather than system-dependent options
+- Use semantic theme naming ('light'/'dark'/'system')
 
 ## Implementation Examples
 
@@ -247,93 +260,81 @@ const toggleTheme = () => {
 }
 ```
 
-### Material-UI Theme Provider Setup
+### shadcn Component Usage
+When using shadcn components, follow these patterns:
+
 ```tsx
-// AppThemeProvider.tsx - Main theme provider component
-import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
-import { useSettings } from '../settings/SettingsContext';
+// Button variants and sizes
+import { Button } from '@/client/components/ui/button';
 
-export const AppThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const { settings } = useSettings();
-  
-  const theme = createTheme({
-    palette: {
-      mode: settings.theme, // 'light' | 'dark'
-      primary: { main: '#1976d2' },
-      secondary: { main: '#dc004e' }
-    }
-  });
+<Button variant="default">Primary Action</Button>
+<Button variant="outline">Secondary</Button>
+<Button variant="ghost">Tertiary</Button>
+<Button variant="destructive">Delete</Button>
+<Button size="sm">Small</Button>
+<Button size="icon"><Icon /></Button>
 
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
-  );
-};
+// Cards with proper styling
+import { Card, CardHeader, CardTitle, CardContent } from '@/client/components/ui/card';
 
-// Settings type definition
-interface Settings {
-  theme: 'light' | 'dark';
-  // other settings...
-}
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p>Card content goes here</p>
+  </CardContent>
+</Card>
 
-// Theme toggle button in header
-import { LightModeIcon, DarkModeIcon } from '@mui/icons-material';
+// Form elements with labels
+import { Input } from '@/client/components/ui/input';
+import { Label } from '@/client/components/ui/label';
 
-const ThemeToggleButton = () => {
-  const { settings, updateSettings } = useSettings();
-  
-  const toggleTheme = () => {
-    updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
-  };
-
-  return (
-    <IconButton onClick={toggleTheme} color="inherit">
-      {settings.theme === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-    </IconButton>
-  );
-};
+<div className="grid gap-2">
+  <Label htmlFor="email">Email</Label>
+  <Input id="email" type="email" placeholder="Enter email" />
+</div>
 ```
 
 ### Component Structure
 When creating UI components in [client/components](mdc:src/client/components), follow these patterns:
+- Use shadcn/ui primitives from `@/client/components/ui/*`
 - Use TypeScript interfaces for all props
-- Implement consistent className patterns
+- Implement consistent className patterns with Tailwind utilities
 - Apply proper ARIA attributes
 - Include loading and error states
-- Support theme switching capabilities
+- Support theme switching via semantic color tokens
 
 ### Common Theme Implementation Issues & Solutions
 
-#### Problem: Multiple Theme Providers
-**Issue**: Having multiple `ThemeProvider` components in the component tree causes conflicts
-**Solution**: Use single `AppThemeProvider` at the root level in `_app.tsx`
-
-#### Problem: Hardcoded CSS Overriding Theme
-**Issue**: CSS like `body { background: var(--background); color: var(--foreground); }` overrides Material-UI theme
-**Solution**: Remove conflicting CSS and rely on Material-UI's `CssBaseline` component
+#### Problem: Theme Not Persisting
+**Issue**: Theme resets on page reload
+**Solution**: Ensure ThemeProvider has proper storage enabled and SSR configuration
 
 #### Problem: SSR Theme Mismatch
 **Issue**: Server renders with default theme, client hydrates with user preference
-**Solution**: Check `typeof window !== 'undefined'` before accessing localStorage
+**Solution**: Add `suppressHydrationWarning` to `<html>` element and use `next-themes`
 
 #### Problem: Theme Toggle Not Visible
 **Issue**: Theme toggle not accessible when user is logged out
 **Solution**: Place toggle in main layout header, not inside authentication-gated components
 
+#### Problem: Colors Not Adapting
+**Issue**: Components don't change colors in dark mode
+**Solution**: Use semantic tokens (`bg-background`, `text-foreground`) instead of hardcoded colors
+
 ```tsx
-// ❌ Wrong - Multiple providers
+// ❌ Wrong - Multiple providers or conflicting CSS
 <ThemeProvider theme={hardcodedTheme}>
   <AppThemeProvider>
     <App />
   </AppThemeProvider>
 </ThemeProvider>
 
-// ✅ Correct - Single dynamic provider
-<AppThemeProvider>
+// ✅ Correct - Single provider with next-themes
+<ThemeProvider attribute="class" defaultTheme="system">
   <App />
-</AppThemeProvider>
+</ThemeProvider>
 ```
 
 ## Card Components with Images & Actions
@@ -651,6 +652,6 @@ When creating UI components in [client/components](mdc:src/client/components), f
 - [ ] Brand assets have dark mode variants
 - [ ] Theme toggle button functions correctly in header
 - [ ] Theme preference persists across page reloads
-- [ ] No conflicting CSS overriding theme provider styles
-- [ ] Material-UI components adapt automatically to theme changes
-- [ ] SSR compatibility: no "window is not defined" errors
+- [ ] Semantic color tokens used throughout (no hardcoded colors)
+- [ ] shadcn components adapt automatically to theme changes
+- [ ] SSR compatibility: `suppressHydrationWarning` on html element
