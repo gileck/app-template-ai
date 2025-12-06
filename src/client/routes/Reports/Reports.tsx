@@ -427,8 +427,8 @@ END OF REPORT
                                         <div
                                             key={log.id}
                                             className={`mb-1 text-xs ${log.level === 'error' ? 'text-destructive' :
-                                                    log.level === 'warn' ? 'text-yellow-600' :
-                                                        'text-muted-foreground'
+                                                log.level === 'warn' ? 'text-yellow-600' :
+                                                    'text-muted-foreground'
                                                 }`}
                                         >
                                             <span className="font-mono">
