@@ -46,6 +46,7 @@ const DEFAULT_IGNORED_FILES = [
   // Example features (not needed in new projects)
   'src/client/routes/Todos',
   'src/client/routes/Chat',
+  'src/client/routes/AIChat',
   'src/client/routes/SingleTodo',
   'src/client/routes/Home',
   'src/apis/todos',
