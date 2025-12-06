@@ -172,14 +172,79 @@ class TemplateSyncTool {
     const normalized = filePath.replace(/\\/g, '/');
     
     return this.config.ignoredFiles.some(pattern => {
+      // Normalize pattern
+      const normalizedPattern = pattern.replace(/\\/g, '/');
+      
       // Exact match
-      if (normalized === pattern) return true;
+      if (normalized === normalizedPattern) return true;
+      
+      // Handle ** (match any number of path segments)
+      if (normalizedPattern.includes('**')) {
+        const regexPattern = normalizedPattern
+          .replace(/\*\*/g, '.*')  // ** matches anything
+          .replace(/\*/g, '[^/]*') // * matches anything except /
+          .replace(/\//g, '\\/');  // escape slashes
+        
+        const regex = new RegExp('^' + regexPattern + '$');
+        if (regex.test(normalized)) return true;
+      }
+      
+      // Handle * (match within a single path segment)
+      if (normalizedPattern.includes('*') && !normalizedPattern.includes('**')) {
+        const regexPattern = normalizedPattern
+          .replace(/\*/g, '[^/]*')  // * matches anything except /
+          .replace(/\//g, '\\/');   // escape slashes
+        
+        const regex = new RegExp('^' + regexPattern + '$');
+        if (regex.test(normalized)) return true;
+      }
       
       // Directory match (if pattern is a directory name anywhere in path)
-      if (normalized.split('/').includes(pattern)) return true;
+      if (normalized.split('/').includes(normalizedPattern)) return true;
       
-      // Start with match
-      if (normalized.startsWith(pattern + '/')) return true;
+      // Start with match (for directory paths)
+      if (normalized.startsWith(normalizedPattern + '/')) return true;
+      
+      return false;
+    });
+  }
+
+  private shouldIgnoreByProjectSpecificFiles(filePath: string): boolean {
+    const normalized = filePath.replace(/\\/g, '/');
+    
+    return this.config.projectSpecificFiles.some(pattern => {
+      // Normalize pattern
+      const normalizedPattern = pattern.replace(/\\/g, '/');
+      
+      // Exact match
+      if (normalized === normalizedPattern) return true;
+      
+      // Handle ** (match any number of path segments)
+      if (normalizedPattern.includes('**')) {
+        const regexPattern = normalizedPattern
+          .replace(/\*\*/g, '.*')  // ** matches anything
+          .replace(/\*/g, '[^/]*') // * matches anything except /
+          .replace(/\//g, '\\/');  // escape slashes
+        
+        const regex = new RegExp('^' + regexPattern + '$');
+        if (regex.test(normalized)) return true;
+      }
+      
+      // Handle * (match within a single path segment)
+      if (normalizedPattern.includes('*') && !normalizedPattern.includes('**')) {
+        const regexPattern = normalizedPattern
+          .replace(/\*/g, '[^/]*')  // * matches anything except /
+          .replace(/\//g, '\\/');   // escape slashes
+        
+        const regex = new RegExp('^' + regexPattern + '$');
+        if (regex.test(normalized)) return true;
+      }
+      
+      // Directory match (if pattern is a directory name anywhere in path)
+      if (normalized.split('/').includes(normalizedPattern)) return true;
+      
+      // Start with match (for directory paths)
+      if (normalized.startsWith(normalizedPattern + '/')) return true;
       
       return false;
     });
@@ -265,8 +330,8 @@ class TemplateSyncTool {
     };
 
     for (const change of changes) {
-      // Skip project-specific files
-      if (this.config.projectSpecificFiles.includes(change.path)) {
+      // Skip project-specific files (with glob pattern support)
+      if (this.shouldIgnoreByProjectSpecificFiles(change.path)) {
         result.skipped.push(change.path);
         continue;
       }

@@ -272,6 +272,20 @@ Edit `.template-sync.json` to customize sync behavior:
 - `ignoredFiles`: Never touched during sync (system files, config, example features, registry files)
 - `projectSpecificFiles`: Your custom code that shouldn't be overwritten
 
+**Glob pattern support:**
+Both arrays support glob patterns for flexible matching:
+- `*` - Matches any characters except `/` (single directory level)
+- `**` - Matches any characters including `/` (multiple directory levels)
+
+**Examples:**
+```json
+"projectSpecificFiles": [
+  "src/client/features/myFeature/**",    // Entire feature directory
+  "src/server/custom-*.ts",              // All custom-*.ts files
+  "src/apis/special/**/*.ts"             // All .ts files in special/
+]
+```
+
 **Note:** Example features (Todos, Chat) and registry files (routes/index.ts, apis.ts, NavLinks.tsx, collections/index.ts) are ignored by default since users customize these when creating a new project from the template.
 
 ## Common Scenarios

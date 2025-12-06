@@ -67,6 +67,27 @@ Edit `.template-sync.json` to specify:
 - `ignoredFiles`: Files that should never be synced (config files, example features, registry files)
 - `projectSpecificFiles`: Additional files to skip (your heavily customized code)
 
+**Glob pattern support:**
+Both arrays support glob patterns:
+- `*` - Matches any characters except `/` (within a single directory)
+- `**` - Matches any characters including `/` (across directories)
+
+**Examples:**
+```json
+{
+  "ignoredFiles": [
+    "src/client/routes/MyRoute",           // Exact directory
+    "src/client/routes/Search/**",         // Everything under Search
+    "src/apis/my-*.ts",                    // All files matching pattern
+    "src/custom/**/*.test.ts"              // All test files in custom/
+  ],
+  "projectSpecificFiles": [
+    "src/client/features/myCustomFeature/**",  // Entire feature
+    "src/server/custom-*.ts"                   // All custom server files
+  ]
+}
+```
+
 **Note:** Example features (Todos, Chat) and registry files (route/API/collection registrations, navigation menus) are ignored by default since users customize these when creating a new project.
 
 ### 3. Commit the Configuration
