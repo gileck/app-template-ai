@@ -43,6 +43,13 @@ const DEFAULT_IGNORED_FILES = [
   'yarn.lock',
   'package-lock.json',
   'pnpm-lock.yaml',
+  // Example features (not needed in new projects)
+  'src/client/routes/Todos',
+  'src/client/routes/Chat',
+  'src/apis/todos',
+  'src/apis/chat',
+  'src/client/features/todos',
+  'src/client/features/chat',
 ];
 
 function exec(command: string, silent = true): string {

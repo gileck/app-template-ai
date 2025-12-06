@@ -30,10 +30,21 @@ This creates `.template-sync.json`:
   "baseCommit": "abc123...",
   "lastSyncCommit": "abc123...",
   "lastSyncDate": "2024-01-01T00:00:00.000Z",
-  "ignoredFiles": [...],
+  "ignoredFiles": [
+    "package.json",
+    "README.md",
+    ".env",
+    "src/client/routes/Todos",
+    "src/client/routes/Chat",
+    "src/apis/todos",
+    "src/apis/chat",
+    "..."
+  ],
   "projectSpecificFiles": []
 }
 ```
+
+**Note:** Example features (Todos, Chat) are automatically ignored since they're just demonstrations.
 
 **Commit this file:**
 ```bash

@@ -44,7 +44,11 @@ Edit `.template-sync.json` to specify:
     "package.json",
     "README.md",
     ".env",
-    ".env.local"
+    ".env.local",
+    "src/client/routes/Todos",
+    "src/client/routes/Chat",
+    "src/apis/todos",
+    "src/apis/chat"
   ],
   "projectSpecificFiles": [
     "src/client/features/myCustomFeature",
@@ -54,8 +58,10 @@ Edit `.template-sync.json` to specify:
 ```
 
 **Key fields:**
-- `ignoredFiles`: Files that should never be synced
+- `ignoredFiles`: Files that should never be synced (config files, example features)
 - `projectSpecificFiles`: Files to skip even if they exist in template (your custom code)
+
+**Note:** Example features like Todos and Chat are ignored by default since they're just demonstrations and not needed in new projects.
 
 ### 3. Commit the Configuration
 

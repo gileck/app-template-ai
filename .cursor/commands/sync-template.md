@@ -224,7 +224,14 @@ Edit `.template-sync.json` to customize sync behavior:
     ".env.local",
     "node_modules",
     "dist",
-    ".git"
+    ".git",
+    // Example features (not needed in new projects)
+    "src/client/routes/Todos",
+    "src/client/routes/Chat",
+    "src/apis/todos",
+    "src/apis/chat",
+    "src/client/features/todos",
+    "src/client/features/chat"
   ],
   
   // Your custom code (skip even if exists in template)
@@ -237,8 +244,10 @@ Edit `.template-sync.json` to customize sync behavior:
 ```
 
 **Key fields**:
-- `ignoredFiles`: Never touched during sync (system files, config)
+- `ignoredFiles`: Never touched during sync (system files, config, example features)
 - `projectSpecificFiles`: Your custom code that shouldn't be overwritten
+
+**Note:** Example features like Todos and Chat are ignored by default since they're just demonstrations and not needed in new projects.
 
 ## Common Scenarios
 
