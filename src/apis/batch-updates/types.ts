@@ -24,5 +24,10 @@ export interface BatchSyncResponse {
     results: BatchOperationResult[];
     successCount: number;
     failureCount: number;
+    /**
+     * Optional top-level error for cases where the batch request itself was invalid
+     * (e.g., wrong method, invalid payload) and no per-operation results are available.
+     */
+    error?: string;
 }
 

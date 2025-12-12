@@ -10,10 +10,12 @@ export default async function handler(
     return res.status(200).json(response);
   } catch (error) {
     console.error('Error in API handler:', error);
-    return res.status(500).json({ 
-      data: { 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      } 
+    // NOTE: Never return non-200 from API routes in this app; encode errors in the body.
+    return res.status(200).json({
+      data: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
+      isFromCache: false
     });
   }
 }

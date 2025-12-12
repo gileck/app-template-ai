@@ -21,6 +21,16 @@ This project uses a simplified client-server communication pattern with a single
         /[name].ts     - Single Next.js API route handler for all requests
 ```
 
+### Offline Sync: Batch Updates Route (Exception)
+
+Offline mode queues mutations locally and later syncs them in one request when the device is back online.
+
+- **Route**: `POST /api/process/batch-updates`
+- **Purpose**: Execute multiple registered API operations sequentially server-side (efficient offline queue flush).
+- **Implementation**: This route calls into the same `apiHandlers` registry used by `processApiCall`.
+
+This is an intentional exception to the “single endpoint” rule, but it still follows the same response/error conventions below.
+
 ### API Endpoint Format
 
 All API requests are sent to `/api/process/[name]` where the API name uses underscores instead of slashes:
@@ -343,8 +353,8 @@ const handleSubmit = async () => {
      ```
 
 5. **Error Handling**:
-   - Never return non-200 status codes from API routes
-   - Always return status code 200 with proper error fields in the response
+   - Never return non-200 status codes from API routes (including batch updates)
+   - Always return status code 200 with proper error fields in the response body
    - Handle all errors gracefully in the process function
 
 6. **Type Safety**:

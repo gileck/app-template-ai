@@ -32,74 +32,95 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+    // NOTE: Never return non-200 from API routes in this app; encode errors in the body.
+    try {
+        if (req.method !== 'POST') {
+            return res.status(200).json({
+                results: [],
+                successCount: 0,
+                failureCount: 0,
+                error: 'Method not allowed'
+            });
+        }
 
-    const { operations } = req.body as { operations: BatchOperation[] };
+        const { operations } = req.body as { operations: BatchOperation[] };
 
-    if (!operations || !Array.isArray(operations)) {
-        return res.status(400).json({ error: 'Invalid request: operations array required' });
-    }
+        if (!operations || !Array.isArray(operations)) {
+            return res.status(200).json({
+                results: [],
+                successCount: 0,
+                failureCount: 0,
+                error: 'Invalid request: operations array required'
+            });
+        }
 
-    if (operations.length === 0) {
-        return res.status(200).json({ results: [], successCount: 0, failureCount: 0 });
-    }
+        if (operations.length === 0) {
+            return res.status(200).json({ results: [], successCount: 0, failureCount: 0 });
+        }
 
-    // Get user context once for all operations
-    const userContext = getUserContext(req, res);
+        // Get user context once for all operations
+        const userContext = getUserContext(req, res);
 
-    const results: BatchOperationResult[] = [];
-    let successCount = 0;
-    let failureCount = 0;
+        const results: BatchOperationResult[] = [];
+        let successCount = 0;
+        let failureCount = 0;
 
-    // Execute operations sequentially to maintain order and avoid race conditions
-    for (const operation of operations) {
-        const { id, name, params } = operation;
+        // Execute operations sequentially to maintain order and avoid race conditions
+        for (const operation of operations) {
+            const { id, name, params } = operation;
 
-        try {
-            // Validate operation name
-            const apiHandler = apiHandlers[name as keyof typeof apiHandlers];
-            if (!apiHandler) {
+            try {
+                // Validate operation name
+                const apiHandler = apiHandlers[name as keyof typeof apiHandlers];
+                if (!apiHandler) {
+                    results.push({
+                        id,
+                        success: false,
+                        error: `Unknown API: ${name}`
+                    });
+                    failureCount++;
+                    continue;
+                }
+
+                // Execute the API handler
+                const processFunc = apiHandler.process;
+                const data = await (processFunc as (params: unknown, context: unknown) => Promise<unknown>)(
+                    params,
+                    userContext
+                );
+
+                results.push({
+                    id,
+                    success: true,
+                    data
+                });
+                successCount++;
+            } catch (error) {
+                console.error(`Batch operation ${id} (${name}) failed:`, error);
                 results.push({
                     id,
                     success: false,
-                    error: `Unknown API: ${name}`
+                    error: error instanceof Error ? error.message : 'Unknown error'
                 });
                 failureCount++;
-                continue;
+                // Continue processing remaining operations even if one fails
             }
-
-            // Execute the API handler
-            const processFunc = apiHandler.process;
-            const data = await (processFunc as (params: unknown, context: unknown) => Promise<unknown>)(
-                params,
-                userContext
-            );
-
-            results.push({
-                id,
-                success: true,
-                data
-            });
-            successCount++;
-        } catch (error) {
-            console.error(`Batch operation ${id} (${name}) failed:`, error);
-            results.push({
-                id,
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            failureCount++;
-            // Continue processing remaining operations even if one fails
         }
-    }
 
-    return res.status(200).json({
-        results,
-        successCount,
-        failureCount
-    });
+        return res.status(200).json({
+            results,
+            successCount,
+            failureCount
+        });
+    } catch (error) {
+        console.error('Error in batch-updates API handler:', error);
+        return res.status(200).json({
+            results: [],
+            successCount: 0,
+            failureCount: 0,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
 }
 
 export const config = {

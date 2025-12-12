@@ -139,6 +139,13 @@ export async function flushOfflineQueue(getSettings: () => Settings | null | und
 
         const result: BatchSyncResponse = await response.json();
 
+        // If the server reports a top-level error, do NOT treat this as per-item failures.
+        // Keep the queue intact so we can retry later (matches the old "non-200 => return" behavior).
+        if (result.error) {
+            logger.error('offline-sync', `Batch sync failed: ${result.error}`);
+            return;
+        }
+
         // Build maps for success/failure lookup
         const successIds = new Set<string>();
         const errorMap = new Map<string, string>();

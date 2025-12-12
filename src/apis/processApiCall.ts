@@ -16,13 +16,18 @@ export const processApiCall = async (
 ): Promise<CacheResult<unknown>> => {
   // Parse name from URL parameter - replace underscores with slashes
   // e.g., "auth_me" becomes "auth/me"
-  const nameParam = req.query.name as string;
-  const name = nameParam.replace(/_/g, '/') as keyof typeof apiHandlers;
-  const params = req.body.params;
+  const rawNameParam = req.query.name;
+  const nameParam = Array.isArray(rawNameParam) ? rawNameParam.join("/") : rawNameParam;
+  const name = String(nameParam ?? "").replace(/_/g, "/") as keyof typeof apiHandlers;
+
+  const params = req.body?.params;
   const apiHandler = apiHandlers[name];
+
+  // NOTE: Client code expects HTTP 200 always; errors must be encoded in the JSON body.
   if (!apiHandler) {
-    throw new Error(`API handler not found for name: ${name}`);
+    return { data: { error: `Unknown API: ${String(name)}` }, isFromCache: false };
   }
+
   const userContext = getUserContext(req, res);
 
   // Create a wrapped function that handles context internally
@@ -38,17 +43,29 @@ export const processApiCall = async (
     }
   };
 
-  // Server-side caching is disabled - React Query handles client-side caching
-  const result = await serverCache.withCache(
-    processWithContext,
-    {
-      key: name,
-      params: { ...params, userId: userContext.userId },
-    },
-    {
-      disableCache: true
-    }
-  );
+  try {
+    // Server-side caching is disabled - React Query handles client-side caching
+    const result = await serverCache.withCache(
+      processWithContext,
+      {
+        key: String(name),
+        params: {
+          ...(typeof params === "object" && params !== null ? params : {}),
+          userId: userContext.userId,
+        },
+      },
+      {
+        disableCache: true,
+      }
+    );
 
-  return result;
+    return result;
+  } catch (error) {
+    // Expected/handled behavior: never throw to the route layer; always return HTTP 200 with an error payload.
+    console.error(`processApiCall failed for ${String(name)}:`, error);
+    return {
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+      isFromCache: false,
+    };
+  }
 };
