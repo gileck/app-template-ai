@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createContext, useContext } from 'react';
 import { useRouteStore } from '@/client/features/router';
+import { useIsAdmin } from '@/client/features/auth';
 
 // Define router context and types
 type RouteParams = Record<string, string>;
@@ -72,6 +73,7 @@ export const RouterProvider = ({ children, routes }: {
   // Get setLastRoute action from route store
   const setLastRoute = useRouteStore((state) => state.setLastRoute);
   const hasRestoredRoute = useRef(false);
+  const isAdmin = useIsAdmin();
 
   // Initialize with current path or default to '/'
   // eslint-disable-next-line state-management/prefer-state-architecture -- core router state, persisted separately to useUIStore
@@ -102,36 +104,52 @@ export const RouterProvider = ({ children, routes }: {
     // 1. We have a valid last route
     // 2. Current path is the root (/) - indicates fresh app load
     // 3. The route is not excluded
+    // 4. The route is not admin-only for non-admin users
     if (savedRoute &&
       initialPath === '/' &&
-      !EXCLUDED_ROUTES.some(excluded => savedRoute.startsWith(excluded))) {
+      !EXCLUDED_ROUTES.some(excluded => savedRoute.startsWith(excluded)) &&
+      !(savedRoute.startsWith('/admin') && !isAdmin)) {
       // Navigate to the last route
       window.history.replaceState(null, '', savedRoute);
       setCurrentPath(savedRoute);
       setQueryParams(parseQueryParams());
     }
-  }, []);
+  }, [isAdmin]);
 
   // Persist current route to UI store
   useEffect(() => {
     // Don't persist excluded routes
-    if (!EXCLUDED_ROUTES.some(excluded => currentPath.startsWith(excluded))) {
+    if (!EXCLUDED_ROUTES.some(excluded => currentPath.startsWith(excluded)) &&
+      !(currentPath.startsWith('/admin') && !isAdmin)) {
       setLastRoute(currentPath);
     }
-  }, [currentPath, setLastRoute]);
+  }, [currentPath, setLastRoute, isAdmin]);
+
+  // Enforce admin-only routes centrally: any /admin/* path requires admin.
+  useEffect(() => {
+    if (currentPath.startsWith('/admin') && !isAdmin) {
+      // Redirect non-admins to home.
+      window.history.replaceState(null, '', '/');
+      setCurrentPath('/');
+      setQueryParams(parseQueryParams());
+    }
+  }, [currentPath, isAdmin]);
 
   // Find matching route pattern and parse route parameters
   const { RouteComponent, routeParams } = useMemo(() => {
     const pathWithoutQuery = currentPath.split('?')[0];
+
+    // Treat admin routes as home for non-admins (helps avoid flash before redirect effect runs).
+    const effectivePath = (pathWithoutQuery.startsWith('/admin') && !isAdmin) ? '/' : pathWithoutQuery;
     // First check for exact matches
-    if (routes[pathWithoutQuery]) {
-      return { RouteComponent: routes[pathWithoutQuery], routeParams: {} };
+    if (routes[effectivePath]) {
+      return { RouteComponent: routes[effectivePath], routeParams: {} };
     }
 
     // Then check for parameterized routes
     for (const pattern in routes) {
       if (pattern.includes(':')) {
-        const params = parseRouteParams(pathWithoutQuery, pattern);
+        const params = parseRouteParams(effectivePath, pattern);
         if (Object.keys(params).length > 0) {
           return { RouteComponent: routes[pattern], routeParams: params };
         }
@@ -143,7 +161,7 @@ export const RouterProvider = ({ children, routes }: {
       RouteComponent: routes['/not-found'] || routes['/'],
       routeParams: {}
     };
-  }, [currentPath, routes]);
+  }, [currentPath, routes, isAdmin]);
 
   // Handle navigation
   const navigate = (path: string, options: { replace?: boolean } = {}) => {

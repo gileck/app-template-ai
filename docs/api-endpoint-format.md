@@ -24,6 +24,13 @@ Where `{api_name}` is the internal API name with slashes (`/`) replaced by under
 | `todos/getTodos` | `/api/process/todos_getTodos` |
 | `todos/createTodo` | `/api/process/todos_createTodo` |
 | `chat` | `/api/process/chat` |
+| `admin/reports/list` | `/api/process/admin_reports_list` |
+
+## Admin APIs
+
+Any API name under `admin/*` is treated as **admin-only**.
+
+📚 See: [admin.md](./admin.md)
 
 ## Request Format
 

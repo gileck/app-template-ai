@@ -25,7 +25,9 @@ export const sanitizeUser = (user: User): UserResponse => {
         username: user.username,
         email: user.email,
         createdAt: user.createdAt.toISOString(),
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        // Filled by handlers based on request context
+        isAdmin: false,
     };
 };
 

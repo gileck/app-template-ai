@@ -4,7 +4,7 @@ import { AppThemeProvider } from "@/client/components/ThemeProvider";
 import dynamic from 'next/dynamic';
 import { routes } from '@/client/routes';
 import { Layout } from '@/client/components/Layout';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { QueryProvider } from '@/client/query';
 import {
   AuthWrapper,
@@ -14,6 +14,7 @@ import {
   useOfflineSyncInitializer
 } from '@/client/features';
 import { initializeApiClient } from '@/client/utils/apiClient';
+import { useAllPersistedStoresHydrated } from '@/client/stores';
 
 const RouterProvider = dynamic(() => import('@/client/router/index').then(module => module.RouterProvider), { ssr: false });
 
@@ -21,16 +22,26 @@ export default function App({ }: AppProps) {
   return (
     <QueryProvider>
       <AppInitializer />
-      <AppThemeProvider>
-        <AuthWrapper>
-          <RouterProvider routes={routes}>
-            {RouteComponent => <Layout><RouteComponent /></Layout>}
-          </RouterProvider>
-        </AuthWrapper>
-        <BatchSyncAlert />
-      </AppThemeProvider>
+      <BootGate>
+        <AppThemeProvider>
+          <AuthWrapper>
+            <RouterProvider routes={routes}>
+              {RouteComponent => <Layout><RouteComponent /></Layout>}
+            </RouterProvider>
+          </AuthWrapper>
+          <BatchSyncAlert />
+        </AppThemeProvider>
+      </BootGate>
     </QueryProvider>
   );
+}
+
+function BootGate({ children }: { children: ReactNode }) {
+  const isHydrated = useAllPersistedStoresHydrated();
+  if (isHydrated) return <>{children}</>;
+
+  // Intentionally render nothing to avoid a "flash" of a loader for very fast localStorage rehydrate.
+  return null;
 }
 
 /**

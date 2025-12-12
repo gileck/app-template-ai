@@ -56,6 +56,10 @@ export const useRouteStore = createStore<RouteState>({
         },
     }),
     persistOptions: {
+        partialize: (state) => ({
+            lastRoute: state.lastRoute,
+            lastRouteTimestamp: state.lastRouteTimestamp,
+        }),
         onRehydrateStorage: () => (state) => {
             if (state && state.lastRouteTimestamp) {
                 if (!isRouteValid(state.lastRouteTimestamp)) {

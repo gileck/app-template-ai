@@ -289,11 +289,10 @@ This ensures type consistency across:
 
 ### No Migration Required
 
-The implementation starts fresh with IndexedDB:
-- Old localStorage cache remains but is unused
-- Will naturally expire or be cleared by browser
-- Users rebuild cache on first use after deployment
-- Simpler than migrating existing cache data
+The implementation uses localStorage for React Query persistence:
+- Older unused caches (legacy files) remain but are not used
+- Users can clear caches from Settings if needed
+- Avoids slow IndexedDB startup behavior seen on some systems
 
 ### Backward Compatibility
 
@@ -311,7 +310,7 @@ The implementation starts fresh with IndexedDB:
 - [ ] Offline + disableCache → returns "Network unavailable" error
 - [ ] Offline POST → queues and returns friendly message
 - [ ] Online → POST queue flushes automatically
-- [ ] Clear cache → clears IndexedDB
+- [ ] Clear cache → clears localStorage persisted cache
 - [ ] Private browsing → falls back to localStorage gracefully
 
 ### Batch Sync Alert Testing
@@ -365,10 +364,9 @@ Potential improvements for future iterations:
 
 ### Cache Not Working
 
-1. Check if IndexedDB is available in browser
-2. Verify console logs for provider selection
-3. Check browser's IndexedDB storage in DevTools
-4. Try clearing cache and rebuilding
+1. Check if localStorage is available (private browsing / storage disabled can break persistence)
+2. Verify `react-query-cache-v2` exists in localStorage
+3. Try clearing cache from Settings and rebuilding online
 
 ### Offline Mode Stuck
 
@@ -404,7 +402,7 @@ const nextConfig = withPWA({
 
 ```typescript
 // QueryProvider.tsx - persister created once at module level
-const persister = typeof window !== 'undefined' ? createIDBPersister() : null;
+const persister = typeof window !== 'undefined' ? createLocalStoragePersister() : null;
 ```
 
 ## Related Files

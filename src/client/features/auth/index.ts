@@ -8,6 +8,7 @@
 export {
     useAuthStore,
     useIsAuthenticated,
+    useIsAdmin,
     useIsProbablyLoggedIn,
     useUser,
     useUserHint,

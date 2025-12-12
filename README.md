@@ -53,6 +53,10 @@ MONGODB_URI=mongodb://localhost:27017/myapp
 # JWT Secret (generate with: openssl rand -base64 32)
 JWT_SECRET=your-secret-key-here
 
+# Admin (optional)
+# Matches authenticated user.id (Mongo _id string)
+ADMIN_USER_ID=your-admin-user-id-here
+
 # AI APIs (optional)
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
@@ -273,6 +277,7 @@ CMD ["yarn", "start"]
 Set these in your deployment platform:
 - `MONGODB_URI`
 - `JWT_SECRET`
+- `ADMIN_USER_ID` (optional)
 - `OPENAI_API_KEY` (if using AI)
 - `ANTHROPIC_API_KEY` (if using AI)
 - `GOOGLE_AI_API_KEY` (if using AI)

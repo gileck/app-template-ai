@@ -101,17 +101,20 @@ export function createStore<T>(
 ): StoreHookWithSelector<T> | StoreHook<T> {
     const { key, label, creator } = config;
     
-    // Register store in the registry
+    // Register store metadata in the registry (store instance registered after creation)
     const isPersisted = !('inMemoryOnly' in config && config.inMemoryOnly);
-    registerStore({ key, label, isPersisted });
     
     // In-memory store (no persistence)
     if ('inMemoryOnly' in config && config.inMemoryOnly) {
         // Apply subscribeWithSelector if explicitly requested
         if (config.withSelector) {
-            return create<T>()(subscribeWithSelector(creator)) as unknown as StoreHookWithSelector<T>;
+            const store = create<T>()(subscribeWithSelector(creator)) as unknown as StoreHookWithSelector<T>;
+            registerStore({ key, label, isPersisted }, store);
+            return store;
         }
-        return create<T>()(creator) as unknown as StoreHook<T>;
+        const store = create<T>()(creator) as unknown as StoreHook<T>;
+        registerStore({ key, label, isPersisted }, store);
+        return store;
     }
     
     // Persisted store (default)
@@ -126,13 +129,17 @@ export function createStore<T>(
     
     // Apply middlewares: subscribeWithSelector wraps persist
     if (withSelector) {
-        return create<T>()(
+        const store = create<T>()(
             subscribeWithSelector(
                 persist(creator, fullPersistOptions)
             )
         ) as unknown as StoreHookWithSelector<T>;
+        registerStore({ key, label, isPersisted }, store);
+        return store;
     }
     
     // Just persist without subscribeWithSelector
-    return create<T>()(persist(creator, fullPersistOptions)) as unknown as StoreHook<T>;
+    const store = create<T>()(persist(creator, fullPersistOptions)) as unknown as StoreHook<T>;
+    registerStore({ key, label, isPersisted }, store);
+    return store;
 }

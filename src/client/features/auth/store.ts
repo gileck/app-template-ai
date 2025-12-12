@@ -122,3 +122,11 @@ export function useUser(): UserResponse | null {
 export function useUserHint(): UserPublicHint | null {
     return useAuthStore((state) => state.userPublicHint);
 }
+
+export function useIsAdmin(): boolean {
+    return useAuthStore((state) => {
+        if (state.user?.isAdmin) return true;
+        if (state.userPublicHint?.isAdmin) return true;
+        return false;
+    });
+}

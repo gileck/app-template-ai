@@ -30,6 +30,11 @@ export const processApiCall = async (
 
   const userContext = getUserContext(req, res);
 
+  // Centralized admin gating: any API under `admin/*` is admin-only.
+  if (String(name).startsWith("admin/") && !userContext.isAdmin) {
+    return { data: { error: "Forbidden" }, isFromCache: false };
+  }
+
   // Create a wrapped function that handles context internally
   const processWithContext = () => {
     const processFunc = apiHandler.process;

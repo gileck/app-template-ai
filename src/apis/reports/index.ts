@@ -9,9 +9,9 @@
 export const name = 'reports';
 
 export const API_CREATE_REPORT = 'reports/create';
-export const API_GET_REPORTS = 'reports/list';
-export const API_GET_REPORT = 'reports/get';
-export const API_UPDATE_REPORT_STATUS = 'reports/updateStatus';
-export const API_DELETE_REPORT = 'reports/delete';
-export const API_DELETE_ALL_REPORTS = 'reports/deleteAll';
+export const API_GET_REPORTS = 'admin/reports/list';
+export const API_GET_REPORT = 'admin/reports/get';
+export const API_UPDATE_REPORT_STATUS = 'admin/reports/updateStatus';
+export const API_DELETE_REPORT = 'admin/reports/delete';
+export const API_DELETE_ALL_REPORTS = 'admin/reports/deleteAll';
 

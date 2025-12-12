@@ -51,7 +51,8 @@ export const registerUser = async (
         // Set auth cookie
         context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
 
-        return { user: sanitizeUser(newUser) };
+        const isAdmin = !!process.env.ADMIN_USER_ID && newUser._id.toHexString() === process.env.ADMIN_USER_ID;
+        return { user: { ...sanitizeUser(newUser), isAdmin } };
     } catch (error: unknown) {
         console.error("Registration error:", error);
         return { error: error instanceof Error ? error.message : "Registration failed" };

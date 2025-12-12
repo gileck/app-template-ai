@@ -4,14 +4,16 @@ import { BottomNavBar } from './layout/BottomNavBar';
 import { DrawerMenu } from './layout/DrawerMenu';
 import { Footer } from './layout/Footer';
 import { NavigatorStandalone } from './layout/types';
-import { navItems, menuItems } from './NavLinks';
+import { filterAdminNavItems, menuItems, navItems } from './NavLinks';
 import { BugReportDialog, useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
 import { ToastContainer } from './ui/toast';
+import { useIsAdmin } from '@/client/features/auth';
 
 
 export const Layout = ({ children }: { children?: ReactNode }) => {
   // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral drawer open state
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isAdmin = useIsAdmin();
   const isStandalone = typeof window !== 'undefined' &&
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as NavigatorStandalone).standalone);
@@ -31,14 +33,14 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
     <div className={`flex min-h-screen flex-col ${isStandalone && isMobile ? 'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]' : ''}`}>
       {/* Top Navigation Bar */}
       <TopNavBar
-        navItems={navItems}
+        navItems={filterAdminNavItems(navItems, isAdmin)}
         isStandalone={isStandalone}
         onDrawerToggle={handleDrawerToggle}
       />
 
       {/* Mobile Drawer Menu */}
       <DrawerMenu
-        navItems={menuItems}
+        navItems={filterAdminNavItems(menuItems, isAdmin)}
         mobileOpen={mobileOpen}
         onDrawerToggle={handleDrawerToggle}
       />

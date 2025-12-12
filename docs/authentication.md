@@ -7,14 +7,14 @@ This document explains the authentication system, including the instant-boot pat
 The authentication system uses:
 
 1. **Zustand Store** (`authStore`) - Client-side auth state with localStorage persistence
-2. **React Query** - Server data caching with IndexedDB persistence  
+2. **React Query** - Server data caching with localStorage persistence  
 3. **HttpOnly Cookies** - Secure JWT token storage (server-side)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Storage Layers                            │
 ├─────────────────────────────────────────────────────────────┤
-│  localStorage (Zustand)     │  IndexedDB (React Query)       │
+│  localStorage (Zustand)     │  localStorage (React Query)    │
 │  - isProbablyLoggedIn       │  - /me response cache          │
 │  - userPublicHint           │  - All query data              │
 │  - hintTimestamp            │                                │
@@ -51,15 +51,15 @@ App Start
     │
     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  QueryProvider: WaitForCacheRestore                          │
-│  IndexedDB is empty → completes immediately                  │
+│  QueryProvider: Cache restore (non-blocking)                 │
+│  localStorage may be empty → completes immediately           │
 └─────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Zustand hydrates from localStorage                          │
-│  isProbablyLoggedIn = false (no hint stored)                 │
-│  userPublicHint = null                                       │
+│  BootGate waits for local rehydration                        │
+│  - auth/settings/router stores rehydrate from localStorage    │
+│  - isProbablyLoggedIn = false (no hint stored)               │
 └─────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -81,7 +81,7 @@ App Start
 ┌─────────────────────────────────────────────────────────────┐
 │  On success:                                                 │
 │  - Zustand: isProbablyLoggedIn=true, userPublicHint={...}   │
-│  - React Query: caches /me response to IndexedDB             │
+│  - React Query: caches /me response to localStorage          │
 │  - App renders authenticated UI                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -93,14 +93,13 @@ App Start (e.g., after iOS killed the app)
     │
     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  QueryProvider: WaitForCacheRestore (~50-100ms)              │
-│  Restores React Query cache from IndexedDB                   │
-│  /me response is now in memory                               │
+│  QueryProvider: Cache restore (~1-5ms)                       │
+│  Restores React Query cache from localStorage                │
 └─────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Zustand hydrates from localStorage (instant, sync)          │
+│  BootGate waits for local rehydration (fast)                 │
 │  isProbablyLoggedIn = true                                   │
 │  userPublicHint = { name: "Gil", email: "...", avatar: "..." }│
 └─────────────────────────────────────────────────────────────┘
@@ -171,6 +170,18 @@ Guards the app based on auth state:
 - If `isAuthenticated` (validated) → render app
 - Otherwise → show login dialog
 
+## Admin Flag (`isAdmin`)
+
+Authentication responses include `user.isAdmin` so the client can enable admin-only UI immediately after login.
+
+- Admin is configured via `ADMIN_USER_ID` (user.id / Mongo `_id` string).
+- The server returns `isAdmin` on:
+  - `auth/login`
+  - `auth/register`
+  - `auth/me`
+
+📚 See: [admin.md](./admin.md)
+
 ## Server-Side Authentication
 
 ### JWT Token Flow
@@ -201,7 +212,7 @@ Guards the app based on auth state:
 | Data | TTL | Purpose |
 |------|-----|---------|
 | Auth hint (Zustand) | 7 days | Clear stale hints after inactivity |
-| React Query cache | 24 hours | IndexedDB persistence max age |
+| React Query cache | 24 hours | localStorage persistence max age |
 | JWT token | Server-defined | Actual session expiry |
 
 ## Usage Examples
@@ -268,11 +279,11 @@ function LogoutButton() {
 This is normal when the session was valid. The `isProbablyLoggedIn` hint enables showing the app shell while validation runs in background.
 
 ### User stuck on loading
-Check if `WaitForCacheRestore` is blocking. IndexedDB restoration should be <100ms.
+Check if localStorage restore is blocked by the browser or storage access is denied. React Query restore is non-blocking, and BootGate should only be a brief local step.
 
 ### Auth state not persisting
 - Check localStorage for `auth-storage` key (Zustand)
-- Check IndexedDB for React Query cache
+- Check localStorage for React Query cache (`react-query-cache-v2`)
 - Verify `hintTimestamp` hasn't expired (7 days)
 
 ### 401 errors after app restart

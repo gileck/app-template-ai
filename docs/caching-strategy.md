@@ -252,7 +252,7 @@ Previously, the app had a **separate API cache layer** in addition to React Quer
 
 ```
 Old Architecture:
-Component → React Query Cache → API Cache (IndexedDB) → Network
+Component → React Query Cache → API Cache (IndexedDB/localStorage) → Network
 ```
 
 Files that were part of this system:

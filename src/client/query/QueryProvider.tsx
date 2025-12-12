@@ -68,11 +68,10 @@ const dehydrateOptions = {
 };
 
 /**
- * React Query provider with IndexedDB persistence
+ * React Query provider with localStorage persistence
  * 
- * Blocks app rendering until cache is restored from IndexedDB.
- * This ensures all components can assume cached data is available
- * without needing to check isRestoring individually.
+ * Persistence uses localStorage. Cache restore is tracked but app rendering is not blocked.
+ * Components handle their own loading states via isLoading checks.
  * 
  * IMPORTANT: The persister is a module-level singleton to prevent re-restore
  * when the component re-renders (e.g., on network state change).

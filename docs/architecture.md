@@ -66,7 +66,7 @@ This document provides a high-level overview of the application architecture, de
 ### Core Principles
 
 1. **Offline-First**: App works without network, syncs when online
-2. **Instant Boot**: App renders immediately using cached state
+2. **Fast Boot**: App renders quickly using cached state (localStorage) and background validation
 3. **Optimistic Updates**: UI updates before server confirms
 4. **Feature-Based Organization**: Code is organized by feature, not type
 
@@ -88,15 +88,15 @@ User Opens App
       │
       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  2. Zustand Hydration (instant, sync)                           │
-│     - localStorage → Zustand stores                             │
-│     - isProbablyLoggedIn, userHint, settings, lastRoute         │
+│  2. Zustand Rehydration (fast, localStorage)                     │
+│     - localStorage → Zustand stores (auth, settings, router)     │
+│     - BootGate waits for rehydration before rendering the app    │
 └─────────────────────────────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  3. AuthWrapper Renders                                         │
-│     - If isProbablyLoggedIn: Show app shell immediately         │
+│     - If isProbablyLoggedIn: Show app immediately (no network)   │
 │     - If not: Show login dialog                                 │
 └─────────────────────────────────────────────────────────────────┘
       │
@@ -108,7 +108,7 @@ User Opens App
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-This enables **instant startup** - the app appears immediately with cached data while fresh data loads in the background.
+This enables **fast startup** with a short local boot gate, then cached UI renders while fresh data loads in the background.
 
 > **Why localStorage?** We use localStorage (not IndexedDB) for React Query persistence because IndexedDB was causing 5+ second startup delays on some systems (Dec 2025 - possibly a browser bug). localStorage is limited to ~5MB but is consistently fast. See the [State Management](#state-management) section for details and how to switch back if IndexedDB performance improves.
 
@@ -135,6 +135,14 @@ The app uses a **hint-based instant boot** pattern for authentication.
 4. **On 401**: Clear hints, show login dialog
 
 📚 **Detailed Documentation**: [authentication.md](./authentication.md)
+
+## Admin
+
+Admin access is implemented via a simple convention-based approach:
+- Routes under `/admin/*` are admin-only.
+- APIs under `admin/*` are admin-only.
+
+📚 **Detailed Documentation**: [admin.md](./admin.md)
 
 ---
 

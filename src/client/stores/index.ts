@@ -36,6 +36,7 @@ export {
     getAllStores,
     getPersistedStores,
     getInMemoryStores,
+    useAllPersistedStoresHydrated,
     getTotalCacheSize,
     getCacheSizeBreakdown,
     clearAllPersistedStores,

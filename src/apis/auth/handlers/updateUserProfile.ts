@@ -47,7 +47,7 @@ export const updateUserProfile = async (
 
         return {
             success: true,
-            user: sanitizeUser(updatedUser)
+            user: { ...sanitizeUser(updatedUser), isAdmin: context.isAdmin }
         };
     } catch (error: unknown) {
         console.error("Update profile error:", error);

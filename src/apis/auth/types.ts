@@ -40,6 +40,7 @@ export interface UserResponse {
     email?: string;
     createdAt: string;
     profilePicture?: string;
+    isAdmin: boolean;
 }
 
 export interface AuthTokenPayload {
@@ -48,6 +49,7 @@ export interface AuthTokenPayload {
 
 export interface ApiHandlerContext {
     userId?: string;
+    isAdmin: boolean;
     getCookieValue: (name: string) => string | undefined;
     setCookie: (name: string, value: string, options: Record<string, unknown>) => void;
     clearCookie: (name: string, options: Record<string, unknown>) => void;

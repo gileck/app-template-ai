@@ -21,7 +21,7 @@ export const getCurrentUser = async (
             return { error: "User not found" };
         }
 
-        return { user: sanitizeUser(user) };
+        return { user: { ...sanitizeUser(user), isAdmin: context.isAdmin } };
     } catch (error: unknown) {
         console.error("Get current user error:", error);
         return { error: error instanceof Error ? error.message : "Failed to get current user" };

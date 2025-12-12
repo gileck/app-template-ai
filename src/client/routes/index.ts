@@ -16,5 +16,5 @@ export const routes = createRoutes({
   '/settings': Settings,
   '/not-found': NotFound,
   '/profile': Profile,
-  '/reports': Reports,
+  '/admin/reports': Reports,
 });

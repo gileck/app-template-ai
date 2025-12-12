@@ -42,7 +42,8 @@ export const loginUser = async (
         // Set auth cookie
         context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
 
-        return { user: sanitizeUser(user) };
+        const isAdmin = !!process.env.ADMIN_USER_ID && user._id.toHexString() === process.env.ADMIN_USER_ID;
+        return { user: { ...sanitizeUser(user), isAdmin } };
     } catch (error: unknown) {
         console.error("Login error:", error);
         return { error: error instanceof Error ? error.message : "Login failed" };

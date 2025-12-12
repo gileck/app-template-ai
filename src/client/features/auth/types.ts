@@ -12,6 +12,7 @@ export interface UserPublicHint {
     name: string;
     email: string;
     avatar?: string;
+    isAdmin: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export function userToHint(user: UserResponse): UserPublicHint {
         name: user.username,
         email: user.email || '',
         avatar: user.profilePicture,
+        isAdmin: user.isAdmin,
     };
 }
 

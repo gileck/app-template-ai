@@ -82,6 +82,17 @@ export default async function handler(
                     continue;
                 }
 
+                // Centralized admin gating: any API under `admin/*` is admin-only.
+                if (name.startsWith('admin/') && !userContext.isAdmin) {
+                    results.push({
+                        id,
+                        success: false,
+                        error: 'Forbidden'
+                    });
+                    failureCount++;
+                    continue;
+                }
+
                 // Execute the API handler
                 const processFunc = apiHandler.process;
                 const data = await (processFunc as (params: unknown, context: unknown) => Promise<unknown>)(

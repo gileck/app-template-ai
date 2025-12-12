@@ -49,8 +49,8 @@ The application uses a **dual-store architecture** optimized for PWA with offlin
 | Aspect | Zustand | React Query |
 |--------|---------|-------------|
 | **Data Source** | Client-generated | Server API |
-| **Persistence** | localStorage (sync) | localStorage (async restore) |
-| **Boot Time** | Instant (sync) | ~1-5ms |
+| **Persistence** | localStorage (rehydrate on boot) | localStorage (restore) |
+| **Boot Time** | Fast local rehydrate | ~1-5ms |
 | **Use Case** | Settings, hints, UI state | API data, caching |
 
 > **Note**: Both Zustand and React Query now use localStorage for persistence. IndexedDB was removed due to unreliable performance on some systems (5+ second reads). See [Caching Strategy](./caching-strategy.md) for details.
@@ -487,15 +487,14 @@ The architecture enables **instant startup** after iOS kills the app:
 ### Boot Sequence
 
 ```
-1. localStorage (sync)
-   └── Zustand hydrates: isProbablyLoggedIn, userHint, settings, lastRoute
-   └── App shell renders immediately
+1. React Query restore (~1-5ms)
+   └── React Query cache restores from localStorage (non-blocking)
 
-2. React Query restore (~1-5ms)
-   └── React Query cache restores from localStorage
-   └── Cached data available
+2. BootGate (localStorage rehydrate)
+   └── Auth/settings/router Zustand stores rehydrate from localStorage
+   └── App renders after rehydration completes
 
-3. Background
+3. Background (network)
    └── Auth validation (/me endpoint)
    └── Data revalidation (stale queries)
 ```
@@ -504,9 +503,9 @@ The architecture enables **instant startup** after iOS kills the app:
 
 | Data | Source | When Available |
 |------|--------|----------------|
-| Auth hint | localStorage | Instant |
-| User settings | localStorage | Instant |
-| Last route | localStorage | Instant |
+| Auth hint | localStorage | After BootGate |
+| User settings | localStorage | After BootGate |
+| Last route | localStorage | After BootGate |
 | Server data | localStorage (React Query) | ~1-5ms |
 
 ---

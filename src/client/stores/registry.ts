@@ -6,6 +6,7 @@
 
 import type { StoreInfo, CacheSize, CacheSizeInfo } from './types';
 import { formatBytes } from '@/client/lib/utils';
+import { useEffect, useState } from 'react';
 
 // ============================================================================
 // Registry Storage
@@ -15,6 +16,7 @@ import { formatBytes } from '@/client/lib/utils';
  * Internal registry of all stores
  */
 const storeRegistry = new Map<string, StoreInfo>();
+const storeInstances = new Map<string, unknown>();
 
 // ============================================================================
 // Registration (internal use by createStore)
@@ -24,11 +26,14 @@ const storeRegistry = new Map<string, StoreInfo>();
  * Register a store in the registry (called by createStore)
  * @internal
  */
-export function registerStore(info: StoreInfo): void {
+export function registerStore(info: StoreInfo, storeInstance?: unknown): void {
     if (storeRegistry.has(info.key)) {
         console.warn(`[Store Registry] Store "${info.key}" is already registered. Overwriting.`);
     }
     storeRegistry.set(info.key, info);
+    if (storeInstance) {
+        storeInstances.set(info.key, storeInstance);
+    }
 }
 
 // ============================================================================
@@ -47,6 +52,65 @@ export function getAllStores(): StoreInfo[] {
  */
 export function getPersistedStores(): StoreInfo[] {
     return getAllStores().filter((store) => store.isPersisted);
+}
+
+function getPersistedStoreInstances(): unknown[] {
+    return getPersistedStores()
+        .map((s) => storeInstances.get(s.key))
+        .filter((s): s is unknown => s != null);
+}
+
+function isStoreHydrated(store: unknown): boolean {
+    // Zustand persist middleware adds `persist.hasHydrated()` at runtime.
+    const anyStore = store as { persist?: { hasHydrated?: () => boolean } };
+    return anyStore.persist?.hasHydrated?.() === true;
+}
+
+function areAllPersistedStoresHydrated(): boolean {
+    if (typeof window === 'undefined') return true;
+    const stores = getPersistedStoreInstances();
+    // If we don't have instances yet, treat as hydrated (no gate).
+    if (stores.length === 0) return true;
+    return stores.every(isStoreHydrated);
+}
+
+/**
+ * React hook: true once all persisted Zustand stores have finished rehydrating.
+ *
+ * This lets the app wait for localStorage-backed stores without requiring each feature store
+ * to implement its own `hasHydrated` state or export a dedicated hook.
+ */
+export function useAllPersistedStoresHydrated(): boolean {
+    const [hydrated, setHydrated] = useState<boolean>(() => areAllPersistedStoresHydrated());
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        setHydrated(areAllPersistedStoresHydrated());
+
+        const instances = getPersistedStoreInstances();
+        const unsubs: Array<() => void> = [];
+
+        for (const store of instances) {
+            const anyStore = store as { persist?: { onFinishHydration?: (cb: () => void) => () => void } };
+            const unsub = anyStore.persist?.onFinishHydration?.(() => {
+                setHydrated(areAllPersistedStoresHydrated());
+            });
+            if (unsub) unsubs.push(unsub);
+        }
+
+        return () => {
+            unsubs.forEach((u) => {
+                try {
+                    u();
+                } catch {
+                    // ignore
+                }
+            });
+        };
+    }, []);
+
+    return hydrated;
 }
 
 /**
@@ -109,7 +173,7 @@ export function getCacheSizeBreakdown(): CacheSizeInfo[] {
  */
 export function clearAllPersistedStores(): void {
     if (typeof localStorage === 'undefined') return;
-    
+
     const stores = getPersistedStores();
     stores.forEach((store) => {
         try {
@@ -125,7 +189,7 @@ export function clearAllPersistedStores(): void {
  */
 export function clearPersistedStore(key: string): boolean {
     if (typeof localStorage === 'undefined') return false;
-    
+
     const store = storeRegistry.get(key);
     if (!store) {
         console.warn(`[Store Registry] Store "${key}" not found in registry`);
@@ -135,7 +199,7 @@ export function clearPersistedStore(key: string): boolean {
         console.warn(`[Store Registry] Store "${key}" is not persisted`);
         return false;
     }
-    
+
     try {
         localStorage.removeItem(key);
         return true;
@@ -154,13 +218,13 @@ export function clearPersistedStore(key: string): boolean {
  */
 export function printAllStores(): void {
     console.group('[Store Registry] All Registered Stores');
-    
+
     const stores = getAllStores();
     console.log(`Total stores: ${stores.length}`);
     console.log(`Persisted: ${getPersistedStores().length}`);
     console.log(`In-memory: ${getInMemoryStores().length}`);
     console.log('---');
-    
+
     // Print persisted stores with their data
     const persistedStores = getPersistedStores();
     if (persistedStores.length > 0) {
@@ -184,7 +248,7 @@ export function printAllStores(): void {
         });
         console.groupEnd();
     }
-    
+
     // Print in-memory stores
     const inMemoryStores = getInMemoryStores();
     if (inMemoryStores.length > 0) {
@@ -194,12 +258,12 @@ export function printAllStores(): void {
         });
         console.groupEnd();
     }
-    
+
     // Print total size
     const totalSize = getTotalCacheSize();
     console.log('---');
     console.log(`Total persisted size: ${totalSize.formatted}`);
-    
+
     console.groupEnd();
 }
 
