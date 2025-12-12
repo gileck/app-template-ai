@@ -5,7 +5,7 @@ import {
     UpdateProfileResponse,
 } from '../types';
 import * as users from '@/server/database/collections/users/users';
-import { sanitizeUser } from '../server';
+import { sanitizeUser } from '../shared';
 
 // Update profile endpoint
 export const updateUserProfile = async (

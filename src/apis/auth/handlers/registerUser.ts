@@ -8,7 +8,14 @@ import {
 } from '../types';
 import * as users from '@/server/database/collections/users/users';
 import { UserCreate } from '@/server/database/collections/users/types';
-import { JWT_SECRET, JWT_EXPIRES_IN, COOKIE_NAME, COOKIE_OPTIONS, SALT_ROUNDS, sanitizeUser } from '../server'; // Assuming constants and sanitizeUser will be exported from server.ts
+import {
+    COOKIE_NAME,
+    COOKIE_OPTIONS,
+    JWT_EXPIRES_IN,
+    JWT_SECRET,
+    SALT_ROUNDS,
+    sanitizeUser,
+} from "../shared";
 
 // Register endpoint
 export const registerUser = async (

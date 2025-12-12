@@ -197,7 +197,7 @@ Authentication responses include `user.isAdmin` so the client can enable admin-o
 |----------|--------|-------------|
 | `auth/login` | POST | Authenticate user, set JWT cookie |
 | `auth/register` | POST | Create user, set JWT cookie |
-| `auth/me` | GET | Get current user (validates token) |
+| `auth/me` | POST | Get current user (validates token) |
 | `auth/logout` | POST | Clear JWT cookie |
 
 ### Security Notes

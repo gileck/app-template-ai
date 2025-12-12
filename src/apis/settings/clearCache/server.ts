@@ -1,11 +1,10 @@
 import { createCache } from '@/common/cache';
 import { ClearCacheResponse } from './types';
-import { name } from './index';
+import { name } from "./index";
 import { fsCacheProvider, s3CacheProvider } from '@/server/cache/providers';
 import { appConfig } from '@/app.config';
 
-// Re-export API names
-export { name };
+export * from "./index";
 
 // Helper to get cache instance
 const getServerCache = () => {
@@ -34,4 +33,8 @@ export const process = async (): Promise<ClearCacheResponse> => {
       message: `Error clearing cache: ${error instanceof Error ? error.message : String(error)}`
     };
   }
+};
+
+export const clearCacheApiHandlers = {
+  [name]: { process },
 };

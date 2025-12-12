@@ -7,12 +7,14 @@ This project uses a simplified client-server communication pattern with a single
 ```
 /src
   /apis
-    /apis.ts           - Registry of all API handlers (imports directly from server.ts files)
+    /apis.ts           - Registry of all API handlers (merges exported *ApiHandlers maps)
+    /registry.ts       - Helper for merging/casting handlers into the registry shape
     /processApiCall.ts - Central processing logic with caching 
     /types.ts          - Shared API types
     /<domain>
       /types.ts        - Shared types for this domain
-      /server.ts       - Server-side implementation (ALL business logic + exports name)
+      /server.ts       - Server-side coordinator (imports handlers, re-exports names, exports `<domain>ApiHandlers`)
+      /shared.ts       - (Optional) shared server-only constants/helpers to avoid circular imports
       /client.ts       - Client-side function to call the API
       /index.ts        - Exports name and types ONLY (not process or client functions)
   /pages
@@ -107,7 +109,7 @@ The conversion between internal API names (with slashes) and URL format (with un
 
 2. **Implement Server Logic** (`/src/apis/<domain>/server.ts`):
    - Create a `process` function that handles the request and returns a response
-   - **IMPORTANT: ALL business logic MUST be implemented here**
+   - **IMPORTANT: ALL business logic MUST be implemented in server-side code** (`server.ts` and/or `handlers/*`)
    - Handle all business logic, validation, error cases, and external API calls here
    - **MUST use the shared types for both input parameters and return values**
    - **NEVER import any client-side code or client.ts functions here**
@@ -183,19 +185,19 @@ The conversion between internal API names (with slashes) and URL format (with un
      ```
 
 5. **Register the API in apis.ts** (`/src/apis/apis.ts`):
-   - Import the server module directly and add it to the apiHandlers object
+   - Import the domain's exported `<domain>ApiHandlers` map and merge it into the registry
    - **IMPORTANT: Import directly from server.ts, NOT from index.ts**
-   - **IMPORTANT: The key in the apiHandlers object MUST match the name exported from the server.ts**
+   - **IMPORTANT: API keys MUST match the API name constants (from `index.ts`)**
    - Example:
      ```typescript
-     import { ApiHandlers } from "./types";
-     import * as chat from "./chat/server";
-     import * as newDomain from "./newDomain/server";
+     import { mergeApiHandlers } from "./registry";
+     import { chatApiHandlers } from "./chat/server";
+     import { newDomainApiHandlers } from "./newDomain/server";
 
-     export const apiHandlers: ApiHandlers = {
-       [chat.name]: { process: chat.process as (params: unknown) => Promise<unknown> },
-       [newDomain.name]: { process: newDomain.process as (params: unknown) => Promise<unknown> }
-     };
+     export const apiHandlers = mergeApiHandlers(
+       chatApiHandlers,
+       newDomainApiHandlers
+     );
      ```
 
 ## Multiple API Routes Under the Same Namespace
@@ -268,17 +270,13 @@ When a domain needs to expose multiple API routes (e.g., search and details), fo
 4. **Register Multiple Endpoints in apis.ts**:
    ```typescript
    // src/apis/apis.ts
-   import * as books from "./books/server"; // Import from server.ts to get both API names and handlers
+   import { mergeApiHandlers } from "./registry";
+   import { booksApiHandlers } from "./books/server";
    
-   export const apiHandlers: ApiHandlers = {
-     // Other API handlers...
-     [books.searchApiName]: { // API names are re-exported from server.ts
-       process: (params: unknown) => books.searchBooks(params as BookSearchRequest) 
-     },
-     [books.detailsApiName]: { // API names are re-exported from server.ts
-       process: (params: unknown) => books.getBookById(params as BookDetailsRequest) 
-     },
-   };
+   export const apiHandlers = mergeApiHandlers(
+     // Other domain handler maps...
+     booksApiHandlers
+   );
    ```
 
 This approach provides several benefits:
@@ -373,3 +371,11 @@ const handleSubmit = async () => {
    - **NEVER export client functions from index.ts**
    - This prevents bundling server-side code with client-side code
    - Keep business logic in server.ts and API calls in client.ts
+
+## Avoiding Circular Imports (Server-Side)
+
+Handlers under `src/apis/<domain>/handlers/*` **must not** import from `../server.ts` if `server.ts` imports those handlers (circular import).
+
+- Put shared server-only constants/helpers in `src/apis/<domain>/shared.ts`
+- Handlers import shared values from `../shared`
+- `server.ts` may re-export from `./shared` for other server-only modules

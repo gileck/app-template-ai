@@ -1,10 +1,9 @@
 import { AIModelAdapter } from "../../server/ai/baseModelAdapter";
 import { AIModelAdapterResponse } from "../../server/ai/types";
 import { ChatRequest, ChatResponse } from "./types";
-import { name } from './index';
+import { name } from "./index";
 
-// Re-export API names
-export { name };
+export * from "./index";
 
 /**
  * Process a chat request and return a response
@@ -45,4 +44,8 @@ export const process = async (request: ChatRequest): Promise<ChatResponse> => {
       error: `Error processing AI request: ${error instanceof Error ? error.message : String(error)}`
     };
   }
+};
+
+export const chatApiHandlers = {
+  [name]: { process },
 };

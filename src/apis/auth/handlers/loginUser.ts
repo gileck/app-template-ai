@@ -7,7 +7,13 @@ import {
     LoginResponse,
 } from '../types';
 import * as users from '@/server/database/collections/users/users';
-import { JWT_SECRET, JWT_EXPIRES_IN, COOKIE_NAME, COOKIE_OPTIONS, sanitizeUser } from '../server';
+import {
+    COOKIE_NAME,
+    COOKIE_OPTIONS,
+    JWT_EXPIRES_IN,
+    JWT_SECRET,
+    sanitizeUser,
+} from "../shared";
 
 // Login endpoint
 export const loginUser = async (

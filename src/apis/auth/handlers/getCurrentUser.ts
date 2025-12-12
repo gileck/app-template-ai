@@ -4,7 +4,7 @@ import {
     CurrentUserResponse,
 } from '../types';
 import * as users from '@/server/database/collections/users/users';
-import { sanitizeUser } from '../server';
+import { sanitizeUser } from '../shared';
 
 // Get current user endpoint
 export const getCurrentUser = async (

@@ -274,9 +274,16 @@ src/apis/{feature}/
 ├── index.ts      # API name constants
 ├── types.ts      # Request/Response types
 ├── client.ts     # Client-side functions (apiClient.call/post)
-├── server.ts     # Server handler registration
+├── server.ts     # Server handler registration (exports `{feature}ApiHandlers`)
+├── shared.ts     # (Optional) shared server-only constants/helpers to avoid circular imports
 └── handlers/     # Server-side implementation
 ```
+
+### API Registry (Server-Side)
+
+- The global API registry lives in `src/apis/apis.ts`
+- Each domain exports a `<domain>ApiHandlers` map from `src/apis/<domain>/server.ts`
+- `src/apis/registry.ts` provides `mergeApiHandlers(...)` to merge all domain maps into the registry with minimal boilerplate
 
 📚 **Detailed Documentation**: [api-endpoint-format.md](./api-endpoint-format.md)
 

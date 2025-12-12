@@ -15,7 +15,7 @@ For each API module:
   - [ ] Client imports API names from `index.ts` (NEVER from `server.ts`)
 - [ ] Confirm types are defined in `types.ts` and never duplicated elsewhere
 - [ ] Verify client functions return `CacheResult<ResponseType>`
-- [ ] Check that business logic is implemented in `server.ts`
+- [ ] Check that business logic is implemented in server-side code (`server.ts` and/or `handlers/*`)
 - [ ] Ensure API handlers in `apis.ts` use consistent API names
 
 **Reference**: See `client-server-communications.md` for detailed guidelines on API structure

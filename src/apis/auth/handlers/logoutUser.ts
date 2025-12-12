@@ -3,7 +3,7 @@ import {
     ApiHandlerContext,
     LogoutResponse,
 } from '../types';
-import { COOKIE_NAME, COOKIE_OPTIONS } from '../server';
+import { COOKIE_NAME, COOKIE_OPTIONS } from "../shared";
 
 // Logout endpoint
 export const logoutUser = async (
