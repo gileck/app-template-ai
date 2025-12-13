@@ -324,7 +324,7 @@ It's specifically designed for the "GitHub template" use case and makes keeping 
 
 ---
 
-**Questions?** See [docs/template-sync.md](template-sync.md) for full documentation.
+**Questions?** See [Template Sync Guide](template-sync.md) for full documentation.
 
 
 

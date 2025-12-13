@@ -20,14 +20,14 @@
   - Creates `.template` files for conflicts
 
 ### Documentation
-- **`docs/template-sync.md`** - Complete template sync guide
+- **`docs/template-sync/template-sync.md`** - Complete template sync guide
   - Setup instructions
   - Usage examples
   - Conflict resolution
   - Best practices
   - Troubleshooting
 
-- **`docs/template-sync-quick-start.md`** - Quick start guide
+- **`docs/template-sync/template-sync-quick-start.md`** - Quick start guide
   - Step-by-step workflow
   - Real-world examples
   - Common scenarios

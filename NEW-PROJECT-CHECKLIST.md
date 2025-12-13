@@ -216,7 +216,7 @@ PORT=3001 yarn dev
 
 ## Resources
 
-- 📚 [Template Sync Guide](docs/template-sync.md)
+- 📚 [Template Sync Guide](docs/template-sync/template-sync.md)
 - 🏪 [State Management](docs/state-management.md)
 - 🎨 [shadcn/ui Components](docs/shadcn-component-library.md)
 - 🗄️ [MongoDB Usage](.cursor/rules/mongodb-usage.mdc)

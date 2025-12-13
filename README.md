@@ -103,7 +103,7 @@ The sync system will:
 3. **Auto-merge** or **flag conflicts** based on your choice
 4. **Preserve** your project-specific code
 
-**📚 Full Documentation:** [docs/template-sync.md](docs/template-sync.md)
+**📚 Full Documentation:** [docs/template-sync/template-sync.md](docs/template-sync/template-sync.md)
 
 ## Project Structure
 
@@ -127,7 +127,7 @@ The sync system will:
 
 ## Key Documentation
 
-- 📖 [Template Sync Guide](docs/template-sync.md) - Keep your project up-to-date with template changes
+- 📖 [Template Sync Guide](docs/template-sync/template-sync.md) - Keep your project up-to-date with template changes
 - 🏪 [State Management](docs/state-management.md) - React Query + Zustand patterns
 - 🏗️ [Zustand Stores](docs/zustand-stores.md) - Store factory usage
 - 🎨 [shadcn/ui Components](docs/shadcn-component-library.md) - UI component library
@@ -304,7 +304,7 @@ yarn dev
 
 ### Template Sync Conflicts
 
-See [Template Sync Guide](docs/template-sync.md) for conflict resolution.
+See [Template Sync Guide](docs/template-sync/template-sync.md) for conflict resolution.
 
 ## License
 
