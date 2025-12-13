@@ -26,6 +26,7 @@ interface TemplateSyncConfig {
   templateBranch: string;
   baseCommit: string | null;
   lastSyncCommit: string | null;
+  lastProjectCommit: string | null;
   lastSyncDate: string | null;
   ignoredFiles: string[];
   projectSpecificFiles: string[];
@@ -303,12 +304,12 @@ class TemplateSyncTool {
   }
 
   private hasProjectChanges(filePath: string): boolean {
-    // Check if file has been modified in the project since creation
+    // Check if file has been modified in the project since last sync
     try {
-      // If we have a base commit, check against it
-      if (this.config.lastSyncCommit) {
+      // If we have the project commit from last sync, check against it
+      if (this.config.lastProjectCommit) {
         const diff = this.exec(
-          `git diff ${this.config.lastSyncCommit} HEAD -- "${filePath}"`,
+          `git diff ${this.config.lastProjectCommit} HEAD -- "${filePath}"`,
           { silent: true }
         );
         return diff.length > 0;
@@ -589,7 +590,9 @@ class TemplateSyncTool {
 
       // Step 8: Update config (only if not dry-run)
       if (!this.dryRun) {
+        const projectCommit = this.exec('git rev-parse HEAD', { silent: true });
         this.config.lastSyncCommit = templateCommit;
+        this.config.lastProjectCommit = projectCommit;
         this.config.lastSyncDate = new Date().toISOString();
         this.saveConfig();
       }

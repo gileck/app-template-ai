@@ -22,6 +22,7 @@ interface TemplateSyncConfig {
   templateBranch: string;
   baseCommit: string | null;
   lastSyncCommit: string | null;
+  lastProjectCommit: string | null;
   lastSyncDate: string | null;
   ignoredFiles: string[];
   projectSpecificFiles: string[];
@@ -106,6 +107,7 @@ function initTemplate(templateRepo: string): void {
     templateBranch: 'main',
     baseCommit: currentCommit || null,
     lastSyncCommit: currentCommit || null,
+    lastProjectCommit: currentCommit || null,
     lastSyncDate: currentCommit ? new Date().toISOString() : null,
     ignoredFiles: DEFAULT_IGNORED_FILES,
     projectSpecificFiles: [],
