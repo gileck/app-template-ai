@@ -45,6 +45,8 @@ const DEFAULT_IGNORED_FILES = [
   'yarn.lock',
   'package-lock.json',
   'pnpm-lock.yaml',
+  // Project-specific config
+  'src/app.config.js',                       // App name, db name, etc.
   // Example features (not needed in new projects)
   'src/client/routes/Todos/**',
   'src/client/routes/Chat/**',
