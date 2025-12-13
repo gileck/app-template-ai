@@ -98,15 +98,23 @@ yarn sync-template
 
 **The sync process:**
 
-1. **Clone template** - Gets latest version from template repo
+1. **Clone template** - Gets latest version from template repo (with full history for comparison)
 2. **Compare files** - Checks all files against template
-3. **Categorize changes:**
-   - Files only changed in template → Auto-merge ✅
-   - Files changed in both → Create `.template` file ⚠️
+3. **Categorize changes** (checks BOTH sides for each file):
+   - Template changed, project didn't → Auto-merge ✅
+   - Both template AND project changed → Create `.template` file ⚠️
+   - Project changed, template didn't → Keep as-is (project customization) ✅
    - Project-specific files → Skip ⏭️
    - Ignored files → Skip ⏭️
-4. **Apply changes** - Copy safe changes, flag conflicts
+4. **Apply changes** - Copy safe changes, flag true conflicts
 5. **Update config** - Save last sync commit and date
+
+**Smart Conflict Detection:**
+
+The script uses `lastSyncCommit` to check if the template actually changed a file:
+- Uses `git diff lastSyncCommit HEAD -- file` in the template repo
+- Only flags a conflict if BOTH sides modified the file since last sync
+- This prevents false positives for project customizations
 
 ### Phase 3: Conflict Resolution (If needed)
 
@@ -120,17 +128,24 @@ For each conflict:
 ## File Categories
 
 ### Auto-Merged (Safe)
-Files only changed in the template:
+Files only changed in the template (project didn't touch them):
 - UI components updates
 - Bug fixes in shared code
 - New utility functions
 - Documentation updates
 
 ### Conflicts (Manual)
-Files changed in both template and project:
-- Core server files you customized
-- Routes you modified
-- API handlers you extended
+Files changed in BOTH template AND project:
+- Core server files you customized that template also updated
+- Routes you modified that template also improved
+- Shared utilities where both sides made changes
+
+### Project Customizations (Kept As-Is)
+Files only changed in YOUR project (template didn't touch them):
+- Components you enhanced with custom variants
+- Features you extended beyond the template
+- Config files you tweaked for your needs
+- These are NOT flagged as conflicts - they're preserved!
 
 ### Skipped
 - **Ignored files**: `package.json`, `.env`, `node_modules`, etc.
@@ -157,7 +172,8 @@ yarn sync-template             # Apply
 
 # 5. Results:
 # ✅ Auto-merged: 15 files
-# ⚠️  Conflicts: 3 files (*.template created)
+# ⚠️  Conflicts: 2 files (*.template created)
+# ✅ Project customizations kept: 5 files
 # ⏭️  Skipped: 2 files
 
 # 6. Resolve conflicts
@@ -175,9 +191,11 @@ git commit -m "Merge template updates"
 ## Key Features
 
 ### Smart Conflict Detection
-- Uses file hashing to detect changes
-- Checks git history to see if project modified file
-- Only flags real conflicts
+- Uses file hashing to detect content differences
+- Checks git history on BOTH sides (template AND project)
+- Only flags TRUE conflicts when both sides modified the same file
+- Project customizations (only you changed) are NOT flagged as conflicts
+- Uses `lastSyncCommit` to compare against template history
 
 ### Safe by Default
 - Requires clean working directory (or --force)

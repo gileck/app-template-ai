@@ -88,7 +88,8 @@ yarn sync-template
 ```
 
 **Pros:**
-- ✅ **Smart conflict detection** - Only flags real conflicts
+- ✅ **Smart conflict detection** - Only flags TRUE conflicts (both sides changed)
+- ✅ **Project customization aware** - Files only you changed are NOT flagged as conflicts
 - ✅ **Auto-merge safe changes** - Updates you didn't touch
 - ✅ **Configurable** - Ignore files, mark project-specific code
 - ✅ **Simple** - Two commands
@@ -126,6 +127,15 @@ yarn sync-template
 | Fork | Merge conflict, manual resolution |
 | Subtree | Merge conflict, manual resolution |
 | **Template Sync** | **Creates .template file, clear instructions** |
+
+### Scenario: Only you modified a file (template didn't change it)
+
+| Approach | What happens |
+|----------|--------------|
+| Manual | You might unnecessarily review it |
+| Fork | Potential merge conflict anyway |
+| Subtree | Potential merge conflict anyway |
+| **Template Sync** | **Recognizes it as "project customization" - kept as-is, NOT a conflict!** |
 
 ### Scenario: You want to ignore template's package.json
 
@@ -259,26 +269,28 @@ No more subdirectory complexity!
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   Sync Script (Local)                       │
-│  1. Clone template to .template-sync-temp/                 │
+│  1. Clone template (with history for comparison)           │
 │  2. Compare files (hash-based)                              │
-│  3. Check git history (project changes?)                    │
-│  4. Categorize: auto-merge, conflict, skip                  │
+│  3. Check BOTH sides:                                       │
+│     - Did template change the file?                         │
+│     - Did project change the file?                          │
+│  4. Categorize based on who changed what                    │
 └─────────────────────────────────────────────────────────────┘
                             │
-                ┌───────────┼───────────┐
-                │           │           │
-                ↓           ↓           ↓
-         ┌──────────┐ ┌──────────┐ ┌──────────┐
-         │Auto-merge│ │ Conflict │ │   Skip   │
-         │    ✅    │ │    ⚠️     │ │    ⏭️     │
-         │  Copy    │ │ Create   │ │  Ignore  │
-         │  File    │ │.template │ │   File   │
-         └──────────┘ └──────────┘ └──────────┘
+         ┌──────────────────┼───────────────────┐
+         │          │           │               │
+         ↓          ↓           ↓               ↓
+  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+  │Auto-merge│ │ Conflict │ │ Project  │ │   Skip   │
+  │    ✅    │ │    ⚠️     │ │  Only ✅  │ │    ⏭️     │
+  │ Template │ │  Both    │ │  Keep    │ │  Ignore  │
+  │  only    │ │ changed  │ │  as-is   │ │   File   │
+  └──────────┘ └──────────┘ └──────────┘ └──────────┘
                             │
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                    Your Project                             │
-│     Updated with template improvements! 🎉                  │
+│  Updated with template improvements + customizations kept!  │
 └─────────────────────────────────────────────────────────────┘
 ```
 

@@ -83,25 +83,29 @@ Output:
 
 🔍 Analyzing changes...
 
-📝 Found 12 changed files
+📝 Found 15 changed files
 
 ============================================================
-📊 SYNC RESULTS
+📊 ANALYSIS SUMMARY
 ============================================================
 
-✅ Auto-merged (9 files):
-   src/client/components/ui/button.tsx
-   src/client/config/defaults.ts
-   src/server/middleware/auth.ts
+✅ Safe changes (9 files):
+   Only changed in template, no conflicts:
+   • src/client/components/ui/button.tsx
+   • src/client/config/defaults.ts
+   • src/server/middleware/auth.ts
    ...
 
-⚠️  Conflicts - Manual merge needed (3 files):
-   src/server/index.ts
-      → Template version saved to: src/server/index.ts.template
-   src/client/routes/Home/page.tsx
-      → Template version saved to: src/client/routes/Home/page.tsx.template
-   src/apis/todos/server.ts
-      → Template version saved to: src/apis/todos/server.ts.template
+⚠️  Potential conflicts (2 files):
+   Changed in both template and your project:
+   • src/server/index.ts
+   • src/client/routes/Home/page.tsx
+
+✅ Project customizations (4 files):
+   Changed only in your project (template unchanged):
+   • src/client/components/ui/badge.tsx
+   • src/client/features/auth/store.ts
+   ...
 
 ⏭️  Skipped (0 files):
 ```
@@ -114,7 +118,10 @@ yarn sync-template
 
 This will:
 - ✅ **Auto-merge** files that only the template changed
-- ⚠️ **Create `.template` files** for conflicts (both you and template changed)
+- ⚠️ **Create `.template` files** for TRUE conflicts (both you AND template changed the same file)
+- ✅ **Keep your customizations** - files only you changed (template didn't touch) are preserved as-is
+
+> **Smart Detection:** The script checks both sides before flagging a conflict. If only your project modified a file, it's recognized as a "project customization" and kept - NOT flagged as a conflict!
 
 ### Step 6: Resolve Conflicts
 

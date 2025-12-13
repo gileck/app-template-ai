@@ -70,19 +70,21 @@
     │  3. For each file, check:                 │
     │                                            │
     │     ┌──────────────────────────┐          │
-    │     │ File only changed in     │          │
-    │     │ template?                │          │
+    │     │ Did template change it?  │          │
     │     └──────────┬───────────────┘          │
     │                │                           │
-    │         YES ───┴──> ✅ AUTO-MERGE          │
-    │                       (safe to copy)      │
-    │                                            │
-    │         NO ────────> Check git history    │
+    │         YES ───┴──> Did project change?   │
     │                      │                     │
-    │                      └──> Both changed?   │
-    │                           │                │
-    │                     YES ──┴──> ⚠️ CONFLICT │
-    │                              (need manual) │
+    │              YES ────┴──> ⚠️ CONFLICT      │
+    │                           (need manual)   │
+    │                                            │
+    │              NO ─────────> ✅ AUTO-MERGE   │
+    │                            (safe to copy) │
+    │                                            │
+    │         NO ────────> Did project change?  │
+    │                      │                     │
+    │              YES ────┴──> ✅ PROJECT ONLY  │
+    │                           (keep as-is)    │
     │                                            │
     │  4. Apply changes & report                │
     │                                            │
@@ -106,11 +108,13 @@
     │     • src/client/config/defaults.ts       │
     │     • ... (9 more)                        │
     │                                            │
-    │  ⚠️  Conflicts (2 files):                  │
+    │  ⚠️  Conflicts (1 file):                   │
     │     • src/server/index.ts                 │
     │       → .template version saved           │
-    │     • package.json                        │
-    │       → .template version saved           │
+    │                                            │
+    │  ✅ Project customizations kept (2 files): │
+    │     • src/client/components/ui/badge.tsx  │
+    │     • src/client/features/auth/store.ts   │
     │                                            │
     │  ⏭️  Skipped (1 file):                     │
     │     • src/client/features/myCustom.ts     │
@@ -215,10 +219,11 @@ BEFORE SYNC:
 Your Project               Template
 ┌─────────────┐           ┌─────────────┐
 │ file-a.ts   │           │ file-a.ts   │  Same content
-│ file-b.ts   │           │ file-b.ts   │  Template changed
-│ file-c.ts   │           │ file-c.ts   │  Both changed
-│ file-d.ts   │           │             │  Only in project
-│             │           │ file-e.ts   │  Only in template
+│ file-b.ts   │           │ file-b.ts   │  Template changed only
+│ file-c.ts   │           │ file-c.ts   │  Both changed (TRUE conflict)
+│ file-d.ts   │           │ file-d.ts   │  Project changed only (customization)
+│ file-e.ts   │           │             │  Only in project
+│             │           │ file-f.ts   │  Only in template
 └─────────────┘           └─────────────┘
 
 
@@ -230,8 +235,9 @@ Your Project
 │ file-b.ts           │  ✅ Updated (auto-merged)
 │ file-c.ts           │  ⚠️ Kept your version
 │ file-c.ts.template  │  ⚠️ Template version for review
-│ file-d.ts           │  Kept (project-specific)
-│ file-e.ts           │  ✅ Added (from template)
+│ file-d.ts           │  ✅ Kept (project customization)
+│ file-e.ts           │  Kept (project-only file)
+│ file-f.ts           │  ✅ Added (from template)
 └─────────────────────┘
 ```
 
@@ -258,22 +264,39 @@ Your Project
        │       │          NO─┘       └─YES
        ↓       ↓             │           │
     ✅ ADD   ⏭️ KEEP         ↓           ↓
-    (new)   (yours)      ⏭️ SKIP   Check git
-                         (same)    history
+    (new)   (yours)      ⏭️ SKIP   Check BOTH
+                         (same)    sides
                                       │
                                       ↓
-                            ┌──────────────────┐
-                            │ Project changed  │
-                            │ this file?       │
-                            └───┬──────────┬───┘
-                                │          │
-                            NO──┘          └──YES
-                                │              │
-                                ↓              ↓
-                            ✅ AUTO-      ⚠️ CONFLICT
-                            MERGE         (manual)
-                            (safe)        (.template)
+                      ┌───────────────────────────┐
+                      │ Template changed file?    │
+                      └────┬──────────────────┬───┘
+                           │                  │
+                       YES─┘                  └─NO
+                           │                     │
+                           ↓                     ↓
+               ┌──────────────────┐    ┌──────────────────┐
+               │ Project changed? │    │ Project changed? │
+               └───┬──────────┬───┘    └───┬──────────┬───┘
+                   │          │            │          │
+               NO──┘          └──YES   YES─┘          └──NO
+                   │              │        │              │
+                   ↓              ↓        ↓              ↓
+               ✅ AUTO-      ⚠️ CONFLICT  ✅ PROJECT   ⏭️ SKIP
+               MERGE         (manual)     ONLY         (same)
+               (safe)        (.template)  (keep)
 ```
+
+### Smart Conflict Detection
+
+The key insight: **conflicts only happen when BOTH sides changed the file**.
+
+| Template Changed | Project Changed | Result |
+|-----------------|-----------------|--------|
+| ✅ Yes | ✅ Yes | ⚠️ **True Conflict** - needs manual merge |
+| ✅ Yes | ❌ No | ✅ **Safe** - auto-apply template changes |
+| ❌ No | ✅ Yes | ✅ **Project Only** - kept as-is (NOT a conflict!) |
+| ❌ No | ❌ No | Files identical (skipped) |
 
 ## Commands Reference
 

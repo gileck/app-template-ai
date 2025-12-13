@@ -11,8 +11,9 @@ When you create a new app from this template, you can continue to receive update
 The sync system:
 1. **Compares** your project files with the latest template files
 2. **Auto-merges** files that only changed in the template
-3. **Flags conflicts** for files that changed in both template and project
-4. **Preserves** your project-specific customizations
+3. **Flags true conflicts** only when files changed in BOTH template and project
+4. **Preserves project customizations** - files you changed that the template didn't touch are NOT flagged as conflicts
+5. **Skips** ignored and project-specific files
 
 ## Initial Setup (For New Projects)
 
@@ -117,12 +118,15 @@ The script will:
 1. Clone the latest template
 2. **Analyze and categorize all changes**:
    - ✅ **Safe changes**: Only changed in template (no conflicts)
-   - ⚠️ **Potential conflicts**: Changed in both template and your project
+   - ⚠️ **Potential conflicts**: Changed in BOTH template and your project
+   - ✅ **Project customizations**: Only changed in your project (template unchanged) - NOT conflicts!
    - ⏭️ **Skipped**: Ignored or project-specific files
 3. **Ask you what to do**:
    - `[1] Safe only` - Apply only safe changes (recommended first step)
    - `[2] All changes` - Apply everything, creates `.template` files for conflicts
    - `[3] Cancel` - Don't apply any changes
+
+> **Smart Conflict Detection:** The script checks BOTH sides before flagging a conflict. If only your project changed a file (template didn't touch it), it's recognized as a "project customization" and kept as-is - NOT flagged as a conflict!
 
 **Example interaction:**
 
@@ -136,10 +140,15 @@ The script will:
    • src/server/middleware/auth.ts
    ...
 
-⚠️  Potential conflicts (3 files):
+⚠️  Potential conflicts (2 files):
    Changed in both template and your project:
    • src/server/index.ts
-   • package.json
+   ...
+
+✅ Project customizations (3 files):
+   Changed only in your project (template unchanged):
+   • src/client/components/ui/badge.tsx
+   • src/client/features/auth/store.ts
    ...
 
 🤔 What would you like to do?
@@ -147,6 +156,8 @@ The script will:
   [1] Safe only  - Apply only safe changes (no conflicts)
   [2] All changes - Apply all changes (may need manual merge)
   [3] Cancel     - Don't apply any changes
+
+   Note: Project customizations will be kept automatically.
 
 Enter your choice (1/2/3):
 ```
@@ -202,9 +213,15 @@ After syncing, you'll see:
    src/client/config/defaults.ts
    ...
 
-⚠️  Conflicts - Manual merge needed (3 files):
+⚠️  Conflicts - Manual merge needed (2 files):
    src/server/index.ts
       → Template version saved to: src/server/index.ts.template
+   ...
+
+✅ Project customizations kept (3 files):
+   These files were only changed in your project:
+   src/client/components/ui/badge.tsx
+   src/client/features/auth/store.ts
    ...
 
 ⏭️  Skipped (2 files):

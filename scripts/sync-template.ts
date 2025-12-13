@@ -43,13 +43,15 @@ interface FileChange {
 interface SyncResult {
   autoMerged: string[];
   conflicts: string[];
+  projectOnlyChanges: string[];  // Only changed in project - kept as-is
   skipped: string[];
   errors: string[];
 }
 
 interface AnalysisResult {
-  safeChanges: FileChange[];    // Only changed in template
-  conflictChanges: FileChange[]; // Changed in both
+  safeChanges: FileChange[];        // Only changed in template - safe to auto-apply
+  conflictChanges: FileChange[];    // Changed in BOTH - needs manual merge
+  projectOnlyChanges: FileChange[]; // Only changed in project - keep as-is
   skipped: string[];
 }
 
@@ -137,8 +139,9 @@ class TemplateSyncTool {
     }
 
     console.log(`📥 Cloning template from ${this.config.templateRepo}...`);
+    // Clone with full history to enable comparison with lastSyncCommit
     this.exec(
-      `git clone --branch ${this.config.templateBranch} --depth 1 ${this.config.templateRepo} ${TEMPLATE_DIR}`,
+      `git clone --branch ${this.config.templateBranch} ${this.config.templateRepo} ${TEMPLATE_DIR}`,
       { silent: true }
     );
   }
@@ -327,10 +330,36 @@ class TemplateSyncTool {
     }
   }
 
+  /**
+   * Check if a file has changed in the template since the last sync.
+   * Returns true if the template modified this file.
+   */
+  private hasTemplateChanges(filePath: string): boolean {
+    // If no lastSyncCommit, this is first sync - assume everything is new
+    if (!this.config.lastSyncCommit) {
+      return true;
+    }
+
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+
+    try {
+      // Check if file changed in template between lastSyncCommit and HEAD
+      const diff = this.exec(
+        `git diff ${this.config.lastSyncCommit} HEAD -- "${filePath}"`,
+        { cwd: templatePath, silent: true }
+      );
+      return diff.length > 0;
+    } catch {
+      // If we can't determine (e.g., commit not found), assume changed to be safe
+      return true;
+    }
+  }
+
   private analyzeChanges(changes: FileChange[]): AnalysisResult {
     const result: AnalysisResult = {
       safeChanges: [],
       conflictChanges: [],
+      projectOnlyChanges: [],
       skipped: [],
     };
 
@@ -345,16 +374,21 @@ class TemplateSyncTool {
         // New file - safe to add
         result.safeChanges.push(change);
       } else if (change.status === 'modified') {
-        // Check if project has changes
-        const projectHasChanges = this.hasProjectChanges(change.path);
-        
-        if (!projectHasChanges) {
-          // Only template changed - safe
-          result.safeChanges.push(change);
-        } else {
-          // Both changed - conflict
+        // Check both sides for changes
+        const templateChanged = this.hasTemplateChanges(change.path);
+        const projectChanged = this.hasProjectChanges(change.path);
+
+        if (templateChanged && projectChanged) {
+          // TRUE conflict - both sides modified the file
           result.conflictChanges.push(change);
+        } else if (templateChanged && !projectChanged) {
+          // Only template changed - safe to auto-apply
+          result.safeChanges.push(change);
+        } else if (!templateChanged && projectChanged) {
+          // Only project changed - this is a customization, NOT a conflict
+          result.projectOnlyChanges.push(change);
         }
+        // If neither changed, files should be identical (won't reach here)
       }
     }
 
@@ -382,6 +416,14 @@ class TemplateSyncTool {
       );
     }
 
+    if (analysis.projectOnlyChanges.length > 0) {
+      console.log(`\n✅ Project customizations (${analysis.projectOnlyChanges.length} files):`);
+      console.log('   Changed only in your project (template unchanged):');
+      analysis.projectOnlyChanges.forEach(f => 
+        console.log(`   • ${f.path}`)
+      );
+    }
+
     if (analysis.skipped.length > 0) {
       console.log(`\n⏭️  Skipped (${analysis.skipped.length} files):`);
       console.log('   Project-specific files (ignored):');
@@ -402,7 +444,12 @@ class TemplateSyncTool {
     console.log('\n🤔 What would you like to do?\n');
     console.log('  [1] Safe only  - Apply only safe changes (no conflicts)');
     console.log('  [2] All changes - Apply all changes (may need manual merge)');
-    console.log('  [3] Cancel     - Don\'t apply any changes\n');
+    console.log('  [3] Cancel     - Don\'t apply any changes');
+    if (analysis.projectOnlyChanges.length > 0) {
+      console.log('\n   Note: Project customizations will be kept automatically.\n');
+    } else {
+      console.log('');
+    }
 
     return new Promise((resolve) => {
       this.rl.question('Enter your choice (1/2/3): ', (answer) => {
@@ -426,6 +473,7 @@ class TemplateSyncTool {
     const result: SyncResult = {
       autoMerged: [],
       conflicts: [],
+      projectOnlyChanges: analysis.projectOnlyChanges.map(c => c.path),
       skipped: analysis.skipped,
       errors: [],
     };
@@ -490,6 +538,12 @@ class TemplateSyncTool {
         console.log(`   ${f}`);
         console.log(`      → Template version saved to: ${f}.template`);
       });
+    }
+
+    if (result.projectOnlyChanges && result.projectOnlyChanges.length > 0) {
+      console.log(`\n✅ Project customizations kept (${result.projectOnlyChanges.length} files):`);
+      console.log('   These files were only changed in your project:');
+      result.projectOnlyChanges.forEach(f => console.log(`   ${f}`));
     }
 
     if (result.skipped.length > 0) {
@@ -594,6 +648,7 @@ class TemplateSyncTool {
       // Categorize changes
       const safeChanges: FileChange[] = [];
       const conflictChanges: FileChange[] = [];
+      const projectOnlyChanges: FileChange[] = [];
       const skippedChanges: FileChange[] = [];
 
       for (const change of changes) {
@@ -602,11 +657,15 @@ class TemplateSyncTool {
         } else if (change.status === 'added') {
           safeChanges.push(change);
         } else if (change.status === 'modified') {
-          const projectHasChanges = this.hasProjectChanges(change.path);
-          if (projectHasChanges) {
+          const templateChanged = this.hasTemplateChanges(change.path);
+          const projectChanged = this.hasProjectChanges(change.path);
+
+          if (templateChanged && projectChanged) {
             conflictChanges.push(change);
-          } else {
+          } else if (templateChanged && !projectChanged) {
             safeChanges.push(change);
+          } else if (!templateChanged && projectChanged) {
+            projectOnlyChanges.push(change);
           }
         }
       }
@@ -616,6 +675,7 @@ class TemplateSyncTool {
       lines.push('');
       lines.push(`- **Safe changes** (can be auto-merged): ${safeChanges.length} files`);
       lines.push(`- **Potential conflicts** (changed in both): ${conflictChanges.length} files`);
+      lines.push(`- **Project customizations** (kept as-is): ${projectOnlyChanges.length} files`);
       lines.push(`- **Skipped** (project-specific): ${skippedChanges.length} files`);
       lines.push(`- **Total**: ${changes.length} files`);
       lines.push('');
@@ -637,6 +697,15 @@ class TemplateSyncTool {
         lines.push('### Potential Conflicts');
         conflictChanges.forEach((c, i) => {
           const anchor = c.path.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          lines.push(`${i + 1}. [${c.path}](#${anchor}) (${c.status})`);
+        });
+        lines.push('');
+      }
+
+      if (projectOnlyChanges.length > 0) {
+        lines.push('### Project Customizations (Kept As-Is)');
+        projectOnlyChanges.forEach((c, i) => {
+          const anchor = `project-${c.path.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
           lines.push(`${i + 1}. [${c.path}](#${anchor}) (${c.status})`);
         });
         lines.push('');
@@ -678,6 +747,7 @@ class TemplateSyncTool {
 
       addDiffSection('Safe Changes (Can Auto-Merge)', safeChanges);
       addDiffSection('Potential Conflicts (Changed in Both)', conflictChanges);
+      addDiffSection('Project Customizations (Kept As-Is)', projectOnlyChanges, 'project');
       addDiffSection('Skipped Files (Project-Specific)', skippedChanges, 'skipped');
 
       // Write to file
@@ -691,6 +761,7 @@ class TemplateSyncTool {
       console.log(`\n📈 Summary:`);
       console.log(`   • Safe changes: ${safeChanges.length} files`);
       console.log(`   • Potential conflicts: ${conflictChanges.length} files`);
+      console.log(`   • Project customizations: ${projectOnlyChanges.length} files`);
       console.log(`   • Skipped: ${skippedChanges.length} files`);
       console.log(`   • Total: ${changes.length} files`);
       console.log('\n💡 Next steps:');
@@ -750,19 +821,31 @@ class TemplateSyncTool {
       // Step 5: Analyze changes (categorize into safe/conflict)
       const analysis = this.analyzeChanges(changes);
 
-      // Check if all changes are skipped (nothing to sync)
+      // Check if all changes are skipped or project-only (nothing to sync from template)
       const hasChangesToSync = analysis.safeChanges.length > 0 || analysis.conflictChanges.length > 0;
       
       if (!hasChangesToSync) {
         console.log('\n' + '='.repeat(60));
         console.log('📊 ANALYSIS SUMMARY');
         console.log('='.repeat(60));
-        console.log(`\n⏭️  All changes skipped (${analysis.skipped.length} files):`);
-        console.log('   These files are in your ignored/project-specific list.');
-        analysis.skipped.forEach(f => console.log(`   • ${f}`));
+        
+        if (analysis.projectOnlyChanges.length > 0) {
+          console.log(`\n✅ Project customizations (${analysis.projectOnlyChanges.length} files):`);
+          console.log('   Changed only in your project (template unchanged):');
+          analysis.projectOnlyChanges.forEach(f => console.log(`   • ${f.path}`));
+        }
+        
+        if (analysis.skipped.length > 0) {
+          console.log(`\n⏭️  Skipped files (${analysis.skipped.length} files):`);
+          console.log('   These files are in your ignored/project-specific list.');
+          analysis.skipped.forEach(f => console.log(`   • ${f}`));
+        }
+        
         console.log('\n' + '='.repeat(60));
-        console.log('\n✅ Nothing to sync. All template changes are in ignored files.');
-        console.log('   Your project is effectively up to date!');
+        console.log('\n✅ Nothing to sync. The template has no new changes for your project.');
+        if (analysis.projectOnlyChanges.length > 0) {
+          console.log('   Your project customizations will be kept as-is.');
+        }
         this.rl.close();
         return;
       }
