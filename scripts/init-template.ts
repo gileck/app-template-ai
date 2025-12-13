@@ -89,7 +89,7 @@ function initTemplate(templateRepo: string): void {
   if (fs.existsSync(configPath)) {
     console.log('⚠️  Template tracking is already initialized.');
     console.log(`   Config file: ${configPath}`);
-    
+
     const response = exec('read -p "Do you want to reinitialize? (y/N): " answer; echo $answer');
     if (response.toLowerCase() !== 'y') {
       console.log('❌ Aborted.');
@@ -102,7 +102,7 @@ function initTemplate(templateRepo: string): void {
 
   // Try to get current git commit (for baseCommit)
   const currentCommit = exec('git rev-parse HEAD');
-  
+
   // Create config
   const config: TemplateSyncConfig = {
     templateRepo,
