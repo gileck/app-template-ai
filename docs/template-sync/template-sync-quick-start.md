@@ -212,6 +212,13 @@ If you have files that should never be synced, add them to `.template-sync.json`
 
 These files will be **skipped** during sync.
 
+> ⚠️ **Warning:** Only skip files when you're **100% sure** you'll never want template updates for them.
+> 
+> **Risks:**
+> - Skipped files won't get bug fixes or improvements from the template
+> - If synced files depend on changes in skipped files, your code may break
+> - Use `yarn sync-template --diff-summary` to review what's changing in skipped files
+
 ### Sync Regularly
 
 The longer you wait, the more conflicts you'll have:

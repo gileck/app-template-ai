@@ -218,9 +218,42 @@ After syncing, you'll see:
 
 If you add project-specific dependencies, consider maintaining a separate list and merging `package.json` manually.
 
-### 2. Mark Custom Code
+### 2. Be Careful with Skipped Files
 
-Add your custom features to `projectSpecificFiles` in `.template-sync.json`:
+> ⚠️ **Important:** Only add files to `ignoredFiles` or `projectSpecificFiles` when you are **100% sure** you will NEVER want to receive template updates for those files.
+
+**Risks of skipping files:**
+
+1. **No updates**: Skipped files will NOT receive improvements, bug fixes, or security patches from the template.
+
+2. **Breaking changes**: If template changes in synced files depend on changes in skipped files, your code may break after syncing. For example:
+   - Template updates a shared component API
+   - Your skipped file still uses the old API
+   - After sync: your skipped file is now incompatible
+
+3. **Hidden drift**: Over time, skipped files drift further from the template, making future manual merges harder.
+
+**Before skipping a file, ask:**
+- Is this file truly project-specific (e.g., your custom features)?
+- Or is it a template file I've modified (e.g., `Layout.tsx`)?
+
+**Recommendation:**
+- For **truly project-specific files** → Add to `projectSpecificFiles` ✅
+- For **template files you've customized** → Leave them syncable, handle as conflicts ⚠️
+
+**Reviewing skipped file changes:**
+
+Use `--diff-summary` to see what changes exist in skipped files:
+
+```bash
+yarn sync-template --diff-summary
+```
+
+This generates `template-diff-summary.md` showing diffs for ALL files including skipped ones. Review this periodically to catch important template changes you may want to manually apply.
+
+### 3. Mark Custom Code
+
+Add your **truly** project-specific features to `projectSpecificFiles` in `.template-sync.json`:
 
 ```json
 {
@@ -230,6 +263,8 @@ Add your custom features to `projectSpecificFiles` in `.template-sync.json`:
   ]
 }
 ```
+
+**Note:** Only use this for files that don't exist in the template at all, or example files you've completely replaced.
 
 ### 3. Sync Regularly
 

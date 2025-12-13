@@ -388,6 +388,14 @@ class TemplateSyncTool {
       analysis.skipped.forEach(f => 
         console.log(`   • ${f}`)
       );
+      
+      // Warning about skipped files
+      console.log('\n' + '─'.repeat(60));
+      console.log('⚠️  WARNING: Skipped files have template changes!');
+      console.log('   These changes will NOT be applied to your project.');
+      console.log('   If synced files depend on skipped file changes, your code may break.');
+      console.log('   Run "yarn sync-template --diff-summary" to review skipped file diffs.');
+      console.log('─'.repeat(60));
     }
 
     console.log('\n' + '='.repeat(60));

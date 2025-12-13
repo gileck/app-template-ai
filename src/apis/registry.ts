@@ -13,22 +13,22 @@ import type { ApiHandlerContext, ApiHandlers } from "./types";
 export type LooseApiHandlers = Record<string, { process: unknown }>;
 
 export function mergeApiHandlers(...sources: LooseApiHandlers[]): ApiHandlers {
-  const out: ApiHandlers = {};
+    const out: ApiHandlers = {};
 
-  for (const source of sources) {
-    for (const [key, handler] of Object.entries(source)) {
-      if (process.env.NODE_ENV !== "production" && key in out) {
-        throw new Error(`Duplicate API handler registration: ${key}`);
-      }
+    for (const source of sources) {
+        for (const [key, handler] of Object.entries(source)) {
+            if (process.env.NODE_ENV !== "production" && key in out) {
+                throw new Error(`Duplicate API handler registration: ${key}`);
+            }
 
-      out[key] = {
-        process: handler.process as (
-          params: unknown,
-          context: ApiHandlerContext
-        ) => Promise<unknown>,
-      };
+            out[key] = {
+                process: handler.process as (
+                    params: unknown,
+                    context: ApiHandlerContext
+                ) => Promise<unknown>,
+            };
+        }
     }
-  }
 
-  return out;
+    return out;
 }
