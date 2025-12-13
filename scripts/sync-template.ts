@@ -7,12 +7,13 @@
  * that was created from the template.
  * 
  * Usage:
- *   yarn sync-template [--dry-run] [--force] [--auto]
+ *   yarn sync-template [--dry-run] [--force] [--auto] [--diff-summary]
  * 
  * Options:
- *   --dry-run    Show what would be done without making changes
- *   --force      Force update even if there are uncommitted changes
- *   --auto       Skip interactive prompts, take all changes (old behavior)
+ *   --dry-run       Show what would be done without making changes
+ *   --force         Force update even if there are uncommitted changes
+ *   --auto          Skip interactive prompts, take all changes (old behavior)
+ *   --diff-summary  Generate a diff summary file showing all template changes
  */
 
 import { execSync } from 'child_process';
@@ -56,6 +57,7 @@ type SyncMode = 'safe' | 'all' | 'none';
 
 const CONFIG_FILE = '.template-sync.json';
 const TEMPLATE_DIR = '.template-sync-temp';
+const DIFF_SUMMARY_FILE = 'template-diff-summary.md';
 
 class TemplateSyncTool {
   private config: TemplateSyncConfig;
@@ -63,13 +65,15 @@ class TemplateSyncTool {
   private dryRun: boolean;
   private force: boolean;
   private auto: boolean;
+  private diffSummary: boolean;
   private rl: readline.Interface;
 
-  constructor(dryRun = false, force = false, auto = false) {
+  constructor(dryRun = false, force = false, auto = false, diffSummary = false) {
     this.projectRoot = process.cwd();
     this.dryRun = dryRun;
     this.force = force;
     this.auto = auto;
+    this.diffSummary = diffSummary;
     this.config = this.loadConfig();
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -502,10 +506,207 @@ class TemplateSyncTool {
     }
   }
 
+  private generateFileDiff(filePath: string): string {
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+    const templateFilePath = path.join(templatePath, filePath);
+    const projectFilePath = path.join(this.projectRoot, filePath);
+
+    const templateExists = fs.existsSync(templateFilePath);
+    const projectExists = fs.existsSync(projectFilePath);
+
+    if (!templateExists) {
+      return '';
+    }
+
+    if (!projectExists) {
+      // New file in template - show full content
+      const content = fs.readFileSync(templateFilePath, 'utf-8');
+      return `+++ NEW FILE +++\n${content}`;
+    }
+
+    // Both exist - generate unified diff
+    try {
+      const diff = this.exec(
+        `diff -u "${projectFilePath}" "${templateFilePath}" || true`,
+        { silent: true }
+      );
+      
+      if (diff) {
+        // Replace file paths in diff header for clarity
+        return diff
+          .replace(projectFilePath, `a/${filePath} (current)`)
+          .replace(templateFilePath, `b/${filePath} (template)`);
+      }
+      return '(no differences)';
+    } catch {
+      return '(unable to generate diff)';
+    }
+  }
+
+  private async runDiffSummary(): Promise<void> {
+    console.log('📋 Generating Diff Summary');
+    console.log('='.repeat(60));
+
+    // Clone template
+    this.cloneTemplate();
+
+    try {
+      // Get template commit
+      const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+      const templateCommit = this.exec('git rev-parse HEAD', {
+        cwd: templatePath,
+        silent: true,
+      });
+
+      console.log(`📍 Template commit: ${templateCommit}\n`);
+
+      // Compare files - get ALL changes (we'll handle skipped differently for diff-summary)
+      console.log('🔍 Analyzing changes...');
+      const changes = this.compareFiles();
+
+      if (changes.length === 0) {
+        console.log('✅ No changes detected. Your project is up to date!');
+        return;
+      }
+
+      // Build the diff summary
+      const lines: string[] = [];
+      lines.push('# Template Diff Summary');
+      lines.push('');
+      lines.push(`Generated: ${new Date().toISOString()}`);
+      lines.push(`Template: ${this.config.templateRepo}`);
+      lines.push(`Template Commit: ${templateCommit}`);
+      lines.push('');
+      lines.push('This file shows all differences between the template and your current project.');
+      lines.push('Only changes in the template are shown (files that exist only in your project are not included).');
+      lines.push('');
+      lines.push('---');
+      lines.push('');
+
+      // Categorize changes
+      const safeChanges: FileChange[] = [];
+      const conflictChanges: FileChange[] = [];
+      const skippedChanges: FileChange[] = [];
+
+      for (const change of changes) {
+        if (this.shouldIgnoreByProjectSpecificFiles(change.path)) {
+          skippedChanges.push(change);
+        } else if (change.status === 'added') {
+          safeChanges.push(change);
+        } else if (change.status === 'modified') {
+          const projectHasChanges = this.hasProjectChanges(change.path);
+          if (projectHasChanges) {
+            conflictChanges.push(change);
+          } else {
+            safeChanges.push(change);
+          }
+        }
+      }
+
+      // Summary section
+      lines.push('## Summary');
+      lines.push('');
+      lines.push(`- **Safe changes** (can be auto-merged): ${safeChanges.length} files`);
+      lines.push(`- **Potential conflicts** (changed in both): ${conflictChanges.length} files`);
+      lines.push(`- **Skipped** (project-specific): ${skippedChanges.length} files`);
+      lines.push(`- **Total**: ${changes.length} files`);
+      lines.push('');
+
+      // Table of contents
+      lines.push('## Table of Contents');
+      lines.push('');
+      
+      if (safeChanges.length > 0) {
+        lines.push('### Safe Changes');
+        safeChanges.forEach((c, i) => {
+          const anchor = c.path.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          lines.push(`${i + 1}. [${c.path}](#${anchor}) (${c.status})`);
+        });
+        lines.push('');
+      }
+
+      if (conflictChanges.length > 0) {
+        lines.push('### Potential Conflicts');
+        conflictChanges.forEach((c, i) => {
+          const anchor = c.path.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          lines.push(`${i + 1}. [${c.path}](#${anchor}) (${c.status})`);
+        });
+        lines.push('');
+      }
+
+      if (skippedChanges.length > 0) {
+        lines.push('### Skipped (Project-Specific)');
+        skippedChanges.forEach((c, i) => {
+          const anchor = `skipped-${c.path.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
+          lines.push(`${i + 1}. [${c.path}](#${anchor}) (${c.status})`);
+        });
+        lines.push('');
+      }
+
+      lines.push('---');
+      lines.push('');
+
+      // Generate diffs for each category
+      const addDiffSection = (title: string, changes: FileChange[], prefix = '') => {
+        if (changes.length === 0) return;
+        
+        lines.push(`## ${title}`);
+        lines.push('');
+
+        for (const change of changes) {
+          const anchor = prefix ? `${prefix}-${change.path}` : change.path;
+          lines.push(`### ${anchor}`);
+          lines.push('');
+          lines.push(`**Status**: ${change.status}`);
+          lines.push('');
+          lines.push('```diff');
+          lines.push(this.generateFileDiff(change.path));
+          lines.push('```');
+          lines.push('');
+          lines.push('---');
+          lines.push('');
+        }
+      };
+
+      addDiffSection('Safe Changes (Can Auto-Merge)', safeChanges);
+      addDiffSection('Potential Conflicts (Changed in Both)', conflictChanges);
+      addDiffSection('Skipped Files (Project-Specific)', skippedChanges, 'skipped');
+
+      // Write to file
+      const outputPath = path.join(this.projectRoot, DIFF_SUMMARY_FILE);
+      fs.writeFileSync(outputPath, lines.join('\n'), 'utf-8');
+
+      console.log('\n' + '='.repeat(60));
+      console.log('📊 DIFF SUMMARY GENERATED');
+      console.log('='.repeat(60));
+      console.log(`\n✅ Output written to: ${DIFF_SUMMARY_FILE}`);
+      console.log(`\n📈 Summary:`);
+      console.log(`   • Safe changes: ${safeChanges.length} files`);
+      console.log(`   • Potential conflicts: ${conflictChanges.length} files`);
+      console.log(`   • Skipped: ${skippedChanges.length} files`);
+      console.log(`   • Total: ${changes.length} files`);
+      console.log('\n💡 Next steps:');
+      console.log(`   1. Open ${DIFF_SUMMARY_FILE} to review all diffs`);
+      console.log('   2. Decide which changes you want to apply');
+      console.log('   3. Run "yarn sync-template" to apply changes');
+      console.log('   4. Or manually copy specific changes from the diff');
+
+    } finally {
+      this.cleanupTemplate();
+    }
+  }
+
   async run(): Promise<void> {
     console.log('🔄 Template Sync Tool');
     console.log('='.repeat(60));
     
+    // Handle diff-summary mode
+    if (this.diffSummary) {
+      await this.runDiffSummary();
+      this.rl.close();
+      return;
+    }
+
     if (this.dryRun) {
       console.log('🔍 DRY RUN MODE - No changes will be made\n');
     }
@@ -621,8 +822,9 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const force = args.includes('--force');
 const auto = args.includes('--auto');
+const diffSummary = args.includes('--diff-summary');
 
-const tool = new TemplateSyncTool(dryRun, force, auto);
+const tool = new TemplateSyncTool(dryRun, force, auto, diffSummary);
 tool.run().catch(error => {
   console.error('❌ Error:', error.message);
   process.exit(1);
