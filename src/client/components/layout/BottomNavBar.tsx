@@ -19,11 +19,17 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
 
   return (
     <div 
-      className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background transform-gpu sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background sm:hidden"
       style={{
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
+        // iOS Safari fixes for fixed positioning during scroll
+        transform: 'translate3d(0, 0, 0)',
+        WebkitTransform: 'translate3d(0, 0, 0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        willChange: 'transform',
       }}
     >
       <div 
