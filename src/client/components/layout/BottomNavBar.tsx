@@ -66,7 +66,7 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
       className="fixed inset-x-0 z-40 block border-t bg-background sm:hidden"
       style={{
         // Use bottom with iOS offset to handle Safari's dynamic viewport
-        bottom: iosOffset,
+        bottom: `${iosOffset}px`,
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
