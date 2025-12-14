@@ -11,6 +11,7 @@ interface BottomNavBarProps {
  * Returns the offset needed to keep fixed bottom elements properly positioned
  */
 function useIOSViewportOffset() {
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for iOS Safari viewport offset, changes rapidly during scroll
   const [offset, setOffset] = useState(0);
 
   const updateOffset = useCallback(() => {
