@@ -169,9 +169,31 @@ export function useSubmitErrorReport() {
 }
 
 /**
+ * Check if we're running in production environment
+ * Returns false for localhost/development environments
+ */
+function isProductionEnvironment(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    const hostname = window.location.hostname;
+    return hostname !== 'localhost' && 
+           hostname !== '127.0.0.1' && 
+           !hostname.startsWith('192.168.') &&
+           !hostname.startsWith('10.') &&
+           !hostname.endsWith('.local');
+}
+
+/**
  * Standalone function to submit error report (for global error handler)
+ * Only reports errors in production environment
  */
 export async function submitErrorReport(errorMessage: string, stackTrace?: string) {
+    // Skip error reporting in development/localhost
+    if (!isProductionEnvironment()) {
+        console.debug('[Error Tracking] Skipping error report in development:', errorMessage);
+        return;
+    }
+
     // Import dynamically to avoid circular dependencies
     const { useAuthStore } = await import('../auth');
     
