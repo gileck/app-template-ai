@@ -8,7 +8,10 @@
  * rather than throwing exceptions.
  */
 
-import { execSync } from 'child_process';
+import { exec, execSync } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // ============================================================
 // CONFIGURATION
@@ -28,14 +31,22 @@ interface AgentOptions {
     model?: string;
 }
 
+// Cache the availability check
+let agentAvailable: boolean | null = null;
+
 /**
  * Check if cursor-agent CLI is available
  */
 export function isAgentAvailable(): boolean {
+    if (agentAvailable !== null) {
+        return agentAvailable;
+    }
     try {
         execSync('which cursor-agent', { stdio: 'pipe', timeout: 2000 });
+        agentAvailable = true;
         return true;
     } catch {
+        agentAvailable = false;
         return false;
     }
 }
@@ -51,6 +62,7 @@ function escapeShellArg(arg: string): string {
 /**
  * Run cursor-agent with a prompt and return the response.
  * Returns null if agent is unavailable, times out, or crashes.
+ * Uses async exec for true parallel execution with Promise.all.
  */
 export async function askAgent(
     prompt: string,
@@ -70,22 +82,22 @@ export async function askAgent(
 
         // Build command with properly escaped prompt
         const cmd = `cursor-agent -p --model ${model} --output-format text ${escapeShellArg(prompt)}`;
-
-        const output = execSync(cmd, {
+        
+        // Use async exec for true parallel execution
+        const { stdout } = await execAsync(cmd, {
             encoding: 'utf-8',
             timeout: timeoutMs,
-            stdio: ['pipe', 'pipe', 'pipe'],
             maxBuffer: 1024 * 1024, // 1MB buffer
         });
 
-        if (output && output.trim()) {
-            let result = output.trim();
+        if (stdout && stdout.trim()) {
+            let result = stdout.trim();
             if (result.length > maxLength) {
                 result = result.slice(0, maxLength - 3) + '...';
             }
             return result;
         }
-
+        
         return null;
     } catch {
         // Silently fail - agent might have timed out or crashed
