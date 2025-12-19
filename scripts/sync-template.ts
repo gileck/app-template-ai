@@ -1031,7 +1031,7 @@ class TemplateSyncTool {
 
   /**
    * Get the list of template commits since the last sync.
-   * Returns full commit messages including subject and body.
+   * Returns full commit messages including subject, body, and date.
    */
   private getTemplateCommitsSinceLastSync(): string[] {
     if (!this.config.lastSyncCommit) {
@@ -1042,9 +1042,9 @@ class TemplateSyncTool {
 
     try {
       // Get full commit messages between lastSyncCommit and HEAD
-      // Format: hash followed by full message, separated by a delimiter
+      // Format: hash, date, subject, then body - separated by a delimiter
       const log = this.exec(
-        `git log ${this.config.lastSyncCommit}..HEAD --pretty=format:"---COMMIT---%n%h %s%n%b" --no-decorate`,
+        `git log ${this.config.lastSyncCommit}..HEAD --pretty=format:"---COMMIT---%n%h|%ad|%s%n%b" --date=short --no-decorate`,
         { cwd: templatePath, silent: true }
       );
 
@@ -1058,13 +1058,25 @@ class TemplateSyncTool {
         .map(commit => commit.trim())
         .filter(commit => commit.length > 0)
         .map(commit => {
-          // Clean up: remove empty lines at the end, keep structure
           const lines = commit.split('\n');
-          // Remove trailing empty lines
-          while (lines.length > 0 && !lines[lines.length - 1].trim()) {
-            lines.pop();
+          // First line is "hash|date|subject"
+          const firstLine = lines[0];
+          const [hash, date, ...subjectParts] = firstLine.split('|');
+          const subject = subjectParts.join('|'); // In case subject contains |
+          
+          // Remaining lines are the body
+          const bodyLines = lines.slice(1);
+          // Remove trailing empty lines from body
+          while (bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].trim()) {
+            bodyLines.pop();
           }
-          return lines.join('\n');
+          
+          // Format: "hash subject (date)\nbody"
+          const header = `${hash} ${subject} \x1b[90m(${date})\x1b[0m`;
+          if (bodyLines.length > 0 && bodyLines.some(l => l.trim())) {
+            return header + '\n' + bodyLines.map(l => `   ${l}`).join('\n');
+          }
+          return header;
         });
 
       return commits;
@@ -1072,6 +1084,14 @@ class TemplateSyncTool {
       // If lastSyncCommit doesn't exist in template (force push, etc.), return empty
       return [];
     }
+  }
+
+  /**
+   * Strip ANSI escape codes from a string.
+   */
+  private stripAnsi(str: string): string {
+    // eslint-disable-next-line no-control-regex
+    return str.replace(/\x1b\[[0-9;]*m/g, '');
   }
 
   /**
@@ -1087,10 +1107,12 @@ class TemplateSyncTool {
     const header = `chore: sync template (${shortCommit})`;
     
     // Format commits with proper indentation for multi-line messages
+    // Strip ANSI codes as they shouldn't be in commit messages
     const formattedCommits = templateCommits.map(commit => {
-      const lines = commit.split('\n');
+      const cleanCommit = this.stripAnsi(commit);
+      const lines = cleanCommit.split('\n');
       if (lines.length === 1) {
-        return `- ${commit}`;
+        return `- ${cleanCommit}`;
       }
       // First line with bullet, rest indented
       return `- ${lines[0]}\n${lines.slice(1).map(l => `  ${l}`).join('\n')}`;
@@ -1134,7 +1156,10 @@ class TemplateSyncTool {
       } else {
         this.log(`\n📝 New commits since last sync (${commits.length}):\n`);
         commits.forEach((c, i) => {
-          this.log(`  ${i + 1}. ${c}`);
+          this.log(`   ${c}`);
+          if (i < commits.length - 1) {
+            this.log(''); // Add blank line between commits
+          }
         });
       }
 
@@ -1524,10 +1549,15 @@ class TemplateSyncTool {
       // Show template commits since last sync
       const templateCommits = this.getTemplateCommitsSinceLastSync();
       if (templateCommits.length > 0) {
-        console.log(`\n📜 Template commits since last sync (${templateCommits.length}):`);
-        templateCommits.slice(0, 10).forEach(c => console.log(`   ${c}`));
+        console.log(`\n📜 Template commits since last sync (${templateCommits.length}):\n`);
+        templateCommits.slice(0, 10).forEach((c, i) => {
+          console.log(`   ${c}`);
+          if (i < Math.min(templateCommits.length, 10) - 1) {
+            console.log(''); // Add blank line between commits
+          }
+        });
         if (templateCommits.length > 10) {
-          console.log(`   ... and ${templateCommits.length - 10} more`);
+          console.log(`\n   ... and ${templateCommits.length - 10} more`);
         }
       } else if (this.config.lastSyncCommit) {
         console.log('\n📜 No new template commits since last sync.');
