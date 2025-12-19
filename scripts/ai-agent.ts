@@ -1,153 +1,108 @@
 /**
- * AI Agent Abstraction
+ * AI Agent for sync-template script
  * 
- * Provides a simple API for AI-powered code analysis.
- * Currently uses cursor-agent CLI, but can be replaced with other agents.
- * 
- * All methods are designed to fail gracefully - they return null on any error
- * rather than throwing exceptions.
- * 
- * NOTE: cursor-agent doesn't work well with Node.js async exec/spawn,
- * so we use execSync. This means parallel execution via Promise.all won't
- * actually run in parallel - it's sequential. For multiple files, the total
- * time will be (num_files * ~10s).
+ * Uses Gemini 2.5 Flash directly for fast code change descriptions (~1s).
+ * All methods fail gracefully - return null on any error.
  */
 
-import { execSync } from 'child_process';
+import { GoogleGenAI } from '@google/genai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ============================================================
 // CONFIGURATION
 // ============================================================
-// Available models (cursor-agent --help for full list):
-// - auto: Fastest, lets cursor choose the best model (~10s)
-// - gemini-3-flash: Google's fastest (~28s due to overhead)
-// - sonnet-4.5: Claude's latest
-const DEFAULT_MODEL = 'auto';  // 'auto' is fastest for short prompts
-const DEFAULT_TIMEOUT_MS = 20000;  // 20 seconds
+const MODEL = 'gemini-2.5-flash';
+const TIMEOUT_MS = 10000;
 // ============================================================
 
-interface AgentOptions {
-    timeoutMs?: number;
-    maxLength?: number;
-    model?: string;
-}
-
-// Cache the availability check
-let agentAvailable: boolean | null = null;
+// Cached client
+let genAI: GoogleGenAI | null = null;
 
 /**
- * Check if cursor-agent CLI is available
+ * Get or create the Gemini client
+ */
+function getClient(): GoogleGenAI | null {
+    if (genAI) return genAI;
+    
+    // Get API key (env var or .env file)
+    let apiKey = process.env.GEMINI_API_KEY?.replace(/^["']|["']$/g, '').trim();
+    
+    if (!apiKey) {
+        try {
+            const envPath = path.join(process.cwd(), '.env');
+            const content = fs.readFileSync(envPath, 'utf-8');
+            const match = content.match(/GEMINI_API_KEY=["']?([^"'\n]+)["']?/);
+            apiKey = match?.[1]?.trim();
+        } catch { /* ignore */ }
+    }
+    
+    if (!apiKey) return null;
+    
+    try {
+        genAI = new GoogleGenAI({ apiKey });
+        return genAI;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Check if Gemini API is available
  */
 export function isAgentAvailable(): boolean {
-    if (agentAvailable !== null) {
-        return agentAvailable;
-    }
-    try {
-        execSync('which cursor-agent', { stdio: 'pipe', timeout: 2000 });
-        agentAvailable = true;
-        return true;
-    } catch {
-        agentAvailable = false;
-        return false;
-    }
+    return getClient() !== null;
 }
 
 /**
- * Escape a string for use in shell commands
+ * Ask Gemini a question. Returns null on any error/timeout.
  */
-function escapeShellArg(arg: string): string {
-    // Replace single quotes with escaped version and wrap in single quotes
-    return `'${arg.replace(/'/g, "'\\''")}'`;
-}
-
-/**
- * Run cursor-agent with a prompt and return the response.
- * Returns null if agent is unavailable, times out, or crashes.
- * 
- * NOTE: Uses execSync because cursor-agent doesn't work with Node.js async APIs.
- */
-export async function askAgent(
-    prompt: string,
-    options: AgentOptions = {}
-): Promise<string | null> {
-    const {
-        timeoutMs = DEFAULT_TIMEOUT_MS,
-        maxLength = 200,
-        model = DEFAULT_MODEL
-    } = options;
+export async function askAgent(prompt: string): Promise<string | null> {
+    const client = getClient();
+    if (!client) return null;
 
     try {
-        // Check if agent exists first
-        if (!isAgentAvailable()) {
-            return null;
-        }
-
-        // Build command with properly escaped prompt
-        const cmd = `cursor-agent -p --model ${model} --output-format text ${escapeShellArg(prompt)}`;
+        const timeout = new Promise<null>(r => setTimeout(() => r(null), TIMEOUT_MS));
         
-        const output = execSync(cmd, {
-            encoding: 'utf-8',
-            timeout: timeoutMs,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            maxBuffer: 1024 * 1024, // 1MB buffer
-        });
+        const request = client.models.generateContent({
+            model: MODEL,
+            contents: prompt,
+            config: { maxOutputTokens: 150, temperature: 0.3 }
+        }).then(r => r.text?.trim() || null);
 
-        if (output && output.trim()) {
-            let result = output.trim();
-            if (result.length > maxLength) {
-                result = result.slice(0, maxLength - 3) + '...';
-            }
-            return result;
-        }
-        
-        return null;
+        return await Promise.race([request, timeout]);
     } catch {
-        // Silently fail - agent might have timed out or crashed
         return null;
     }
 }
 
 /**
- * Generate a short description of changes in a diff.
- * Returns null if unable to generate description.
+ * Generate a short description of code changes.
  */
-export async function describeChanges(
-    diff: string,
-    context?: string
-): Promise<string | null> {
-    if (!diff.trim()) {
-        return null;
-    }
+export async function describeChanges(diff: string, _context?: string): Promise<string | null> {
+    if (!diff.trim()) return null;
 
-    // Truncate diff to keep prompt small and fast
-    const maxDiffLength = 1000;
-    const truncatedDiff = diff.length > maxDiffLength
-        ? diff.slice(0, maxDiffLength) + '\n...(truncated)'
-        : diff;
+    // Truncate long diffs
+    const maxLen = 800;
+    const truncated = diff.length > maxLen ? diff.slice(0, maxLen) + '\n...' : diff;
 
-    // Keep prompt minimal for speed
-    const prompt = `What does this code change do? Answer in 1 short sentence (max 12 words).
-${truncatedDiff}`;
+    const prompt = `Describe this code change in ONE short sentence (max 12 words). Be specific.
 
-    return askAgent(prompt, { timeoutMs: 30000, maxLength: 150 });
+${truncated}`;
+
+    return askAgent(prompt);
 }
 
 /**
- * Generate descriptions for both sides of a conflict.
+ * Describe both sides of a conflict (parallel).
  */
 export async function describeConflict(
     templateDiff: string,
-    localDiff: string,
-    filePath: string
+    localDiff: string
 ): Promise<{ template: string | null; local: string | null }> {
-    // Run both in parallel for speed
-    const [templateDesc, localDesc] = await Promise.all([
-        describeChanges(templateDiff, `Template changes to ${filePath}`),
-        describeChanges(localDiff, `Local changes to ${filePath}`),
+    const [template, local] = await Promise.all([
+        describeChanges(templateDiff),
+        describeChanges(localDiff),
     ]);
-
-    return {
-        template: templateDesc,
-        local: localDesc,
-    };
+    return { template, local };
 }

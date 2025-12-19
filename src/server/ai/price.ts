@@ -1,95 +1,72 @@
-type PricePer128K = { up_to_128k_tokens: number; over_128k_tokens: number }
+/**
+ * AI Model Pricing (Updated: December 2025)
+ * Prices are per 1K tokens
+ */
+
 type PricingModel = {
-  model_name: string;
   model_id: string;
-  input_cost_per_1k_tokens: number | PricePer128K;
-  output_cost_per_1k_tokens: number | PricePer128K;
+  input_cost_per_1k: number;
+  output_cost_per_1k: number;
 }
 
 export const pricing: PricingModel[] = [
-  // OpenAI Models (verified)
+  // Google Gemini (Dec 2025)
   {
-    "model_name": "GPT-5",
-    "model_id": "gpt-5",
-    "input_cost_per_1k_tokens": 0.00125,  // $1.250 per 1M tokens
-    "output_cost_per_1k_tokens": 0.01     // $10.00 per 1M tokens
+    model_id: 'gemini-2.5-flash',
+    input_cost_per_1k: 0.0003,   // $0.30 per 1M
+    output_cost_per_1k: 0.0025   // $2.50 per 1M
   },
   {
-    "model_name": "GPT-5 mini",
-    "model_id": "gpt-5-mini",
-    "input_cost_per_1k_tokens": 0.00025,  // $0.250 per 1M tokens
-    "output_cost_per_1k_tokens": 0.002    // $2.000 per 1M tokens
+    model_id: 'gemini-2.5-pro',
+    input_cost_per_1k: 0.00125,  // $1.25 per 1M
+    output_cost_per_1k: 0.005    // $5.00 per 1M
+  },
+  
+  // OpenAI (Dec 2025)
+  {
+    model_id: 'gpt-4o',
+    input_cost_per_1k: 0.0025,   // $2.50 per 1M
+    output_cost_per_1k: 0.01     // $10 per 1M
   },
   {
-    "model_name": "GPT-5 nano",
-    "model_id": "gpt-5-nano",
-    "input_cost_per_1k_tokens": 0.00005,  // $0.050 per 1M tokens
-    "output_cost_per_1k_tokens": 0.0004   // $0.400 per 1M tokens
+    model_id: 'gpt-4o-mini',
+    input_cost_per_1k: 0.00015,  // $0.15 per 1M
+    output_cost_per_1k: 0.0006   // $0.60 per 1M
   },
   {
-    "model_name": "GPT-5 pro",
-    "model_id": "gpt-5-pro",
-    "input_cost_per_1k_tokens": 0.015,    // $15.00 per 1M tokens
-    "output_cost_per_1k_tokens": 0.12     // $120.00 per 1M tokens
+    model_id: 'o1',
+    input_cost_per_1k: 0.015,    // $15 per 1M
+    output_cost_per_1k: 0.06     // $60 per 1M
   },
   {
-    "model_name": "GPT-4o",
-    "model_id": "gpt-4o",
-    "input_cost_per_1k_tokens": 0.0025,  // $2.50 per 1M tokens
-    "output_cost_per_1k_tokens": 0.01     // $10 per 1M tokens
+    model_id: 'o1-mini',
+    input_cost_per_1k: 0.003,    // $3 per 1M
+    output_cost_per_1k: 0.012    // $12 per 1M
+  },
+  
+  // Anthropic Claude (Dec 2025)
+  {
+    model_id: 'claude-3-5-sonnet-20241022',
+    input_cost_per_1k: 0.003,    // $3 per 1M
+    output_cost_per_1k: 0.015    // $15 per 1M
   },
   {
-    "model_name": "GPT-4o Mini",
-    "model_id": "gpt-4o-mini",
-    "input_cost_per_1k_tokens": 0.00015,  // $0.15 per 1M tokens
-    "output_cost_per_1k_tokens": 0.0006   // $0.60 per 1M tokens
+    model_id: 'claude-3-5-haiku-20241022',
+    input_cost_per_1k: 0.001,    // $1 per 1M
+    output_cost_per_1k: 0.005    // $5 per 1M
   },
-  // Anthropic Models (verified)
-  {
-    "model_name": "Claude 3.5 Sonnet",
-    "model_id": "claude-3-5-sonnet-20240620",
-    "input_cost_per_1k_tokens": 0.003,   // $3 per 1M tokens
-    "output_cost_per_1k_tokens": 0.015   // $15 per 1M tokens
-  },
-  // Google Gemini Models (officially verified Oct 2025)
-  {
-    "model_name": "Gemini 2.5 Flash",
-    "model_id": "gemini-2.5-flash",
-    "input_cost_per_1k_tokens": 0.0003,  // $0.30 per 1M tokens
-    "output_cost_per_1k_tokens": 0.0025  // $2.50 per 1M tokens
-  },
-]
+];
 
-
-export const getPricePer1K = (modelId: string, tokens: number): {
+export function getPricePer1K(modelId: string, _tokens?: number): {
   inputCost: number;
   outputCost: number;
-} => {
-  const model = pricing.find(model => model.model_id === modelId);
+} {
+  const model = pricing.find(m => m.model_id === modelId);
   if (!model) {
-    throw new Error(`Model not found: ${modelId}`);
+    throw new Error(`Pricing not found for model: ${modelId}`);
   }
-
-  if (typeof model.input_cost_per_1k_tokens === 'number') {
-    return {
-      inputCost: model.input_cost_per_1k_tokens,
-      outputCost: model.output_cost_per_1k_tokens as number
-    }
-  } else {
-    if (tokens <= 128000) {
-      return {
-        inputCost: (model.input_cost_per_1k_tokens as PricePer128K).up_to_128k_tokens,
-        outputCost: (model.output_cost_per_1k_tokens as PricePer128K).up_to_128k_tokens
-      }
-    } else {
-      return {
-        inputCost: (model.input_cost_per_1k_tokens as PricePer128K).over_128k_tokens,
-        outputCost: (model.output_cost_per_1k_tokens as PricePer128K).over_128k_tokens
-      }
-    }
-  }
-
-
-
-
+  return {
+    inputCost: model.input_cost_per_1k,
+    outputCost: model.output_cost_per_1k
+  };
 }
