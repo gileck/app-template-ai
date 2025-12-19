@@ -504,18 +504,13 @@ class TemplateSyncTool {
     }
 
     if (analysis.skipped.length > 0) {
-      console.log(`\n⏭️  Skipped (${analysis.skipped.length} files):`);
-      console.log('   Project-specific files (ignored):');
-      analysis.skipped.forEach(f =>
-        console.log(`   • ${f}`)
-      );
+      console.log(`\n⏭️  Skipped (${analysis.skipped.length} files) - \x1b[90mproject-specific, press [s] to show\x1b[0m`);
 
       // Warning about skipped files
       console.log('\n' + '─'.repeat(60));
       console.log('⚠️  WARNING: Skipped files have template changes!');
       console.log('   These changes will NOT be applied to your project.');
       console.log('   If synced files depend on skipped file changes, your code may break.');
-      console.log('   Run "yarn sync-template --diff-summary" to review skipped file diffs.');
       console.log('─'.repeat(60));
     }
 
@@ -525,7 +520,9 @@ class TemplateSyncTool {
       console.log('\n   ℹ️  Note: Project customizations will be kept automatically.');
     }
 
-    const options: SelectOption<SyncMode>[] = [
+    // Build menu options
+    type MenuOption = SyncMode | 'show-skipped';
+    const options: SelectOption<MenuOption>[] = [
       { 
         value: 'safe', 
         label: 'Safe only',
@@ -543,30 +540,57 @@ class TemplateSyncTool {
       },
     ];
 
-    // Use keyboard navigation if interactive, fallback to readline otherwise
-    if (isInteractive()) {
-      const result = await select('🤔 What would you like to do?', options);
-      return result ?? 'none';
-    } else {
-      // Fallback for non-TTY
-      console.log('\n🤔 What would you like to do?\n');
-      options.forEach((opt, i) => {
-        console.log(`  [${i + 1}] ${opt.label} - ${opt.description}`);
+    // Add option to show skipped files if there are any
+    if (analysis.skipped.length > 0) {
+      options.push({
+        value: 'show-skipped',
+        label: 'Show skipped files',
+        description: `View the ${analysis.skipped.length} skipped project-specific files`
       });
-      console.log('');
-      
-      return new Promise((resolve) => {
-        this.rl.question('Enter your choice (1/2/3): ', (answer) => {
-          const choice = answer.trim();
-          if (choice === '1') resolve('safe');
-          else if (choice === '2') resolve('all');
-          else if (choice === '3') resolve('none');
-          else {
-            console.log('Invalid choice.');
-            resolve('none');
-          }
+    }
+
+    // Loop to handle "show skipped" option
+    while (true) {
+      let result: MenuOption | null;
+
+      if (isInteractive()) {
+        result = await select('🤔 What would you like to do?', options);
+      } else {
+        // Fallback for non-TTY
+        console.log('\n🤔 What would you like to do?\n');
+        options.forEach((opt, i) => {
+          console.log(`  [${i + 1}] ${opt.label} - ${opt.description}`);
         });
-      });
+        console.log('');
+        
+        result = await new Promise<MenuOption | null>((resolve) => {
+          this.rl.question(`Enter your choice (1-${options.length}): `, (answer) => {
+            const index = parseInt(answer.trim()) - 1;
+            if (index >= 0 && index < options.length) {
+              resolve(options[index].value);
+            } else {
+              resolve(null);
+            }
+          });
+        });
+      }
+
+      // Handle show skipped option
+      if (result === 'show-skipped') {
+        console.log('\n' + '─'.repeat(60));
+        console.log(`⏭️  Skipped files (${analysis.skipped.length}):`);
+        console.log('   Project-specific files (ignored):');
+        analysis.skipped.forEach(f => console.log(`   • ${f}`));
+        console.log('─'.repeat(60));
+        continue; // Go back to menu
+      }
+
+      // Return the sync mode
+      if (result === 'safe' || result === 'all' || result === 'none') {
+        return result;
+      }
+      
+      return 'none'; // Default if cancelled
     }
   }
 
