@@ -10,11 +10,22 @@
 
 import { execSync, spawn } from 'child_process';
 
-const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
+// ============================================================
+// CONFIGURATION
+// ============================================================
+// Fast models for quick descriptions (updated Dec 2025):
+// - gemini-3-flash: Google's fastest (released Dec 17, 2025)
+// - gemini-2.5-flash: Previous generation
+// - gpt-4o-mini: OpenAI's fast/cheap model
+// - claude-3-5-haiku: Anthropic's fastest
+const DEFAULT_MODEL = 'gemini-3-flash';
+const DEFAULT_TIMEOUT_MS = 10000;  // 10 seconds
+// ============================================================
 
 interface AgentOptions {
     timeoutMs?: number;
     maxLength?: number;
+    model?: string;
 }
 
 /**
@@ -37,7 +48,11 @@ export async function askAgent(
     prompt: string,
     options: AgentOptions = {}
 ): Promise<string | null> {
-    const { timeoutMs = DEFAULT_TIMEOUT_MS, maxLength = 200 } = options;
+    const {
+        timeoutMs = DEFAULT_TIMEOUT_MS,
+        maxLength = 200,
+        model = DEFAULT_MODEL
+    } = options;
 
     return new Promise((resolve) => {
         try {
@@ -50,7 +65,11 @@ export async function askAgent(
             let output = '';
             let resolved = false;
 
-            const proc = spawn('cursor-agent', ['-p', prompt, '--output-format', 'text'], {
+            const proc = spawn('cursor-agent', [
+                '-p', prompt,
+                '--model', model,
+                '--output-format', 'text'
+            ], {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 timeout: timeoutMs,
             });
