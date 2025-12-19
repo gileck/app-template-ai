@@ -1074,7 +1074,8 @@ class TemplateSyncTool {
           // Format: "hash subject (date)\nbody"
           const header = `${hash} ${subject} \x1b[90m(${date})\x1b[0m`;
           if (bodyLines.length > 0 && bodyLines.some(l => l.trim())) {
-            return header + '\n' + bodyLines.map(l => `   ${l}`).join('\n');
+            // Indent body lines relative to header
+            return header + '\n' + bodyLines.map(l => `  ${l}`).join('\n');
           }
           return header;
         });
@@ -1156,7 +1157,9 @@ class TemplateSyncTool {
       } else {
         this.log(`\n📝 New commits since last sync (${commits.length}):\n`);
         commits.forEach((c, i) => {
-          this.log(`   ${c}`);
+          // Indent each line of the commit message
+          const indented = c.split('\n').map(line => `   ${line}`).join('\n');
+          this.log(indented);
           if (i < commits.length - 1) {
             this.log(''); // Add blank line between commits
           }
@@ -1551,7 +1554,9 @@ class TemplateSyncTool {
       if (templateCommits.length > 0) {
         console.log(`\n📜 Template commits since last sync (${templateCommits.length}):\n`);
         templateCommits.slice(0, 10).forEach((c, i) => {
-          console.log(`   ${c}`);
+          // Indent each line of the commit message
+          const indented = c.split('\n').map(line => `   ${line}`).join('\n');
+          console.log(indented);
           if (i < Math.min(templateCommits.length, 10) - 1) {
             console.log(''); // Add blank line between commits
           }
@@ -1704,8 +1709,14 @@ class TemplateSyncTool {
         this.log('\n📦 Committing synced files...');
         
         if (templateCommitsForReport.length > 0 && !this.options.quiet) {
-          this.log(`\n📜 Template commits being synced (${templateCommitsForReport.length}):`);
-          templateCommitsForReport.forEach(c => this.log(`   ${c}`));
+          this.log(`\n📜 Template commits being synced (${templateCommitsForReport.length}):\n`);
+          templateCommitsForReport.forEach((c, i) => {
+            const indented = c.split('\n').map(line => `   ${line}`).join('\n');
+            this.log(indented);
+            if (i < templateCommitsForReport.length - 1) {
+              this.log('');
+            }
+          });
         }
         
         try {
