@@ -123,7 +123,7 @@ The script will:
    - ⏭️ **Skipped**: Ignored or project-specific files
 3. **Ask you what to do**:
    - `[1] Safe only` - Apply only safe changes (recommended first step)
-   - `[2] All changes` - Apply everything, creates `.template` files for conflicts
+   - `[2] All changes` - Apply all changes, with interactive conflict resolution
    - `[3] Cancel` - Don't apply any changes
 
 > **Smart Conflict Detection:** The script checks BOTH sides before flagging a conflict. If only your project changed a file (template didn't touch it), it's recognized as a "project customization" and kept as-is - NOT flagged as a conflict!
@@ -162,17 +162,120 @@ The script will:
 Enter your choice (1/2/3):
 ```
 
-### Auto Mode (Non-Interactive)
+### Interactive Conflict Resolution
 
-```bash
-yarn sync-template --auto
+When you choose `[2] All changes` and there are conflicts, the script enters **interactive conflict resolution mode**:
+
+1. **Shows the list of conflicting files**
+2. **Asks how you want to handle them**:
+   - `[1]` Apply the same action to all conflicting files (bulk)
+   - `[2]` Choose an action for each file individually
+
+3. **For each conflict, you choose one of four actions**:
+   - `[1] Override with template` - Replace your version with the template version
+   - `[2] Skip file` - Keep your current version, ignore template changes
+   - `[3] Merge` - Save template version as `.template` file for manual merge
+   - `[4] Do nothing` - Leave file unchanged for now
+
+**Example conflict resolution:**
+
+```
+============================================================
+📋 FILES WITH POTENTIAL CONFLICTS
+============================================================
+
+These files have changes in both your project AND the template:
+
+  1. src/server/index.ts
+  2. src/client/routes/Home/page.tsx
+
+────────────────────────────────────────────────────────────
+⚠️  CONFLICT RESOLUTION (2 files)
+────────────────────────────────────────────────────────────
+
+How would you like to handle the conflicting files?
+
+  [1] Apply the same action to all conflicting files
+  [2] Choose an action for each file individually
+
+Enter your choice (1/2): 2
+
+📋 Choose an action for each conflicting file:
+
+────────────────────────────────────────────────────────────
+
+📄 File 1 of 2: src/server/index.ts
+
+  [1] Override with template - Replace your changes with template version
+  [2] Skip file              - Keep your current version, ignore template
+  [3] Merge                  - Apply template changes (may cause conflicts)
+  [4] Do nothing             - Leave file unchanged for now
+
+Action for src/server/index.ts (1/2/3/4): 3
+   ✓ Will merge (may conflict)
+
+────────────────────────────────────────────────────────────
+
+📄 File 2 of 2: src/client/routes/Home/page.tsx
+
+  [1] Override with template - Replace your changes with template version
+  [2] Skip file              - Keep your current version, ignore template
+  [3] Merge                  - Apply template changes (may cause conflicts)
+  [4] Do nothing             - Leave file unchanged for now
+
+Action for src/client/routes/Home/page.tsx (1/2/3/4): 1
+   ✓ Will override with template
+
+────────────────────────────────────────────────────────────
+📊 CONFLICT RESOLUTION SUMMARY
+────────────────────────────────────────────────────────────
+
+🔄 Override with template (1 files):
+   • src/client/routes/Home/page.tsx
+
+🔀 Merge (1 files):
+   • src/server/index.ts
+
+Proceed with these actions? (y/n): y
 ```
 
-Applies all changes without prompting (old behavior). Use this for automated workflows.
+**Resolution actions explained:**
 
-### Handling Conflicts
+| Action | What happens | When to use |
+|--------|-------------|-------------|
+| **Override** | Your changes are replaced with template version | Template version is better, discard your changes |
+| **Skip** | Your version is kept, template ignored | Your changes are important, don't want template updates |
+| **Merge** | Creates `.template` file for manual merge | Need to combine both versions carefully |
+| **Do nothing** | File left unchanged | Decide later, not ready to handle now |
 
-When both template and project modified the same file:
+### Auto Modes (Non-Interactive)
+
+For automated workflows or CI/CD, use explicit auto flags:
+
+```bash
+# Apply only safe changes, skip all conflicts
+yarn sync-template --auto-safe-only
+
+# Apply all changes, create .template files for conflicts (manual merge needed)
+yarn sync-template --auto-merge-conflicts
+
+# Apply all changes, override conflicts with template version (discards your changes)
+yarn sync-template --auto-override-conflicts
+
+# Apply safe changes, skip all conflicting files (keep your versions)
+yarn sync-template --auto-skip-conflicts
+```
+
+| Flag | Safe Changes | Conflicts |
+|------|-------------|-----------|
+| `--auto-safe-only` | ✅ Applied | ⏭️ Skipped |
+| `--auto-merge-conflicts` | ✅ Applied | 🔀 Creates `.template` files |
+| `--auto-override-conflicts` | ✅ Applied | 🔄 Replaced with template |
+| `--auto-skip-conflicts` | ✅ Applied | ⏭️ Skipped |
+
+### Handling Conflicts (Merge Strategy)
+
+When you choose "Merge" for a conflict (or use `--auto` mode), the script creates a `.template` file:
 
 1. **Review the conflict:**
    ```bash
@@ -208,15 +311,15 @@ After syncing, you'll see:
 📊 SYNC RESULTS
 ============================================================
 
-✅ Auto-merged (15 files):
+✅ Applied successfully (15 files):
    src/client/components/ui/button.tsx
    src/client/config/defaults.ts
+   src/client/routes/Home/page.tsx  (overridden from template)
    ...
 
-⚠️  Conflicts - Manual merge needed (2 files):
+🔀 Needs manual merge (1 files):
    src/server/index.ts
       → Template version saved to: src/server/index.ts.template
-   ...
 
 ✅ Project customizations kept (3 files):
    These files were only changed in your project:
@@ -228,6 +331,12 @@ After syncing, you'll see:
    src/client/features/myCustomFeature/index.ts
    ...
 ```
+
+The results reflect your conflict resolution choices:
+- **Override** files appear in "Applied successfully"
+- **Merge** files appear in "Needs manual merge"
+- **Skip** files appear in "Skipped"
+- **Do nothing** files don't appear in any list
 
 ## Best Practices
 
@@ -437,7 +546,7 @@ yarn sync-template --dry-run
 
 ## Integration with CI/CD
 
-You can automate sync checks:
+You can automate sync checks and even auto-apply safe changes:
 
 ```yaml
 # .github/workflows/check-template.yml
@@ -456,16 +565,61 @@ jobs:
       - run: yarn sync-template --dry-run
 ```
 
-This creates a weekly reminder to check for template updates.
+For automatic safe updates (creates PR if changes detected):
+
+```yaml
+# .github/workflows/auto-sync-template.yml
+name: Auto Sync Template (Safe Only)
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: yarn install
+      - run: yarn sync-template --auto-safe-only
+      - name: Create PR if changes
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "chore: sync template updates (safe only)"
+          branch: template-sync-updates
+```
 
 ## Summary
 
 | Command | Purpose |
 |---------|---------|
 | `yarn init-template <url>` | Initialize tracking in new project |
-| `yarn sync-template` | Sync updates from template |
+| `yarn sync-template` | Sync updates from template (interactive) |
 | `yarn sync-template --dry-run` | Preview changes |
 | `yarn sync-template --force` | Force sync with uncommitted changes |
+| `yarn sync-template --diff-summary` | Generate detailed diff report |
+
+### Auto Mode Flags
+
+For non-interactive/CI usage:
+
+| Flag | Safe Changes | Conflicts |
+|------|-------------|-----------|
+| `--auto-safe-only` | ✅ Applied | ⏭️ Skipped |
+| `--auto-merge-conflicts` | ✅ Applied | 🔀 Creates `.template` files |
+| `--auto-override-conflicts` | ✅ Applied | 🔄 Replaced with template |
+| `--auto-skip-conflicts` | ✅ Applied | ⏭️ Skipped |
+
+### Interactive Conflict Resolution Options
+
+When conflicts are detected in interactive mode:
+
+| Option | Description |
+|--------|-------------|
+| **Override** | Replace your changes with template version |
+| **Skip** | Keep your version, ignore template changes |
+| **Merge** | Create `.template` file for manual merge |
+| **Do nothing** | Leave file unchanged for now |
 
 ---
 

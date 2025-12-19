@@ -118,14 +118,44 @@ yarn sync-template
 
 This will:
 - ✅ **Auto-merge** files that only the template changed
-- ⚠️ **Create `.template` files** for TRUE conflicts (both you AND template changed the same file)
+- ⚠️ **Ask how to handle conflicts** when both you AND template changed the same file
 - ✅ **Keep your customizations** - files only you changed (template didn't touch) are preserved as-is
 
 > **Smart Detection:** The script checks both sides before flagging a conflict. If only your project modified a file, it's recognized as a "project customization" and kept - NOT flagged as a conflict!
 
-### Step 6: Resolve Conflicts
+### Step 5b: Handle Conflicts Interactively
 
-For each conflict, you'll see a `.template` file:
+When you choose `[2] All changes` and there are conflicts, you'll be prompted:
+
+```
+How would you like to handle the conflicting files?
+
+  [1] Apply the same action to all conflicting files
+  [2] Choose an action for each file individually
+```
+
+For each conflict, choose an action:
+- **[1] Override** - Use template version (discards your changes)
+- **[2] Skip** - Keep your version (ignores template)
+- **[3] Merge** - Creates `.template` file for manual merge
+- **[4] Do nothing** - Leave unchanged for now
+
+**Example:**
+```
+📄 File 1 of 2: src/server/index.ts
+
+  [1] Override with template - Replace your changes with template version
+  [2] Skip file              - Keep your current version, ignore template
+  [3] Merge                  - Apply template changes (may cause conflicts)
+  [4] Do nothing             - Leave file unchanged for now
+
+Action for src/server/index.ts (1/2/3/4): 3
+   ✓ Will merge (may conflict)
+```
+
+### Step 6: Resolve Merge Conflicts
+
+For files where you chose "Merge", you'll see a `.template` file:
 
 ```bash
 # Your version (with your changes)
@@ -244,16 +274,31 @@ yarn sync-template --dry-run
 yarn sync-template --dry-run
 ```
 
-### Apply Non-Conflicting Changes Only
+### Apply Only Safe Changes (Skip All Conflicts)
 ```bash
-# Sync
+# Non-interactive: apply safe changes, skip conflicts
+yarn sync-template --auto-safe-only
+
+# Or in interactive mode, choose [1] Safe only
 yarn sync-template
+```
 
-# If there are conflicts, just revert
-git checkout .
-git clean -f  # Remove .template files
+### Apply All Changes, Override Conflicts with Template
+```bash
+# Non-interactive: use template version for all conflicts
+yarn sync-template --auto-override-conflicts
+```
 
-# You can cherry-pick specific changes manually later
+### Apply All Changes, Keep Your Versions for Conflicts
+```bash
+# Non-interactive: skip all conflicting files
+yarn sync-template --auto-skip-conflicts
+```
+
+### Apply All Changes, Manual Merge for Conflicts
+```bash
+# Non-interactive: create .template files for manual merge
+yarn sync-template --auto-merge-conflicts
 ```
 
 ### Ignore Template Updates for Now
@@ -262,7 +307,13 @@ Just don't run `yarn sync-template`. Your app keeps working fine.
 ## FAQ
 
 **Q: Can I skip certain template changes?**  
-A: Yes! During conflict resolution, just don't apply the template version. Keep your version.
+A: Yes! When prompted, choose `[2] Skip file` to keep your version and ignore template changes.
+
+**Q: Can I apply template changes to all conflicts at once?**  
+A: Yes! Choose `[1] Apply the same action to all conflicting files` when prompted, then select the action.
+
+**Q: What's the difference between Skip and Do nothing?**  
+A: "Skip" adds the file to the skipped list (shown in results). "Do nothing" leaves the file unchanged without tracking it.
 
 **Q: What if I don't want to sync ever?**  
 A: Don't run `yarn sync-template`. The init step is optional too. Your app is independent.
@@ -279,11 +330,7 @@ A: Yes! Edit `.template-sync.json`:
 A: The sync system never deletes your files. Only adds/modifies.
 
 **Q: How do I know what the template changed?**  
-A: Check the template's git history:
-```bash
-# View template commits since your last sync
-git log def456..HEAD  # in the template repo
-```
+A: Use `yarn sync-template --diff-summary` to generate a detailed report, or check the template's git history.
 
 ## Summary
 
