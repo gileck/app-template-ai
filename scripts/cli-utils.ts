@@ -66,7 +66,7 @@ export async function select<T>(
 
       const lines: string[] = [];
       
-      lines.push(`\n${message}`);
+      lines.push(message);
       lines.push('');
       
       options.forEach((opt, i) => {
@@ -85,6 +85,11 @@ export async function select<T>(
       lines.push('');
       lines.push('\x1b[90m↑/↓ navigate • Enter select • q cancel\x1b[0m');
 
+      // Add initial blank line only on first render (printed separately to not affect line count)
+      if (isInitial) {
+        console.log('');
+      }
+      
       // Print all lines
       lines.forEach(line => console.log(line));
       
