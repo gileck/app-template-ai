@@ -13,6 +13,11 @@
  *   --dry-run                Show what would be done without making changes
  *   --force                  Force update even if there are uncommitted changes
  *   --diff-summary           Generate a diff summary file showing all template changes
+ *   --changelog              Show template commits since last sync (no sync)
+ *   --validate               Run 'yarn checks' after sync to verify changes
+ *   --report                 Generate a sync report file (SYNC-REPORT.md)
+ *   --quiet                  Minimal output (errors only)
+ *   --verbose                Detailed output for debugging
  * 
  * Auto modes (non-interactive):
  *   --auto-safe-only         Apply only safe changes, skip all conflicts
@@ -27,6 +32,16 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as readline from 'readline';
 
+interface SyncHistoryEntry {
+  date: string;
+  templateCommit: string;
+  projectCommit: string;
+  filesApplied: number;
+  filesSkipped: number;
+  filesConflicted: number;
+  templateCommits: string[];  // Commit messages synced
+}
+
 interface TemplateSyncConfig {
   templateRepo: string;
   templateBranch: string;
@@ -36,6 +51,7 @@ interface TemplateSyncConfig {
   lastSyncDate: string | null;
   ignoredFiles: string[];
   projectSpecificFiles: string[];
+  syncHistory?: SyncHistoryEntry[];  // Track sync history
 }
 
 interface FileChange {
@@ -71,29 +87,54 @@ interface ConflictResolutionMap {
 const CONFIG_FILE = '.template-sync.json';
 const TEMPLATE_DIR = '.template-sync-temp';
 const DIFF_SUMMARY_FILE = 'template-diff-summary.md';
+const SYNC_REPORT_FILE = 'SYNC-REPORT.md';
+const MAX_SYNC_HISTORY = 20;  // Keep last 20 syncs
 
 type AutoMode = 'none' | 'safe-only' | 'merge-conflicts' | 'override-conflicts' | 'skip-conflicts';
+
+interface SyncOptions {
+  dryRun: boolean;
+  force: boolean;
+  autoMode: AutoMode;
+  diffSummary: boolean;
+  changelog: boolean;
+  validate: boolean;
+  report: boolean;
+  quiet: boolean;
+  verbose: boolean;
+}
 
 class TemplateSyncTool {
   private config: TemplateSyncConfig;
   private projectRoot: string;
-  private dryRun: boolean;
-  private force: boolean;
-  private autoMode: AutoMode;
-  private diffSummary: boolean;
+  private options: SyncOptions;
   private rl: readline.Interface;
 
-  constructor(dryRun = false, force = false, autoMode: AutoMode = 'none', diffSummary = false) {
+  constructor(options: SyncOptions) {
     this.projectRoot = process.cwd();
-    this.dryRun = dryRun;
-    this.force = force;
-    this.autoMode = autoMode;
-    this.diffSummary = diffSummary;
+    this.options = options;
     this.config = this.loadConfig();
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
+  }
+
+  // Logging helpers for quiet/verbose modes
+  private log(message: string): void {
+    if (!this.options.quiet) {
+      console.log(message);
+    }
+  }
+
+  private logVerbose(message: string): void {
+    if (this.options.verbose) {
+      console.log(`[DEBUG] ${message}`);
+    }
+  }
+
+  private logError(message: string): void {
+    console.error(message);  // Always show errors
   }
 
   private loadConfig(): TemplateSyncConfig {
@@ -135,7 +176,7 @@ class TemplateSyncTool {
   private checkGitStatus(): void {
     const status = this.exec('git status --porcelain', { silent: true });
 
-    if (status && !this.force) {
+    if (status && !this.options.force) {
       console.error('❌ Error: You have uncommitted changes.');
       console.error('Please commit or stash your changes before syncing the template.');
       console.error('Or use --force to override this check.');
@@ -543,6 +584,45 @@ class TemplateSyncTool {
     });
   }
 
+  /**
+   * Get a brief diff summary for a file (lines added/removed).
+   */
+  private getFileDiffSummary(filePath: string): { added: number; removed: number; preview: string[] } {
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+    const templateFilePath = path.join(templatePath, filePath);
+    const projectFilePath = path.join(this.projectRoot, filePath);
+
+    try {
+      const diff = this.exec(
+        `diff -u "${projectFilePath}" "${templateFilePath}" || true`,
+        { silent: true }
+      );
+
+      if (!diff.trim()) {
+        return { added: 0, removed: 0, preview: [] };
+      }
+
+      const lines = diff.split('\n');
+      let added = 0;
+      let removed = 0;
+      const preview: string[] = [];
+
+      for (const line of lines) {
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+          added++;
+          if (preview.length < 5) preview.push(line);
+        } else if (line.startsWith('-') && !line.startsWith('---')) {
+          removed++;
+          if (preview.length < 5) preview.push(line);
+        }
+      }
+
+      return { added, removed, preview };
+    } catch {
+      return { added: 0, removed: 0, preview: [] };
+    }
+  }
+
   private async promptIndividualConflictResolution(
     conflicts: FileChange[]
   ): Promise<ConflictResolutionMap> {
@@ -554,6 +634,23 @@ class TemplateSyncTool {
       const file = conflicts[i];
       console.log('─'.repeat(60));
       console.log(`\n📄 File ${i + 1} of ${conflicts.length}: ${file.path}`);
+      
+      // Show diff preview
+      const diffSummary = this.getFileDiffSummary(file.path);
+      if (diffSummary.added > 0 || diffSummary.removed > 0) {
+        console.log(`\n   📊 Changes: +${diffSummary.added} lines, -${diffSummary.removed} lines`);
+        if (diffSummary.preview.length > 0) {
+          console.log('   Preview:');
+          diffSummary.preview.forEach(line => {
+            const color = line.startsWith('+') ? '\x1b[32m' : '\x1b[31m';
+            console.log(`   ${color}${line}\x1b[0m`);
+          });
+          if (diffSummary.added + diffSummary.removed > 5) {
+            console.log(`   ... and ${diffSummary.added + diffSummary.removed - 5} more changes`);
+          }
+        }
+      }
+      
       this.printConflictResolutionOptions();
 
       const resolution = await new Promise<ConflictResolution>((resolve) => {
@@ -690,7 +787,7 @@ class TemplateSyncTool {
       const projectFilePath = path.join(this.projectRoot, change.path);
 
       try {
-        if (!this.dryRun) {
+        if (!this.options.dryRun) {
           const dir = path.dirname(projectFilePath);
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -716,7 +813,7 @@ class TemplateSyncTool {
           switch (resolution) {
             case 'override':
               // Replace project file with template version
-              if (!this.dryRun) {
+              if (!this.options.dryRun) {
                 const dir = path.dirname(projectFilePath);
                 if (!fs.existsSync(dir)) {
                   fs.mkdirSync(dir, { recursive: true });
@@ -734,7 +831,7 @@ class TemplateSyncTool {
             case 'merge':
               // Save template version for manual merge (original behavior)
               result.conflicts.push(change.path);
-              if (!this.dryRun) {
+              if (!this.options.dryRun) {
                 fs.copyFileSync(templateFilePath, projectFilePath + '.template');
               }
               break;
@@ -842,6 +939,179 @@ class TemplateSyncTool {
     const body = '\n\nTemplate commits synced:\n' + templateCommits.map(c => `- ${c}`).join('\n');
     
     return header + body;
+  }
+
+  /**
+   * Run changelog mode - show template commits since last sync
+   */
+  private async runChangelog(): Promise<void> {
+    this.log('📜 Template Changelog');
+    this.log('='.repeat(60));
+
+    // Clone template to get commits
+    this.cloneTemplate();
+
+    try {
+      const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+      const templateCommit = this.exec('git rev-parse HEAD', {
+        cwd: templatePath,
+        silent: true,
+      });
+
+      this.log(`\n📍 Current template: ${templateCommit}`);
+      
+      if (this.config.lastSyncCommit) {
+        this.log(`📍 Last synced:      ${this.config.lastSyncCommit}`);
+        this.log(`📅 Last sync date:   ${this.config.lastSyncDate || 'unknown'}`);
+      } else {
+        this.log('📍 Last synced:      (never synced)');
+      }
+
+      const commits = this.getTemplateCommitsSinceLastSync();
+      
+      if (commits.length === 0) {
+        this.log('\n✅ No new commits since last sync.');
+      } else {
+        this.log(`\n📝 New commits since last sync (${commits.length}):\n`);
+        commits.forEach((c, i) => {
+          this.log(`  ${i + 1}. ${c}`);
+        });
+      }
+
+      this.log('\n' + '='.repeat(60));
+    } finally {
+      this.cleanupTemplate();
+    }
+  }
+
+  /**
+   * Run post-sync validation (yarn checks)
+   */
+  private async runValidation(): Promise<boolean> {
+    this.log('\n🔍 Running post-sync validation...');
+    
+    try {
+      this.exec('yarn checks', { silent: false });
+      this.log('✅ Validation passed!');
+      return true;
+    } catch (error: any) {
+      this.logError('⚠️  Validation failed!');
+      this.logError('   Please review the changes and fix any issues.');
+      return false;
+    }
+  }
+
+  /**
+   * Generate a sync report file
+   */
+  private generateSyncReport(
+    result: SyncResult,
+    templateCommit: string,
+    templateCommits: string[]
+  ): void {
+    const lines: string[] = [];
+    const now = new Date().toISOString();
+
+    lines.push('# Template Sync Report');
+    lines.push('');
+    lines.push(`**Generated:** ${now}`);
+    lines.push(`**Template:** ${this.config.templateRepo}`);
+    lines.push(`**Template Commit:** ${templateCommit}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+
+    // Summary
+    lines.push('## Summary');
+    lines.push('');
+    lines.push(`| Metric | Count |`);
+    lines.push(`|--------|-------|`);
+    lines.push(`| Files Applied | ${result.autoMerged.length} |`);
+    lines.push(`| Files Needing Merge | ${result.conflicts.length} |`);
+    lines.push(`| Files Skipped | ${result.skipped.length} |`);
+    lines.push(`| Project Customizations Kept | ${result.projectOnlyChanges.length} |`);
+    lines.push(`| Errors | ${result.errors.length} |`);
+    lines.push('');
+
+    // Template commits
+    if (templateCommits.length > 0) {
+      lines.push('## Template Commits Synced');
+      lines.push('');
+      templateCommits.forEach(c => lines.push(`- ${c}`));
+      lines.push('');
+    }
+
+    // Applied files
+    if (result.autoMerged.length > 0) {
+      lines.push('## Files Applied');
+      lines.push('');
+      result.autoMerged.forEach(f => lines.push(`- \`${f}\``));
+      lines.push('');
+    }
+
+    // Conflicts
+    if (result.conflicts.length > 0) {
+      lines.push('## Files Needing Manual Merge');
+      lines.push('');
+      lines.push('These files have `.template` versions that need to be manually merged:');
+      lines.push('');
+      result.conflicts.forEach(f => lines.push(`- \`${f}\``));
+      lines.push('');
+    }
+
+    // Skipped
+    if (result.skipped.length > 0) {
+      lines.push('## Skipped Files');
+      lines.push('');
+      result.skipped.forEach(f => lines.push(`- \`${f}\``));
+      lines.push('');
+    }
+
+    // Errors
+    if (result.errors.length > 0) {
+      lines.push('## Errors');
+      lines.push('');
+      result.errors.forEach(e => lines.push(`- ${e}`));
+      lines.push('');
+    }
+
+    // Write report
+    const reportPath = path.join(this.projectRoot, SYNC_REPORT_FILE);
+    fs.writeFileSync(reportPath, lines.join('\n'), 'utf-8');
+    this.log(`\n📄 Sync report saved to: ${SYNC_REPORT_FILE}`);
+  }
+
+  /**
+   * Add an entry to sync history
+   */
+  private addSyncHistoryEntry(
+    templateCommit: string,
+    projectCommit: string,
+    result: SyncResult,
+    templateCommits: string[]
+  ): void {
+    if (!this.config.syncHistory) {
+      this.config.syncHistory = [];
+    }
+
+    const entry: SyncHistoryEntry = {
+      date: new Date().toISOString(),
+      templateCommit,
+      projectCommit,
+      filesApplied: result.autoMerged.length,
+      filesSkipped: result.skipped.length,
+      filesConflicted: result.conflicts.length,
+      templateCommits,
+    };
+
+    this.config.syncHistory.unshift(entry);
+
+    // Keep only last N entries
+    if (this.config.syncHistory.length > MAX_SYNC_HISTORY) {
+      this.config.syncHistory = this.config.syncHistory.slice(0, MAX_SYNC_HISTORY);
+    }
+
+    this.logVerbose(`Added sync history entry: ${templateCommit.slice(0, 7)}`);
   }
 
   private generateFileDiff(filePath: string): string {
@@ -1052,22 +1322,29 @@ class TemplateSyncTool {
   }
 
   async run(): Promise<void> {
-    console.log('🔄 Template Sync Tool');
-    console.log('='.repeat(60));
+    this.log('🔄 Template Sync Tool');
+    this.log('='.repeat(60));
+
+    // Handle changelog mode (just show commits, no sync)
+    if (this.options.changelog) {
+      await this.runChangelog();
+      this.rl.close();
+      return;
+    }
 
     // Handle diff-summary mode
-    if (this.diffSummary) {
+    if (this.options.diffSummary) {
       await this.runDiffSummary();
       this.rl.close();
       return;
     }
 
-    if (this.dryRun) {
-      console.log('🔍 DRY RUN MODE - No changes will be made\n');
+    if (this.options.dryRun) {
+      this.log('🔍 DRY RUN MODE - No changes will be made\n');
     }
 
     // Step 1: Check git status
-    if (!this.dryRun && !this.force) {
+    if (!this.options.dryRun && !this.options.force) {
       this.checkGitStatus();
     }
 
@@ -1143,7 +1420,7 @@ class TemplateSyncTool {
       let mode: SyncMode;
       let conflictResolutions: ConflictResolutionMap = {};
 
-      if (this.dryRun) {
+      if (this.options.dryRun) {
         // In dry-run, show analysis but don't apply
         mode = 'all'; // Show everything
         const result = await this.syncFiles(analysis, mode);
@@ -1151,7 +1428,7 @@ class TemplateSyncTool {
         console.log('\n🔍 DRY RUN - No changes were actually applied.');
         this.rl.close();
         return;
-      } else if (this.autoMode !== 'none') {
+      } else if (this.options.autoMode !== 'none') {
         // Auto mode: apply based on the specific auto flag
         const autoModeLabels: Record<AutoMode, string> = {
           'none': '',
@@ -1160,9 +1437,9 @@ class TemplateSyncTool {
           'override-conflicts': 'AUTO OVERRIDE - Applying all changes, conflicts will be overridden with template...',
           'skip-conflicts': 'AUTO SKIP - Applying safe changes, skipping all conflicts...',
         };
-        console.log(`\n🤖 ${autoModeLabels[this.autoMode]}`);
+        console.log(`\n🤖 ${autoModeLabels[this.options.autoMode]}`);
 
-        switch (this.autoMode) {
+        switch (this.options.autoMode) {
           case 'safe-only':
             mode = 'safe';
             break;
@@ -1225,15 +1502,15 @@ class TemplateSyncTool {
       this.printResults(result);
 
       // Step 9: Auto-commit synced files and update config (only if not dry-run and changes were made)
-      if (!this.dryRun && result.autoMerged.length > 0) {
-        console.log('\n📦 Committing synced files...');
+      // Get template commits for the commit message and report (before cleanup)
+      const templateCommitsForReport = this.getTemplateCommitsSinceLastSync();
+      
+      if (!this.options.dryRun && result.autoMerged.length > 0) {
+        this.log('\n📦 Committing synced files...');
         
-        // Get template commits for the commit message (before cleanup)
-        const templateCommits = this.getTemplateCommitsSinceLastSync();
-        
-        if (templateCommits.length > 0) {
-          console.log(`\n📜 Template commits being synced (${templateCommits.length}):`);
-          templateCommits.forEach(c => console.log(`   ${c}`));
+        if (templateCommitsForReport.length > 0 && !this.options.quiet) {
+          this.log(`\n📜 Template commits being synced (${templateCommitsForReport.length}):`);
+          templateCommitsForReport.forEach(c => this.log(`   ${c}`));
         }
         
         try {
@@ -1241,7 +1518,7 @@ class TemplateSyncTool {
           this.exec('git add -A', { silent: true });
           
           // Create commit with template commits in message
-          const commitMessage = this.formatSyncCommitMessage(templateCommit, templateCommits);
+          const commitMessage = this.formatSyncCommitMessage(templateCommit, templateCommitsForReport);
           // Use a temp file for multi-line commit message
           const tempFile = path.join(this.projectRoot, '.sync-commit-msg.tmp');
           fs.writeFileSync(tempFile, commitMessage, 'utf-8');
@@ -1250,6 +1527,10 @@ class TemplateSyncTool {
           
           // Now get the commit that INCLUDES the sync changes
           const projectCommit = this.exec('git rev-parse HEAD', { silent: true });
+          
+          // Add to sync history
+          this.addSyncHistoryEntry(templateCommit, projectCommit, result, templateCommitsForReport);
+          
           this.config.lastSyncCommit = templateCommit;
           this.config.lastProjectCommit = projectCommit;
           this.config.lastSyncDate = new Date().toISOString();
@@ -1260,30 +1541,40 @@ class TemplateSyncTool {
           this.exec('git commit --amend --no-edit', { silent: true });
           
           const finalCommit = this.exec('git rev-parse --short HEAD', { silent: true });
-          console.log(`\n   ✅ Committed as ${finalCommit}`);
+          this.log(`\n   ✅ Committed as ${finalCommit}`);
         } catch (error: any) {
-          console.log(`   ⚠️  Auto-commit failed: ${error.message}`);
-          console.log('   Please commit the changes manually.');
+          this.log(`   ⚠️  Auto-commit failed: ${error.message}`);
+          this.log('   Please commit the changes manually.');
           
           // Still update config even if commit fails
           this.config.lastSyncCommit = templateCommit;
           this.config.lastSyncDate = new Date().toISOString();
           this.saveConfig();
         }
-      } else if (!this.dryRun) {
+      } else if (!this.options.dryRun) {
         // No changes applied, just update the sync timestamp
         this.config.lastSyncCommit = templateCommit;
         this.config.lastSyncDate = new Date().toISOString();
         this.saveConfig();
       }
 
+      // Generate sync report if requested
+      if (this.options.report && result.autoMerged.length > 0) {
+        this.generateSyncReport(result, templateCommit, templateCommitsForReport);
+      }
+
       if (result.autoMerged.length > 0) {
-        console.log('\n✅ Template sync completed!');
+        this.log('\n✅ Template sync completed!');
         if (result.conflicts.length === 0) {
-          console.log('   All changes were applied and committed.');
+          this.log('   All changes were applied and committed.');
         } else {
-          console.log('   Safe changes committed. Review .template files for manual merges.');
+          this.log('   Safe changes committed. Review .template files for manual merges.');
         }
+      }
+
+      // Run validation if requested
+      if (this.options.validate && result.autoMerged.length > 0) {
+        await this.runValidation();
       }
     } catch (error: any) {
       this.rl.close();
@@ -1297,9 +1588,6 @@ class TemplateSyncTool {
 
 // Main execution
 const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const force = args.includes('--force');
-const diffSummary = args.includes('--diff-summary');
 
 // Parse auto mode flags (mutually exclusive)
 let autoMode: AutoMode = 'none';
@@ -1313,7 +1601,19 @@ if (args.includes('--auto-safe-only')) {
   autoMode = 'skip-conflicts';
 }
 
-const tool = new TemplateSyncTool(dryRun, force, autoMode, diffSummary);
+const options: SyncOptions = {
+  dryRun: args.includes('--dry-run'),
+  force: args.includes('--force'),
+  autoMode,
+  diffSummary: args.includes('--diff-summary'),
+  changelog: args.includes('--changelog'),
+  validate: args.includes('--validate'),
+  report: args.includes('--report'),
+  quiet: args.includes('--quiet'),
+  verbose: args.includes('--verbose'),
+};
+
+const tool = new TemplateSyncTool(options);
 tool.run().catch(error => {
   console.error('❌ Error:', error.message);
   process.exit(1);
