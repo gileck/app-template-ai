@@ -153,8 +153,8 @@ The script will:
 
 🤔 What would you like to do?
 
-  [1] Safe only  - Apply only safe changes (no conflicts)
-  [2] All changes - Apply all changes (may need manual merge)
+  [1] Safe only  - Apply only safe changes (skip conflicts)
+  [2] All changes - Apply safe changes + choose how to handle each conflict
   [3] Cancel     - Don't apply any changes
 
    Note: Project customizations will be kept automatically.

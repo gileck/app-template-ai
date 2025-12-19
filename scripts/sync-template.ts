@@ -455,8 +455,8 @@ class TemplateSyncTool {
 
     console.log('\n' + '='.repeat(60));
     console.log('\n🤔 What would you like to do?\n');
-    console.log('  [1] Safe only  - Apply only safe changes (no conflicts)');
-    console.log('  [2] All changes - Apply all changes (may need manual merge)');
+    console.log('  [1] Safe only  - Apply only safe changes (skip conflicts)');
+    console.log('  [2] All changes - Apply safe changes + choose how to handle each conflict');
     console.log('  [3] Cancel     - Don\'t apply any changes');
     if (analysis.projectOnlyChanges.length > 0) {
       console.log('\n   Note: Project customizations will be kept automatically.\n');
