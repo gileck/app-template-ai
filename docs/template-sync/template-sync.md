@@ -273,9 +273,25 @@ yarn sync-template --auto-skip-conflicts
 | `--auto-override-conflicts` | ✅ Applied | 🔄 Replaced with template |
 | `--auto-skip-conflicts` | ✅ Applied | ⏭️ Skipped |
 
+### Auto-Commit Behavior
+
+When changes are applied, the sync tool **automatically commits** them:
+
+```
+📦 Committing synced files...
+   ✅ Committed as abc1234
+```
+
+This ensures that:
+- The sync tracking (`lastProjectCommit`) is accurate
+- Future syncs won't show false conflicts
+- You have a clean commit history with template sync commits
+
+The commit message format is: `chore: sync template (abc1234)` where `abc1234` is the template commit hash.
+
 ### Handling Conflicts (Merge Strategy)
 
-When you choose "Merge" for a conflict (or use `--auto` mode), the script creates a `.template` file:
+When you choose "Merge" for a conflict, the script creates a `.template` file for manual review:
 
 1. **Review the conflict:**
    ```bash
@@ -291,16 +307,12 @@ When you choose "Merge" for a conflict (or use `--auto` mode), the script create
    - Or manually combine the changes
    - Keep the parts you need from both versions
 
-3. **Clean up:**
+3. **Clean up and commit:**
    ```bash
-   # After merging, delete the template version
+   # After merging, delete the template version and commit
    rm src/some-file.ts.template
-   ```
-
-4. **Commit:**
-   ```bash
    git add .
-   git commit -m "Merge template updates"
+   git commit -m "Resolve template merge conflicts"
    ```
 
 ## Sync Results

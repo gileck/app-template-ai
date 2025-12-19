@@ -1163,22 +1163,59 @@ class TemplateSyncTool {
       // Step 7: Apply changes based on mode (mode is 'safe' or 'all' here)
       const result = await this.syncFiles(analysis, mode, conflictResolutions);
 
-      // Step 8: Update config (only if not dry-run)
-      if (!this.dryRun) {
-        const projectCommit = this.exec('git rev-parse HEAD', { silent: true });
+      // Step 8: Print results
+      this.printResults(result);
+
+      // Step 9: Auto-commit synced files and update config (only if not dry-run and changes were made)
+      if (!this.dryRun && result.autoMerged.length > 0) {
+        console.log('\n📦 Committing synced files...');
+        
+        try {
+          // Stage all changes (including .template-sync.json which we'll update)
+          this.exec('git add -A', { silent: true });
+          
+          // Create commit with template reference
+          const shortCommit = templateCommit.slice(0, 7);
+          this.exec(
+            `git commit -m "chore: sync template (${shortCommit})"`,
+            { silent: true }
+          );
+          
+          // Now get the commit that INCLUDES the sync changes
+          const projectCommit = this.exec('git rev-parse HEAD', { silent: true });
+          this.config.lastSyncCommit = templateCommit;
+          this.config.lastProjectCommit = projectCommit;
+          this.config.lastSyncDate = new Date().toISOString();
+          this.saveConfig();
+          
+          // Amend commit to include updated config
+          this.exec('git add .template-sync.json', { silent: true });
+          this.exec('git commit --amend --no-edit', { silent: true });
+          
+          const finalCommit = this.exec('git rev-parse --short HEAD', { silent: true });
+          console.log(`   ✅ Committed as ${finalCommit}`);
+        } catch (error: any) {
+          console.log(`   ⚠️  Auto-commit failed: ${error.message}`);
+          console.log('   Please commit the changes manually.');
+          
+          // Still update config even if commit fails
+          this.config.lastSyncCommit = templateCommit;
+          this.config.lastSyncDate = new Date().toISOString();
+          this.saveConfig();
+        }
+      } else if (!this.dryRun) {
+        // No changes applied, just update the sync timestamp
         this.config.lastSyncCommit = templateCommit;
-        this.config.lastProjectCommit = projectCommit;
         this.config.lastSyncDate = new Date().toISOString();
         this.saveConfig();
       }
 
-      // Step 9: Print results
-      this.printResults(result);
-
       if (result.autoMerged.length > 0) {
         console.log('\n✅ Template sync completed!');
         if (result.conflicts.length === 0) {
-          console.log('   All changes were auto-merged successfully.');
+          console.log('   All changes were applied and committed.');
+        } else {
+          console.log('   Safe changes committed. Review .template files for manual merges.');
         }
       }
     } catch (error: any) {

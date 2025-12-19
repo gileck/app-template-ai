@@ -177,18 +177,25 @@ rm src/server/index.ts.template
 
 Repeat for each `.template` file.
 
-### Step 7: Test and Commit
+### Step 7: Test and Push
 
+The sync tool **automatically commits** the applied changes:
+```
+📦 Committing synced files...
+   ✅ Committed as abc1234
+```
+
+Now just test and push:
 ```bash
 # Make sure everything works
 yarn checks
 yarn dev
 
-# Commit the merge
-git add .
-git commit -m "Merge template updates"
+# Push the sync commit
 git push
 ```
+
+> **Note:** If you had `.template` files for manual merges, commit those separately after resolving them.
 
 ## Example Conflict Resolution
 
