@@ -31,6 +31,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as readline from 'readline';
+import { describeChanges, isAgentAvailable } from './ai-agent';
 
 interface SyncHistoryEntry {
   date: string;
@@ -587,7 +588,7 @@ class TemplateSyncTool {
   /**
    * Get a brief diff summary for a file (lines added/removed).
    */
-  private getFileDiffSummary(filePath: string): { added: number; removed: number; preview: string[] } {
+  private getFileDiffSummary(filePath: string): { added: number; removed: number; preview: string[]; diff: string } {
     const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
     const templateFilePath = path.join(templatePath, filePath);
     const projectFilePath = path.join(this.projectRoot, filePath);
@@ -599,7 +600,7 @@ class TemplateSyncTool {
       );
 
       if (!diff.trim()) {
-        return { added: 0, removed: 0, preview: [] };
+        return { added: 0, removed: 0, preview: [], diff: '' };
       }
 
       const lines = diff.split('\n');
@@ -617,9 +618,38 @@ class TemplateSyncTool {
         }
       }
 
-      return { added, removed, preview };
+      return { added, removed, preview, diff };
     } catch {
-      return { added: 0, removed: 0, preview: [] };
+      return { added: 0, removed: 0, preview: [], diff: '' };
+    }
+  }
+
+  /**
+   * Get AI-generated description of changes (returns null if unavailable)
+   */
+  private async getAIDescription(diff: string, context: string): Promise<string | null> {
+    if (!diff.trim()) return null;
+    
+    try {
+      return await describeChanges(diff, context);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get the local diff for a file (changes since last sync)
+   */
+  private getLocalDiff(filePath: string): string {
+    if (!this.config.lastProjectCommit) return '';
+    
+    try {
+      return this.exec(
+        `git diff ${this.config.lastProjectCommit} HEAD -- "${filePath}" || true`,
+        { silent: true }
+      );
+    } catch {
+      return '';
     }
   }
 
@@ -627,8 +657,13 @@ class TemplateSyncTool {
     conflicts: FileChange[]
   ): Promise<ConflictResolutionMap> {
     const resolutions: ConflictResolutionMap = {};
+    const aiAvailable = isAgentAvailable();
 
     console.log('\n📋 Choose an action for each conflicting file:\n');
+    
+    if (aiAvailable) {
+      console.log('🤖 AI descriptions enabled (cursor-agent detected)\n');
+    }
 
     for (let i = 0; i < conflicts.length; i++) {
       const file = conflicts[i];
@@ -638,8 +673,29 @@ class TemplateSyncTool {
       // Show diff preview
       const diffSummary = this.getFileDiffSummary(file.path);
       if (diffSummary.added > 0 || diffSummary.removed > 0) {
-        console.log(`\n   📊 Changes: +${diffSummary.added} lines, -${diffSummary.removed} lines`);
-        if (diffSummary.preview.length > 0) {
+        console.log(`\n   📊 Template changes: +${diffSummary.added} lines, -${diffSummary.removed} lines`);
+        
+        // Get AI descriptions if available
+        if (aiAvailable && diffSummary.diff) {
+          console.log('   🤖 Analyzing changes...');
+          
+          const [templateDesc, localDesc] = await Promise.all([
+            this.getAIDescription(diffSummary.diff, `Template changes to ${file.path}`),
+            this.getAIDescription(this.getLocalDiff(file.path), `Your local changes to ${file.path}`),
+          ]);
+          
+          // Clear the "Analyzing..." line and show descriptions
+          process.stdout.write('\x1b[1A\x1b[2K'); // Move up and clear line
+          
+          if (templateDesc) {
+            console.log(`   📝 Template: ${templateDesc}`);
+          }
+          if (localDesc) {
+            console.log(`   📝 Your changes: ${localDesc}`);
+          }
+        }
+        
+        if (diffSummary.preview.length > 0 && !aiAvailable) {
           console.log('   Preview:');
           diffSummary.preview.forEach(line => {
             const color = line.startsWith('+') ? '\x1b[32m' : '\x1b[31m';
