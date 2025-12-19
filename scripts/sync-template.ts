@@ -466,15 +466,21 @@ class TemplateSyncTool {
       if (aiAvailable && analysis.safeChanges.length <= 10) {
         console.log('   🤖 Generating descriptions...\n');
         
-        for (const f of analysis.safeChanges) {
+        // Run all descriptions in parallel for speed
+        const descriptionsPromises = analysis.safeChanges.map(async (f) => {
           const diffSummary = this.getFileDiffSummary(f.path);
           const description = await this.getAIDescription(diffSummary.diff, `Template changes to ${f.path}`);
-          
+          return { path: f.path, description };
+        });
+        
+        const descriptions = await Promise.all(descriptionsPromises);
+        
+        for (const { path, description } of descriptions) {
           if (description) {
-            console.log(`   • ${f.path}`);
+            console.log(`   • ${path}`);
             console.log(`     📝 ${description}`);
           } else {
-            console.log(`   • ${f.path}`);
+            console.log(`   • ${path}`);
           }
         }
       } else {

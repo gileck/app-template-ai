@@ -70,7 +70,7 @@ export async function askAgent(
 
         // Build command with properly escaped prompt
         const cmd = `cursor-agent -p --model ${model} --output-format text ${escapeShellArg(prompt)}`;
-        
+
         const output = execSync(cmd, {
             encoding: 'utf-8',
             timeout: timeoutMs,
@@ -85,7 +85,7 @@ export async function askAgent(
             }
             return result;
         }
-        
+
         return null;
     } catch {
         // Silently fail - agent might have timed out or crashed
