@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
 
@@ -7,17 +7,30 @@ interface BottomNavBarProps {
 }
 
 /**
- * Hook to handle iOS Safari's dynamic viewport (address bar hide/show)
+ * Hook to handle iOS Safari's dynamic viewport (address bar hide/show + keyboard)
  * Returns the offset needed to keep fixed bottom elements properly positioned
+ * 
+ * Handles:
+ * - Address bar show/hide during scroll
+ * - Keyboard appear/dismiss
+ * - App switching (visibility change)
+ * - Orientation changes
  */
 function useIOSViewportOffset() {
   // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for iOS Safari viewport offset, changes rapidly during scroll
   const [offset, setOffset] = useState(0);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isKeyboardOpenRef = useRef(false);
+
+  // Force reset offset to 0
+  const forceReset = useCallback(() => {
+    setOffset(0);
+  }, []);
 
   const updateOffset = useCallback(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
       // Calculate the difference between layout viewport and visual viewport
-      // This difference occurs when Safari's address bar is visible
+      // This difference occurs when Safari's address bar is visible or keyboard is open
       const layoutHeight = window.innerHeight;
       const visualHeight = window.visualViewport.height;
       const visualOffsetTop = window.visualViewport.offsetTop;
@@ -27,6 +40,28 @@ function useIOSViewportOffset() {
       setOffset(Math.max(0, newOffset));
     }
   }, []);
+
+  // Delayed reset - handles iOS Safari's delayed viewport updates after keyboard dismisses
+  const scheduleReset = useCallback(() => {
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+    }
+    
+    // Wait 300ms for iOS to settle after keyboard dismisses
+    resetTimeoutRef.current = setTimeout(() => {
+      if (typeof window !== 'undefined' && window.visualViewport) {
+        const layoutHeight = window.innerHeight;
+        const visualHeight = window.visualViewport.height;
+        
+        // If viewport is back to normal (within 50px threshold), reset
+        if (Math.abs(layoutHeight - visualHeight) < 50) {
+          forceReset();
+        } else {
+          updateOffset();
+        }
+      }
+    }, 300);
+  }, [updateOffset, forceReset]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) {
@@ -40,11 +75,55 @@ function useIOSViewportOffset() {
     window.visualViewport.addEventListener('resize', updateOffset);
     window.visualViewport.addEventListener('scroll', updateOffset);
 
+    // Keyboard focus detection
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || 
+                      target.tagName === 'TEXTAREA' || 
+                      target.isContentEditable;
+      
+      if (isInput) {
+        isKeyboardOpenRef.current = true;
+        // Let iOS adjust viewport before recalculating
+        setTimeout(updateOffset, 100);
+      }
+    };
+
+    const handleFocusOut = () => {
+      if (isKeyboardOpenRef.current) {
+        isKeyboardOpenRef.current = false;
+        // Schedule reset check after keyboard dismisses
+        scheduleReset();
+      }
+    };
+
+    // Handle app switching (returning to app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Recalculate when returning to app
+        setTimeout(updateOffset, 100);
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('resize', updateOffset); // Orientation changes
+
     return () => {
       window.visualViewport?.removeEventListener('resize', updateOffset);
       window.visualViewport?.removeEventListener('scroll', updateOffset);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('resize', updateOffset);
+      
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
     };
-  }, [updateOffset]);
+  }, [updateOffset, scheduleReset]);
 
   return offset;
 }
