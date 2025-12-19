@@ -24,10 +24,10 @@ let genAI: GoogleGenAI | null = null;
  */
 function getClient(): GoogleGenAI | null {
     if (genAI) return genAI;
-    
+
     // Get API key (env var or .env file)
     let apiKey = process.env.GEMINI_API_KEY?.replace(/^["']|["']$/g, '').trim();
-    
+
     if (!apiKey) {
         try {
             const envPath = path.join(process.cwd(), '.env');
@@ -36,9 +36,9 @@ function getClient(): GoogleGenAI | null {
             apiKey = match?.[1]?.trim();
         } catch { /* ignore */ }
     }
-    
+
     if (!apiKey) return null;
-    
+
     try {
         genAI = new GoogleGenAI({ apiKey });
         return genAI;
@@ -63,7 +63,7 @@ export async function askAgent(prompt: string): Promise<string | null> {
 
     try {
         const timeout = new Promise<null>(r => setTimeout(() => r(null), TIMEOUT_MS));
-        
+
         const request = client.models.generateContent({
             model: MODEL,
             contents: prompt,
