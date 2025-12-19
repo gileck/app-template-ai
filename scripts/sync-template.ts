@@ -898,7 +898,7 @@ class TemplateSyncTool {
 
   /**
    * Get the list of template commits since the last sync.
-   * Returns commit messages in format: "hash - message"
+   * Returns full commit messages including subject and body.
    */
   private getTemplateCommitsSinceLastSync(): string[] {
     if (!this.config.lastSyncCommit) {
@@ -908,9 +908,10 @@ class TemplateSyncTool {
     const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
 
     try {
-      // Get commits between lastSyncCommit and HEAD
+      // Get full commit messages between lastSyncCommit and HEAD
+      // Format: hash followed by full message, separated by a delimiter
       const log = this.exec(
-        `git log ${this.config.lastSyncCommit}..HEAD --oneline --no-decorate`,
+        `git log ${this.config.lastSyncCommit}..HEAD --pretty=format:"---COMMIT---%n%h %s%n%b" --no-decorate`,
         { cwd: templatePath, silent: true }
       );
 
@@ -918,7 +919,22 @@ class TemplateSyncTool {
         return [];
       }
 
-      return log.trim().split('\n').filter(line => line.trim());
+      // Split by delimiter and process each commit
+      const commits = log
+        .split('---COMMIT---')
+        .map(commit => commit.trim())
+        .filter(commit => commit.length > 0)
+        .map(commit => {
+          // Clean up: remove empty lines at the end, keep structure
+          const lines = commit.split('\n');
+          // Remove trailing empty lines
+          while (lines.length > 0 && !lines[lines.length - 1].trim()) {
+            lines.pop();
+          }
+          return lines.join('\n');
+        });
+
+      return commits;
     } catch {
       // If lastSyncCommit doesn't exist in template (force push, etc.), return empty
       return [];
@@ -936,7 +952,18 @@ class TemplateSyncTool {
     }
 
     const header = `chore: sync template (${shortCommit})`;
-    const body = '\n\nTemplate commits synced:\n' + templateCommits.map(c => `- ${c}`).join('\n');
+    
+    // Format commits with proper indentation for multi-line messages
+    const formattedCommits = templateCommits.map(commit => {
+      const lines = commit.split('\n');
+      if (lines.length === 1) {
+        return `- ${commit}`;
+      }
+      // First line with bullet, rest indented
+      return `- ${lines[0]}\n${lines.slice(1).map(l => `  ${l}`).join('\n')}`;
+    });
+    
+    const body = '\n\nTemplate commits synced:\n\n' + formattedCommits.join('\n\n');
     
     return header + body;
   }
