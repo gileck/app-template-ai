@@ -799,6 +799,51 @@ class TemplateSyncTool {
     }
   }
 
+  /**
+   * Get the list of template commits since the last sync.
+   * Returns commit messages in format: "hash - message"
+   */
+  private getTemplateCommitsSinceLastSync(): string[] {
+    if (!this.config.lastSyncCommit) {
+      return []; // First sync, no previous commits to show
+    }
+
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+
+    try {
+      // Get commits between lastSyncCommit and HEAD
+      const log = this.exec(
+        `git log ${this.config.lastSyncCommit}..HEAD --oneline --no-decorate`,
+        { cwd: templatePath, silent: true }
+      );
+
+      if (!log.trim()) {
+        return [];
+      }
+
+      return log.trim().split('\n').filter(line => line.trim());
+    } catch {
+      // If lastSyncCommit doesn't exist in template (force push, etc.), return empty
+      return [];
+    }
+  }
+
+  /**
+   * Format template commits for the sync commit message.
+   */
+  private formatSyncCommitMessage(templateCommit: string, templateCommits: string[]): string {
+    const shortCommit = templateCommit.slice(0, 7);
+    
+    if (templateCommits.length === 0) {
+      return `chore: sync template (${shortCommit})`;
+    }
+
+    const header = `chore: sync template (${shortCommit})`;
+    const body = '\n\nTemplate commits synced:\n' + templateCommits.map(c => `- ${c}`).join('\n');
+    
+    return header + body;
+  }
+
   private generateFileDiff(filePath: string): string {
     const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
     const templateFilePath = path.join(templatePath, filePath);
@@ -1037,7 +1082,20 @@ class TemplateSyncTool {
         silent: true,
       });
 
-      console.log(`📍 Template commit: ${templateCommit}\n`);
+      console.log(`📍 Template commit: ${templateCommit}`);
+      
+      // Show template commits since last sync
+      const templateCommits = this.getTemplateCommitsSinceLastSync();
+      if (templateCommits.length > 0) {
+        console.log(`\n📜 Template commits since last sync (${templateCommits.length}):`);
+        templateCommits.slice(0, 10).forEach(c => console.log(`   ${c}`));
+        if (templateCommits.length > 10) {
+          console.log(`   ... and ${templateCommits.length - 10} more`);
+        }
+      } else if (this.config.lastSyncCommit) {
+        console.log('\n📜 No new template commits since last sync.');
+      }
+      console.log('');
 
       // Step 4: Compare files
       console.log('🔍 Analyzing changes...');
@@ -1170,16 +1228,25 @@ class TemplateSyncTool {
       if (!this.dryRun && result.autoMerged.length > 0) {
         console.log('\n📦 Committing synced files...');
         
+        // Get template commits for the commit message (before cleanup)
+        const templateCommits = this.getTemplateCommitsSinceLastSync();
+        
+        if (templateCommits.length > 0) {
+          console.log(`\n📜 Template commits being synced (${templateCommits.length}):`);
+          templateCommits.forEach(c => console.log(`   ${c}`));
+        }
+        
         try {
           // Stage all changes (including .template-sync.json which we'll update)
           this.exec('git add -A', { silent: true });
           
-          // Create commit with template reference
-          const shortCommit = templateCommit.slice(0, 7);
-          this.exec(
-            `git commit -m "chore: sync template (${shortCommit})"`,
-            { silent: true }
-          );
+          // Create commit with template commits in message
+          const commitMessage = this.formatSyncCommitMessage(templateCommit, templateCommits);
+          // Use a temp file for multi-line commit message
+          const tempFile = path.join(this.projectRoot, '.sync-commit-msg.tmp');
+          fs.writeFileSync(tempFile, commitMessage, 'utf-8');
+          this.exec(`git commit -F "${tempFile}"`, { silent: true });
+          fs.unlinkSync(tempFile);
           
           // Now get the commit that INCLUDES the sync changes
           const projectCommit = this.exec('git rev-parse HEAD', { silent: true });
@@ -1193,7 +1260,7 @@ class TemplateSyncTool {
           this.exec('git commit --amend --no-edit', { silent: true });
           
           const finalCommit = this.exec('git rev-parse --short HEAD', { silent: true });
-          console.log(`   ✅ Committed as ${finalCommit}`);
+          console.log(`\n   ✅ Committed as ${finalCommit}`);
         } catch (error: any) {
           console.log(`   ⚠️  Auto-commit failed: ${error.message}`);
           console.log('   Please commit the changes manually.');
