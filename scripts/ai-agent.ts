@@ -16,13 +16,12 @@ const execAsync = promisify(exec);
 // ============================================================
 // CONFIGURATION
 // ============================================================
-// Fast models for quick descriptions (updated Dec 2025):
-// - gemini-3-flash: Google's fastest (released Dec 17, 2025)
-// - gemini-2.5-flash: Previous generation
-// - gpt-4o-mini: OpenAI's fast/cheap model
-// - claude-3-5-haiku: Anthropic's fastest
-const DEFAULT_MODEL = 'gemini-3-flash';
-const DEFAULT_TIMEOUT_MS = 30000;  // 30 seconds (cursor-agent can be slow)
+// Available models (cursor-agent --help for full list):
+// - auto: Fastest, lets cursor choose the best model (~9s)
+// - gemini-3-flash: Google's fastest (~28s due to overhead)
+// - sonnet-4.5: Claude's latest
+const DEFAULT_MODEL = 'auto';  // 'auto' is fastest for short prompts
+const DEFAULT_TIMEOUT_MS = 15000;  // 15 seconds (auto model is faster)
 // ============================================================
 
 interface AgentOptions {
@@ -82,7 +81,7 @@ export async function askAgent(
 
         // Build command with properly escaped prompt
         const cmd = `cursor-agent -p --model ${model} --output-format text ${escapeShellArg(prompt)}`;
-        
+
         // Use async exec for true parallel execution
         const { stdout } = await execAsync(cmd, {
             encoding: 'utf-8',
@@ -97,7 +96,7 @@ export async function askAgent(
             }
             return result;
         }
-        
+
         return null;
     } catch {
         // Silently fail - agent might have timed out or crashed
@@ -117,18 +116,15 @@ export async function describeChanges(
         return null;
     }
 
-    // Truncate diff if too long to avoid overwhelming the agent
-    const maxDiffLength = 2000;
+    // Truncate diff to keep prompt small and fast
+    const maxDiffLength = 1000;
     const truncatedDiff = diff.length > maxDiffLength
-        ? diff.slice(0, maxDiffLength) + '\n... (truncated)'
+        ? diff.slice(0, maxDiffLength) + '\n...(truncated)'
         : diff;
 
-    const prompt = `Describe in ONE short sentence (max 15 words) what this code change does. Be specific and technical. No fluff.
-${context ? `Context: ${context}\n` : ''}
-Diff:
-${truncatedDiff}
-
-One sentence description:`;
+    // Keep prompt minimal for speed
+    const prompt = `What does this code change do? Answer in 1 short sentence (max 12 words).
+${truncatedDiff}`;
 
     return askAgent(prompt, { timeoutMs: 30000, maxLength: 150 });
 }
