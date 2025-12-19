@@ -455,12 +455,35 @@ class TemplateSyncTool {
     console.log('📊 ANALYSIS SUMMARY');
     console.log('='.repeat(60));
 
+    const aiAvailable = isAgentAvailable();
+
     if (analysis.safeChanges.length > 0) {
       console.log(`\n✅ Safe changes (${analysis.safeChanges.length} files):`);
       console.log('   Only changed in template, no conflicts:');
-      analysis.safeChanges.forEach(f =>
-        console.log(`   • ${f.path}`)
-      );
+      
+      // Generate AI descriptions for safe changes if available
+      if (aiAvailable && analysis.safeChanges.length <= 10) {
+        console.log('   🤖 Generating descriptions...\n');
+        
+        for (const f of analysis.safeChanges) {
+          const diffSummary = this.getFileDiffSummary(f.path);
+          const description = await this.getAIDescription(diffSummary.diff, `Template changes to ${f.path}`);
+          
+          if (description) {
+            console.log(`   • ${f.path}`);
+            console.log(`     📝 ${description}`);
+          } else {
+            console.log(`   • ${f.path}`);
+          }
+        }
+      } else {
+        analysis.safeChanges.forEach(f =>
+          console.log(`   • ${f.path}`)
+        );
+        if (analysis.safeChanges.length > 10) {
+          console.log('   (AI descriptions skipped for large batch)');
+        }
+      }
     }
 
     if (analysis.conflictChanges.length > 0) {
