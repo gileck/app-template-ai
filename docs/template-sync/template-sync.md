@@ -202,9 +202,15 @@ Enter your choice (1/2): 2
 
 📋 Choose an action for each conflicting file:
 
+🤖 AI descriptions enabled (cursor-agent detected)
+
 ────────────────────────────────────────────────────────────
 
 📄 File 1 of 2: src/server/index.ts
+
+   📊 Template changes: +15 lines, -3 lines
+   📝 Template: Adds error handling middleware with retry logic
+   📝 Your changes: Custom route registration for auth endpoints
 
   [1] Override with template - Replace your changes with template version
   [2] Skip file              - Keep your current version, ignore template
@@ -217,6 +223,10 @@ Action for src/server/index.ts (1/2/3/4): 3
 ────────────────────────────────────────────────────────────
 
 📄 File 2 of 2: src/client/routes/Home/page.tsx
+
+   📊 Template changes: +8 lines, -2 lines
+   📝 Template: Updates layout component with new responsive grid
+   📝 Your changes: Added custom hero section for landing page
 
   [1] Override with template - Replace your changes with template version
   [2] Skip file              - Keep your current version, ignore template
@@ -247,6 +257,31 @@ Proceed with these actions? (y/n): y
 | **Skip** | Your version is kept, template ignored | Your changes are important, don't want template updates |
 | **Merge** | Creates `.template` file for manual merge | Need to combine both versions carefully |
 | **Do nothing** | File left unchanged | Decide later, not ready to handle now |
+
+### AI-Powered Change Descriptions
+
+When `cursor-agent` CLI is installed, the sync tool provides **AI-generated descriptions** of changes to help you make informed decisions:
+
+```
+📄 File 1 of 2: src/server/index.ts
+
+   📊 Template changes: +15 lines, -3 lines
+   📝 Template: Adds error handling middleware with retry logic
+   📝 Your changes: Custom route registration for auth endpoints
+```
+
+**Features:**
+- **Template description**: What the template changed in this file
+- **Your changes description**: What you changed locally
+- **Automatic fallback**: Shows code preview if `cursor-agent` is unavailable
+- **10-second timeout**: Won't slow down sync if AI is unresponsive
+
+**Installing cursor-agent:**
+```bash
+curl https://cursor.com/install -fsS | bash
+```
+
+Without `cursor-agent`, you'll see a code diff preview instead of AI descriptions.
 
 ### Auto Modes (Non-Interactive)
 
