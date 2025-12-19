@@ -17,7 +17,6 @@ interface BottomNavBarProps {
 //
 
 /**
- * yyy
  * Hook to handle iOS Safari's dynamic viewport (address bar hide/show + keyboard)
  * Returns the offset needed to keep fixed bottom elements properly positioned
  * 

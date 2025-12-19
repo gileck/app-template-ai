@@ -98,7 +98,7 @@ class TemplateSyncTool {
 
   private loadConfig(): TemplateSyncConfig {
     const configPath = path.join(this.projectRoot, CONFIG_FILE);
-    
+
     if (!fs.existsSync(configPath)) {
       console.error('❌ Error: .template-sync.json not found.');
       console.error('Run "yarn init-template" first to initialize template tracking.');
@@ -134,7 +134,7 @@ class TemplateSyncTool {
 
   private checkGitStatus(): void {
     const status = this.exec('git status --porcelain', { silent: true });
-    
+
     if (status && !this.force) {
       console.error('❌ Error: You have uncommitted changes.');
       console.error('Please commit or stash your changes before syncing the template.');
@@ -191,89 +191,89 @@ class TemplateSyncTool {
 
   private shouldIgnore(filePath: string): boolean {
     const normalized = filePath.replace(/\\/g, '/');
-    
+
     return this.config.ignoredFiles.some(pattern => {
       // Normalize pattern
       const normalizedPattern = pattern.replace(/\\/g, '/');
-      
+
       // Exact match
       if (normalized === normalizedPattern) return true;
-      
+
       // Handle ** (match any number of path segments)
       if (normalizedPattern.includes('**')) {
         const regexPattern = normalizedPattern
           .replace(/\*\*/g, '.*')  // ** matches anything
           .replace(/\*/g, '[^/]*') // * matches anything except /
           .replace(/\//g, '\\/');  // escape slashes
-        
+
         const regex = new RegExp('^' + regexPattern + '$');
         if (regex.test(normalized)) return true;
       }
-      
+
       // Handle * (match within a single path segment)
       if (normalizedPattern.includes('*') && !normalizedPattern.includes('**')) {
         const regexPattern = normalizedPattern
           .replace(/\*/g, '[^/]*')  // * matches anything except /
           .replace(/\//g, '\\/');   // escape slashes
-        
+
         const regex = new RegExp('^' + regexPattern + '$');
         if (regex.test(normalized)) return true;
       }
-      
+
       // Directory match (if pattern is a directory name anywhere in path)
       if (normalized.split('/').includes(normalizedPattern)) return true;
-      
+
       // Start with match (for directory paths)
       if (normalized.startsWith(normalizedPattern + '/')) return true;
-      
+
       return false;
     });
   }
 
   private shouldIgnoreByProjectSpecificFiles(filePath: string): boolean {
     const normalized = filePath.replace(/\\/g, '/');
-    
+
     return this.config.projectSpecificFiles.some(pattern => {
       // Normalize pattern
       const normalizedPattern = pattern.replace(/\\/g, '/');
-      
+
       // Exact match
       if (normalized === normalizedPattern) return true;
-      
+
       // Handle ** (match any number of path segments)
       if (normalizedPattern.includes('**')) {
         const regexPattern = normalizedPattern
           .replace(/\*\*/g, '.*')  // ** matches anything
           .replace(/\*/g, '[^/]*') // * matches anything except /
           .replace(/\//g, '\\/');  // escape slashes
-        
+
         const regex = new RegExp('^' + regexPattern + '$');
         if (regex.test(normalized)) return true;
       }
-      
+
       // Handle * (match within a single path segment)
       if (normalizedPattern.includes('*') && !normalizedPattern.includes('**')) {
         const regexPattern = normalizedPattern
           .replace(/\*/g, '[^/]*')  // * matches anything except /
           .replace(/\//g, '\\/');   // escape slashes
-        
+
         const regex = new RegExp('^' + regexPattern + '$');
         if (regex.test(normalized)) return true;
       }
-      
+
       // Directory match (if pattern is a directory name anywhere in path)
       if (normalized.split('/').includes(normalizedPattern)) return true;
-      
+
       // Start with match (for directory paths)
       if (normalized.startsWith(normalizedPattern + '/')) return true;
-      
+
       return false;
     });
   }
 
   private getFileHash(filePath: string): string {
     if (!fs.existsSync(filePath)) return '';
-    
+
     const content = fs.readFileSync(filePath);
     return crypto.createHash('md5').update(content).digest('hex');
   }
@@ -412,11 +412,11 @@ class TemplateSyncTool {
     console.log('\n' + '='.repeat(60));
     console.log('📊 ANALYSIS SUMMARY');
     console.log('='.repeat(60));
-    
+
     if (analysis.safeChanges.length > 0) {
       console.log(`\n✅ Safe changes (${analysis.safeChanges.length} files):`);
       console.log('   Only changed in template, no conflicts:');
-      analysis.safeChanges.forEach(f => 
+      analysis.safeChanges.forEach(f =>
         console.log(`   • ${f.path}`)
       );
     }
@@ -424,7 +424,7 @@ class TemplateSyncTool {
     if (analysis.conflictChanges.length > 0) {
       console.log(`\n⚠️  Potential conflicts (${analysis.conflictChanges.length} files):`);
       console.log('   Changed in both template and your project:');
-      analysis.conflictChanges.forEach(f => 
+      analysis.conflictChanges.forEach(f =>
         console.log(`   • ${f.path}`)
       );
     }
@@ -432,7 +432,7 @@ class TemplateSyncTool {
     if (analysis.projectOnlyChanges.length > 0) {
       console.log(`\n✅ Project customizations (${analysis.projectOnlyChanges.length} files):`);
       console.log('   Changed only in your project (template unchanged):');
-      analysis.projectOnlyChanges.forEach(f => 
+      analysis.projectOnlyChanges.forEach(f =>
         console.log(`   • ${f.path}`)
       );
     }
@@ -440,10 +440,10 @@ class TemplateSyncTool {
     if (analysis.skipped.length > 0) {
       console.log(`\n⏭️  Skipped (${analysis.skipped.length} files):`);
       console.log('   Project-specific files (ignored):');
-      analysis.skipped.forEach(f => 
+      analysis.skipped.forEach(f =>
         console.log(`   • ${f}`)
       );
-      
+
       // Warning about skipped files
       console.log('\n' + '─'.repeat(60));
       console.log('⚠️  WARNING: Skipped files have template changes!');
@@ -467,7 +467,7 @@ class TemplateSyncTool {
     return new Promise((resolve) => {
       this.rl.question('Enter your choice (1/2/3): ', (answer) => {
         const choice = answer.trim();
-        
+
         if (choice === '1') {
           resolve('safe');
         } else if (choice === '2') {
@@ -547,7 +547,7 @@ class TemplateSyncTool {
     conflicts: FileChange[]
   ): Promise<ConflictResolutionMap> {
     const resolutions: ConflictResolutionMap = {};
-    
+
     console.log('\n📋 Choose an action for each conflicting file:\n');
 
     for (let i = 0; i < conflicts.length; i++) {
@@ -572,7 +572,7 @@ class TemplateSyncTool {
       });
 
       resolutions[file.path] = resolution;
-      
+
       // Show confirmation
       const resolutionLabels: Record<ConflictResolution, string> = {
         override: '✓ Will override with template',
@@ -630,40 +630,40 @@ class TemplateSyncTool {
     console.log('\n' + '─'.repeat(60));
     console.log('📊 CONFLICT RESOLUTION SUMMARY');
     console.log('─'.repeat(60));
-    
+
     if (counts.override > 0) {
       console.log(`\n🔄 Override with template (${counts.override} files):`);
       Object.entries(resolutions)
         .filter(([, r]) => r === 'override')
         .forEach(([path]) => console.log(`   • ${path}`));
     }
-    
+
     if (counts.skip > 0) {
       console.log(`\n⏭️  Skip (${counts.skip} files):`);
       Object.entries(resolutions)
         .filter(([, r]) => r === 'skip')
         .forEach(([path]) => console.log(`   • ${path}`));
     }
-    
+
     if (counts.merge > 0) {
       console.log(`\n🔀 Merge (${counts.merge} files):`);
       Object.entries(resolutions)
         .filter(([, r]) => r === 'merge')
         .forEach(([path]) => console.log(`   • ${path}`));
     }
-    
+
     if (counts.nothing > 0) {
       console.log(`\n⏸️  Do nothing (${counts.nothing} files):`);
       Object.entries(resolutions)
         .filter(([, r]) => r === 'nothing')
         .forEach(([path]) => console.log(`   • ${path}`));
     }
-    
+
     console.log('');
   }
 
   private async syncFiles(
-    analysis: AnalysisResult, 
+    analysis: AnalysisResult,
     mode: SyncMode,
     conflictResolutions?: ConflictResolutionMap
   ): Promise<SyncResult> {
@@ -681,10 +681,10 @@ class TemplateSyncTool {
     }
 
     const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
-    
+
     // Apply safe changes
     console.log(`\n🔄 Applying safe changes (${analysis.safeChanges.length} files)...\n`);
-    
+
     for (const change of analysis.safeChanges) {
       const templateFilePath = path.join(templatePath, change.path);
       const projectFilePath = path.join(this.projectRoot, change.path);
@@ -706,7 +706,7 @@ class TemplateSyncTool {
     // Handle conflicts based on mode and resolutions
     if (mode === 'all' && analysis.conflictChanges.length > 0) {
       console.log(`\n🔄 Processing conflicts (${analysis.conflictChanges.length} files)...\n`);
-      
+
       for (const change of analysis.conflictChanges) {
         const templateFilePath = path.join(templatePath, change.path);
         const projectFilePath = path.join(this.projectRoot, change.path);
@@ -823,7 +823,7 @@ class TemplateSyncTool {
         `diff -u "${projectFilePath}" "${templateFilePath}" || true`,
         { silent: true }
       );
-      
+
       if (diff) {
         // Replace file paths in diff header for clarity
         return diff
@@ -914,7 +914,7 @@ class TemplateSyncTool {
       // Table of contents
       lines.push('## Table of Contents');
       lines.push('');
-      
+
       if (safeChanges.length > 0) {
         lines.push('### Safe Changes');
         safeChanges.forEach((c, i) => {
@@ -957,7 +957,7 @@ class TemplateSyncTool {
       // Generate diffs for each category
       const addDiffSection = (title: string, changes: FileChange[], prefix = '') => {
         if (changes.length === 0) return;
-        
+
         lines.push(`## ${title}`);
         lines.push('');
 
@@ -1009,7 +1009,7 @@ class TemplateSyncTool {
   async run(): Promise<void> {
     console.log('🔄 Template Sync Tool');
     console.log('='.repeat(60));
-    
+
     // Handle diff-summary mode
     if (this.diffSummary) {
       await this.runDiffSummary();
@@ -1054,24 +1054,24 @@ class TemplateSyncTool {
 
       // Check if all changes are skipped or project-only (nothing to sync from template)
       const hasChangesToSync = analysis.safeChanges.length > 0 || analysis.conflictChanges.length > 0;
-      
+
       if (!hasChangesToSync) {
         console.log('\n' + '='.repeat(60));
         console.log('📊 ANALYSIS SUMMARY');
         console.log('='.repeat(60));
-        
+
         if (analysis.projectOnlyChanges.length > 0) {
           console.log(`\n✅ Project customizations (${analysis.projectOnlyChanges.length} files):`);
           console.log('   Changed only in your project (template unchanged):');
           analysis.projectOnlyChanges.forEach(f => console.log(`   • ${f.path}`));
         }
-        
+
         if (analysis.skipped.length > 0) {
           console.log(`\n⏭️  Skipped files (${analysis.skipped.length} files):`);
           console.log('   These files are in your ignored/project-specific list.');
           analysis.skipped.forEach(f => console.log(`   • ${f}`));
         }
-        
+
         console.log('\n' + '='.repeat(60));
         console.log('\n✅ Nothing to sync. The template has no new changes for your project.');
         if (analysis.projectOnlyChanges.length > 0) {
@@ -1084,7 +1084,7 @@ class TemplateSyncTool {
       // Step 6: Prompt user for choice (unless auto mode or dry-run)
       let mode: SyncMode;
       let conflictResolutions: ConflictResolutionMap = {};
-      
+
       if (this.dryRun) {
         // In dry-run, show analysis but don't apply
         mode = 'all'; // Show everything
@@ -1132,19 +1132,19 @@ class TemplateSyncTool {
       } else {
         // Interactive mode: ask user
         mode = await this.promptUser(analysis);
-        
+
         // If user chose 'all' and there are conflicts, handle them interactively
         if (mode === 'all' && analysis.conflictChanges.length > 0) {
           conflictResolutions = await this.handleConflictResolution(analysis.conflictChanges);
           this.printConflictResolutionSummary(conflictResolutions);
-          
+
           // Confirm before proceeding
           const proceed = await new Promise<boolean>((resolve) => {
             this.rl.question('Proceed with these actions? (y/n): ', (answer) => {
               resolve(answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes');
             });
           });
-          
+
           if (!proceed) {
             console.log('\n✅ No changes applied.');
             this.rl.close();
