@@ -637,3 +637,5 @@ When conflicts are detected in interactive mode:
 
 **Happy syncing! 🚀**
 
+<!-- Last updated: Template sync now shows commit messages -->
+
