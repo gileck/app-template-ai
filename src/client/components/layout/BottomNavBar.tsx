@@ -17,6 +17,7 @@ interface BottomNavBarProps {
 //
 
 /**
+ * yyy
  * Hook to handle iOS Safari's dynamic viewport (address bar hide/show + keyboard)
  * Returns the offset needed to keep fixed bottom elements properly positioned
  * 
@@ -206,8 +207,8 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
               onClick={() => handleNavigation(item.path)}
               aria-current={active ? 'page' : undefined}
               className={`flex h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-colors ${active
-                  ? 'bg-accent text-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 }`}
             >
               <span className={active ? 'text-primary' : 'text-muted-foreground'}>{item.icon}</span>
