@@ -8,7 +8,7 @@
  * rather than throwing exceptions.
  */
 
-import { execSync, spawn } from 'child_process';
+import { execSync } from 'child_process';
 
 // ============================================================
 // CONFIGURATION
@@ -19,7 +19,7 @@ import { execSync, spawn } from 'child_process';
 // - gpt-4o-mini: OpenAI's fast/cheap model
 // - claude-3-5-haiku: Anthropic's fastest
 const DEFAULT_MODEL = 'gemini-3-flash';
-const DEFAULT_TIMEOUT_MS = 10000;  // 10 seconds
+const DEFAULT_TIMEOUT_MS = 30000;  // 30 seconds (cursor-agent can be slow)
 // ============================================================
 
 interface AgentOptions {
@@ -41,6 +41,14 @@ export function isAgentAvailable(): boolean {
 }
 
 /**
+ * Escape a string for use in shell commands
+ */
+function escapeShellArg(arg: string): string {
+    // Replace single quotes with escaped version and wrap in single quotes
+    return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+/**
  * Run cursor-agent with a prompt and return the response.
  * Returns null if agent is unavailable, times out, or crashes.
  */
@@ -54,67 +62,35 @@ export async function askAgent(
         model = DEFAULT_MODEL
     } = options;
 
-    return new Promise((resolve) => {
-        try {
-            // Check if agent exists first
-            if (!isAgentAvailable()) {
-                resolve(null);
-                return;
-            }
-
-            let output = '';
-            let resolved = false;
-
-            const proc = spawn('cursor-agent', [
-                '-p', prompt,
-                '--model', model,
-                '--output-format', 'text'
-            ], {
-                stdio: ['pipe', 'pipe', 'pipe'],
-                timeout: timeoutMs,
-            });
-
-            // Set timeout
-            const timer = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    proc.kill('SIGTERM');
-                    resolve(null);
-                }
-            }, timeoutMs);
-
-            proc.stdout?.on('data', (data) => {
-                output += data.toString();
-            });
-
-            proc.on('close', (code) => {
-                clearTimeout(timer);
-                if (!resolved) {
-                    resolved = true;
-                    if (code === 0 && output.trim()) {
-                        // Truncate if too long
-                        let result = output.trim();
-                        if (result.length > maxLength) {
-                            result = result.slice(0, maxLength - 3) + '...';
-                        }
-                        resolve(result);
-                    } else {
-                        resolve(null);
-                    }
-                }
-            });
-
-            proc.on('error', () => {
-                clearTimeout(timer);
-                if (!resolved) {
-                    resolved = true;
-                    resolve(null);
-                }
-            });
-        } catch {
-            resolve(null);
+    try {
+        // Check if agent exists first
+        if (!isAgentAvailable()) {
+            return null;
         }
-    });
+
+        // Build command with properly escaped prompt
+        const cmd = `cursor-agent -p --model ${model} --output-format text ${escapeShellArg(prompt)}`;
+        
+        const output = execSync(cmd, {
+            encoding: 'utf-8',
+            timeout: timeoutMs,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            maxBuffer: 1024 * 1024, // 1MB buffer
+        });
+
+        if (output && output.trim()) {
+            let result = output.trim();
+            if (result.length > maxLength) {
+                result = result.slice(0, maxLength - 3) + '...';
+            }
+            return result;
+        }
+        
+        return null;
+    } catch {
+        // Silently fail - agent might have timed out or crashed
+        return null;
+    }
 }
 
 /**
@@ -142,7 +118,7 @@ ${truncatedDiff}
 
 One sentence description:`;
 
-    return askAgent(prompt, { timeoutMs: 10000, maxLength: 150 });
+    return askAgent(prompt, { timeoutMs: 30000, maxLength: 150 });
 }
 
 /**
@@ -164,4 +140,3 @@ export async function describeConflict(
         local: localDesc,
     };
 }
-
