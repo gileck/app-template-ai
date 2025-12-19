@@ -32,6 +32,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import * as readline from 'readline';
 import { describeChanges, isAgentAvailable } from './ai-agent';
+import { select, confirm, isInteractive, SelectOption } from './cli-utils';
 
 interface SyncHistoryEntry {
   date: string;
@@ -519,32 +520,54 @@ class TemplateSyncTool {
     }
 
     console.log('\n' + '='.repeat(60));
-    console.log('\n🤔 What would you like to do?\n');
-    console.log('  [1] Safe only  - Apply only safe changes (skip conflicts)');
-    console.log('  [2] All changes - Apply safe changes + choose how to handle each conflict');
-    console.log('  [3] Cancel     - Don\'t apply any changes');
+    
     if (analysis.projectOnlyChanges.length > 0) {
-      console.log('\n   Note: Project customizations will be kept automatically.\n');
-    } else {
-      console.log('');
+      console.log('\n   ℹ️  Note: Project customizations will be kept automatically.');
     }
 
-    return new Promise((resolve) => {
-      this.rl.question('Enter your choice (1/2/3): ', (answer) => {
-        const choice = answer.trim();
+    const options: SelectOption<SyncMode>[] = [
+      { 
+        value: 'safe', 
+        label: 'Safe only',
+        description: 'Apply only safe changes (skip conflicts)'
+      },
+      { 
+        value: 'all', 
+        label: 'All changes',
+        description: 'Apply safe changes + choose how to handle each conflict'
+      },
+      { 
+        value: 'none', 
+        label: 'Cancel',
+        description: "Don't apply any changes"
+      },
+    ];
 
-        if (choice === '1') {
-          resolve('safe');
-        } else if (choice === '2') {
-          resolve('all');
-        } else if (choice === '3') {
-          resolve('none');
-        } else {
-          console.log('Invalid choice. Please enter 1, 2, or 3.');
-          this.promptUser(analysis).then(resolve);
-        }
+    // Use keyboard navigation if interactive, fallback to readline otherwise
+    if (isInteractive()) {
+      const result = await select('🤔 What would you like to do?', options);
+      return result ?? 'none';
+    } else {
+      // Fallback for non-TTY
+      console.log('\n🤔 What would you like to do?\n');
+      options.forEach((opt, i) => {
+        console.log(`  [${i + 1}] ${opt.label} - ${opt.description}`);
       });
-    });
+      console.log('');
+      
+      return new Promise((resolve) => {
+        this.rl.question('Enter your choice (1/2/3): ', (answer) => {
+          const choice = answer.trim();
+          if (choice === '1') resolve('safe');
+          else if (choice === '2') resolve('all');
+          else if (choice === '3') resolve('none');
+          else {
+            console.log('Invalid choice.');
+            resolve('none');
+          }
+        });
+      });
+    }
   }
 
   private printConflictResolutionOptions(): void {
@@ -571,41 +594,80 @@ class TemplateSyncTool {
     console.log('\n' + '─'.repeat(60));
     console.log(`⚠️  CONFLICT RESOLUTION (${conflictCount} files)`);
     console.log('─'.repeat(60));
-    console.log('\nHow would you like to handle the conflicting files?\n');
-    console.log('  [1] Apply the same action to all conflicting files');
-    console.log('  [2] Choose an action for each file individually');
-    console.log('');
 
-    return new Promise((resolve) => {
-      this.rl.question('Enter your choice (1/2): ', (answer) => {
-        const choice = answer.trim();
-        if (choice === '1') {
-          resolve('bulk');
-        } else if (choice === '2') {
-          resolve('individual');
-        } else {
-          console.log('Invalid choice. Please enter 1 or 2.');
-          this.promptConflictResolutionMode(conflictCount).then(resolve);
-        }
+    const options: SelectOption<'bulk' | 'individual'>[] = [
+      { 
+        value: 'bulk', 
+        label: 'Apply same action to all',
+        description: 'Choose one action for all conflicting files'
+      },
+      { 
+        value: 'individual', 
+        label: 'Choose per file',
+        description: 'Review and choose action for each file individually'
+      },
+    ];
+
+    if (isInteractive()) {
+      const result = await select('How would you like to handle conflicts?', options);
+      return result ?? 'bulk';
+    } else {
+      console.log('\nHow would you like to handle the conflicting files?\n');
+      options.forEach((opt, i) => {
+        console.log(`  [${i + 1}] ${opt.label} - ${opt.description}`);
       });
-    });
+      console.log('');
+      
+      return new Promise((resolve) => {
+        this.rl.question('Enter your choice (1/2): ', (answer) => {
+          resolve(answer.trim() === '2' ? 'individual' : 'bulk');
+        });
+      });
+    }
+  }
+
+  private getConflictResolutionOptions(): SelectOption<ConflictResolution>[] {
+    return [
+      { 
+        value: 'override', 
+        label: 'Override with template',
+        description: 'Replace your changes with template version'
+      },
+      { 
+        value: 'skip', 
+        label: 'Skip file',
+        description: 'Keep your current version, ignore template'
+      },
+      { 
+        value: 'merge', 
+        label: 'Merge',
+        description: 'Apply template changes (may cause conflicts)'
+      },
+      { 
+        value: 'nothing', 
+        label: 'Do nothing',
+        description: 'Leave file unchanged for now'
+      },
+    ];
   }
 
   private async promptBulkConflictResolution(): Promise<ConflictResolution> {
-    console.log('\n📋 Choose the action to apply to ALL conflicting files:');
-    this.printConflictResolutionOptions();
+    const options = this.getConflictResolutionOptions();
 
-    return new Promise((resolve) => {
-      this.rl.question('Enter your choice (1/2/3/4): ', (answer) => {
-        const resolution = this.parseConflictResolution(answer);
-        if (resolution) {
-          resolve(resolution);
-        } else {
-          console.log('Invalid choice. Please enter 1, 2, 3, or 4.');
-          this.promptBulkConflictResolution().then(resolve);
-        }
+    if (isInteractive()) {
+      const result = await select('📋 Choose action for ALL conflicting files:', options);
+      return result ?? 'nothing';
+    } else {
+      console.log('\n📋 Choose the action to apply to ALL conflicting files:');
+      this.printConflictResolutionOptions();
+      
+      return new Promise((resolve) => {
+        this.rl.question('Enter your choice (1/2/3/4): ', (answer) => {
+          const resolution = this.parseConflictResolution(answer);
+          resolve(resolution ?? 'nothing');
+        });
       });
-    });
+    }
   }
 
   /**
@@ -681,6 +743,7 @@ class TemplateSyncTool {
   ): Promise<ConflictResolutionMap> {
     const resolutions: ConflictResolutionMap = {};
     const aiAvailable = isAgentAvailable();
+    const interactive = isInteractive();
 
     console.log('\n📋 Choose an action for each conflicting file:\n');
     
@@ -688,15 +751,17 @@ class TemplateSyncTool {
       console.log('🤖 AI descriptions enabled (cursor-agent detected)\n');
     }
 
+    const options = this.getConflictResolutionOptions();
+
     for (let i = 0; i < conflicts.length; i++) {
       const file = conflicts[i];
       console.log('─'.repeat(60));
-      console.log(`\n📄 File ${i + 1} of ${conflicts.length}: ${file.path}`);
+      console.log(`\n📄 File ${i + 1} of ${conflicts.length}: \x1b[1m${file.path}\x1b[0m`);
       
       // Show diff preview
       const diffSummary = this.getFileDiffSummary(file.path);
       if (diffSummary.added > 0 || diffSummary.removed > 0) {
-        console.log(`\n   📊 Template changes: +${diffSummary.added} lines, -${diffSummary.removed} lines`);
+        console.log(`\n   📊 Template changes: \x1b[32m+${diffSummary.added}\x1b[0m lines, \x1b[31m-${diffSummary.removed}\x1b[0m lines`);
         
         // Get AI descriptions if available
         if (aiAvailable && diffSummary.diff) {
@@ -729,34 +794,23 @@ class TemplateSyncTool {
           }
         }
       }
-      
-      this.printConflictResolutionOptions();
 
-      const resolution = await new Promise<ConflictResolution>((resolve) => {
-        const askQuestion = () => {
+      let resolution: ConflictResolution;
+
+      if (interactive) {
+        const result = await select(`Choose action for ${path.basename(file.path)}:`, options);
+        resolution = result ?? 'nothing';
+      } else {
+        this.printConflictResolutionOptions();
+        resolution = await new Promise<ConflictResolution>((resolve) => {
           this.rl.question(`Action for ${file.path} (1/2/3/4): `, (answer) => {
             const res = this.parseConflictResolution(answer);
-            if (res) {
-              resolve(res);
-            } else {
-              console.log('Invalid choice. Please enter 1, 2, 3, or 4.');
-              askQuestion();
-            }
+            resolve(res ?? 'nothing');
           });
-        };
-        askQuestion();
-      });
+        });
+      }
 
       resolutions[file.path] = resolution;
-
-      // Show confirmation
-      const resolutionLabels: Record<ConflictResolution, string> = {
-        override: '✓ Will override with template',
-        skip: '✓ Will skip (keep current)',
-        merge: '✓ Will merge (may conflict)',
-        nothing: '✓ Will do nothing',
-      };
-      console.log(`   ${resolutionLabels[resolution]}`);
     }
 
     return resolutions;
@@ -1580,11 +1634,16 @@ class TemplateSyncTool {
           this.printConflictResolutionSummary(conflictResolutions);
 
           // Confirm before proceeding
-          const proceed = await new Promise<boolean>((resolve) => {
-            this.rl.question('Proceed with these actions? (y/n): ', (answer) => {
-              resolve(answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes');
+          let proceed: boolean;
+          if (isInteractive()) {
+            proceed = await confirm('Proceed with these actions?', true);
+          } else {
+            proceed = await new Promise<boolean>((resolve) => {
+              this.rl.question('Proceed with these actions? (y/n): ', (answer) => {
+                resolve(answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes');
+              });
             });
-          });
+          }
 
           if (!proceed) {
             console.log('\n✅ No changes applied.');
