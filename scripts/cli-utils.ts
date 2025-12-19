@@ -27,6 +27,7 @@ export async function select<T>(
   return new Promise((resolve) => {
     let selectedIndex = defaultIndex;
     const maxIndex = options.length - 1;
+    let totalLinesRendered = 0;
 
     // Enable raw mode for keypress detection
     if (process.stdin.isTTY) {
@@ -34,12 +35,39 @@ export async function select<T>(
     }
     readline.emitKeypressEvents(process.stdin);
 
-    const render = () => {
-      // Clear previous render (move up and clear lines)
-      const linesToClear = options.length + 3;
-      process.stdout.write(`\x1b[${linesToClear}A\x1b[0J`);
+    // Calculate total lines this menu will take
+    const calculateLines = (): number => {
+      let lines = 2; // message + blank line
+      for (const opt of options) {
+        lines += 1; // label line
+        if (opt.description) {
+          lines += 1; // description line
+        }
+      }
+      lines += 2; // blank line + hint line
+      return lines;
+    };
+
+    const clearLines = (count: number) => {
+      if (count > 0) {
+        // Move cursor up and clear each line
+        for (let i = 0; i < count; i++) {
+          process.stdout.write('\x1b[1A'); // Move up one line
+          process.stdout.write('\x1b[2K'); // Clear entire line
+        }
+      }
+    };
+
+    const render = (isInitial = false) => {
+      // Clear previous render if not initial
+      if (!isInitial && totalLinesRendered > 0) {
+        clearLines(totalLinesRendered);
+      }
+
+      const lines: string[] = [];
       
-      console.log(`\n${message}\n`);
+      lines.push(`\n${message}`);
+      lines.push('');
       
       options.forEach((opt, i) => {
         const isSelected = i === selectedIndex;
@@ -48,20 +76,23 @@ export async function select<T>(
         const reset = '\x1b[0m';
         const number = `[${i + 1}]`;
         
+        lines.push(`${prefix} ${highlight}${number} ${opt.label}${reset}`);
         if (opt.description) {
-          console.log(`${prefix} ${highlight}${number} ${opt.label}${reset}`);
-          console.log(`    \x1b[90m${opt.description}\x1b[0m`);
-        } else {
-          console.log(`${prefix} ${highlight}${number} ${opt.label}${reset}`);
+          lines.push(`    \x1b[90m${opt.description}\x1b[0m`);
         }
       });
       
-      console.log('\n\x1b[90m↑/↓ navigate • Enter select • q cancel\x1b[0m');
+      lines.push('');
+      lines.push('\x1b[90m↑/↓ navigate • Enter select • q cancel\x1b[0m');
+
+      // Print all lines
+      lines.forEach(line => console.log(line));
+      
+      totalLinesRendered = lines.length;
     };
 
-    // Initial render (with blank lines first)
-    console.log('\n' + '\n'.repeat(options.length + 2));
-    render();
+    // Initial render
+    render(true);
 
     const cleanup = () => {
       process.stdin.removeListener('keypress', onKeypress);
@@ -84,7 +115,10 @@ export async function select<T>(
       // Handle Enter/Space to select
       else if (key.name === 'return' || key.name === 'space') {
         cleanup();
-        console.log(`\n✓ Selected: ${options[selectedIndex].label}\n`);
+        // Clear the menu and show selection
+        clearLines(totalLinesRendered);
+        console.log(`\n${message}`);
+        console.log(`✓ ${options[selectedIndex].label}\n`);
         resolve(options[selectedIndex].value);
       }
       // Handle number keys (1-9)
@@ -92,14 +126,18 @@ export async function select<T>(
         const index = parseInt(key.name) - 1;
         if (index <= maxIndex) {
           cleanup();
-          console.log(`\n✓ Selected: ${options[index].label}\n`);
+          clearLines(totalLinesRendered);
+          console.log(`\n${message}`);
+          console.log(`✓ ${options[index].label}\n`);
           resolve(options[index].value);
         }
       }
       // Handle cancel (q or Escape)
       else if (key.name === 'q' || key.name === 'escape') {
         cleanup();
-        console.log('\n✗ Cancelled\n');
+        clearLines(totalLinesRendered);
+        console.log(`\n${message}`);
+        console.log('✗ Cancelled\n');
         resolve(null);
       }
       // Handle Ctrl+C
@@ -127,7 +165,7 @@ export async function confirm(message: string, defaultValue = true): Promise<boo
     }
     readline.emitKeypressEvents(process.stdin);
 
-    console.log(`\n${message} ${hint} `);
+    process.stdout.write(`\n${message} ${hint} `);
 
     const cleanup = () => {
       process.stdin.removeListener('keypress', onKeypress);
@@ -195,4 +233,3 @@ export function createFallbackSelect<T>(rl: readline.Interface) {
 export function isInteractive(): boolean {
   return Boolean(process.stdin.isTTY);
 }
-
