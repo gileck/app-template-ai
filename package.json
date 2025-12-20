@@ -12,8 +12,8 @@
     "ts": "tsc --noEmit",
     "checks": "yarn ts; yarn lint",
     "watch-checks": "node scripts/watch-checks.js",
-    "init-template": "ts-node scripts/init-template.ts",
-    "sync-template": "ts-node scripts/sync-template.ts"
+    "init-template": "tsx scripts/init-template.ts",
+    "sync-template": "tsx scripts/sync-template.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
@@ -64,7 +64,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.6",
     "tailwindcss": "^4",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }
