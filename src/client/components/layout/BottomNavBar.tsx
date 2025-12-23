@@ -10,6 +10,38 @@ interface BottomNavBarProps {
 // Feature name for logging - enable with: window.enableLogs('ios-viewport')
 const LOG_FEATURE = 'ios-viewport';
 
+// Cache for safe area inset bottom value
+let cachedSafeAreaBottom: number | null = null;
+
+/**
+ * Get the safe-area-inset-bottom value in pixels.
+ * This is used to avoid double-compensating (CSS already handles safe area).
+ */
+function getSafeAreaInsetBottom(): number {
+  if (cachedSafeAreaBottom !== null) {
+    return cachedSafeAreaBottom;
+  }
+  
+  if (typeof document === 'undefined') {
+    return 0;
+  }
+  
+  // Create a temporary element to measure env(safe-area-inset-bottom)
+  const div = document.createElement('div');
+  div.style.position = 'fixed';
+  div.style.bottom = '0';
+  div.style.height = 'env(safe-area-inset-bottom, 0px)';
+  div.style.pointerEvents = 'none';
+  div.style.visibility = 'hidden';
+  document.body.appendChild(div);
+  
+  const height = div.getBoundingClientRect().height;
+  document.body.removeChild(div);
+  
+  cachedSafeAreaBottom = height;
+  return height;
+}
+
 // =============================================================================
 // iOS Safari Viewport Offset Hook - Comprehensive Fix
 // =============================================================================
@@ -52,6 +84,7 @@ function getViewportMeasurements(): Record<string, unknown> {
   
   const vv = window.visualViewport;
   const scrollTop = document.documentElement.scrollTop || window.scrollY || 0;
+  const safeAreaBottom = getSafeAreaInsetBottom();
   
   return {
     // Visual viewport measurements
@@ -74,6 +107,9 @@ function getViewportMeasurements(): Record<string, unknown> {
     // Calculated values
     visualBottom: Math.round(vv.pageTop + vv.height),
     layoutBottom: Math.round(scrollTop + window.innerHeight),
+    rawDiff: Math.round((scrollTop + window.innerHeight) - (vv.pageTop + vv.height)),
+    // Safe area (CSS handles this, so we subtract it from offset)
+    safeAreaBottom,
   };
 }
 
@@ -100,6 +136,11 @@ function useIOSViewportOffset() {
   /**
    * Calculate the offset needed to position navbar at visual viewport bottom.
    * This accounts for BOTH bottom toolbar visibility AND keyboard presence.
+   * 
+   * IMPORTANT: We subtract safe-area-inset-bottom from the calculated offset
+   * because CSS already handles safe area via paddingBottom: env(safe-area-inset-bottom).
+   * Without this, we'd double-compensate when iOS reports a smaller visual viewport
+   * due to the home indicator becoming "active" while scrolled.
    */
   const calculateOffset = useCallback((): number => {
     if (typeof window === 'undefined' || !window.visualViewport) {
@@ -123,7 +164,21 @@ function useIOSViewportOffset() {
     // This handles both:
     // - Bottom toolbar visible (visual viewport smaller at bottom)
     // - Keyboard pushing content up (visual viewport scrolled)
-    const diff = layoutBottom - visualBottom;
+    let diff = layoutBottom - visualBottom;
+    
+    // Subtract safe area inset because CSS already handles it with:
+    // paddingBottom: env(safe-area-inset-bottom)
+    // This prevents double-compensation when iOS PWA mode shows the home indicator
+    // (which causes vv.height to be ~68px smaller than innerHeight)
+    const safeAreaBottom = getSafeAreaInsetBottom();
+    if (!isKeyboardActiveRef.current && diff > 0 && diff <= safeAreaBottom + 5) {
+      // The offset is approximately equal to safe area - CSS handles this
+      diff = 0;
+    } else if (diff > safeAreaBottom) {
+      // There's additional offset beyond safe area (e.g., keyboard or browser toolbar)
+      // Subtract safe area since CSS handles that part
+      diff = diff - safeAreaBottom;
+    }
     
     return Math.max(0, Math.round(diff));
   }, []);
