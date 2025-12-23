@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
 
@@ -7,43 +6,38 @@ interface BottomNavBarProps {
 }
 
 /**
- * Simple iOS keyboard fix: when an input loses focus (keyboard closes),
- * do a tiny scroll "jiggle" to force iOS to recalculate its viewport.
+ * BottomNavBar - Mobile navigation fixed at the bottom of the screen.
  * 
- * This fixes the iOS PWA bug where the bottom navbar gets stuck after
- * the keyboard closes.
+ * ## iOS Safari/PWA Viewport Fix
+ * 
+ * This navbar does NOT use `position: fixed`. Instead, it sits at the bottom
+ * of a flexbox container that uses `height: 100dvh` (see Layout.tsx).
+ * 
+ * ### The Problem
+ * iOS Safari and PWA have viewport bugs where `position: fixed; bottom: 0`
+ * elements get mispositioned when:
+ * - The iOS keyboard opens/closes
+ * - The browser toolbar shows/hides on scroll
+ * - In PWA standalone mode after keyboard interactions
+ * 
+ * ### The Solution (100dvh Layout)
+ * Instead of `position: fixed`, we use a CSS-only approach:
+ * 1. Layout.tsx sets `height: 100dvh` on mobile (dynamic viewport height)
+ * 2. Main content has `overflow-y: auto` (scrolls internally)
+ * 3. This navbar uses `shrink-0` and sits naturally at the flex container bottom
+ * 
+ * The `dvh` unit automatically adjusts when iOS shows/hides the keyboard or
+ * toolbar, so the navbar stays correctly positioned without any JavaScript.
+ * 
+ * ### What We Tried That Didn't Work
+ * - Option 1: Scroll jiggle on focusout - fixed keyboard but broke scroll-down
+ * - Complex visualViewport API tracking - too many edge cases, flickering
+ * - Force repaint on keyboard close - inconsistent results
+ * 
+ * @see Layout.tsx for the parent container setup
  */
-function useIOSKeyboardFix() {
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleFocusOut = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      const isInput = target.tagName === 'INPUT' ||
-                      target.tagName === 'TEXTAREA' ||
-                      target.isContentEditable;
-
-      if (isInput) {
-        // Tiny scroll jiggle to force iOS to recalculate viewport
-        // This is a well-known workaround for iOS Safari/PWA viewport bugs
-        requestAnimationFrame(() => {
-          const scrollY = window.scrollY;
-          window.scrollTo(window.scrollX, scrollY + 1);
-          requestAnimationFrame(() => {
-            window.scrollTo(window.scrollX, scrollY);
-          });
-        });
-      }
-    };
-
-    document.addEventListener('focusout', handleFocusOut);
-    return () => document.removeEventListener('focusout', handleFocusOut);
-  }, []);
-}
-
 export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
   const { currentPath, navigate } = useRouter();
-  useIOSKeyboardFix();
 
   const isActive = (path: string) => {
     if (path === '/') return currentPath === '/';
@@ -54,7 +48,7 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
     navigate(path);
   };
 
-  // Option 2: No position:fixed - navbar sits at bottom of dvh flex container
+  // No position:fixed - navbar sits at bottom of 100dvh flex container (see docs above)
   return (
     <div
       className="z-40 block shrink-0 border-t bg-background sm:hidden"

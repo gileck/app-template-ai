@@ -29,7 +29,11 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
     setMobileOpen(!mobileOpen);
   };
 
-  // Option 2: Use 100dvh on mobile for iOS keyboard handling
+  // iOS Safari/PWA Fix: Use 100dvh on mobile instead of min-h-screen
+  // This makes the container height equal to the dynamic viewport height,
+  // which automatically adjusts when iOS keyboard/toolbar appears/disappears.
+  // The BottomNavBar sits at the flex container bottom (no position:fixed needed).
+  // See BottomNavBar.tsx for full documentation of the iOS viewport fix.
   return (
     <div 
       className={`flex flex-col ${isStandalone && isMobile ? 'pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]' : ''}`}
