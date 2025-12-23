@@ -1,115 +1,294 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from '../../router';
 import { NavItem } from '../../components/layout/types';
+import { logger } from '@/client/features/session-logs';
 
 interface BottomNavBarProps {
   navItems: NavItem[];
 }
 
+// Feature name for logging - enable with: window.enableLogs('ios-viewport')
+const LOG_FEATURE = 'ios-viewport';
+
 // =============================================================================
-// iOS Safari Viewport Offset Hook
+// iOS Safari Viewport Offset Hook - Comprehensive Fix
 // =============================================================================
 // 
-// MAGIC NUMBERS REFERENCE:
-// - 100ms: Time for iOS to finish viewport adjustment before recalculating
-// - 300ms: Time for iOS Safari to settle after keyboard dismisses
-// - 50px: Threshold for "normal" viewport (accounts for minor toolbar differences)
+// PROBLEMS SOLVED:
+// 1. iOS Browser: Bottom toolbar (arrows, tabs) shows/hides during scroll
+//    - Scrolling DOWN hides toolbar → visual viewport grows but navbar position wrong
+//    - Scrolling UP shows toolbar → visual viewport shrinks
+// 2. iOS PWA: Keyboard + auto-scroll causes navbar to get "stuck"
+//    - iOS auto-scrolls to keep input visible above keyboard
+//    - visualViewport.offsetTop doesn't reset properly after keyboard dismiss
+//
+// KEY INSIGHT:
+// The visual viewport's "bottom edge" position relative to the layout viewport
+// determines where our fixed-bottom element should actually be. We calculate:
+// 
+//   visualViewportBottom = visualViewport.pageTop + visualViewport.height
+//   layoutViewportBottom = document.documentElement.scrollTop + window.innerHeight
+//   offset = layoutViewportBottom - visualViewportBottom
+//
+// This correctly handles BOTH the bottom toolbar AND keyboard scenarios.
+//
+// DEBUG LOGGING:
+// Enable in browser console: window.enableLogs('ios-viewport')
+// View logs: window.printLogs('ios-viewport')
+//
+// MAGIC NUMBERS:
+// - 16ms: requestAnimationFrame interval (~60fps) for smooth tracking
+// - 500ms: Duration to poll after keyboard events (covers iOS animation)
+// - 50px: Threshold for "stable" viewport (minor toolbar differences OK)
 //
 
 /**
- * Hook to handle iOS Safari's dynamic viewport (address bar hide/show + keyboard)
- * Returns the offset needed to keep fixed bottom elements properly positioned
+ * Get all viewport measurements for logging
+ */
+function getViewportMeasurements() {
+  if (typeof window === 'undefined' || !window.visualViewport) {
+    return null;
+  }
+  
+  const vv = window.visualViewport;
+  const scrollTop = document.documentElement.scrollTop || window.scrollY || 0;
+  
+  return {
+    // Visual viewport measurements
+    vv_height: Math.round(vv.height),
+    vv_width: Math.round(vv.width),
+    vv_pageTop: Math.round(vv.pageTop),
+    vv_pageLeft: Math.round(vv.pageLeft),
+    vv_offsetTop: Math.round(vv.offsetTop),
+    vv_offsetLeft: Math.round(vv.offsetLeft),
+    vv_scale: vv.scale,
+    // Layout viewport measurements
+    innerHeight: window.innerHeight,
+    innerWidth: window.innerWidth,
+    scrollTop: Math.round(scrollTop),
+    scrollY: Math.round(window.scrollY),
+    // Document measurements
+    docScrollTop: Math.round(document.documentElement.scrollTop),
+    docClientHeight: document.documentElement.clientHeight,
+    bodyScrollTop: Math.round(document.body?.scrollTop || 0),
+    // Calculated values
+    visualBottom: Math.round(vv.pageTop + vv.height),
+    layoutBottom: Math.round(scrollTop + window.innerHeight),
+  };
+}
+
+/**
+ * Hook to handle iOS Safari's dynamic viewport issues:
+ * - Browser bottom toolbar appearing/disappearing during scroll
+ * - Keyboard appearance and the subsequent auto-scroll behavior
  * 
- * ## Problem
- * iOS Safari has a "dynamic viewport" where the address bar hides/shows during scroll.
- * Fixed position elements (like bottom navbars) can detach from the screen edge,
- * floating above the bottom with a visible gap.
- * 
- * ## Solution
- * Uses the Visual Viewport API to calculate the difference between the layout viewport
- * (window.innerHeight) and the visual viewport (what the user actually sees).
- * This difference is applied as a `bottom` offset to keep the navbar anchored.
- * 
- * ## Edge Cases Handled
- * - Address bar show/hide during scroll (visualViewport resize/scroll events)
- * - Keyboard appearance/dismissal (focusin/focusout with delayed reset)
- * - App switching (visibilitychange event)
- * - Orientation changes (window resize event)
- * 
- * ## Keyboard Dismiss Fix
- * When keyboard dismisses, iOS Safari sometimes doesn't fire visualViewport events,
- * leaving the offset "stuck". Fix: On focusout, wait 300ms for iOS to settle, 
- * then check if viewport is back to normal (within 50px threshold). If so, reset to 0.
- * 
- * @see https://developer.mozilla.org/en-US/docs/Web/API/Visual_Viewport_API
+ * @returns The offset in pixels to apply to `bottom` style
  */
 function useIOSViewportOffset() {
   // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for iOS Safari viewport offset, changes rapidly during scroll
   const [offset, setOffset] = useState(0);
-  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isKeyboardOpenRef = useRef(false);
+  
+  // Refs for managing async operations
+  const rafIdRef = useRef<number | null>(null);
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isKeyboardActiveRef = useRef(false);
+  const lastStableOffsetRef = useRef(0);
+  const stabilityCountRef = useRef(0);
+  const lastLoggedOffsetRef = useRef<number | null>(null);
+  const pollCountRef = useRef(0);
 
-  // Force reset offset to 0 (used when viewport returns to normal state)
-  const forceReset = useCallback(() => {
-    setOffset(0);
-  }, []);
-
-  // Calculate and set the offset based on viewport differences
-  const updateOffset = useCallback(() => {
-    if (typeof window !== 'undefined' && window.visualViewport) {
-      // Layout viewport = full page height (includes hidden address bar space)
-      // Visual viewport = what user actually sees (shrinks when address bar visible)
-      const layoutHeight = window.innerHeight;
-      const visualHeight = window.visualViewport.height;
-      const visualOffsetTop = window.visualViewport.offsetTop;
-
-      // The offset is how much the visual viewport is shifted from the bottom
-      // This value is applied to `bottom` style to keep navbar at visible bottom
-      const newOffset = layoutHeight - visualHeight - visualOffsetTop;
-      setOffset(Math.max(0, newOffset));
-    }
-  }, []);
-
-  // Delayed reset - handles iOS Safari's unreliable viewport events after keyboard dismisses
-  const scheduleReset = useCallback(() => {
-    if (resetTimeoutRef.current) {
-      clearTimeout(resetTimeoutRef.current);
+  /**
+   * Calculate the offset needed to position navbar at visual viewport bottom.
+   * This accounts for BOTH bottom toolbar visibility AND keyboard presence.
+   */
+  const calculateOffset = useCallback((): number => {
+    if (typeof window === 'undefined' || !window.visualViewport) {
+      return 0;
     }
 
-    // 300ms - time for iOS Safari to settle after keyboard dismisses
-    // iOS doesn't reliably fire visualViewport events on keyboard dismiss
-    resetTimeoutRef.current = setTimeout(() => {
-      if (typeof window !== 'undefined' && window.visualViewport) {
-        const layoutHeight = window.innerHeight;
-        const visualHeight = window.visualViewport.height;
+    const vv = window.visualViewport;
+    
+    // Visual viewport bottom edge (in document coordinates)
+    // pageTop = scroll offset of visual viewport from document top
+    const visualBottom = vv.pageTop + vv.height;
+    
+    // Layout viewport bottom edge (in document coordinates)
+    // This is where position:fixed;bottom:0 would naturally sit
+    const scrollTop = document.documentElement.scrollTop || window.scrollY || 0;
+    const layoutBottom = scrollTop + window.innerHeight;
+    
+    // The difference tells us how much the visual viewport bottom
+    // is offset from the layout viewport bottom
+    // Positive = visual viewport is "above" layout viewport bottom (need to adjust up)
+    // This handles both:
+    // - Bottom toolbar visible (visual viewport smaller at bottom)
+    // - Keyboard pushing content up (visual viewport scrolled)
+    const diff = layoutBottom - visualBottom;
+    
+    return Math.max(0, Math.round(diff));
+  }, []);
 
-        // 50px threshold - accounts for minor viewport differences (toolbars, etc.)
-        // If difference is small, viewport is "back to normal" and we can reset
-        if (Math.abs(layoutHeight - visualHeight) < 50) {
-          forceReset();
-        } else {
-          // Viewport still different (e.g., address bar visible), recalculate
-          updateOffset();
+  /**
+   * Update the offset state, but only if value has changed
+   * to prevent unnecessary re-renders
+   */
+  const updateOffset = useCallback((source?: string) => {
+    const newOffset = calculateOffset();
+    
+    // Log when offset changes (not every frame to avoid spam)
+    if (lastLoggedOffsetRef.current !== newOffset) {
+      const measurements = getViewportMeasurements();
+      logger.debug(LOG_FEATURE, `Offset changed: ${lastLoggedOffsetRef.current} → ${newOffset}`, {
+        meta: {
+          source,
+          newOffset,
+          prevOffset: lastLoggedOffsetRef.current,
+          isKeyboardActive: isKeyboardActiveRef.current,
+          isPolling: !!rafIdRef.current,
+          ...measurements,
         }
+      });
+      lastLoggedOffsetRef.current = newOffset;
+    }
+    
+    setOffset(prev => {
+      if (prev !== newOffset) {
+        return newOffset;
       }
-    }, 300);
-  }, [updateOffset, forceReset]);
+      return prev;
+    });
+    return newOffset;
+  }, [calculateOffset]);
+
+  /**
+   * Continuous polling using requestAnimationFrame.
+   * Used during keyboard interactions when iOS events are unreliable.
+   * Stops automatically after values stabilize.
+   */
+  const startPolling = useCallback((duration: number, reason: string) => {
+    const startTime = Date.now();
+    stabilityCountRef.current = 0;
+    pollCountRef.current = 0;
+    
+    logger.debug(LOG_FEATURE, `Polling started: ${reason}`, {
+      meta: {
+        reason,
+        duration,
+        isKeyboardActive: isKeyboardActiveRef.current,
+        ...getViewportMeasurements(),
+      }
+    });
+    
+    const poll = () => {
+      pollCountRef.current++;
+      const newOffset = updateOffset(`poll-${reason}`);
+      const elapsed = Date.now() - startTime;
+      
+      // Check for stability - same offset for 5 consecutive frames
+      if (Math.abs(newOffset - lastStableOffsetRef.current) < 2) {
+        stabilityCountRef.current++;
+      } else {
+        stabilityCountRef.current = 0;
+        lastStableOffsetRef.current = newOffset;
+      }
+      
+      // Stop polling if:
+      // 1. Duration exceeded AND values are stable (5+ frames)
+      // 2. OR duration greatly exceeded (safety limit)
+      const isStable = stabilityCountRef.current >= 5;
+      const shouldContinue = elapsed < duration || (!isStable && elapsed < duration * 2);
+      
+      if (shouldContinue) {
+        rafIdRef.current = requestAnimationFrame(poll);
+      } else {
+        logger.debug(LOG_FEATURE, `Polling stopped: ${reason}`, {
+          meta: {
+            reason,
+            elapsed,
+            pollCount: pollCountRef.current,
+            finalOffset: newOffset,
+            stoppedBecause: isStable ? 'stable' : 'timeout',
+            ...getViewportMeasurements(),
+          }
+        });
+        rafIdRef.current = null;
+      }
+    };
+    
+    // Cancel any existing polling
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    
+    rafIdRef.current = requestAnimationFrame(poll);
+  }, [updateOffset]);
+
+  /**
+   * Stop all polling operations
+   */
+  const stopPolling = useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) {
       return;
     }
 
-    // Initial calculation on mount
-    updateOffset();
+    // Log initial state
+    logger.info(LOG_FEATURE, 'Hook initialized', {
+      meta: {
+        userAgent: navigator.userAgent,
+        isStandalone: (window.navigator as { standalone?: boolean }).standalone || 
+                      window.matchMedia('(display-mode: standalone)').matches,
+        ...getViewportMeasurements(),
+      }
+    });
+
+    // Initial calculation
+    updateOffset('init');
 
     // === Visual Viewport Events ===
-    // Fires when address bar shows/hides during scroll
-    window.visualViewport.addEventListener('resize', updateOffset);
-    window.visualViewport.addEventListener('scroll', updateOffset);
+    // These fire during scroll (address bar/toolbar changes) and resize
+    const handleViewportResize = () => {
+      logger.debug(LOG_FEATURE, 'Event: visualViewport.resize', {
+        meta: getViewportMeasurements()
+      });
+      updateOffset('vv-resize');
+    };
+    
+    const handleViewportScroll = () => {
+      logger.debug(LOG_FEATURE, 'Event: visualViewport.scroll', {
+        meta: getViewportMeasurements()
+      });
+      updateOffset('vv-scroll');
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportScroll);
+
+    // === Regular scroll events ===
+    // Backup for when visualViewport events don't fire
+    // Using passive: true for better scroll performance
+    const handleScroll = () => {
+      // Only update on scroll if not actively polling (keyboard state)
+      if (!rafIdRef.current) {
+        updateOffset('window-scroll');
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     // === Keyboard Focus Detection ===
-    // Track when keyboard opens/closes to handle the dismissal edge case
+    // When input is focused, start continuous polling to track
+    // iOS's keyboard animation and auto-scroll behavior
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' ||
@@ -117,49 +296,95 @@ function useIOSViewportOffset() {
         target.isContentEditable;
 
       if (isInput) {
-        isKeyboardOpenRef.current = true;
-        // 100ms delay - allows iOS to finish viewport adjustment before recalculating
-        setTimeout(updateOffset, 100);
+        logger.info(LOG_FEATURE, 'Event: focusin (input)', {
+          meta: {
+            tagName: target.tagName,
+            inputType: (target as HTMLInputElement).type,
+            ...getViewportMeasurements(),
+          }
+        });
+        isKeyboardActiveRef.current = true;
+        // Poll for 500ms to cover iOS keyboard animation (~300ms) + buffer
+        startPolling(500, 'keyboard-open');
       }
     };
 
-    const handleFocusOut = () => {
-      if (isKeyboardOpenRef.current) {
-        isKeyboardOpenRef.current = false;
-        // Don't immediately reset - schedule a delayed check
-        // This handles iOS Safari's unreliable viewport events on keyboard dismiss
-        scheduleReset();
+    const handleFocusOut = (e: FocusEvent) => {
+      if (isKeyboardActiveRef.current) {
+        const target = e.target as HTMLElement;
+        logger.info(LOG_FEATURE, 'Event: focusout (keyboard was active)', {
+          meta: {
+            tagName: target.tagName,
+            ...getViewportMeasurements(),
+          }
+        });
+        isKeyboardActiveRef.current = false;
+        // Poll for 500ms to track keyboard dismiss animation
+        // iOS often doesn't fire proper events during dismiss
+        startPolling(500, 'keyboard-close');
       }
     };
 
-    // === App Switching ===
-    // Recalculate when user returns to app (viewport may have changed)
+    // === Touch Events ===
+    // iOS can scroll during touch without proper events
+    const handleTouchMove = () => {
+      if (!rafIdRef.current) {
+        updateOffset('touchmove');
+      }
+    };
+
+    const handleTouchEnd = () => {
+      logger.debug(LOG_FEATURE, 'Event: touchend', {
+        meta: getViewportMeasurements()
+      });
+      // After touch ends, iOS may animate scroll/toolbar
+      // Do a few updates over 300ms to catch the final state
+      updateOffset('touchend-0');
+      setTimeout(() => updateOffset('touchend-100'), 100);
+      setTimeout(() => updateOffset('touchend-200'), 200);
+      setTimeout(() => updateOffset('touchend-300'), 300);
+    };
+
+    // === App Switching / Tab Changes ===
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // 100ms delay - allows iOS to finish viewport adjustment before recalculating
-        setTimeout(updateOffset, 100);
+        logger.info(LOG_FEATURE, 'Event: visibilitychange (visible)', {
+          meta: getViewportMeasurements()
+        });
+        // App became visible - viewport state may have changed
+        startPolling(300, 'visibility-visible');
       }
+    };
+
+    // === Window Resize (Orientation Change) ===
+    const handleResize = () => {
+      logger.info(LOG_FEATURE, 'Event: window.resize', {
+        meta: getViewportMeasurements()
+      });
+      startPolling(500, 'window-resize');
     };
 
     // Add all event listeners
     document.addEventListener('focusin', handleFocusIn);
     document.addEventListener('focusout', handleFocusOut);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('resize', updateOffset); // Orientation changes
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.visualViewport?.removeEventListener('resize', updateOffset);
-      window.visualViewport?.removeEventListener('scroll', updateOffset);
+      stopPolling();
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      window.visualViewport?.removeEventListener('scroll', handleViewportScroll);
+      window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('focusout', handleFocusOut);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('resize', updateOffset);
-
-      if (resetTimeoutRef.current) {
-        clearTimeout(resetTimeoutRef.current);
-      }
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [updateOffset, scheduleReset]);
+  }, [updateOffset, startPolling, stopPolling]);
 
   return offset;
 }
@@ -181,16 +406,22 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
     <div
       className="fixed inset-x-0 z-40 block border-t bg-background sm:hidden"
       style={{
-        // Use bottom with iOS offset to handle Safari's dynamic viewport
-        bottom: `${iosOffset}px`,
+        // iOS viewport offset - handles both toolbar show/hide and keyboard
+        // When offset is 0, use bottom:0 (normal case)
+        // When offset > 0, position navbar above the visual viewport bottom
+        bottom: iosOffset > 0 ? `${iosOffset}px` : 0,
+        // Safe area insets for notched devices and home indicator
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
-        // iOS Safari fixes for fixed positioning during scroll
-        transform: 'translate3d(0, 0, 0)',
-        WebkitTransform: 'translate3d(0, 0, 0)',
-        backfaceVisibility: 'hidden',
+        // Force GPU layer for smoother updates during scroll
+        // This creates a compositing layer, preventing repaints of parent elements
+        transform: 'translateZ(0)',
+        // Prevent flickering on iOS during rapid updates
         WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+        // Ensure element doesn't participate in scroll-linked effects incorrectly
+        willChange: 'bottom',
       }}
     >
       <div
