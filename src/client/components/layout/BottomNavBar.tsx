@@ -54,9 +54,10 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
     navigate(path);
   };
 
+  // Option 2: No position:fixed - navbar sits at bottom of dvh flex container
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 block border-t bg-background sm:hidden"
+      className="z-40 block shrink-0 border-t bg-background sm:hidden"
       style={{
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',

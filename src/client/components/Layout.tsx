@@ -29,8 +29,15 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
     setMobileOpen(!mobileOpen);
   };
 
+  // Option 2: Use 100dvh on mobile for iOS keyboard handling
   return (
-    <div className={`flex min-h-screen flex-col ${isStandalone && isMobile ? 'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]' : ''}`}>
+    <div 
+      className={`flex flex-col ${isStandalone && isMobile ? 'pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]' : ''}`}
+      style={{
+        height: isMobile ? '100dvh' : undefined,
+        minHeight: isMobile ? undefined : '100vh',
+      }}
+    >
       {/* Top Navigation Bar */}
       <TopNavBar
         navItems={filterAdminNavItems(navItems, isAdmin)}
@@ -45,8 +52,10 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
         onDrawerToggle={handleDrawerToggle}
       />
 
-      {/* Main Content */}
-      <main className="mx-auto w-full max-w-screen-lg flex-1 px-2 py-3 pb-20 sm:px-4 sm:pb-4">
+      {/* Main Content - scrolls internally on mobile */}
+      <main 
+        className="mx-auto w-full max-w-screen-lg flex-1 overflow-y-auto px-2 py-3 sm:px-4"
+      >
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
