@@ -168,35 +168,35 @@ function useIOSViewportOffset() {
     
     // iOS PWA viewport behavior after keyboard closes:
     // 
-    // At scroll=0: vv_offsetTop=0, home indicator buffer is at BOTTOM
-    //   - The navbar is visible within the home indicator area
-    //   - No offset needed (CSS handles safe area)
+    // The visual viewport becomes permanently 68px smaller than innerHeight.
+    // This 68px is the home indicator/gesture area.
     //
-    // When scrolled DOWN: vv_offsetTop=68, home indicator buffer moves to TOP
-    //   - The navbar gets pushed 68px BELOW the visible area
-    //   - We need to apply offset to lift it back into view
+    // At scroll=0: iOS shows the home indicator area, so bottom:68px navbar
+    //   sits at visual viewport bottom (744) and is visible.
+    //
+    // When scrolled: The home indicator area "moves" to top of screen.
+    //   Without offset, navbar would be 68px below visible area.
+    //   With bottom:68px, navbar sits at visual viewport bottom and is visible.
+    //
+    // KEY FIX: Always apply the 68px offset once in iOS quirk mode.
+    // Don't condition on vv_offsetTop - it fluctuates during scroll animations
+    // and causes flickering. The offset works correctly for BOTH scroll=0
+    // and scrolled states.
     //
     // Threshold: 100px covers iOS quirks but is well below keyboard height (~400px)
     const IOS_VIEWPORT_QUIRK_THRESHOLD = 100;
     const safeAreaBottom = getSafeAreaInsetBottom();
     
-    if (!isKeyboardActiveRef.current && diff <= IOS_VIEWPORT_QUIRK_THRESHOLD) {
-      // Keyboard is closed and diff is within iOS quirk range
-      // Check vv_offsetTop to determine if we need offset
-      if (vv.offsetTop > 0) {
-        // Scrolled down: home indicator buffer moved to top
-        // The navbar is below visible area - apply the full diff
-        // (diff stays as is)
-      } else {
-        // At scroll=0 or near top: home indicator buffer at bottom
-        // Navbar is visible in safe area - no offset needed
-        diff = 0;
-      }
+    if (!isKeyboardActiveRef.current && diff > 0 && diff <= IOS_VIEWPORT_QUIRK_THRESHOLD) {
+      // iOS quirk mode: viewport permanently shrunk by ~68px
+      // Always apply the diff as offset - works for both scroll=0 and scrolled
+      // (diff stays as is - no modification needed)
     } else if (diff > IOS_VIEWPORT_QUIRK_THRESHOLD) {
       // Real offset needed (keyboard or browser toolbar visible)
       // Subtract safe area since CSS already handles that portion
       diff = diff - safeAreaBottom;
     }
+    // else: diff <= 0, no offset needed (initial state or no viewport difference)
     
     return Math.max(0, Math.round(diff));
   }, []);
