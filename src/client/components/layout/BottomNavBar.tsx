@@ -166,17 +166,21 @@ function useIOSViewportOffset() {
     // - Keyboard pushing content up (visual viewport scrolled)
     let diff = layoutBottom - visualBottom;
     
-    // Subtract safe area inset because CSS already handles it with:
-    // paddingBottom: env(safe-area-inset-bottom)
-    // This prevents double-compensation when iOS PWA mode shows the home indicator
-    // (which causes vv.height to be ~68px smaller than innerHeight)
+    // When keyboard is NOT active, iOS PWA can have a persistent viewport reduction
+    // of ~68px (home indicator + gesture area) that doesn't represent a real need
+    // for offset adjustment. CSS already handles safe area via paddingBottom.
+    // 
+    // Threshold: 100px covers iOS quirks but is well below keyboard height (~400px)
+    const IOS_VIEWPORT_QUIRK_THRESHOLD = 100;
     const safeAreaBottom = getSafeAreaInsetBottom();
-    if (!isKeyboardActiveRef.current && diff > 0 && diff <= safeAreaBottom + 5) {
-      // The offset is approximately equal to safe area - CSS handles this
+    
+    if (!isKeyboardActiveRef.current && diff <= IOS_VIEWPORT_QUIRK_THRESHOLD) {
+      // Keyboard is closed and the diff is just iOS viewport quirks - no offset needed
+      // CSS handles safe area padding
       diff = 0;
-    } else if (diff > safeAreaBottom) {
-      // There's additional offset beyond safe area (e.g., keyboard or browser toolbar)
-      // Subtract safe area since CSS handles that part
+    } else if (diff > IOS_VIEWPORT_QUIRK_THRESHOLD) {
+      // Real offset needed (keyboard or browser toolbar visible)
+      // Subtract safe area since CSS already handles that portion
       diff = diff - safeAreaBottom;
     }
     
