@@ -45,9 +45,9 @@ const LOG_FEATURE = 'ios-viewport';
 /**
  * Get all viewport measurements for logging
  */
-function getViewportMeasurements() {
+function getViewportMeasurements(): Record<string, unknown> {
   if (typeof window === 'undefined' || !window.visualViewport) {
-    return null;
+    return { error: 'no visualViewport' };
   }
   
   const vv = window.visualViewport;
