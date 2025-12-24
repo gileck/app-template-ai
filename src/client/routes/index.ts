@@ -7,6 +7,7 @@ import { SingleTodo } from './SingleTodo';
 import { createRoutes } from '../router';
 import { Profile } from './Profile';
 import { Reports } from './Reports';
+import { Theme } from './Theme';
 // Define routes
 export const routes = createRoutes({
   '/': Home,
@@ -14,6 +15,7 @@ export const routes = createRoutes({
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
   '/settings': Settings,
+  '/theme': Theme,
   '/not-found': NotFound,
   '/profile': Profile,
   '/admin/reports': Reports,
