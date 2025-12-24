@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Type } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
 import { fontPresets } from './fonts';
 import { useThemeStore } from './store';
@@ -13,11 +13,9 @@ export function FontSelector() {
 
     return (
         <div className="space-y-2">
-            <div>
-                <h3 className="text-sm font-medium">Font Family</h3>
-                <p className="text-xs text-muted-foreground">
-                    Choose a font for the entire application
-                </p>
+            <div className="flex items-center gap-2">
+                <Type className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium">Font</h3>
             </div>
 
             <Select value={currentFontId} onValueChange={setFontFamily}>
@@ -49,17 +47,6 @@ export function FontSelector() {
                     ))}
                 </SelectContent>
             </Select>
-
-            {/* Font preview */}
-            <div className="rounded-md border border-border bg-card p-3">
-                <p className="text-sm text-muted-foreground">Preview:</p>
-                <p className="mt-1 text-lg">
-                    The quick brown fox jumps over the lazy dog.
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    0123456789 !@#$%^&*()
-                </p>
-            </div>
         </div>
     );
 }
