@@ -445,11 +445,13 @@ STORE_DEFAULTS.TTL_ROUTE     // 30 days (route persistence)
 ```typescript
 import { QUERY_DEFAULTS } from '@/client/config';
 
-// Used when staleWhileRevalidate setting is ON (default)
-QUERY_DEFAULTS.STALE_TIME    // 30 seconds (data is "fresh")
-QUERY_DEFAULTS.GC_TIME       // 30 minutes (keep in memory after unmount)
+// Default values (user-configurable in Settings when SWR is ON):
+QUERY_DEFAULTS.STALE_TIME      // 30 seconds (data is "fresh")
+QUERY_DEFAULTS.GC_TIME         // 30 minutes (keep in memory)
+QUERY_DEFAULTS.PERSIST_MAX_AGE // 7 days (localStorage persistence)
 
-// When staleWhileRevalidate is OFF: staleTime=0, gcTime=0 (no caching)
+// SWR ON:  Uses user-configured values → caching + offline works
+// SWR OFF: staleTime=0, gcTime=0 → no caching, offline won't work
 ```
 
 ### TTL Validator Helper

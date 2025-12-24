@@ -427,6 +427,9 @@ const isOffline = useEffectiveOffline();
 | `theme` | `'light' \| 'dark'` | `'light'` | UI theme |
 | `offlineMode` | `boolean` | `false` | Force offline mode |
 | `staleWhileRevalidate` | `boolean` | `true` | React Query caching (ON: cache + background refresh, OFF: no cache) |
+| `cacheStaleTimeSeconds` | `number` | `30` | How long data is "fresh" before refetching (seconds) |
+| `cacheGcTimeMinutes` | `number` | `30` | How long to keep data in memory (minutes) |
+| `cachePersistDays` | `number` | `7` | How long to persist cache to localStorage (days) |
 | `aiModel` | `string` | `''` | Selected AI model |
 
 📚 **Detailed Documentation**: See `.cursor/rules/settings-usage-guidelines.mdc`

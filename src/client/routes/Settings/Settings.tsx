@@ -7,6 +7,8 @@ import { Card } from '@/client/components/ui/card';
 import { Separator } from '@/client/components/ui/separator';
 import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Input } from '@/client/components/ui/input';
+import { Label } from '@/client/components/ui/label';
 import { getAllModels, type AIModelDefinition } from '@/common/ai/models';
 import { useSettingsStore } from '@/client/features/settings';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
@@ -271,7 +273,7 @@ export function Settings() {
         <Separator className="my-3" />
 
         <h2 className="mb-2 text-lg font-medium">Cache Behavior</h2>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="flex items-center gap-2">
             <Switch checked={settings.offlineMode} onCheckedChange={(v) => updateSettings({ offlineMode: v })} />
             <span>Offline Mode</span>
@@ -280,8 +282,56 @@ export function Settings() {
             <Switch checked={settings.staleWhileRevalidate} onCheckedChange={(v) => updateSettings({ staleWhileRevalidate: v })} />
             <span>Use Cache (Stale While Revalidate)</span>
           </label>
-          <p className="text-sm text-muted-foreground">ON (default): Cached data is served immediately while refreshing in background. OFF: Always fetch fresh data, no caching.</p>
+          <p className="text-sm text-muted-foreground">ON (default): Cached data served instantly, refreshes in background. Offline mode works.</p>
+          <p className="text-sm text-muted-foreground">OFF: Always fetch fresh data, no caching. <span className="text-destructive font-medium">Offline mode will not work.</span></p>
           <p className="text-sm text-muted-foreground">Offline Mode forces using cache and avoids relying on network.</p>
+          
+          {settings.staleWhileRevalidate && (
+            <div className="mt-4 space-y-3 rounded-md border border-border p-3">
+              <p className="text-sm font-medium">Cache Configuration</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="staleTime" className="text-sm">Stale Time (seconds)</Label>
+                  <Input
+                    id="staleTime"
+                    type="number"
+                    min={0}
+                    max={3600}
+                    value={settings.cacheStaleTimeSeconds}
+                    onChange={(e) => updateSettings({ cacheStaleTimeSeconds: Math.max(0, parseInt(e.target.value) || 0) })}
+                    className="h-8"
+                  />
+                  <p className="text-xs text-muted-foreground">How long data is &quot;fresh&quot; before refetching</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="gcTime" className="text-sm">Memory Cache (minutes)</Label>
+                  <Input
+                    id="gcTime"
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={settings.cacheGcTimeMinutes}
+                    onChange={(e) => updateSettings({ cacheGcTimeMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="h-8"
+                  />
+                  <p className="text-xs text-muted-foreground">How long to keep data in memory</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="persistDays" className="text-sm">Persist Cache (days)</Label>
+                  <Input
+                    id="persistDays"
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={settings.cachePersistDays}
+                    onChange={(e) => updateSettings({ cachePersistDays: Math.max(1, Math.min(30, parseInt(e.target.value) || 7)) })}
+                    className="h-8"
+                  />
+                  <p className="text-xs text-muted-foreground">How long to keep cache in storage</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <h2 className="mt-4 mb-2 text-lg font-medium">AI Model</h2>

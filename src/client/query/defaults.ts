@@ -22,8 +22,12 @@ export const CACHE_TIMES = {
  * 
  * This is the SINGLE POINT OF CONTROL for React Query caching behavior.
  * 
- * - SWR ON (default): Normal caching - serve cached data immediately, refresh in background
- * - SWR OFF: No caching - always fetch fresh data, never serve stale
+ * - SWR ON (default): Caching enabled - serve cached data, refresh in background, offline works
+ * - SWR OFF: No caching - always fetch fresh, never show cached data, offline won't work
+ * 
+ * Cache times are user-configurable via Settings:
+ * - cacheStaleTimeSeconds: How long data is "fresh" (default: 30 seconds)
+ * - cacheGcTimeMinutes: How long to keep in memory (default: 30 minutes)
  * 
  * Usage in hooks:
  * ```typescript
@@ -38,23 +42,18 @@ export const CACHE_TIMES = {
  * ```
  */
 export function useQueryDefaults() {
-    const staleWhileRevalidate = useSettingsStore((s) => s.settings.staleWhileRevalidate);
+    const settings = useSettingsStore((s) => s.settings);
+    const { staleWhileRevalidate, cacheStaleTimeSeconds, cacheGcTimeMinutes } = settings;
 
     if (staleWhileRevalidate) {
-        // SWR ON: Normal caching behavior
-        // - Data is "fresh" for STALE_TIME (won't refetch)
-        // - After stale, show cached data + refetch in background
-        // - Keep in memory for GC_TIME after unmount
+        // SWR ON: Use user-configured cache times, offline works
         return {
-            staleTime: QUERY_DEFAULTS.STALE_TIME,
-            gcTime: QUERY_DEFAULTS.GC_TIME,
+            staleTime: (cacheStaleTimeSeconds ?? 30) * 1000, // Convert seconds to ms
+            gcTime: (cacheGcTimeMinutes ?? 30) * 60 * 1000,  // Convert minutes to ms
         };
     }
 
-    // SWR OFF: No caching at all
-    // - Always fetch fresh data on mount
-    // - Don't keep data in memory after unmount
-    // - Effectively disables React Query's cache
+    // SWR OFF: No caching at all, offline won't work
     return {
         staleTime: 0,
         gcTime: 0,
