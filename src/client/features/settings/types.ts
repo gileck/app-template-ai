@@ -13,6 +13,6 @@ export const defaultSettings: Settings = {
     aiModel: '',
     theme: 'light',
     offlineMode: false,
-    staleWhileRevalidate: false,
+    staleWhileRevalidate: true,
 };
 

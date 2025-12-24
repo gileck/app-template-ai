@@ -278,9 +278,9 @@ export function Settings() {
           </label>
           <label className="flex items-center gap-2">
             <Switch checked={settings.staleWhileRevalidate} onCheckedChange={(v) => updateSettings({ staleWhileRevalidate: v })} />
-            <span>Serve Stale While Revalidate</span>
+            <span>Use Cache (Stale While Revalidate)</span>
           </label>
-          <p className="text-sm text-muted-foreground">When SWR is ON, cached data will be served immediately when available while a background refresh runs.</p>
+          <p className="text-sm text-muted-foreground">ON (default): Cached data is served immediately while refreshing in background. OFF: Always fetch fresh data, no caching.</p>
           <p className="text-sm text-muted-foreground">Offline Mode forces using cache and avoids relying on network.</p>
         </div>
 

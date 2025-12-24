@@ -422,12 +422,12 @@ const isOffline = useEffectiveOffline();
 
 ### Available Settings
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| `theme` | `'light' \| 'dark'` | UI theme |
-| `offlineMode` | `boolean` | Force offline mode |
-| `staleWhileRevalidate` | `boolean` | Cache strategy |
-| `aiModel` | `string` | Selected AI model |
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `theme` | `'light' \| 'dark'` | `'light'` | UI theme |
+| `offlineMode` | `boolean` | `false` | Force offline mode |
+| `staleWhileRevalidate` | `boolean` | `true` | React Query caching (ON: cache + background refresh, OFF: no cache) |
+| `aiModel` | `string` | `''` | Selected AI model |
 
 📚 **Detailed Documentation**: See `.cursor/rules/settings-usage-guidelines.mdc`
 

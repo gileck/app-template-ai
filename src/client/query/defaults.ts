@@ -15,11 +15,15 @@ export { QUERY_DEFAULTS, MUTATION_DEFAULTS } from '@/client/config';
 export const CACHE_TIMES = {
     STALE_TIME: QUERY_DEFAULTS.STALE_TIME,
     GC_TIME: QUERY_DEFAULTS.GC_TIME,
-    MAX_STALE_AGE: QUERY_DEFAULTS.MAX_STALE_AGE,
 } as const;
 
 /**
  * Returns default React Query options based on user settings.
+ * 
+ * This is the SINGLE POINT OF CONTROL for React Query caching behavior.
+ * 
+ * - SWR ON (default): Normal caching - serve cached data immediately, refresh in background
+ * - SWR OFF: No caching - always fetch fresh data, never serve stale
  * 
  * Usage in hooks:
  * ```typescript
@@ -36,11 +40,24 @@ export const CACHE_TIMES = {
 export function useQueryDefaults() {
     const staleWhileRevalidate = useSettingsStore((s) => s.settings.staleWhileRevalidate);
 
+    if (staleWhileRevalidate) {
+        // SWR ON: Normal caching behavior
+        // - Data is "fresh" for STALE_TIME (won't refetch)
+        // - After stale, show cached data + refetch in background
+        // - Keep in memory for GC_TIME after unmount
+        return {
+            staleTime: QUERY_DEFAULTS.STALE_TIME,
+            gcTime: QUERY_DEFAULTS.GC_TIME,
+        };
+    }
+
+    // SWR OFF: No caching at all
+    // - Always fetch fresh data on mount
+    // - Don't keep data in memory after unmount
+    // - Effectively disables React Query's cache
     return {
-        // If SWR enabled: data is fresh for STALE_TIME, then refetch in background
-        // If SWR disabled: always refetch on mount
-        staleTime: staleWhileRevalidate ? QUERY_DEFAULTS.STALE_TIME : 0,
-        gcTime: QUERY_DEFAULTS.GC_TIME,
+        staleTime: 0,
+        gcTime: 0,
     };
 }
 
