@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/client/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
 import { Switch } from '@/client/components/ui/switch';
@@ -130,6 +131,8 @@ export function Settings() {
   const [models] = useState<AIModelDefinition[]>(getAllModels());
   // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator for cache clear action
   const [isClearing, setIsClearing] = useState(false);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI toggle for collapsible section
+  const [isCacheBehaviorOpen, setIsCacheBehaviorOpen] = useState(false);
   // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral snackbar notification
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
@@ -272,69 +275,89 @@ export function Settings() {
 
         <Separator className="my-3" />
 
-        <h2 className="mb-2 text-lg font-medium">Cache Behavior</h2>
-        <div className="space-y-3">
-          <label className="flex items-center gap-2">
-            <Switch checked={settings.offlineMode} onCheckedChange={(v) => updateSettings({ offlineMode: v })} />
-            <span>Offline Mode</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <Switch checked={settings.staleWhileRevalidate} onCheckedChange={(v) => updateSettings({ staleWhileRevalidate: v })} />
-            <span>Use Cache (Stale While Revalidate)</span>
-          </label>
-          <p className="text-sm text-muted-foreground">ON (default): Cached data served instantly, refreshes in background. Offline mode works.</p>
-          <p className="text-sm text-muted-foreground">OFF: Always fetch fresh data, no caching. <span className="text-destructive font-medium">Offline mode will not work.</span></p>
-          <p className="text-sm text-muted-foreground">Offline Mode forces using cache and avoids relying on network.</p>
-          
-          {settings.staleWhileRevalidate && (
-            <div className="mt-4 space-y-3 rounded-md border border-border p-3">
-              <p className="text-sm font-medium">Cache Configuration</p>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="staleTime" className="text-sm">Stale Time (seconds)</Label>
-                  <Input
-                    id="staleTime"
-                    type="number"
-                    min={0}
-                    max={3600}
-                    value={settings.cacheStaleTimeSeconds}
-                    onChange={(e) => updateSettings({ cacheStaleTimeSeconds: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="h-8"
-                  />
-                  <p className="text-xs text-muted-foreground">How long data is &quot;fresh&quot; before refetching</p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="gcTime" className="text-sm">Memory Cache (minutes)</Label>
-                  <Input
-                    id="gcTime"
-                    type="number"
-                    min={1}
-                    max={1440}
-                    value={settings.cacheGcTimeMinutes}
-                    onChange={(e) => updateSettings({ cacheGcTimeMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
-                    className="h-8"
-                  />
-                  <p className="text-xs text-muted-foreground">How long to keep data in memory</p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="persistDays" className="text-sm">Persist Cache (days)</Label>
-                  <Input
-                    id="persistDays"
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={settings.cachePersistDays}
-                    onChange={(e) => updateSettings({ cachePersistDays: Math.max(1, Math.min(30, parseInt(e.target.value) || 7)) })}
-                    className="h-8"
-                  />
-                  <p className="text-xs text-muted-foreground">How long to keep cache in storage</p>
+        <button
+          type="button"
+          onClick={() => setIsCacheBehaviorOpen(!isCacheBehaviorOpen)}
+          className="flex w-full items-center justify-between py-1 text-left"
+        >
+          <h2 className="text-lg font-medium">Cache Behavior</h2>
+          {isCacheBehaviorOpen ? (
+            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          )}
+        </button>
+        
+        {isCacheBehaviorOpen && (
+          <div className="mt-2 space-y-3">
+            <label className="flex items-center gap-2">
+              <Switch checked={settings.offlineMode} onCheckedChange={(v) => updateSettings({ offlineMode: v })} />
+              <span>Offline Mode</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <Switch checked={settings.staleWhileRevalidate} onCheckedChange={(v) => updateSettings({ staleWhileRevalidate: v })} />
+              <span>Use Cache (SWR)</span>
+            </label>
+            <p className="text-sm text-muted-foreground">
+              {settings.staleWhileRevalidate ? (
+                <>Cached data served instantly, refreshes in background. Offline works.</>
+              ) : (
+                <>Always fetch fresh. Cached data never displayed. <span className="text-destructive font-medium">Offline won&apos;t work.</span></>
+              )}
+            </p>
+            
+            {settings.staleWhileRevalidate && (
+              <div className="mt-3 space-y-3 rounded-md border border-border p-3">
+                <p className="text-sm font-medium">Cache Configuration</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="staleTime" className="text-sm">Stale Time (sec)</Label>
+                    <Input
+                      id="staleTime"
+                      type="number"
+                      min={0}
+                      max={3600}
+                      value={settings.cacheStaleTimeSeconds ?? 30}
+                      onChange={(e) => updateSettings({ cacheStaleTimeSeconds: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">Default: 30</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="gcTime" className="text-sm">Memory (min)</Label>
+                    <Input
+                      id="gcTime"
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={settings.cacheGcTimeMinutes ?? 30}
+                      onChange={(e) => updateSettings({ cacheGcTimeMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">Default: 30</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="persistDays" className="text-sm">Persist (days)</Label>
+                    <Input
+                      id="persistDays"
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={settings.cachePersistDays ?? 7}
+                      onChange={(e) => updateSettings({ cachePersistDays: Math.max(1, Math.min(30, parseInt(e.target.value) || 7)) })}
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">Default: 7</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        <h2 className="mt-4 mb-2 text-lg font-medium">AI Model</h2>
+        <hr className="my-4 border-border" />
+
+        <h2 className="mb-2 text-lg font-medium">AI Model</h2>
         <p className="mb-2 text-sm text-muted-foreground">Select the AI model to use for chat and other AI-powered features.</p>
         <Select value={settings.aiModel} onValueChange={handleModelChange}>
           <SelectTrigger>
