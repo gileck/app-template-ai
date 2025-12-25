@@ -56,7 +56,7 @@ export const BottomNavBar = ({ navItems }: BottomNavBarProps) => {
       style={{
         backgroundColor: 'hsl(var(--footer))',
         color: 'hsl(var(--footer-foreground))',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingBottom: 'max(4px, calc(env(safe-area-inset-bottom, 0px) / 2))',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
