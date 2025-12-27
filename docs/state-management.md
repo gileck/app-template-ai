@@ -298,6 +298,82 @@ export function useItems(options?: { enabled?: boolean }) {
 }
 ```
 
+### ⚠️ Loading States - CRITICAL UX Pattern
+
+**NEVER show empty states ("No items found") while data is loading. This is a critical UX bug.**
+
+#### The Problem
+
+When using `data?.items || []` with unloaded data, the array is empty. If you check `items.length === 0`, 
+the UI incorrectly shows "No items" before data loads - confusing users with false empty states.
+
+#### State Priority Chain
+
+Always check states in this exact order: **Loading → Error → Empty → Data**
+
+| Scenario | `isLoading` | `data` | Correct UI |
+|----------|-------------|--------|------------|
+| First load, no cache | `true` | `undefined` | Loading spinner |
+| Cached data exists | `false` | cached value | Show cached data |
+| Revalidating with cache | `false` | cached value | Show cached data |
+| Error, no cache | `false` | `undefined` | Error message |
+| Success, empty result | `false` | `{ items: [] }` | Empty state |
+
+#### Correct Implementation
+
+```typescript
+function ItemsList() {
+    const { data, isLoading, error } = useItems();
+    const items = data?.items || [];
+
+    return (
+        <Card>
+            {isLoading ? (
+                // 1. LOADING: Show spinner when fetching with no cache
+                <LinearProgress />
+            ) : error ? (
+                // 2. ERROR: Show error message
+                <p className="text-destructive">Failed to load</p>
+            ) : !data ? (
+                // 3. NO DATA: Edge case - query done but no data
+                <p className="text-muted-foreground">Unable to load items</p>
+            ) : items.length === 0 ? (
+                // 4. EMPTY: Data loaded but array is truly empty
+                <p className="text-muted-foreground">No items yet</p>
+            ) : (
+                // 5. DATA: Show the actual content
+                <ul>
+                    {items.map(item => <li key={item.id}>{item.name}</li>)}
+                </ul>
+            )}
+        </Card>
+    );
+}
+```
+
+#### ❌ WRONG Pattern (Shows False Empty State)
+
+```typescript
+function ItemsList() {
+    const { data } = useItems();
+    const items = data?.items || [];
+
+    // BUG: Shows "No items" during loading because items is [] when data is undefined!
+    return items.length === 0 ? <p>No items yet</p> : <ItemList items={items} />;
+}
+```
+
+#### Key React Query States
+
+| State | Description |
+|-------|-------------|
+| `isLoading` | `true` when fetching AND no data exists (initial load or no cache) |
+| `isFetching` | `true` whenever network request in progress (including background refresh) |
+| `data` | Contains cached data immediately if available, even while revalidating |
+| `error` | Set when query fails |
+
+**Empty state should ONLY render when `!isLoading && data exists && items.length === 0`**
+
 ### Mutation Hook Pattern (Optimistic Updates Required)
 
 **Optimistic updates are REQUIRED for all mutations** to ensure:

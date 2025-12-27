@@ -290,7 +290,11 @@ export function Todos() {
 
             {/* Todos list */}
             <Card className="p-2">
-                {todos.length === 0 ? (
+                {/* Note: Full-page loading for isLoading && !data is handled above (line 61) */}
+                {/* Here we only need to check !data for the edge case where query finished but data is undefined */}
+                {!data ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Unable to load todos</p>
+                ) : todos.length === 0 ? (
                     <p className="py-4 text-center text-sm text-muted-foreground">No todos yet. Add one above!</p>
                 ) : (
                     <ul>
