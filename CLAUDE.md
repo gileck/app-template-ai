@@ -279,7 +279,7 @@ Systematic verification of codebase compliance.
 
 **Key Points:**
 
-**1. API Guidelines:**
+**1. API Guidelines: (in api folder)**
 - [ ] File structure: `index.ts`, `types.ts`, `server.ts`, `client.ts` exist
 - [ ] API names defined ONLY in `index.ts`
 - [ ] Server re-exports from `index.ts`, client imports from `index.ts` (never `server.ts`)
@@ -306,12 +306,76 @@ Systematic verification of codebase compliance.
 - [ ] No type duplications
 - [ ] No circular dependencies
 
-**6. Final Verification:**
+**6. MongoDB Usage:**
+- [ ] All operations encapsulated in `src/server/database/collections/`
+- [ ] No direct `mongodb` imports outside database layer
+- [ ] API layer imports from `@/server/database`, never uses `getDb()` directly
+- [ ] Each collection has: `types.ts` + `<collection>.ts`
+- [ ] Collection types use `ObjectId` for `_id` and foreign keys
+
+**7. State Management:**
+- [ ] Zustand stores use `createStore` factory (no direct zustand imports)
+- [ ] React Query for server state, Zustand for client state
+- [ ] Stores export via `index.ts` for public API
+
+**8. Offline/PWA Support:**
+- [ ] Mutations use optimistic-only pattern (`onMutate` updates UI, `onSuccess` empty)
+- [ ] Guard against empty data in `onSuccess` (offline returns `{}`)
+- [ ] No `invalidateQueries` in `onSettled` (causes race conditions)
+
+**9. UI & Styling:**
+- [ ] Only shadcn/ui components (no other UI libraries)
+- [ ] Semantic color tokens only (`bg-background`, not `bg-white`)
+- [ ] No hardcoded colors or raw Tailwind colors
+
+**10. Final Verification:**
 ```bash
 yarn checks  # Must pass with 0 errors
 ```
 
 **Docs:** [app-guildelines/app-guidelines-checklist.md](app-guildelines/app-guidelines-checklist.md)
+
+---
+
+## Template Sync
+
+Merge updates from the template repository into projects created from it.
+
+**Summary:** Projects created from this template can receive ongoing updates and improvements while maintaining their own customizations. The sync system auto-merges safe changes and flags true conflicts only when files changed in BOTH template and project.
+
+**Key Points:**
+- **Smart conflict detection**: Only flags conflicts when BOTH sides changed a file
+- **Project customizations preserved**: Files you changed that template didn't touch are NOT conflicts
+- **Auto-commits**: Synced changes are automatically committed
+
+**Commands:**
+```bash
+yarn init-template <url>       # Initialize tracking in new project
+yarn sync-template             # Sync updates (interactive)
+yarn sync-template --dry-run   # Preview changes without applying
+yarn sync-template --diff-summary  # Generate full diff report
+```
+
+**Auto Mode Flags (for CI/CD):**
+| Flag | Safe Changes | Conflicts |
+|------|-------------|-----------|
+| `--auto-safe-only` | Applied | Skipped |
+| `--auto-merge-conflicts` | Applied | Creates `.template` files |
+| `--auto-override-conflicts` | Applied | Replaced with template |
+| `--auto-skip-conflicts` | Applied | Skipped |
+
+**Interactive Conflict Resolution:**
+- **Override**: Replace your changes with template version
+- **Skip**: Keep your version, ignore template changes
+- **Merge**: Create `.template` file for manual merge
+- **Do nothing**: Leave file unchanged for now
+
+**Configuration (`.template-sync.json`):**
+- `ignoredFiles`: Files never synced (config, example features)
+- `projectSpecificFiles`: Your custom files to skip
+- Supports glob patterns (`*`, `**`)
+
+**Docs:** [docs/template-sync/template-sync.md](docs/template-sync/template-sync.md)
 
 ---
 
