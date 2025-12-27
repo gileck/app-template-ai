@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A84FF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#007AFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5856D6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="highlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.3);stop-opacity:1" />
+      <stop offset="40%" style="stop-color:rgba(255,255,255,0.05);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0);stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.4);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0);stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="0" y="0" width="512" height="512" rx="113" ry="113" fill="url(#bgGradient)"/>
+  
+  <!-- Highlight overlay -->
+  <rect x="0" y="0" width="512" height="512" rx="113" ry="113" fill="url(#highlight)"/>
+  
+  <!-- Center design element - modern dot/orb -->
+  <circle cx="256" cy="256" r="112.64" fill="rgba(255,255,255,0.95)"/>
+  <circle cx="256" cy="233.472" r="33.792" fill="url(#bgGradient)" opacity="0.6"/>
+</svg>
