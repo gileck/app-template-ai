@@ -74,7 +74,7 @@ App Start
 │  useAuthValidation() calls /me endpoint                      │
 │  Server returns: { error: "Not authenticated" }              │
 │  → isValidated = true, user = null                           │
-│  → Shows Login Dialog                                        │
+│  → Shows clean Login Dialog (NO error message displayed)     │
 └─────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -209,6 +209,19 @@ All auth-related hooks in one file:
 - `useRegister()` - Registration mutation
 - `useLogout()` - Clears auth state and React Query cache
 - `useCurrentUser()` - Fetches current user via React Query
+
+### Error Handling Strategy
+
+Error display is separated between validation and user actions:
+
+| Scenario | Error Displayed? | Reason |
+|----------|-----------------|--------|
+| `/me` validation fails (first-time user) | ❌ No | Expected behavior, clean login screen |
+| `/me` validation fails (session expired) | ❌ No | Silent redirect to login |
+| Login with wrong password | ✅ Yes | User action failed |
+| Register with taken username | ✅ Yes | User action failed |
+
+**Key insight**: The `/me` endpoint returning "Not authenticated" is not an error from the user's perspective—they simply haven't logged in yet. Only login/register mutation failures should display error messages.
 
 ### AuthWrapper (`src/client/features/auth/AuthWrapper.tsx`)
 
@@ -348,3 +361,6 @@ This should not happen with the current implementation. If it does:
 
 ### 401 errors after app restart
 Session may have expired server-side. This is handled gracefully - user sees app briefly (instant boot), then login dialog after validation fails.
+
+### "Not authenticated" error showing on first visit
+This is a bug if it happens. The `/me` validation failure should NOT set an error message—it's expected for first-time users. Check `useAuthValidation()` in `hooks.ts` and ensure there's no `setError()` call in the validation failure handler. Only `useLogin()` and `useRegister()` mutations should call `setError()`.

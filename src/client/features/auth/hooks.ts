@@ -131,9 +131,9 @@ export function useAuthValidation() {
                 clearAuth();
             }
             setValidating(false);
-            if (error instanceof Error) {
-                setError(error.message);
-            }
+            // NOTE: Don't setError here - /me validation failure is expected for
+            // first-time/logged-out users. Only login/register mutations should
+            // display errors to the user.
         }
     }, [data, isLoading, isError, error, isProbablyLoggedIn, isValidated, setValidatedUser, setValidating, clearAuth, setError]);
 
