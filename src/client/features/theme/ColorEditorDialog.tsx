@@ -68,7 +68,11 @@ const colorGroups: {
             { key: 'destructive', label: 'Error' },
             { key: 'destructiveForeground', label: 'Error Text' },
             { key: 'success', label: 'Success' },
+            { key: 'successForeground', label: 'Success Text' },
             { key: 'warning', label: 'Warning' },
+            { key: 'warningForeground', label: 'Warning Text' },
+            { key: 'info', label: 'Info' },
+            { key: 'infoForeground', label: 'Info Text' },
         ],
     },
 ];
