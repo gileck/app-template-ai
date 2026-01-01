@@ -239,72 +239,104 @@ export function useCreateItem() {
 
 #### 1. Server Must Accept Client IDs
 
-Your API handler must use the client-provided ID, not generate its own:
+Your API handler must use the client-provided ID, not generate its own.
+
+**Use the server utilities** from `@/server/utils`:
 
 ```typescript
+import { toDocumentId, toStringId, toQueryId } from '@/server/utils';
+
 // ❌ WRONG - Server ignores client ID
 const newItem = await collection.insertOne({
     ...data,
     // MongoDB generates _id automatically - client ID is lost!
 });
 
-// ✅ CORRECT - Server uses client ID  
+// ✅ CORRECT - Server uses client ID (handles both ObjectId and UUID formats)
 const newItem = await collection.insertOne({
-    _id: new ObjectId(data.id), // Or store as string field
+    _id: toDocumentId(data._id), // Converts UUID string or ObjectId format appropriately
     ...data,
 });
+
+// For API responses, always convert to string
+return { 
+    item: { 
+        ...newItem, 
+        _id: toStringId(newItem._id) 
+    } 
+};
 ```
+
+**Available server utilities** (`src/server/utils/id.ts`):
+
+| Utility | Use Case |
+|---------|----------|
+| `toDocumentId(id)` | Insert documents - converts to ObjectId or keeps as UUID string |
+| `toQueryId(id)` | Query documents - handles both ID formats |
+| `toStringId(id)` | API responses - always returns string |
+| `isObjectIdFormat(id)` | Check if ID is legacy ObjectId format |
+| `isUuidFormat(id)` | Check if ID is UUID format |
 
 #### 2. Idempotency: Handle Retries
 
 If the client retries with the same ID (network timeout, offline sync), the server must not create duplicates:
 
 ```typescript
+import { toQueryId, toDocumentId, toStringId } from '@/server/utils';
+
 // Server handler
 async function createItem(data: CreateItemInput) {
-    // Check if already exists (idempotent)
-    const existing = await collection.findOne({ _id: data.id });
+    // Check if already exists (idempotent) - toQueryId handles both formats
+    const existing = await collection.findOne({ _id: toQueryId(data._id) });
     if (existing) {
-        return { item: existing }; // Return existing, don't create duplicate
+        return { item: { ...existing, _id: toStringId(existing._id) } };
     }
     
-    // Create new
-    const result = await collection.insertOne({ _id: data.id, ...data });
-    return { item: result };
+    // Create new - toDocumentId handles both formats
+    await collection.insertOne({ _id: toDocumentId(data._id), ...data });
+    return { item: { ...data, _id: data._id } };
 }
 ```
 
 #### 3. MongoDB ObjectId Compatibility
 
-If your DB uses MongoDB ObjectId, you have options:
+This app uses **Option C (Recommended)**: Store UUID strings directly as `_id`.
 
-**Option A**: Store client ID as a separate field, keep ObjectId as `_id`
+The server utilities handle both formats seamlessly:
+
 ```typescript
-{
-    _id: ObjectId("..."),        // MongoDB generates
-    clientId: "uuid-from-client", // Client generates, used as public ID
-}
+import { toDocumentId, toQueryId, toStringId } from '@/server/utils';
+
+// Insert - toDocumentId handles both formats
+await collection.insertOne({
+    _id: toDocumentId(clientId), // UUID stays as string, ObjectId format converts
+    ...data,
+});
+
+// Query - toQueryId handles both formats  
+const item = await collection.findOne({ 
+    _id: toQueryId(clientId) // Works for both legacy ObjectIds and new UUIDs
+});
+
+// Response - toStringId normalizes to string
+return { _id: toStringId(item._id), ...item };
 ```
 
-**Option B**: Convert UUID to ObjectId (only works with specific formats)
-```typescript
-// Not recommended - UUIDs don't fit cleanly into ObjectId
-```
-
-**Option C**: Use string `_id` instead of ObjectId
-```typescript
-{
-    _id: "550e8400-e29b-41d4-a716-446655440000", // String, not ObjectId
-}
-```
+**Why this approach:**
+- ✅ Backward compatible with existing ObjectId documents
+- ✅ Forward compatible with new UUID documents
+- ✅ Single `_id` field (no separate `clientId`)
+- ✅ MongoDB indexes work on both formats
 
 #### 4. Collision Handling (Extremely Rare)
 
 UUID v4 collision probability is ~1 in 2^122. You'll never see one. But if paranoid:
 
 ```typescript
+import { toQueryId } from '@/server/utils';
+
 // Server can reject with specific error
-if (await collection.findOne({ _id: data.id })) {
+if (await collection.findOne({ _id: toQueryId(data._id) })) {
     throw new Error('ID_COLLISION'); // Client should regenerate and retry
 }
 ```
