@@ -134,6 +134,116 @@ For EACH mutation found, answer these questions:
 
 ---
 
+### Step 3.5: Per-Mutation Analysis for Creates (REQUIRED)
+
+**⚠️ CRITICAL**: For EVERY create mutation, you MUST perform this detailed analysis. Do NOT skip this step.
+
+#### Required Analysis Template
+
+For each create mutation, answer these questions by reading the **server handler code**:
+
+```markdown
+### [Hook Name] (e.g., useCreatePlan)
+
+| Question | Answer |
+|----------|--------|
+| **Can server accept client ID?** | [Yes / No → requires API change] |
+| **Server computes critical fields?** | [List fields and whether client can compute them] |
+| **Global validation required?** | [Uniqueness checks? Rate limits? Quota?] |
+| **Multiple caches affected?** | [Which query keys need updating?] |
+
+**Analysis**: [Explain your reasoning]
+
+**Verdict**: [Optimistic (client ID) / Non-optimistic (show loader)]
+**Reason**: [One sentence justification]
+```
+
+#### Example: Thorough Analysis
+
+```markdown
+### useCreatePlan
+
+| Question | Answer |
+|----------|--------|
+| **Can server accept client ID?** | No → **Simple change** (add optional `_id` to request) |
+| **Server computes critical fields?** | `isActive` = first plan check. **Client CAN compute** (checks if plans list is empty) |
+| **Global validation required?** | No uniqueness constraints |
+| **Multiple caches affected?** | Only `['plans']` query |
+
+**Analysis**: The server generates a MongoDB ObjectId, but this can be changed to accept a client ID. The only computed field (`isActive`) can be derived from the cached plans list length.
+
+**Verdict**: Optimistic (client ID)
+**Reason**: Simple entity with client-computable `isActive` field
+```
+
+```markdown
+### useCreateExercise
+
+| Question | Answer |
+|----------|--------|
+| **Can server accept client ID?** | No → **Simple change** |
+| **Server computes critical fields?** | **`imageUrl` from blob storage upload** - client cannot predict final URL |
+| **Global validation required?** | No |
+| **Multiple caches affected?** | `['exercises']` and `['exercise', id]` |
+
+**Analysis**: When user provides `imageBase64`, server uploads to blob storage and returns a generated URL (e.g., `https://blob.vercel-storage.com/...`). Client cannot predict this URL. With optimistic-only pattern, we can't update from server response, so the image URL would never appear.
+
+**Verdict**: Non-optimistic (show loader)
+**Reason**: Blob upload produces server-derived `imageUrl` that client cannot predict
+```
+
+#### Decision Flowchart (Apply to Each Create)
+
+```
+Can client generate the ID?
+├── NO (server uses MongoDB ObjectId, etc.)
+│   ├── Can API be changed to accept client ID? 
+│   │   ├── YES → Continue evaluation
+│   │   └── NO → Non-optimistic
+│   └── Continue ↓
+└── YES → Continue ↓
+
+Does server compute critical DISPLAY fields?
+├── YES (image URLs, computed totals, assigned numbers)
+│   └── Non-optimistic (can't show correct data without server)
+└── NO / Client can compute from cache → Continue ↓
+
+Does validation require server/global state?
+├── YES (uniqueness, rate limits, quotas)
+│   └── Non-optimistic (might be rejected)
+└── NO → Continue ↓
+
+Multiple caches need coordinated updates?
+├── YES (complex)
+│   └── Probably non-optimistic (or carefully consider)
+└── NO → ✅ Safe for optimistic create
+```
+
+#### Summary Table (After All Creates Analyzed)
+
+Present a summary categorizing all creates:
+
+```markdown
+## Create Mutation Analysis Summary
+
+| # | Hook | Verdict | Key Reason |
+|---|------|---------|------------|
+| 1 | useCreatePlan | **Optimistic** | Simple entity, `isActive` from cache |
+| 2 | useCreateWorkout | **Optimistic** | Order computable from cache |
+| 3 | useCreateExercise | **Non-optimistic** | Blob upload = server-derived imageUrl |
+| 4 | useCreateOrder | **Non-optimistic** | Server computes totals, discounts |
+
+### Prerequisites for Optimistic Creates
+
+For the X mutations marked "Optimistic (client ID)", these API changes are required:
+
+1. **Server must accept client-provided ID** - Add optional `_id` field to request type
+2. **Server must use that ID** - Don't let MongoDB auto-generate
+3. **Idempotency** - Handle duplicate IDs gracefully (return existing, don't error)
+```
+
+---
+
 ### Step 4: Summarize Findings
 
 **Action**: Create a summary table for the user.
@@ -425,9 +535,14 @@ Complete ALL items before finishing:
 - [ ] Classified each mutation as edit/delete/create/other
 - [ ] For creates: verified whether temp IDs are used
 - [ ] For creates: checked if onSuccess replaces temp with server ID
+- [ ] **For EVERY create: completed per-mutation analysis template (Step 3.5)**
+  - [ ] Read the server handler code
+  - [ ] Answered all 4 questions (client ID, computed fields, validation, caches)
+  - [ ] Determined verdict (optimistic vs non-optimistic) with reasoning
 - [ ] For edits/deletes: checked for server response handling
 - [ ] For edits/deletes: checked for invalidateQueries calls
 - [ ] Marked each as compliant/non-compliant/needs-discussion
+- [ ] Created summary table categorizing all creates
 
 ### Phase 4: Communication
 - [ ] Created summary table with ALL mutations
