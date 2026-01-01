@@ -328,7 +328,27 @@ return { _id: toStringId(item._id), ...item };
 - ✅ Single `_id` field (no separate `clientId`)
 - ✅ MongoDB indexes work on both formats
 
-#### 4. Collision Handling (Extremely Rare)
+#### 4. ⚠️ Always Use `toStringId()` - Never `.toHexString()`
+
+**Common Error:**
+```
+TypeError: item._id.toHexString is not a function
+```
+
+This happens when code calls `.toHexString()` on a UUID string (which doesn't have that method).
+
+```typescript
+// ❌ WRONG - Breaks on UUID strings
+const clientId = item._id.toHexString(); // TypeError if _id is a UUID string!
+
+// ✅ CORRECT - Works for both ObjectId and string
+import { toStringId } from '@/server/utils';
+const clientId = toStringId(item._id); // Always returns string
+```
+
+**Rule**: In API handlers and database code, **always use `toStringId()`** instead of `.toHexString()` when converting IDs for responses.
+
+#### 5. Collision Handling (Extremely Rare)
 
 UUID v4 collision probability is ~1 in 2^122. You'll never see one. But if paranoid:
 
