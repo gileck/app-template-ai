@@ -1,16 +1,11 @@
----
-description: Audit and fix all React Query mutations to follow optimistic-only guidelines
-globs: 
-alwaysApply: false
----
-# Audit React Query Mutations Command
+# Audit React Query Mutations
 
 This command audits ALL React Query mutations in the project and ensures they follow the optimistic-only mutation guidelines.
 
-## Guidelines Summary (High-Level)
+📚 **Full Documentation**: [docs/react-query-mutations.md](mdc:../../docs/react-query-mutations.md)  
+📚 **State Management**: [docs/state-management.md](mdc:../../docs/state-management.md)
 
-📚 **Full Documentation**: [docs/react-query-mutations.md](mdc:docs/react-query-mutations.md)
-📚 **State Management**: [docs/state-management.md](mdc:docs/state-management.md)
+## Guidelines Summary (High-Level)
 
 ### Core Rules
 
@@ -38,16 +33,16 @@ This command audits ALL React Query mutations in the project and ensures they fo
 
 ---
 
-## Step 1: Read Guidelines (Required First Step)
+## Process
+
+### Step 1: Read Guidelines (Required First Step)
 
 **Action**: Read and understand the full guidelines before proceeding.
 
-```
 Read these files completely:
-1. docs/react-query-mutations.md - Detailed mutation patterns
-2. docs/state-management.md - Section on React Query mutations
-3. .cursor/rules/state-management-guidelines.mdc - Quick reference
-```
+1. `docs/react-query-mutations.md` - Detailed mutation patterns
+2. `docs/state-management.md` - Section on React Query mutations
+3. `.cursor/rules/state-management-guidelines.mdc` - Quick reference
 
 Confirm you understand:
 - Why optimistic-only prevents race conditions
@@ -56,7 +51,7 @@ Confirm you understand:
 
 ---
 
-## Step 2: Find ALL React Query Mutations
+### Step 2: Find ALL React Query Mutations
 
 **Action**: Search the entire codebase for mutation hooks.
 
@@ -75,11 +70,11 @@ grep -r "function use.*Mutation\|function use.*Create\|function use.*Update\|fun
 
 ---
 
-## Step 3: Analyze Each Mutation
+### Step 3: Analyze Each Mutation
 
 For EACH mutation found, determine:
 
-### A) Mutation Type Classification
+#### A) Mutation Type Classification
 
 | Type | Pattern | Example |
 |------|---------|---------|
@@ -87,7 +82,7 @@ For EACH mutation found, determine:
 | **Delete** | Removes entity | `useDeleteTodo`, `useDeleteReport` |
 | **Create** | Creates new entity | `useCreateTodo`, `useCreateComment` |
 
-### B) Current Implementation Check
+#### B) Current Implementation Check
 
 For each mutation, check:
 
@@ -107,7 +102,7 @@ For each mutation, check:
    - ❌ Bad: `temp-${Date.now()}` or similar patterns
    - ❌ Bad: Replacing temp ID with server ID
 
-### C) Classification Result
+#### C) Classification Result
 
 Mark each mutation as:
 - ✅ **Compliant** - Follows guidelines
@@ -116,11 +111,11 @@ Mark each mutation as:
 
 ---
 
-## Step 4: Summarize Findings
+### Step 4: Summarize Findings
 
 **Action**: Create a summary table for the user.
 
-### Format
+#### Format
 
 ```markdown
 ## Mutation Audit Results
@@ -145,11 +140,11 @@ Mark each mutation as:
 
 ---
 
-## Step 5: Explain UX Impact for Creates
+### Step 5: Explain UX Impact for Creates
 
 **CRITICAL**: For any CREATE mutation that needs to change from optimistic to non-optimistic:
 
-### Template for User Communication
+#### Template for User Communication
 
 ```markdown
 ## UX Change Required: [Hook Name]
@@ -198,7 +193,7 @@ Do you approve this change?
 
 ---
 
-## Step 6: Get User Approval
+### Step 6: Get User Approval
 
 **Action**: Present all findings and wait for explicit approval.
 
@@ -225,11 +220,11 @@ Do you approve this change?
 
 ---
 
-## Step 7: Implement Changes
+### Step 7: Implement Changes
 
 **Action**: After approval, make the changes systematically.
 
-### For each edit/delete mutation:
+#### For each edit/delete mutation:
 
 ```typescript
 // BEFORE (non-compliant)
@@ -245,7 +240,7 @@ onSuccess: () => {},
 onSettled: () => {},
 ```
 
-### For creates changing to non-optimistic:
+#### For creates changing to non-optimistic:
 
 ```typescript
 // BEFORE (optimistic with temp ID)
@@ -270,7 +265,7 @@ onSuccess: (newItem) => {
 },
 ```
 
-### Update component UX if needed:
+#### Update component UX if needed:
 
 ```typescript
 // Show loading state for non-optimistic creates
@@ -286,7 +281,7 @@ const createMutation = useCreateItem();
 
 ---
 
-## Step 8: List Flows to Verify
+### Step 8: List Flows to Verify
 
 **Action**: Tell user exactly what to test.
 
@@ -318,7 +313,7 @@ Reply with:
 
 ---
 
-## Step 9: Commit and Push
+### Step 9: Commit and Push
 
 **Action**: After user confirms all flows work:
 
