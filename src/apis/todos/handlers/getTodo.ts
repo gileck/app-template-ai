@@ -1,6 +1,7 @@
 import { API_GET_TODO } from '../index';
 import { ApiHandlerContext, GetTodoRequest, GetTodoResponse } from '../types';
 import { todos } from '@/server/database';
+import { toStringId } from '@/server/utils';
 
 export const getTodo = async (
     request: GetTodoRequest,
@@ -23,8 +24,8 @@ export const getTodo = async (
 
         // Convert to client format
         const todoClient = {
-            _id: todo._id.toHexString(),
-            userId: todo.userId.toHexString(),
+            _id: toStringId(todo._id),
+            userId: toStringId(todo.userId),
             title: todo.title,
             completed: todo.completed,
             createdAt: todo.createdAt.toISOString(),

@@ -2,7 +2,7 @@ import { API_CREATE_TODO } from '../index';
 import { ApiHandlerContext, CreateTodoRequest, CreateTodoResponse } from '../types';
 import { todos } from '@/server/database';
 import { ObjectId } from 'mongodb';
-import { toDocumentId, toStringId } from '@/server/utils';
+import { toDocumentId, toStringId, toQueryId } from '@/server/utils';
 
 export const createTodo = async (
     request: CreateTodoRequest,
@@ -39,7 +39,7 @@ export const createTodo = async (
         const todoData = {
             // Use client-provided ID (UUID or ObjectId format) or generate new one
             _id: request._id ? toDocumentId(request._id) : new ObjectId(),
-            userId: new ObjectId(context.userId),
+            userId: toQueryId(context.userId) as ObjectId,
             title: request.title.trim(),
             completed: false,
             createdAt: now,

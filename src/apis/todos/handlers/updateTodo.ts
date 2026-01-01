@@ -1,6 +1,7 @@
 import { API_UPDATE_TODO } from '../index';
 import { ApiHandlerContext, UpdateTodoRequest, UpdateTodoResponse } from '../types';
 import { todos } from '@/server/database';
+import { toStringId } from '@/server/utils';
 
 export const updateTodo = async (
     request: UpdateTodoRequest,
@@ -47,8 +48,8 @@ export const updateTodo = async (
 
         // Convert to client format
         const todoClient = {
-            _id: updatedTodo._id.toHexString(),
-            userId: updatedTodo.userId.toHexString(),
+            _id: toStringId(updatedTodo._id),
+            userId: toStringId(updatedTodo.userId),
             title: updatedTodo.title,
             completed: updatedTodo.completed,
             createdAt: updatedTodo.createdAt.toISOString(),
