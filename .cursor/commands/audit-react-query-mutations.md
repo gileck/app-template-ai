@@ -5,9 +5,22 @@ This command audits ALL React Query mutations in the project and ensures they fo
 📚 **Full Documentation**: [docs/react-query-mutations.md](mdc:../../docs/react-query-mutations.md)  
 📚 **State Management**: [docs/state-management.md](mdc:../../docs/state-management.md)
 
-## Guidelines Summary (High-Level)
+---
 
-### Core Rules
+## ⚠️ CRITICAL: Read This First
+
+### The #1 Mistake: Confusing Temp IDs with Client-Generated Stable IDs
+
+| Pattern | Example | Compliant? |
+|---------|---------|------------|
+| **Temp ID that gets replaced** | `_id: \`temp-${Date.now()}\`` then replaced with server ID in `onSuccess` | ❌ **NO** |
+| **Client-generated stable ID** | `_id: nanoid()` or `_id: crypto.randomUUID()` that server persists as-is | ✅ **YES** (if server accepts it) |
+
+**How to tell the difference:**
+- Look at `onSuccess` - does it replace the temp ID with a server-returned ID? → **Non-compliant**
+- Look at the server handler - does it use the client-provided ID or generate its own? → Check API code
+
+### Core Rules Summary
 
 1. **Edits / Deletes → Optimistic-only**
    - Update cache in `onMutate`
@@ -16,20 +29,14 @@ This command audits ALL React Query mutations in the project and ensures they fo
    - `onSettled: () => {}` (empty - never invalidate from mutations)
 
 2. **Creates → Decision required**
-   - **2.1 Optimistic create** ONLY if:
-     - Client can safely generate stable ID (UUID/nanoid)
-     - Server accepts and persists that ID (idempotent)
-     - Client can render entity without server-derived fields
-   - **2.2 Non-optimistic create** otherwise:
-     - Show loader / disable submit
-     - On success, insert returned entity into cache
-     - This is the SAFE default when unsure
+   - **Optimistic create** ONLY if client generates stable ID that server persists
+   - **Non-optimistic create** (show loader) if server generates ID
+   - **NEVER use temp-ID → server-ID replacement flows**
 
-3. **Never do temp-ID → server-ID replacement flows** (too complex/bug-prone)
-
-4. **Async enrichment pattern** (optional advanced):
-   - Base entity optimistic, enriched fields show loading
-   - Only update enriched fields from server, never base entity
+3. **Allowed in onSuccess (not violations):**
+   - `queryClient.removeQueries()` - cleaning up stale single-item cache after delete
+   - Inserting server-returned entity for non-optimistic creates
+   - Zustand store updates (not React Query cache)
 
 ---
 
@@ -44,10 +51,10 @@ Read these files completely:
 2. `docs/state-management.md` - Section on React Query mutations
 3. `.cursor/rules/state-management-guidelines.mdc` - Quick reference
 
-Confirm you understand:
-- Why optimistic-only prevents race conditions
-- The difference between edit/delete vs create patterns
-- When to use non-optimistic creates (the safe default)
+**Confirm you understand these key distinctions:**
+- Temp ID replacement (❌ bad) vs client-generated stable ID (✅ good)
+- `setQueryData` from server response (❌ bad) vs `removeQueries` cleanup (✅ fine)
+- `invalidateQueries` in mutations (❌ bad) vs triggered elsewhere (✅ fine)
 
 ---
 
@@ -59,8 +66,11 @@ Confirm you understand:
 # Find all useMutation usage
 grep -r "useMutation" src/client --include="*.ts" --include="*.tsx" -l
 
-# Find all mutation hook definitions
-grep -r "function use.*Mutation\|function use.*Create\|function use.*Update\|function use.*Delete" src/client --include="*.ts" --include="*.tsx"
+# Find all mutation hook definitions  
+grep -r "function use.*Create\|function use.*Update\|function use.*Delete\|function use.*Add\|function use.*Remove" src/client --include="*.ts" --include="*.tsx"
+
+# Find temp ID patterns (these are RED FLAGS)
+grep -r "temp-\|temp_\|temporary\|tempId\|temp_id" src/client --include="*.ts" --include="*.tsx"
 ```
 
 **Expected locations**:
@@ -72,42 +82,55 @@ grep -r "function use.*Mutation\|function use.*Create\|function use.*Update\|fun
 
 ### Step 3: Analyze Each Mutation
 
-For EACH mutation found, determine:
+For EACH mutation found, answer these questions:
 
-#### A) Mutation Type Classification
+#### A) What type of mutation is it?
 
 | Type | Pattern | Example |
 |------|---------|---------|
 | **Edit** | Updates existing entity | `useUpdateTodo`, `useUpdateProfile` |
 | **Delete** | Removes entity | `useDeleteTodo`, `useDeleteReport` |
 | **Create** | Creates new entity | `useCreateTodo`, `useCreateComment` |
+| **Other** | Auth, fire-and-forget, no cache | `useLogin`, `useSubmitReport` |
 
-#### B) Current Implementation Check
+#### B) For CREATES specifically - answer these:
 
-For each mutation, check:
+1. **Does it use a temp ID pattern?** Search for:
+   - `temp-${` or `temp_${` or `\`temp`
+   - `Date.now()` in ID generation
+   - `Math.random()` in ID generation
+   - Variable named `tempId`, `temporaryId`, etc.
 
-1. **Does it have `onMutate` with optimistic update?**
-   - ✅ Good: Updates cache immediately
-   - ❌ Bad: No optimistic update (for edits/deletes)
+2. **Does `onSuccess` replace the temp ID with server ID?** Look for:
+   - Filtering out temp entries and adding server data
+   - Mapping over items to replace temp ID
+   - Any logic that uses both `context.tempId` and `data._id`
 
-2. **Does `onSuccess` update cache from server response?**
-   - ❌ Bad for edits/deletes: `queryClient.setQueryData(key, serverData)`
-   - ❌ Bad for edits/deletes: Any data transformation from response
+3. **If yes to either → Mark as ❌ Non-compliant**
 
-3. **Does `onSuccess` or `onSettled` call `invalidateQueries`?**
-   - ❌ Bad for edits/deletes: Causes race conditions
-   - ⚠️ Allowed only for non-optimistic creates
+#### C) For EDITS and DELETES - check these:
 
-4. **For creates: Does it use temp IDs?**
-   - ❌ Bad: `temp-${Date.now()}` or similar patterns
-   - ❌ Bad: Replacing temp ID with server ID
+1. **Does `onSuccess` call `setQueryData` with server response data?**
+   - ❌ Bad: `queryClient.setQueryData(['key'], data)` where `data` is from server
+   - ✅ OK: `queryClient.removeQueries()` for cleanup after delete
 
-#### C) Classification Result
+2. **Does `onSuccess` or `onSettled` call `invalidateQueries`?**
+   - ❌ Bad: Causes race conditions
+   - Exception: Aggregation queries that can't be computed optimistically (discuss with user)
 
-Mark each mutation as:
-- ✅ **Compliant** - Follows guidelines
-- ⚠️ **Needs Review** - Unclear case, needs discussion
-- ❌ **Non-compliant** - Must be fixed
+3. **Does it have `onMutate` with optimistic update?**
+   - ✅ Required for edits/deletes
+   - Check: Updates cache immediately before server responds
+
+#### D) Classification
+
+| Classification | Criteria |
+|----------------|----------|
+| ✅ **Compliant** | Follows all rules for its type |
+| ❌ **Non-compliant** | Violates one or more rules |
+| ⚠️ **Needs Discussion** | Edge case, unclear, or requires UX decision |
+
+**DO NOT mark a mutation as "Compliant" if it uses temp IDs, even if onSuccess is empty.** The temp ID pattern itself is the problem.
 
 ---
 
@@ -115,80 +138,79 @@ Mark each mutation as:
 
 **Action**: Create a summary table for the user.
 
-#### Format
+#### Required Format
 
 ```markdown
 ## Mutation Audit Results
 
 ### ✅ Compliant Mutations (X total)
-| File | Hook | Type | Notes |
-|------|------|------|-------|
-| routes/Todos/hooks.ts | useUpdateTodo | Edit | Optimistic-only ✓ |
-| routes/Todos/hooks.ts | useDeleteTodo | Delete | Optimistic-only ✓ |
+| File | Hook | Type | Why Compliant |
+|------|------|------|---------------|
+| routes/Todos/hooks.ts | useUpdateTodo | Edit | Optimistic in onMutate, empty onSuccess/onSettled |
+| routes/Todos/hooks.ts | useDeleteTodo | Delete | Optimistic in onMutate, removeQueries cleanup only |
+| routes/Todos/hooks.ts | useCreateTodo | Create | Non-optimistic (server generates ID), inserts on success |
 
 ### ❌ Non-compliant Mutations (X total)
-| File | Hook | Type | Issue | Suggested Fix |
-|------|------|------|-------|---------------|
-| routes/Example/hooks.ts | useUpdateItem | Edit | onSuccess updates from server | Make optimistic-only |
-| features/auth/hooks.ts | useLogin | Create | Uses invalidateQueries | Remove invalidation |
+| File | Hook | Type | Violation | Fix Required |
+|------|------|------|-----------|--------------|
+| routes/Plans/hooks.ts | useCreatePlan | Create | Uses temp-${Date.now()}, replaces in onSuccess | Remove temp ID, make non-optimistic |
+| routes/Items/hooks.ts | useUpdateItem | Edit | onSuccess calls invalidateQueries | Remove invalidation, use optimistic-only |
 
 ### ⚠️ Needs Discussion (X total)
-| File | Hook | Type | Question |
-|------|------|------|----------|
-| routes/Orders/hooks.ts | useCreateOrder | Create | Server computes totals - should this be non-optimistic? |
+| File | Hook | Type | Question for User |
+|------|------|------|-------------------|
+| routes/Orders/hooks.ts | useCreateOrder | Create | Server computes totals - confirm non-optimistic is acceptable? |
 ```
+
+**Important Notes column guidance:**
+- ✅ Compliant: Explain WHY it's compliant (not just "optimistic")
+- ❌ Non-compliant: Specify the EXACT violation found
+- ⚠️ Discussion: Ask a SPECIFIC question
 
 ---
 
-### Step 5: Explain UX Impact for Creates
+### Step 5: For EVERY Non-Compliant Create, Explain UX Impact
 
-**CRITICAL**: For any CREATE mutation that needs to change from optimistic to non-optimistic:
-
-#### Template for User Communication
+**REQUIRED**: For any CREATE mutation that is non-compliant, provide this template:
 
 ```markdown
 ## UX Change Required: [Hook Name]
 
-**Current behavior**: Optimistic create with temp ID
-**Proposed behavior**: Non-optimistic create (show loader)
+**File**: [path/to/file.ts]
+**Current behavior**: [Describe what happens now]
+**Proposed behavior**: [Describe the change]
 
-### Why optimistic create is problematic here:
+### Why the current implementation is problematic:
 
-[Explain the specific reason - one of these:]
+[Choose the applicable reason:]
 
-1. **Server generates the ID**: The entity ID is a MongoDB ObjectId generated server-side. 
-   Replacing temp IDs with real IDs is complex and error-prone.
+☐ **Temp ID replacement**: The code uses `temp-${Date.now()}` or similar, then replaces 
+   with server ID in onSuccess. This is complex, error-prone, and causes subtle bugs 
+   when users act faster than the server responds.
 
-2. **Server computes critical fields**: The server calculates [fields], which the client 
-   cannot predict. Showing wrong data then correcting it is poor UX.
+☐ **Server generates the ID**: The entity ID is a MongoDB ObjectId generated server-side.
+   The client cannot know this ID ahead of time.
 
-3. **Uniqueness validation**: The server must validate uniqueness against the full dataset.
-   The client cannot reliably check this.
+☐ **Server computes critical fields**: The server calculates [specific fields] which 
+   the client cannot predict.
 
-4. **Complex relationships**: This entity immediately affects [other caches/lists].
-   Coordinating temp-ID replacement across caches is too risky.
+### Recommended fix:
 
-### UX Options (ranked by recommendation):
+**Option A (Recommended): Non-optimistic with inline loading**
+- Remove `onMutate` (no optimistic insert)
+- In `onSuccess`: insert the server-returned entity
+- In component: disable button + show spinner while `isPending`
+- UX impact: User sees ~0.5-1s delay, but no visual glitches
 
-**Option A (Recommended): Inline Loading State**
-- Disable submit button while creating
-- Show small spinner next to button
-- On success, new item appears in list
-- Fast server response makes this imperceptible
+**Option B: True optimistic with client-generated ID**
+- Requires API change: server must accept and persist client-provided ID
+- Client generates UUID/nanoid before mutation
+- No replacement needed - same ID used everywhere
+- UX impact: Instant feedback, but requires backend changes
 
-**Option B: Skeleton Placeholder**
-- Insert skeleton/placeholder card immediately
-- Replace with real card on success
-- Good for lists where position matters
+### My recommendation: Option [A/B]
 
-**Option C: Optimistic with client-generated ID**
-- Only if you can change the API to accept client IDs
-- Client generates UUID/nanoid, server uses it as primary ID
-- Requires API changes: [describe what changes]
-
-### Recommendation: [Option A/B/C]
-
-Do you approve this change?
+[Explain why this option is best for this specific case]
 ```
 
 ---
@@ -200,23 +222,26 @@ Do you approve this change?
 ```markdown
 ## Summary of Proposed Changes
 
-### Changes that modify code only (no UX impact):
-1. [Hook]: Remove `invalidateQueries` from onSuccess
-2. [Hook]: Change onSuccess to empty function
-...
+### Code-only changes (no UX impact):
+1. `[file]` - `[hook]`: [specific change]
+2. ...
 
-### Changes that affect UX:
-1. [Hook]: Change from optimistic to non-optimistic create
-   - User will see: [describe]
-...
+### UX-affecting changes:
+1. `[file]` - `[hook]`: Change from optimistic to non-optimistic
+   - Before: Item appears instantly with temp ID
+   - After: Button shows loading, item appears after server responds
+2. ...
+
+---
 
 **Please review and reply:**
-- "Approve all" - Proceed with all changes
-- "Approve except [X]" - Skip specific changes
-- "Questions about [X]" - I'll explain further
+- **"Approve all"** - Proceed with all changes
+- **"Approve except [X]"** - Skip specific changes
+- **"Questions about [X]"** - I'll explain further
+- **"Show me the code for [X]"** - I'll show the specific implementation
 ```
 
-**DO NOT PROCEED without explicit user approval.**
+**⛔ DO NOT PROCEED without explicit user approval.**
 
 ---
 
@@ -224,15 +249,15 @@ Do you approve this change?
 
 **Action**: After approval, make the changes systematically.
 
-#### For each edit/delete mutation:
+#### Pattern: Edit/Delete → Optimistic-only
 
 ```typescript
 // BEFORE (non-compliant)
 onSuccess: (data) => {
     if (data) {
-        queryClient.setQueryData(['key', data.id], data);
+        queryClient.setQueryData(['items', data._id], data);
     }
-    queryClient.invalidateQueries({ queryKey: ['key'] });
+    queryClient.invalidateQueries({ queryKey: ['items'] });
 },
 
 // AFTER (compliant)
@@ -240,42 +265,53 @@ onSuccess: () => {},
 onSettled: () => {},
 ```
 
-#### For creates changing to non-optimistic:
+#### Pattern: Create with temp ID → Non-optimistic
 
 ```typescript
-// BEFORE (optimistic with temp ID)
+// BEFORE (non-compliant - temp ID replacement)
 onMutate: async (variables) => {
     const tempId = `temp-${Date.now()}`;
     queryClient.setQueryData(['items'], (old) => ({
-        items: [...old.items, { _id: tempId, ...variables }]
+        items: [...(old?.items || []), { _id: tempId, ...variables }]
     }));
     return { tempId };
 },
-onSuccess: (newItem, variables, context) => {
-    // Replace temp with real...
+onSuccess: (newItem, _variables, context) => {
+    // Replace temp with real - THIS IS THE PROBLEM
+    queryClient.setQueryData(['items'], (old) => ({
+        items: old?.items?.map(item => 
+            item._id === context?.tempId ? newItem : item
+        ) || []
+    }));
 },
 
-// AFTER (non-optimistic)
-// Remove onMutate entirely
+// AFTER (compliant - non-optimistic)
+// No onMutate - don't insert optimistically
 onSuccess: (newItem) => {
-    if (!newItem) return; // Guard for offline
+    if (!newItem) return; // Guard for offline mode
     queryClient.setQueryData(['items'], (old) => ({
         items: [...(old?.items || []), newItem]
     }));
 },
 ```
 
-#### Update component UX if needed:
+#### Pattern: Update component for non-optimistic create
 
 ```typescript
-// Show loading state for non-optimistic creates
 const createMutation = useCreateItem();
 
 <Button 
     onClick={() => createMutation.mutate(data)}
     disabled={createMutation.isPending}
 >
-    {createMutation.isPending ? 'Creating...' : 'Create'}
+    {createMutation.isPending ? (
+        <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating...
+        </>
+    ) : (
+        'Create'
+    )}
 </Button>
 ```
 
@@ -283,32 +319,35 @@ const createMutation = useCreateItem();
 
 ### Step 8: List Flows to Verify
 
-**Action**: Tell user exactly what to test.
+**Action**: Provide specific test instructions for each changed mutation.
 
 ```markdown
 ## Please Verify These Flows
 
 ### Edits (should feel instant):
-- [ ] [Route/Feature]: Edit [entity] - should update immediately, no flicker
+- [ ] **[Route]**: [Action] - should update immediately, no flicker
+- [ ] **[Route]**: [Action] - verify optimistic update + rollback on error
 
 ### Deletes (should feel instant):
-- [ ] [Route/Feature]: Delete [entity] - should disappear immediately
+- [ ] **[Route]**: [Action] - should disappear immediately
+- [ ] **[Route]**: [Action] - verify rollback if delete fails
 
-### Creates (UX changed):
-- [ ] [Route/Feature]: Create [entity] - verify:
-  - Button shows loading state while creating
-  - New item appears after ~0.5-1s
-  - No errors in console
-  - Works correctly on retry if first attempt fails
+### Creates (changed to non-optimistic):
+- [ ] **[Route]**: [Action] - verify:
+  - [ ] Button shows loading/disabled state while creating
+  - [ ] New item appears after server responds (~0.5-1s)
+  - [ ] No console errors
+  - [ ] Works on retry after failure
+  - [ ] Input is cleared only after success
 
-### Offline behavior:
-- [ ] Toggle offline mode in settings
-- [ ] Try edit/delete - should work (optimistic)
-- [ ] Try create - should queue and sync when online
+### Offline behavior (if applicable):
+- [ ] Enable offline mode in settings
+- [ ] Try edit/delete - should work (optimistic, queued)
+- [ ] Try create - should show appropriate offline handling
 
-Reply with:
-- "All verified" - Ready to commit
-- "Issue with [X]" - I'll investigate
+**Reply with:**
+- **"All verified"** - Ready to commit
+- **"Issue with [X]"** - I'll investigate
 ```
 
 ---
@@ -321,11 +360,11 @@ Reply with:
 git add -A
 git commit -m "refactor: align React Query mutations with optimistic-only guidelines
 
-Edits/deletes:
-- [List hooks changed to optimistic-only]
+Changes:
+- [List each hook and what was changed]
 
-Creates:
-- [List hooks changed to non-optimistic if any]
+Edits/deletes: Now use optimistic-only pattern (no server response handling)
+Creates: [Describe create changes if any]
 
 See docs/react-query-mutations.md for guidelines."
 
@@ -334,19 +373,82 @@ git push
 
 ---
 
-## Checklist for Agent
+## Common Mistakes to Avoid
 
-Use this checklist to track progress:
+### ❌ Mistake 1: Marking temp-ID creates as "Compliant"
 
-- [ ] Read docs/react-query-mutations.md completely
-- [ ] Read docs/state-management.md mutation section
-- [ ] Found all useMutation hooks in codebase
-- [ ] Classified each as edit/delete/create
-- [ ] Checked each for compliance
-- [ ] Created summary table
-- [ ] Explained UX impact for any create changes
-- [ ] Got explicit user approval
+**Wrong**: "useCreatePlan - Optimistic with temp ID ✓"
+**Why wrong**: If it uses temp IDs, it's non-compliant regardless of other factors.
+**Correct**: Mark as non-compliant, explain temp ID violation.
+
+### ❌ Mistake 2: Confusing `removeQueries` with `setQueryData`
+
+**Wrong**: Marking `onSuccess: () => queryClient.removeQueries(...)` as violation
+**Why wrong**: Removing stale cache entries is cleanup, not updating from server.
+**Correct**: This is fine after deletes.
+
+### ❌ Mistake 3: Not explaining UX impact for create changes
+
+**Wrong**: "useCreateTodo needs to be non-optimistic" (no explanation)
+**Why wrong**: User needs to understand the tradeoff.
+**Correct**: Use the full UX impact template.
+
+### ❌ Mistake 4: Saying "optimistic with temp ID" without checking replacement
+
+**Wrong**: Assuming temp ID is fine if onSuccess looks simple
+**Check**: Does ANY code path replace temp ID with server ID? Check onSuccess, onError, onSettled.
+
+### ❌ Mistake 5: Missing mutations in components
+
+**Wrong**: Only checking `hooks.ts` files
+**Correct**: Also grep for `useMutation` in `.tsx` files (inline mutations).
+
+---
+
+## Final Checklist
+
+Complete ALL items before finishing:
+
+### Phase 1: Understanding
+- [ ] Read `docs/react-query-mutations.md` completely
+- [ ] Read `docs/state-management.md` mutation section
+- [ ] Understand temp ID vs client-generated stable ID distinction
+- [ ] Understand what's allowed in onSuccess (removeQueries, Zustand updates)
+
+### Phase 2: Discovery
+- [ ] Found ALL files with `useMutation`
+- [ ] Searched for temp ID patterns (`temp-`, `tempId`, `Date.now()` in IDs)
+- [ ] Checked both `.ts` and `.tsx` files
+- [ ] Documented location of each mutation
+
+### Phase 3: Analysis
+- [ ] Classified each mutation as edit/delete/create/other
+- [ ] For creates: verified whether temp IDs are used
+- [ ] For creates: checked if onSuccess replaces temp with server ID
+- [ ] For edits/deletes: checked for server response handling
+- [ ] For edits/deletes: checked for invalidateQueries calls
+- [ ] Marked each as compliant/non-compliant/needs-discussion
+
+### Phase 4: Communication
+- [ ] Created summary table with ALL mutations
+- [ ] Explained WHY each compliant mutation is compliant
+- [ ] Explained EXACT violation for each non-compliant mutation
+- [ ] Used UX impact template for EVERY non-compliant create
+- [ ] Listed specific questions for "needs discussion" items
+
+### Phase 5: Approval
+- [ ] Presented complete summary to user
+- [ ] Received explicit approval (or addressed questions)
+- [ ] Did NOT proceed without approval
+
+### Phase 6: Implementation
 - [ ] Made all approved changes
-- [ ] Listed flows for user to verify
+- [ ] Updated component UX where needed (loading states)
+- [ ] No TypeScript errors
+- [ ] No lint errors
+
+### Phase 7: Verification
+- [ ] Listed specific flows for user to test
 - [ ] User confirmed all flows work
-- [ ] Committed and pushed changes
+- [ ] Committed with descriptive message
+- [ ] Pushed to remote
