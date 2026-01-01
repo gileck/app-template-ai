@@ -16,7 +16,7 @@ import { logger } from '@/client/features/session-logs';
  * Todos page component using React Query
  * 
  * Benefits:
- * - Instant load from IndexedDB cache on app restart
+ * - Instant load from localStorage cache on app restart
  * - Background revalidation for fresh data
  * - Optimistic updates via mutations
  */
@@ -78,13 +78,13 @@ export function Todos() {
         logger.info('todos', 'Creating new todo', { meta: { title } });
         
         setActionError('');
-        setNewTodoTitle('');
 
         createTodoMutation.mutate(
             { title },
             {
                 onSuccess: () => {
                     logger.info('todos', 'Todo created successfully', { meta: { title } });
+                    setNewTodoTitle('');
                 },
                 onError: (err) => {
                     const errorMessage = err instanceof Error ? err.message : 'Failed to create todo';

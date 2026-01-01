@@ -16,7 +16,6 @@ import type {
     UpdateTodoRequest,
     DeleteTodoRequest,
 } from '@/apis/todos/types';
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
 
 // ============================================================================
 // Query Keys
@@ -99,41 +98,17 @@ export function useCreateTodo() {
             }
             return response.data?.todo;
         },
-        onMutate: async (variables) => {
-            await queryClient.cancelQueries({ queryKey: todosQueryKey });
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
-
-            // Optimistic update
-            const optimisticTodo: TodoItemClient = {
-                _id: `temp-${Date.now()}`,
-                title: variables.title,
-                completed: false,
-                userId: 'temp',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            };
-
-            queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
-                if (!old?.todos) return { todos: [optimisticTodo] };
-                return { todos: [...old.todos, optimisticTodo] };
-            });
-
-            return { previousTodos };
-        },
-        onError: (_err, _variables, context) => {
-            if (context?.previousTodos) {
-                queryClient.setQueryData(todosQueryKey, context.previousTodos);
-            }
-        },
-        // Guard against empty data (offline mode returns {})
+        // Creates:
+        // - We do NOT use temp IDs and replace flows.
+        // - Todos are stored with server-generated IDs (MongoDB ObjectId), so this create is NOT optimistic.
+        // - On success, we insert the server-returned todo into the list cache.
+        // - When offline, apiClient queues the request and returns {}, so newTodo will be undefined here.
         onSuccess: (newTodo) => {
-            if (newTodo) {
-                queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
-                    if (!old?.todos) return { todos: [newTodo] };
-                    const filtered = old.todos.filter(t => !t._id.startsWith('temp-'));
-                    return { todos: [...filtered, newTodo] };
-                });
-            }
+            if (!newTodo) return;
+            queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
+                if (!old?.todos) return { todos: [newTodo] };
+                return { todos: [...old.todos, newTodo] };
+            });
         },
     });
 }
@@ -175,12 +150,9 @@ export function useUpdateTodo() {
                 queryClient.setQueryData(todosQueryKey, context.previousTodos);
             }
         },
-        // Guard against empty data (offline mode returns {})
-        onSuccess: (updatedTodo) => {
-            if (updatedTodo) {
-                queryClient.setQueryData(todoQueryKey(updatedTodo._id), { todo: updatedTodo });
-            }
-        },
+        // Optimistic-only: never update from server response
+        onSuccess: () => {},
+        onSettled: () => {},
     });
 }
 
@@ -217,11 +189,8 @@ export function useDeleteTodo() {
                 queryClient.setQueryData(todosQueryKey, context.previousTodos);
             }
         },
-        // Guard against empty data (offline mode returns {})
-        onSuccess: (deletedTodoId) => {
-            if (deletedTodoId) {
-                queryClient.removeQueries({ queryKey: todoQueryKey(deletedTodoId) });
-            }
-        },
+        // Optimistic-only: never update from server response
+        onSuccess: () => {},
+        onSettled: () => {},
     });
 }
