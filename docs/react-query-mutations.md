@@ -38,6 +38,39 @@ If you apply server responses on success:
 - Edit: toggle todo `completed`, rename a todo title, change a user preference entity
 - Delete: delete a todo (rollback if forbidden), remove a saved item
 
+### ⚠️ UX Rule: All Related UI Must Be Instant
+
+If an operation is optimistic, **all UI should feel instant** - not just the list/data display.
+
+**Common mistake**: Showing loading states in confirmation dialogs for optimistic operations.
+
+```typescript
+// ❌ WRONG - Dialog shows "Removing..." even though list updates instantly
+const handleConfirmDelete = async () => {
+    setIsDeleting(true);  // Shows loading spinner
+    await deleteMutation.mutateAsync({ id });
+    setIsDeleting(false);
+    closeDialog();  // Dialog closes AFTER server responds
+};
+
+// ✅ CORRECT - Dialog closes immediately, mutation runs in background
+const handleConfirmDelete = () => {
+    closeDialog();  // Close immediately
+    deleteMutation.mutate({ id });  // Optimistic update happens, server in background
+};
+```
+
+**The principle**: With optimistic updates, the user's action is "done" the moment they click. Don't make them wait for the server.
+
+| Component | Optimistic Behavior |
+|-----------|---------------------|
+| List/data display | Updates instantly ✓ |
+| Confirmation dialog | Closes instantly ✓ |
+| Action button | No loading state needed ✓ |
+| Form inputs | Clear/reset instantly ✓ |
+
+**Exception**: Show loading only for operations that are NOT optimistic (e.g., creates that require server-generated IDs).
+
 ## Pattern: creates (no temp IDs + replace flows)
 
 We **do not** implement “temp IDs → server IDs replacement” flows (too complex/bug-prone).
