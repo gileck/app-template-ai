@@ -328,14 +328,15 @@ return { _id: toStringId(item._id), ...item };
 - ✅ Single `_id` field (no separate `clientId`)
 - ✅ MongoDB indexes work on both formats
 
-#### 4. ⚠️ Always Use `toStringId()` - Never `.toHexString()`
+#### 4. ⚠️ Always Use Server Utilities - Never Direct ObjectId Methods
 
-**Common Error:**
+When IDs can be either ObjectId format (legacy) or UUID strings (new), direct ObjectId methods will fail.
+
+##### Error 1: `.toHexString()` on UUID strings
+
 ```
 TypeError: item._id.toHexString is not a function
 ```
-
-This happens when code calls `.toHexString()` on a UUID string (which doesn't have that method).
 
 ```typescript
 // ❌ WRONG - Breaks on UUID strings
@@ -346,7 +347,38 @@ import { toStringId } from '@/server/utils';
 const clientId = toStringId(item._id); // Always returns string
 ```
 
-**Rule**: In API handlers and database code, **always use `toStringId()`** instead of `.toHexString()` when converting IDs for responses.
+##### Error 2: `new ObjectId()` on UUID strings
+
+```
+BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+```
+
+```typescript
+// ❌ WRONG - Breaks on UUID strings
+const docId = new ObjectId(clientProvidedId); // BSONError if it's a UUID!
+
+// ✅ CORRECT - Works for both formats
+import { toDocumentId } from '@/server/utils';
+const docId = toDocumentId(clientProvidedId); // ObjectId or string as appropriate
+```
+
+##### Error 3: Direct ObjectId in queries
+
+```typescript
+// ❌ WRONG - Breaks on UUID strings
+const item = await collection.findOne({ _id: new ObjectId(id) });
+
+// ✅ CORRECT - Works for both formats
+import { toQueryId } from '@/server/utils';
+const item = await collection.findOne({ _id: toQueryId(id) });
+```
+
+**Rule**: In API handlers and database code, **always use the server utilities** instead of direct ObjectId methods:
+
+| Instead of | Use |
+|------------|-----|
+| `id.toHexString()` | `toStringId(id)` |
+| `new ObjectId(id)` | `toDocumentId(id)` or `toQueryId(id)` |
 
 #### 5. Collision Handling (Extremely Rare)
 
