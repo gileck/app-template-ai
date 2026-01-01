@@ -9,13 +9,14 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { getTodos, getTodo, createTodo, updateTodo, deleteTodo } from '@/apis/todos/client';
 import { useQueryDefaults } from '@/client/query/defaults';
+import { generateId } from '@/client/utils/id';
 import type {
     GetTodosResponse,
     GetTodoResponse,
-    CreateTodoRequest,
     UpdateTodoRequest,
     DeleteTodoRequest,
 } from '@/apis/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/todos/types';
 
 // ============================================================================
 // Query Keys
@@ -85,32 +86,96 @@ export function useInvalidateTodos() {
 // ============================================================================
 
 /**
+ * Input for creating a todo (without _id - we generate it)
+ */
+export interface CreateTodoInput {
+    title: string;
+}
+
+/**
  * Hook for creating a new todo
+ * 
+ * Uses OPTIMISTIC CREATE with client-generated ID:
+ * - Client generates UUID via generateId()
+ * - Server accepts and persists this ID
+ * - No temp-ID replacement needed
+ * 
+ * @see docs/react-query-mutations.md
  */
 export function useCreateTodo() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: CreateTodoRequest) => {
+        mutationFn: async (data: CreateTodoInput & { _id: string }) => {
             const response = await createTodo(data);
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
             return response.data?.todo;
         },
-        // Creates:
-        // - We do NOT use temp IDs and replace flows.
-        // - Todos are stored with server-generated IDs (MongoDB ObjectId), so this create is NOT optimistic.
-        // - On success, we insert the server-returned todo into the list cache.
-        // - When offline, apiClient queues the request and returns {}, so newTodo will be undefined here.
-        onSuccess: (newTodo) => {
-            if (!newTodo) return;
+        onMutate: async (variables) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries({ queryKey: todosQueryKey });
+
+            // Snapshot previous value for rollback
+            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
+
+            // Optimistically add the new todo
+            const now = new Date().toISOString();
+            const optimisticTodo: TodoItemClient = {
+                _id: variables._id,
+                userId: '', // Will be set by server, not displayed
+                title: variables.title,
+                completed: false,
+                createdAt: now,
+                updatedAt: now,
+            };
+
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
-                if (!old?.todos) return { todos: [newTodo] };
-                return { todos: [...old.todos, newTodo] };
+                if (!old?.todos) return { todos: [optimisticTodo] };
+                return { todos: [...old.todos, optimisticTodo] };
             });
+
+            return { previousTodos };
         },
+        onError: (_err, _variables, context) => {
+            // Rollback on error
+            if (context?.previousTodos) {
+                queryClient.setQueryData(todosQueryKey, context.previousTodos);
+            }
+        },
+        // Optimistic-only: never update from server response
+        onSuccess: () => {},
+        onSettled: () => {},
     });
+}
+
+/**
+ * Mutation options for useCreateTodoWithId
+ */
+interface CreateTodoMutationOptions {
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+}
+
+/**
+ * Helper to create a todo with a generated ID
+ * Use this in components to get the correct mutation input
+ */
+export function useCreateTodoWithId() {
+    const mutation = useCreateTodo();
+
+    return {
+        ...mutation,
+        mutate: (data: CreateTodoInput, options?: CreateTodoMutationOptions) => {
+            const _id = generateId();
+            mutation.mutate({ ...data, _id }, options);
+        },
+        mutateAsync: async (data: CreateTodoInput) => {
+            const _id = generateId();
+            return mutation.mutateAsync({ ...data, _id });
+        },
+    };
 }
 
 /**

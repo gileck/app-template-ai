@@ -8,7 +8,7 @@ import { Separator } from '@/client/components/ui/separator';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
 import { CheckSquare, Eye, Plus, RefreshCcw, Save, X, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from '../../router';
-import { useTodos, useCreateTodo, useUpdateTodo, useDeleteTodo } from './hooks';
+import { useTodos, useCreateTodoWithId, useUpdateTodo, useDeleteTodo } from './hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 import { logger } from '@/client/features/session-logs';
 
@@ -26,7 +26,7 @@ export function Todos() {
     // React Query hooks - cache is guaranteed to be restored at this point
     // (handled globally by QueryProvider's WaitForCacheRestore)
     const { data, isLoading, isFetching, error, refetch } = useTodos();
-    const createTodoMutation = useCreateTodo();
+    const createTodoMutation = useCreateTodoWithId();
     const updateTodoMutation = useUpdateTodo();
     const deleteTodoMutation = useDeleteTodo();
 
@@ -47,7 +47,6 @@ export function Todos() {
     const [mutatingTodoId, setMutatingTodoId] = useState<string | null>(null);
 
     const todos = data?.todos || [];
-    const isCreating = createTodoMutation.isPending;
 
     // Log page view on mount
     useEffect(() => {
@@ -78,18 +77,22 @@ export function Todos() {
         logger.info('todos', 'Creating new todo', { meta: { title } });
         
         setActionError('');
+        
+        // Clear input immediately (optimistic - UI updates instantly)
+        setNewTodoTitle('');
 
         createTodoMutation.mutate(
             { title },
             {
                 onSuccess: () => {
                     logger.info('todos', 'Todo created successfully', { meta: { title } });
-                    setNewTodoTitle('');
                 },
                 onError: (err) => {
                     const errorMessage = err instanceof Error ? err.message : 'Failed to create todo';
                     logger.error('todos', 'Failed to create todo', { meta: { title, error: errorMessage } });
                     setActionError(errorMessage);
+                    // Restore input on error so user can retry
+                    setNewTodoTitle(title);
                 },
             }
         );
@@ -279,12 +282,10 @@ export function Todos() {
                         onChange={(e) => setNewTodoTitle(e.target.value)}
                         placeholder="Enter a new todo..."
                         onKeyPress={handleKeyPress}
-                        disabled={isCreating}
                     />
-                    <Button onClick={handleCreateTodo} disabled={isCreating || !newTodoTitle.trim()}>
+                    <Button onClick={handleCreateTodo} disabled={!newTodoTitle.trim()}>
                         <Plus className="mr-2 h-4 w-4" /> Add
                     </Button>
-                    {createTodoMutation.isPending && <div className="w-24"><LinearProgress className="mt-1" /></div>}
                 </div>
             </Card>
 

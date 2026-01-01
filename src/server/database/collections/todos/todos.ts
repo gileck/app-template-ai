@@ -42,7 +42,7 @@ export const findTodoById = async (
 };
 
 /**
- * Create a new todo item
+ * Create a new todo item (MongoDB generates ID)
  * @param todo - The todo data to create
  * @returns The created todo item
  */
@@ -56,6 +56,23 @@ export const createTodo = async (todo: TodoItemCreate): Promise<TodoItem> => {
     }
 
     return { ...todo, _id: result.insertedId } as TodoItem;
+};
+
+/**
+ * Create a new todo item with a specific ID (for client-generated IDs)
+ * @param todo - The todo data including _id
+ * @returns The created todo item
+ */
+export const createTodoWithId = async (todo: TodoItem): Promise<TodoItem> => {
+    const collection = await getTodosCollection();
+
+    const result = await collection.insertOne(todo);
+
+    if (!result.insertedId) {
+        throw new Error('Failed to create todo item');
+    }
+
+    return todo;
 };
 
 /**

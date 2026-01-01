@@ -23,6 +23,8 @@ export interface GetTodoResponse {
 
 // Create todo
 export interface CreateTodoRequest {
+    /** Client-generated ID (UUID). If provided, server will use this ID. */
+    _id?: string;
     title: string;
 }
 

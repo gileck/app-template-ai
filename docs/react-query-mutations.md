@@ -103,20 +103,22 @@ When implementing optimistic creates, you need client-generated IDs that are:
 - **Stable** - same ID used throughout the request lifecycle
 - **Accepted by server** - server must persist this ID, not generate its own
 
-### Recommended Methods
+### Use the `generateId()` Utility
 
-#### Option 1: `crypto.randomUUID()` (Recommended - Zero Dependencies)
+This app provides a standard utility for ID generation:
 
 ```typescript
-const id = crypto.randomUUID();
-// → "550e8400-e29b-41d4-a716-446655440000"
+import { generateId } from '@/client/utils/id';
+
+const id = generateId();
+// → "550e8400-e29b-41d4-a716-446655440000" (UUID v4)
 ```
 
-**Pros**: Built into all modern browsers and Node.js 19+, standard UUID v4, extremely low collision probability (1 in 2^122).
+**Location**: `src/client/utils/id.ts`
 
-**Cons**: 36 characters (with hyphens), not URL-friendly without encoding.
+**Implementation**: Uses `crypto.randomUUID()` internally - built into all modern browsers, no dependencies, extremely low collision probability (1 in 2^122).
 
-#### Option 2: `nanoid` (If You Need Shorter IDs)
+### Alternative: `nanoid` (If You Need Shorter IDs)
 
 ```bash
 npm install nanoid
@@ -127,53 +129,90 @@ import { nanoid } from 'nanoid';
 
 const id = nanoid();
 // → "V1StGXR8_Z5jdHi6B-myT" (21 chars, URL-safe)
-
-// Custom length
-const shortId = nanoid(10);
-// → "IRFa-VaY2b"
 ```
-
-**Pros**: Shorter, URL-safe, customizable length.
-
-**Cons**: Requires dependency; shorter IDs have higher (but still negligible) collision probability.
 
 ### Implementation Pattern
 
+**⚠️ Important**: The ID must be generated ONCE and used consistently. A common mistake is generating different IDs in `mutationFn` vs `onMutate`.
+
+#### Pattern A: Helper Hook (Recommended)
+
+Create a wrapper hook that handles ID generation internally:
+
 ```typescript
 // hooks.ts
-export function useCreateItem() {
+import { generateId } from '@/client/utils/id';
+
+// Base mutation hook (expects _id in input)
+export function useCreateTodo() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: CreateItemInput) => {
-            // Generate ID BEFORE mutation starts
-            const id = crypto.randomUUID();
-            
-            const response = await createItem({ ...data, id });
+        mutationFn: async (data: { _id: string; title: string }) => {
+            const response = await createTodo(data);
             if (response.data?.error) throw new Error(response.data.error);
-            return response.data?.item;
+            return response.data?.todo;
         },
-        
         onMutate: async (variables) => {
-            const id = crypto.randomUUID(); // Same ID must be used!
-            // ... optimistic insert with this ID
+            await queryClient.cancelQueries({ queryKey: todosQueryKey });
+            const previous = queryClient.getQueryData(todosQueryKey);
+            
+            // Use the same _id from variables
+            queryClient.setQueryData(todosQueryKey, (old) => ({
+                todos: [...(old?.todos || []), { _id: variables._id, ...variables }]
+            }));
+            
+            return { previous };
         },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) queryClient.setQueryData(todosQueryKey, context.previous);
+        },
+        onSuccess: () => {},
+        onSettled: () => {},
     });
+}
+
+// Helper hook that generates ID internally
+export function useCreateTodoWithId() {
+    const mutation = useCreateTodo();
+
+    return {
+        ...mutation,
+        mutate: (data: { title: string }) => {
+            const _id = generateId();
+            mutation.mutate({ ...data, _id });
+        },
+        mutateAsync: async (data: { title: string }) => {
+            const _id = generateId();
+            return mutation.mutateAsync({ ...data, _id });
+        },
+    };
 }
 ```
 
-**⚠️ Important**: The ID must be generated ONCE and used consistently. A common mistake is generating different IDs in `mutationFn` vs `onMutate`.
+**Usage in component**:
 
-### Correct Pattern: Generate ID Before Calling Mutate
+```typescript
+const createMutation = useCreateTodoWithId();
+
+// Simple - ID is generated internally
+createMutation.mutate({ title: 'New todo' });
+```
+
+#### Pattern B: Generate ID in Component
+
+If you need access to the ID before calling mutate:
 
 ```typescript
 // Component
+import { generateId } from '@/client/utils/id';
+
 function CreateItemForm() {
     const createMutation = useCreateItem();
     
     const handleSubmit = (formData: FormData) => {
-        const id = crypto.randomUUID(); // Generate once
-        createMutation.mutate({ ...formData, id }); // Pass to mutation
+        const _id = generateId(); // Generate once
+        createMutation.mutate({ ...formData, _id }); // Pass to mutation
     };
 }
 
