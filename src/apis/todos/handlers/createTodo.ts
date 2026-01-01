@@ -2,6 +2,7 @@ import { API_CREATE_TODO } from '../index';
 import { ApiHandlerContext, CreateTodoRequest, CreateTodoResponse } from '../types';
 import { todos } from '@/server/database';
 import { ObjectId } from 'mongodb';
+import { toDocumentId, toStringId } from '@/server/utils';
 
 export const createTodo = async (
     request: CreateTodoRequest,
@@ -23,8 +24,8 @@ export const createTodo = async (
                 // Return existing todo (idempotent - same ID = same result)
                 return {
                     todo: {
-                        _id: existing._id.toHexString(),
-                        userId: existing.userId.toHexString(),
+                        _id: toStringId(existing._id),
+                        userId: toStringId(existing.userId),
                         title: existing.title,
                         completed: existing.completed,
                         createdAt: existing.createdAt.toISOString(),
@@ -36,8 +37,8 @@ export const createTodo = async (
 
         const now = new Date();
         const todoData = {
-            // Use client-provided ID or generate new one
-            _id: request._id ? new ObjectId(request._id) : new ObjectId(),
+            // Use client-provided ID (UUID or ObjectId format) or generate new one
+            _id: request._id ? toDocumentId(request._id) : new ObjectId(),
             userId: new ObjectId(context.userId),
             title: request.title.trim(),
             completed: false,
@@ -49,8 +50,8 @@ export const createTodo = async (
 
         // Convert to client format
         const todoClient = {
-            _id: newTodo._id.toHexString(),
-            userId: newTodo.userId.toHexString(),
+            _id: toStringId(newTodo._id),
+            userId: toStringId(newTodo.userId),
             title: newTodo.title,
             completed: newTodo.completed,
             createdAt: newTodo.createdAt.toISOString(),

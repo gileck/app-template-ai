@@ -1,9 +1,11 @@
 import { Collection, ObjectId } from 'mongodb';
 import { getDb } from '@/server/database';
+import { toQueryId } from '@/server/utils';
 import { TodoItem, TodoItemCreate, TodoItemUpdate } from './types';
 
 /**
  * Get a reference to the todos collection
+ * Note: Collection type uses ObjectId but _id can also be a string (UUID)
  */
 const getTodosCollection = async (): Promise<Collection<TodoItem>> => {
     const db = await getDb();
@@ -26,7 +28,8 @@ export const findTodosByUserId = async (
 
 /**
  * Find a todo by ID
- * @param todoId - The ID of the todo
+ * Supports both ObjectId and UUID string formats
+ * @param todoId - The ID of the todo (ObjectId or UUID string)
  * @param userId - The ID of the user (for authorization)
  * @returns The todo item or null if not found
  */
@@ -35,10 +38,12 @@ export const findTodoById = async (
     userId: ObjectId | string
 ): Promise<TodoItem | null> => {
     const collection = await getTodosCollection();
-    const todoIdObj = typeof todoId === 'string' ? new ObjectId(todoId) : todoId;
+    // Use toQueryId to handle both ObjectId and UUID formats
+    const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
-    return collection.findOne({ _id: todoIdObj, userId: userIdObj });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return collection.findOne({ _id: todoIdQuery as any, userId: userIdObj });
 };
 
 /**
@@ -59,25 +64,36 @@ export const createTodo = async (todo: TodoItemCreate): Promise<TodoItem> => {
 };
 
 /**
+ * Todo data with flexible _id type (ObjectId or string UUID)
+ */
+interface TodoItemWithFlexId extends Omit<TodoItem, '_id'> {
+    _id: ObjectId | string;
+}
+
+/**
  * Create a new todo item with a specific ID (for client-generated IDs)
- * @param todo - The todo data including _id
+ * Supports both ObjectId and UUID string formats for _id
+ * @param todo - The todo data including _id (can be ObjectId or UUID string)
  * @returns The created todo item
  */
-export const createTodoWithId = async (todo: TodoItem): Promise<TodoItem> => {
+export const createTodoWithId = async (todo: TodoItemWithFlexId): Promise<TodoItem> => {
     const collection = await getTodosCollection();
 
-    const result = await collection.insertOne(todo);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await collection.insertOne(todo as any);
 
     if (!result.insertedId) {
         throw new Error('Failed to create todo item');
     }
 
-    return todo;
+    // Return with the _id that was actually inserted
+    return { ...todo, _id: result.insertedId } as unknown as TodoItem;
 };
 
 /**
  * Update an existing todo item
- * @param todoId - The ID of the todo to update
+ * Supports both ObjectId and UUID string formats
+ * @param todoId - The ID of the todo to update (ObjectId or UUID string)
  * @param userId - The ID of the user (for authorization)
  * @param update - The update data
  * @returns The updated todo item or null if not found
@@ -88,11 +104,12 @@ export const updateTodo = async (
     update: TodoItemUpdate
 ): Promise<TodoItem | null> => {
     const collection = await getTodosCollection();
-    const todoIdObj = typeof todoId === 'string' ? new ObjectId(todoId) : todoId;
+    const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
     const result = await collection.findOneAndUpdate(
-        { _id: todoIdObj, userId: userIdObj },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { _id: todoIdQuery as any, userId: userIdObj },
         { $set: update },
         { returnDocument: 'after' }
     );
@@ -102,7 +119,8 @@ export const updateTodo = async (
 
 /**
  * Delete a todo item
- * @param todoId - The ID of the todo to delete
+ * Supports both ObjectId and UUID string formats
+ * @param todoId - The ID of the todo to delete (ObjectId or UUID string)
  * @param userId - The ID of the user (for authorization)
  * @returns True if the todo was deleted, false otherwise
  */
@@ -111,9 +129,10 @@ export const deleteTodo = async (
     userId: ObjectId | string
 ): Promise<boolean> => {
     const collection = await getTodosCollection();
-    const todoIdObj = typeof todoId === 'string' ? new ObjectId(todoId) : todoId;
+    const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
-    const result = await collection.deleteOne({ _id: todoIdObj, userId: userIdObj });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await collection.deleteOne({ _id: todoIdQuery as any, userId: userIdObj });
     return result.deletedCount === 1;
 }; 
