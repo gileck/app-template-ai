@@ -345,6 +345,36 @@ function getResourceStats(): {
 }
 
 /**
+ * Get navigation timing metrics for the page load
+ */
+function getNavigationStats(): {
+    dnsMs: number;
+    tcpMs: number;
+    ttfbMs: number;
+    downloadMs: number;
+    domReadyMs: number;
+    bundleStartMs: number;
+} | null {
+    if (typeof window === 'undefined' || !window.performance) {
+        return null;
+    }
+    
+    const entries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+    if (entries.length === 0) return null;
+    
+    const nav = entries[0];
+    
+    return {
+        dnsMs: Math.round(nav.domainLookupEnd - nav.domainLookupStart),
+        tcpMs: Math.round(nav.connectEnd - nav.connectStart),
+        ttfbMs: Math.round(nav.responseStart - nav.requestStart), // Time to First Byte
+        downloadMs: Math.round(nav.responseEnd - nav.responseStart),
+        domReadyMs: Math.round(nav.domInteractive),
+        bundleStartMs: Math.round(bundleLoadedAt),
+    };
+}
+
+/**
  * Log bundle loaded event with resource stats (called automatically when this module loads)
  */
 function logBundleLoaded(): void {
@@ -366,6 +396,32 @@ function logBundleLoaded(): void {
     });
 }
 
+/**
+ * Log navigation timing as a single session log entry (called automatically after bundle loads)
+ */
+function logNavigationTimingToSession(): void {
+    const navStats = getNavigationStats();
+    if (!navStats) return;
+    
+    // Single log with key metrics: DNS, TCP, TTFB, Download, DOM Ready, Bundle Start
+    logger.info('boot', '🌐 Page Load Timing', {
+        meta: {
+            dns: `${navStats.dnsMs}ms`,
+            tcp: `${navStats.tcpMs}ms`,
+            ttfb: `${navStats.ttfbMs}ms`,
+            download: `${navStats.downloadMs}ms`,
+            domReady: `${navStats.domReadyMs}ms`,
+            jsStart: `${navStats.bundleStartMs}ms`,
+        }
+    });
+}
+
 // Log bundle loaded immediately when this module first executes
 // This is the earliest point we can log - when JS first runs
 logBundleLoaded();
+
+// Log navigation timing shortly after (navigation timing may not be fully available at bundle load)
+// Use setTimeout to ensure navigation timing entries are populated
+if (typeof window !== 'undefined') {
+    setTimeout(logNavigationTimingToSession, 0);
+}
