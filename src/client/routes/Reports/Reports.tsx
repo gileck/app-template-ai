@@ -61,6 +61,74 @@ function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
 }
 
+/**
+ * Generate performance summary from stored report data
+ * Uses sessionLogs (boot events) and performanceEntries (browser timing)
+ */
+function generatePerformanceSummary(report: ReportClient): string | null {
+    // Only for performance reports
+    if (report.category !== 'performance') return null;
+    
+    const lines: string[] = [];
+    lines.push('=== APP LOAD TIMELINE ===');
+    lines.push('');
+    
+    // Build timeline from session logs (boot events)
+    const bootLogs = report.sessionLogs
+        .filter(log => log.feature === 'boot' && log.performanceTime !== undefined)
+        .sort((a, b) => (a.performanceTime || 0) - (b.performanceTime || 0));
+    
+    if (bootLogs.length === 0) {
+        return null;
+    }
+    
+    // Add navigation timing from performanceEntries if available
+    const navEntry = report.performanceEntries?.find(e => e.entryType === 'navigation');
+    if (navEntry) {
+        lines.push('   0ms  🌐 Page request sent');
+    }
+    
+    // Add boot events
+    for (const log of bootLogs) {
+        const time = log.performanceTime || 0;
+        const timeStr = `${Math.round(time)}ms`.padStart(6);
+        lines.push(`${timeStr}  ${log.message}`);
+    }
+    
+    lines.push('');
+    
+    // Resource summary from performanceEntries
+    if (report.performanceEntries && report.performanceEntries.length > 0) {
+        const jsEntries = report.performanceEntries.filter(e => 
+            e.entryType === 'resource' && e.name?.endsWith('.js')
+        );
+        const cssEntries = report.performanceEntries.filter(e => 
+            e.entryType === 'resource' && e.name?.endsWith('.css')
+        );
+        
+        if (jsEntries.length > 0 || cssEntries.length > 0) {
+            const jsKB = Math.round(jsEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
+            const cssKB = Math.round(cssEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
+            
+            lines.push('📦 RESOURCE SUMMARY');
+            lines.push(`  JS:  ${jsEntries.length} files, ${jsKB}KB`);
+            lines.push(`  CSS: ${cssEntries.length} files, ${cssKB}KB`);
+            lines.push('');
+        }
+    }
+    
+    // Time to first content
+    const contentShownLog = bootLogs.find(log => log.message.includes('Content Shown'));
+    if (contentShownLog && contentShownLog.performanceTime) {
+        lines.push(`✨ Time to first content: ${Math.round(contentShownLog.performanceTime)}ms`);
+    }
+    
+    lines.push('');
+    lines.push('===========================');
+    
+    return lines.join('\n');
+}
+
 function ReportCard({ report }: { report: ReportClient }) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state
     const [isExpanded, setIsExpanded] = useState(false);
@@ -99,6 +167,9 @@ function ReportCard({ report }: { report: ReportClient }) {
             ).join('\n')
             : null;
 
+        // Generate performance summary for performance reports
+        const perfSummary = generatePerformanceSummary(report);
+
         const details = `
 ================================================================================
 BUG/ERROR REPORT
@@ -120,6 +191,10 @@ CONTEXT
 ${report.description ? `DESCRIPTION
 -----------
 ${report.description}
+` : ''}
+${perfSummary ? `PERFORMANCE SUMMARY
+-------------------
+${perfSummary}
 ` : ''}
 ${report.errorMessage ? `ERROR MESSAGE
 -------------
@@ -385,6 +460,19 @@ END OF REPORT
                 {/* Expanded Details */}
                 {isExpanded && (
                     <div className="px-4 pb-4 space-y-4 border-t bg-muted/30 pt-4">
+                        {/* Performance Summary (for performance reports) */}
+                        {report.category === 'performance' && (() => {
+                            const summary = generatePerformanceSummary(report);
+                            return summary ? (
+                                <div>
+                                    <h4 className="mb-2 text-sm font-medium">Performance Summary</h4>
+                                    <pre className="max-h-64 overflow-auto rounded bg-muted p-3 text-xs font-mono whitespace-pre">
+                                        {summary}
+                                    </pre>
+                                </div>
+                            ) : null;
+                        })()}
+
                         {/* Screenshot */}
                         {report.screenshot && (
                             <div>
