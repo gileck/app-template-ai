@@ -324,13 +324,13 @@ export function printPerformanceLogs(): void {
     console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #FF9800');
     console.log('');
     
-    // Section 3: Boot Phases Timeline
-    console.log('%c┌─ ⚡ BOOT PHASES TIMELINE ──────────────────────────────────┐', 'color: #9C27B0');
+    // Section 3: Boot Phases Timeline (times are absolute from page load, i.e. performance.now())
+    console.log('%c┌─ ⚡ BOOT PHASES TIMELINE (from page load) ─────────────────┐', 'color: #9C27B0');
     if (metrics.length > 0) {
-        const baseTime = metrics[0].startTime;
         for (const metric of metrics) {
-            const relativeTime = Math.round(metric.startTime - baseTime);
-            const timeStr = `+${relativeTime}ms`.padStart(7);
+            // Use absolute time from page load (performance.now based)
+            const absoluteTime = Math.round(metric.startTime);
+            const timeStr = `${absoluteTime}ms`.padStart(6);
             
             let icon = '●';
             let durationStr = '';
@@ -545,16 +545,16 @@ export function getPerformanceSummary(): string {
         lines.push('');
     }
     
-    // Boot phases timeline
+    // Boot phases timeline (times are absolute from page load)
     const metrics = Array.from(bootPerf.metrics.values()).sort((a, b) => a.startTime - b.startTime);
     if (metrics.length > 0) {
-        lines.push('⚡ Boot Timeline:');
-        const baseTime = metrics[0].startTime;
+        lines.push('⚡ Boot Timeline (from page load):');
         for (const metric of metrics) {
-            const relativeTime = Math.round(metric.startTime - baseTime);
+            // Use absolute time from page load (performance.now based)
+            const absoluteTime = Math.round(metric.startTime);
             const icon = (metric.duration && metric.duration > 0) ? '▶' : '●';
             const durationStr = (metric.duration && metric.duration > 0) ? ` (${Math.round(metric.duration)}ms)` : '';
-            lines.push(`  +${relativeTime}ms ${icon} ${metric.phase}${durationStr}`);
+            lines.push(`  ${absoluteTime}ms ${icon} ${metric.phase}${durationStr}`);
         }
         lines.push('');
         
