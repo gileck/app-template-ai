@@ -44,7 +44,7 @@ export function useUpdateReportStatus() {
 
             queryClient.setQueriesData({ queryKey: reportsBaseQueryKey }, (old) => {
                 if (!Array.isArray(old)) return old;
-                return old.map((report) => (report.id === reportId ? { ...report, status } : report));
+                return old.map((report) => (report._id === reportId ? { ...report, status } : report));
             });
 
             return { previous };
@@ -78,7 +78,7 @@ export function useDeleteReport() {
 
             queryClient.setQueriesData({ queryKey: reportsBaseQueryKey }, (old) => {
                 if (!Array.isArray(old)) return old;
-                return old.filter((report) => report.id !== reportId);
+                return old.filter((report) => report._id !== reportId);
             });
 
             return { previous };
