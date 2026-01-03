@@ -110,9 +110,31 @@ function generatePerformanceSummary(report: ReportClient): string | null {
             const jsKB = Math.round(jsEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
             const cssKB = Math.round(cssEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
             
+            // Cache status breakdown
+            const allStaticEntries = [...jsEntries, ...cssEntries];
+            const swCache = allStaticEntries.filter(e => 
+                e.transferSize === 0 && e.decodedBodySize && e.decodedBodySize > 0
+            ).length;
+            const memoryCache = allStaticEntries.filter(e => 
+                e.transferSize === 0 && (!e.decodedBodySize || e.decodedBodySize === 0)
+            ).length;
+            const network = allStaticEntries.filter(e => 
+                e.transferSize && e.transferSize > 0
+            ).length;
+            
             lines.push('📦 RESOURCE SUMMARY');
             lines.push(`  JS:  ${jsEntries.length} files, ${jsKB}KB`);
             lines.push(`  CSS: ${cssEntries.length} files, ${cssKB}KB`);
+            lines.push(`  Cache Status (${allStaticEntries.length} static files):`);
+            if (swCache > 0) {
+                lines.push(`    ✓ ${swCache} from SW/disk cache`);
+            }
+            if (memoryCache > 0) {
+                lines.push(`    ✓ ${memoryCache} from memory cache`);
+            }
+            if (network > 0) {
+                lines.push(`    ↓ ${network} from network`);
+            }
             lines.push('');
         }
     }
