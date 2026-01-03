@@ -410,3 +410,51 @@ This is the hydration timing issue. React hooks don't immediately reflect the hy
 ### Component renders with wrong values on first load
 
 Make sure your component is inside `BootGate` (or uses `useAllPersistedStoresHydrated()` directly). Components that render before hydration completes will see default values.
+
+### 🚨 Infinite Loop: "The result of getSnapshot should be cached"
+
+**Error message:**
+```
+The result of getSnapshot should be cached to avoid an infinite loop
+Error: Maximum update depth exceeded.
+```
+
+**Cause:** Zustand selectors that return new array/object references on every call cause infinite re-render loops with React's `useSyncExternalStore`.
+
+```typescript
+// ❌ BAD - Creates new [] on every call, causing infinite loop
+export function useItems(id: string | null) {
+    return useMyStore((s) => id ? s.items[id] ?? [] : []);
+}
+
+// ❌ BAD - Creates new {} on every call
+export function useData(id: string | null) {
+    return useMyStore((s) => id ? s.data[id] ?? {} : {});
+}
+```
+
+**Fix:** Use stable constant references for fallback values:
+
+```typescript
+// ✅ GOOD - Stable references prevent infinite loops
+const EMPTY_ARRAY: Item[] = [];
+const EMPTY_OBJECT: Record<string, Data> = {};
+
+export function useItems(id: string | null) {
+    return useMyStore((s) => {
+        if (!id) return EMPTY_ARRAY;
+        return s.items[id] ?? EMPTY_ARRAY;
+    });
+}
+
+export function useData(id: string | null) {
+    return useMyStore((s) => {
+        if (!id) return EMPTY_OBJECT;
+        return s.data[id] ?? EMPTY_OBJECT;
+    });
+}
+```
+
+**Why this happens:** Every time the selector runs and returns `[]` or `{}`, it creates a **new reference**. React sees this as "state changed" and re-renders, which calls the selector again, creating another new reference, ad infinitum.
+
+**Rule:** Always use module-level constants for fallback values in Zustand selectors.
