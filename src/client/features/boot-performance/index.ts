@@ -44,9 +44,10 @@ const bootPerf: BootPerformance = {
 
 /**
  * Get current performance time (consistent with session logger)
+ * Returns 0 in SSR since boot timing doesn't apply there.
  */
 function now(): number {
-    return typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return typeof performance !== 'undefined' ? performance.now() : 0;
 }
 
 /**
@@ -408,9 +409,17 @@ export const BOOT_PHASES = {
 
 /**
  * Log bundle loaded event (called automatically when this module loads)
- * This is lightweight - no performance calculations here.
+ * Uses the pre-captured bundleLoadedAt time for accuracy.
  */
 function logBundleLoaded(): void {
+    // Store metric with the actual bundle load time (captured at module top)
+    bootPerf.metrics.set(BOOT_PHASES.BUNDLE_LOADED, {
+        phase: BOOT_PHASES.BUNDLE_LOADED,
+        startTime: bundleLoadedAt, // Use the time captured at module load, not now()
+        endTime: bundleLoadedAt,
+        duration: 0,
+    });
+    
     logger.info('boot', `● ${BOOT_PHASES.BUNDLE_LOADED}`);
 }
 
