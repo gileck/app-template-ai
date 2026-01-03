@@ -761,6 +761,16 @@ interface StoredPerformanceEntry {
     name?: string;
     transferSize?: number;
     decodedBodySize?: number;
+    // Navigation timing specific
+    domainLookupStart?: number;
+    domainLookupEnd?: number;
+    connectStart?: number;
+    connectEnd?: number;
+    requestStart?: number;
+    responseStart?: number;
+    responseEnd?: number;
+    domInteractive?: number;
+    domComplete?: number;
 }
 
 /**
@@ -786,10 +796,34 @@ export function generatePerformanceSummaryFromStoredData(
     // Build timeline events
     const timeline: Array<{ time: number; label: string; type: string; duration?: number }> = [];
     
-    // Add navigation timing start
+    // Add navigation timing events
     const navEntry = performanceEntries?.find(e => e.entryType === 'navigation');
     if (navEntry) {
         timeline.push({ time: 0, label: '🌐 Page request sent', type: 'nav' });
+        
+        // Add DNS, TCP, TTFB if we have the data
+        if (navEntry.domainLookupStart !== undefined && navEntry.domainLookupEnd !== undefined) {
+            const dnsMs = navEntry.domainLookupEnd - navEntry.domainLookupStart;
+            if (dnsMs > 0) {
+                timeline.push({ time: navEntry.domainLookupStart, label: `DNS Lookup (${dnsMs}ms)`, type: 'nav' });
+            }
+        }
+        if (navEntry.connectStart !== undefined && navEntry.connectEnd !== undefined) {
+            const tcpMs = navEntry.connectEnd - navEntry.connectStart;
+            if (tcpMs > 0) {
+                timeline.push({ time: navEntry.connectStart, label: `TCP Connection (${tcpMs}ms)`, type: 'nav' });
+            }
+        }
+        if (navEntry.responseStart !== undefined && navEntry.requestStart !== undefined) {
+            const ttfbMs = navEntry.responseStart - navEntry.requestStart;
+            timeline.push({ time: navEntry.responseStart, label: `TTFB - Server responded (${ttfbMs}ms)`, type: 'nav' });
+        }
+        if (navEntry.responseEnd !== undefined) {
+            timeline.push({ time: navEntry.responseEnd, label: 'HTML downloaded', type: 'nav' });
+        }
+        if (navEntry.domInteractive !== undefined) {
+            timeline.push({ time: navEntry.domInteractive, label: 'DOM Ready', type: 'nav' });
+        }
     }
     
     // Add boot events from session logs
