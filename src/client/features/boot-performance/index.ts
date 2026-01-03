@@ -794,9 +794,13 @@ export function generatePerformanceSummaryFromStoredData(
     
     // Add boot events from session logs
     for (const log of bootLogs) {
+        // Strip leading icons from message (they're already in the log)
+        // Icons: ● ▶ ✓ 📋 📊 🌐 📦
+        const cleanMessage = log.message.replace(/^[●▶✓📋📊🌐📦]\s*/, '');
+        
         timeline.push({
             time: Math.round(log.performanceTime || 0),
-            label: log.message,
+            label: cleanMessage,
             type: 'boot',
         });
     }
