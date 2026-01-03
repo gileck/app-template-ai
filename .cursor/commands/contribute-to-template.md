@@ -34,19 +34,15 @@ When you fix a bug or improve template code in your project, you want those chan
 
 ## Prerequisites
 
-### 1. Configure Template Local Path
+### 1. Template Local Path (Auto-detected)
 
-Add `templateLocalPath` to your `.template-sync.json`:
+The template is always located at `../app-template-ai` relative to your project root.
 
-```json
-{
-  "templateRepo": "https://github.com/you/app-template-ai.git",
-  "templateLocalPath": "/Users/you/Projects/app-template-ai",
-  ...
-}
-```
+For example:
+- Your project: `/Users/you/Projects/my-project`
+- Template path: `/Users/you/Projects/app-template-ai`
 
-This is the local clone of the template repository where patches will be copied.
+**No configuration needed** - the command auto-detects this path.
 
 ### 2. Ensure Clean Template Repo
 
@@ -109,7 +105,7 @@ Once files are identified, I will:
 
 1. **Create patch file** in the template directory:
    ```
-   {templateLocalPath}/incoming-patches/project-contribution-{timestamp}.patch
+   ../app-template-ai/incoming-patches/project-contribution-{timestamp}.patch
    ```
 
 2. **Generate contribution message** for the template agent (see below)
@@ -141,13 +137,20 @@ yarn sync-template
 
 When the user wants to contribute changes to the template, follow these steps:
 
-### 1. Read the sync config
+### 1. Determine template path
+
+The template is always at `../app-template-ai` relative to the project root:
 
 ```bash
-cat .template-sync.json
-```
+# Get project root
+PROJECT_ROOT=$(pwd)
 
-Check for `templateLocalPath`. If missing, ask the user to add it.
+# Template path is always one level up + app-template-ai
+TEMPLATE_PATH="$(dirname "$PROJECT_ROOT")/app-template-ai"
+
+# Verify it exists
+ls "$TEMPLATE_PATH"
+```
 
 ### 2. Identify template file changes
 
@@ -178,11 +181,14 @@ git diff HEAD -- file1.ts file2.ts > /path/to/template/incoming-patches/contribu
 ### 5. Copy patch to template
 
 ```bash
+# Template is always at ../app-template-ai
+TEMPLATE_PATH="../app-template-ai"
+
 # Ensure directory exists
-mkdir -p {templateLocalPath}/incoming-patches
+mkdir -p "$TEMPLATE_PATH/incoming-patches"
 
 # Copy the patch
-cp contribution.patch {templateLocalPath}/incoming-patches/
+cp contribution.patch "$TEMPLATE_PATH/incoming-patches/"
 ```
 
 ### 6. Optionally stash project changes
@@ -328,13 +334,16 @@ The template may have changed since you made your fix. Options:
 
 3. **Reject and redo:** If too complex, manually recreate the fix in the template
 
-### "templateLocalPath not configured"
+### "Template directory not found"
 
-Add to `.template-sync.json`:
-```json
-{
-  "templateLocalPath": "/absolute/path/to/template/clone"
-}
+The template should be at `../app-template-ai`. Make sure:
+1. You have the template cloned locally
+2. It's in the same parent directory as your project
+3. The folder is named `app-template-ai`
+
+```bash
+# Check if template exists
+ls ../app-template-ai
 ```
 
 ### "Changes include project-specific files"
