@@ -270,14 +270,39 @@ export function logResourceTiming(filter?: 'js' | 'css' | 'all'): void {
     });
 }
 
+interface TimelineEvent {
+    time: number;
+    label: string;
+    type: 'nav' | 'resource' | 'boot';
+    highlight?: 'success' | 'warning';
+    duration?: number;
+}
+
+/**
+ * Get detailed resource timing for unified timeline
+ */
+function getResourceTimingDetails(): { jsStart: number; jsEnd: number; cssStart: number; cssEnd: number } | null {
+    if (typeof window === 'undefined' || !window.performance) return null;
+    
+    const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    const jsResources = entries.filter(e => e.name.endsWith('.js'));
+    const cssResources = entries.filter(e => e.name.endsWith('.css'));
+    
+    if (jsResources.length === 0) return null;
+    
+    return {
+        jsStart: Math.round(Math.min(...jsResources.map(e => e.startTime))),
+        jsEnd: Math.round(Math.max(...jsResources.map(e => e.responseEnd))),
+        cssStart: cssResources.length > 0 ? Math.round(Math.min(...cssResources.map(e => e.startTime))) : 0,
+        cssEnd: cssResources.length > 0 ? Math.round(Math.max(...cssResources.map(e => e.responseEnd))) : 0,
+    };
+}
+
 /**
  * Print a comprehensive performance summary to the console.
  * Call from browser console: printPerformanceLogs()
  * 
- * Shows:
- * - Page load timeline (DNS → TCP → TTFB → Download → DOM → JS)
- * - Resource loading summary (JS/CSS files, sizes, cache status)
- * - Boot phases timeline with visual indicators
+ * Shows a unified chronological timeline of all events from page load to app ready.
  */
 export function printPerformanceLogs(): void {
     if (typeof window === 'undefined') {
@@ -287,89 +312,121 @@ export function printPerformanceLogs(): void {
     
     const navStats = getNavigationStats();
     const resourceStats = getResourceStats();
-    const metrics = Array.from(bootPerf.metrics.values()).sort((a, b) => a.startTime - b.startTime);
+    const resourceTiming = getResourceTimingDetails();
+    const metrics = Array.from(bootPerf.metrics.values());
     
+    // Build unified timeline
+    const timeline: TimelineEvent[] = [];
+    
+    // Add navigation timing events
+    if (navStats) {
+        // Get absolute times from navigation timing
+        const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navEntries.length > 0) {
+            const nav = navEntries[0];
+            timeline.push({ time: 0, label: '🌐 Page request sent', type: 'nav' });
+            if (nav.domainLookupEnd > nav.domainLookupStart) {
+                timeline.push({ time: Math.round(nav.domainLookupStart), label: `DNS Lookup (${navStats.dnsMs}ms)`, type: 'nav' });
+            }
+            if (nav.connectEnd > nav.connectStart) {
+                timeline.push({ time: Math.round(nav.connectStart), label: `TCP Connection (${navStats.tcpMs}ms)`, type: 'nav' });
+            }
+            timeline.push({ time: Math.round(nav.responseStart), label: `TTFB - Server responded (${navStats.ttfbMs}ms)`, type: 'nav' });
+            timeline.push({ time: Math.round(nav.responseEnd), label: 'HTML downloaded', type: 'nav' });
+            timeline.push({ time: Math.round(nav.domInteractive), label: 'DOM Ready', type: 'nav' });
+        }
+    }
+    
+    // Add resource timing events
+    if (resourceTiming) {
+        timeline.push({ time: resourceTiming.jsStart, label: '📦 Started downloading JS', type: 'resource' });
+        if (resourceTiming.cssStart > 0) {
+            timeline.push({ time: resourceTiming.cssStart, label: '📦 Started downloading CSS', type: 'resource' });
+        }
+        if (resourceTiming.cssEnd > 0 && resourceTiming.cssEnd < resourceTiming.jsEnd) {
+            timeline.push({ time: resourceTiming.cssEnd, label: '✓ All CSS loaded', type: 'resource' });
+        }
+        timeline.push({ time: resourceTiming.jsEnd, label: '✓ All JS loaded', type: 'resource' });
+    }
+    
+    // Add boot phase events
+    for (const metric of metrics) {
+        const event: TimelineEvent = {
+            time: Math.round(metric.startTime),
+            label: metric.phase,
+            type: 'boot',
+            duration: metric.duration && metric.duration > 0 ? Math.round(metric.duration) : undefined,
+        };
+        
+        // Add highlights
+        if (metric.phase.includes('Content Shown')) {
+            event.highlight = 'success';
+        } else if (metric.phase.includes('Preflight') || metric.phase.includes('Validation')) {
+            event.highlight = 'warning';
+        }
+        
+        timeline.push(event);
+    }
+    
+    // Sort by time
+    timeline.sort((a, b) => a.time - b.time);
+    
+    // Print header
     console.log('');
     console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold');
-    console.log('%c║                    APP LOAD PERFORMANCE                       ║', 'color: #4CAF50; font-weight: bold');
+    console.log('%c║                    APP LOAD TIMELINE                          ║', 'color: #4CAF50; font-weight: bold');
     console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold');
     console.log('');
     
-    // Section 1: Page Load Timeline
-    console.log('%c┌─ 🌐 PAGE LOAD TIMELINE ─────────────────────────────────────┐', 'color: #2196F3');
-    if (navStats) {
-        console.log(`│  DNS Lookup:      ${navStats.dnsMs.toString().padStart(4)}ms`);
-        console.log(`│  TCP Connection:  ${navStats.tcpMs.toString().padStart(4)}ms`);
-        console.log(`│  TTFB (Server):   ${navStats.ttfbMs.toString().padStart(4)}ms`);
-        console.log(`│  Download HTML:   ${navStats.downloadMs.toString().padStart(4)}ms`);
-        console.log(`│  DOM Ready:       ${navStats.domReadyMs.toString().padStart(4)}ms`);
-        console.log(`│  JS Execution:    ${navStats.bundleStartMs.toString().padStart(4)}ms  ← First code runs`);
-    } else {
-        console.log('│  Navigation timing not available');
-    }
-    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #2196F3');
-    console.log('');
-    
-    // Section 2: Resource Loading
-    console.log('%c┌─ 📦 RESOURCE LOADING ──────────────────────────────────────┐', 'color: #FF9800');
-    if (resourceStats) {
-        const jsCacheText = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : ' (none cached)';
-        const cssCacheText = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : ' (none cached)';
-        console.log(`│  JavaScript:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheText}`);
-        console.log(`│              ${resourceStats.jsLoadTime}`);
-        console.log(`│  CSS:        ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheText}`);
-        console.log(`│              ${resourceStats.cssLoadTime}`);
-    } else {
-        console.log('│  Resource timing not available');
-    }
-    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #FF9800');
-    console.log('');
-    
-    // Section 3: Boot Phases Timeline (times are absolute from page load, i.e. performance.now())
-    console.log('%c┌─ ⚡ BOOT PHASES TIMELINE (from page load) ─────────────────┐', 'color: #9C27B0');
-    if (metrics.length > 0) {
-        for (const metric of metrics) {
-            // Use absolute time from page load (performance.now based)
-            const absoluteTime = Math.round(metric.startTime);
-            const timeStr = `${absoluteTime}ms`.padStart(6);
-            
-            let icon = '●';
-            let durationStr = '';
-            
-            if (metric.duration && metric.duration > 0) {
-                icon = '▶';
-                durationStr = ` (${Math.round(metric.duration)}ms)`;
-            }
-            
-            // Highlight important events
-            let style = '';
-            if (metric.phase.includes('Content Shown')) {
-                style = 'color: #4CAF50; font-weight: bold';
-            } else if (metric.phase.includes('Preflight') || metric.phase.includes('Validation')) {
-                style = 'color: #FF9800';
-            }
-            
-            if (style) {
-                console.log(`│  %c${timeStr}  ${icon} ${metric.phase}${durationStr}`, style);
-            } else {
-                console.log(`│  ${timeStr}  ${icon} ${metric.phase}${durationStr}`);
-            }
+    // Print unified timeline
+    for (const event of timeline) {
+        const timeStr = `${event.time}ms`.padStart(6);
+        const durationStr = event.duration ? ` (${event.duration}ms)` : '';
+        
+        let icon = '';
+        if (event.type === 'boot') {
+            icon = event.duration ? '▶ ' : '● ';
         }
-    } else {
-        console.log('│  No boot metrics recorded');
+        
+        // Determine style
+        let style = '';
+        if (event.highlight === 'success') {
+            style = 'color: #4CAF50; font-weight: bold';
+        } else if (event.highlight === 'warning') {
+            style = 'color: #FF9800';
+        } else if (event.type === 'nav') {
+            style = 'color: #2196F3';
+        } else if (event.type === 'resource') {
+            style = 'color: #9C27B0';
+        }
+        
+        if (style) {
+            console.log(`%c${timeStr}  ${icon}${event.label}${durationStr}`, style);
+        } else {
+            console.log(`${timeStr}  ${icon}${event.label}${durationStr}`);
+        }
     }
-    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #9C27B0');
+    
     console.log('');
+    
+    // Resource summary
+    if (resourceStats) {
+        console.log('%c┌─ 📦 RESOURCE SUMMARY ──────────────────────────────────────┐', 'color: #9C27B0');
+        const jsCacheText = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : '';
+        const cssCacheText = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : '';
+        console.log(`│  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheText}`);
+        console.log(`│  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheText}`);
+        console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #9C27B0');
+        console.log('');
+    }
     
     // Summary line
-    if (metrics.length > 0) {
-        const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
-        if (firstContent) {
-            const timeToContent = Math.round(firstContent.startTime);
-            console.log(`%c✨ Time to first content: ${timeToContent}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
-        }
+    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
+    if (firstContent) {
+        const timeToContent = Math.round(firstContent.startTime);
+        console.log(`%c✨ Time to first content: ${timeToContent}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
+        console.log('');
     }
-    console.log('');
 }
 
 // Expose to window for console access
