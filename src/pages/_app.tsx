@@ -16,8 +16,14 @@ import {
 } from '@/client/features';
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { useAllPersistedStoresHydrated } from '@/client/stores';
+import { markEvent, BOOT_PHASES } from '@/client/features/boot-performance';
+// Import preflight early to start /me call ASAP (side effect import)
+import '@/client/features/auth/preflight';
 
 const RouterProvider = dynamic(() => import('@/client/router/index').then(module => module.RouterProvider), { ssr: false });
+
+// Mark app mount as early as possible
+markEvent(BOOT_PHASES.APP_MOUNT);
 
 export default function App({ }: AppProps) {
   return (
@@ -39,6 +45,15 @@ export default function App({ }: AppProps) {
 
 function BootGate({ children }: { children: ReactNode }) {
   const isHydrated = useAllPersistedStoresHydrated();
+  
+  useEffect(() => {
+    if (isHydrated) {
+      markEvent(BOOT_PHASES.BOOT_GATE_PASSED);
+    } else {
+      markEvent(BOOT_PHASES.BOOT_GATE_WAITING);
+    }
+  }, [isHydrated]);
+  
   if (isHydrated) return <>{children}</>;
 
   // Intentionally render nothing to avoid a "flash" of a loader for very fast localStorage rehydrate.
