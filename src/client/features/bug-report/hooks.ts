@@ -7,7 +7,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { createReport } from '@/apis/reports/client';
 import { getSessionLogs } from '../session-logs';
-import { getPerformanceSummary } from '../boot-performance';
 import { useUser } from '../auth';
 import { useRouter } from '@/client/router';
 import type { BrowserInfo, UserInfo, BugCategory, PerformanceEntryData } from './types';
@@ -96,15 +95,12 @@ export function useSubmitBugReport() {
                 email: user.email,
             } : undefined;
 
-            // For performance reports, include performance entries and prepend summary to description
+            // For performance reports, include performance entries (summary is generated on display)
             const performanceEntries = category === 'performance' ? getPerformanceEntries() : undefined;
-            const finalDescription = category === 'performance'
-                ? `${description}\n\n${getPerformanceSummary()}`
-                : description;
 
             const reportData: CreateReportRequest = {
                 type: 'bug',
-                description: finalDescription,
+                description,
                 screenshot,
                 sessionLogs,
                 userInfo,
