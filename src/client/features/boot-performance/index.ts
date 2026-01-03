@@ -397,7 +397,7 @@ export function printPerformanceLogs(): void {
         } else if (event.type === 'nav') {
             style = 'color: #2196F3';
         } else if (event.type === 'resource') {
-            style = 'color: #9C27B0';
+            style = 'color: #26C6DA';
         }
         
         if (style) {
@@ -411,12 +411,12 @@ export function printPerformanceLogs(): void {
     
     // Resource summary
     if (resourceStats) {
-        console.log('%c┌─ 📦 RESOURCE SUMMARY ──────────────────────────────────────┐', 'color: #9C27B0');
+        console.log('%c┌─ 📦 RESOURCE SUMMARY ──────────────────────────────────────┐', 'color: #26C6DA');
         const jsCacheText = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : '';
         const cssCacheText = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : '';
         console.log(`│  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheText}`);
         console.log(`│  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheText}`);
-        console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #9C27B0');
+        console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #26C6DA');
         console.log('');
     }
     
