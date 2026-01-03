@@ -5,7 +5,7 @@ import { AppThemeProvider } from "@/client/components/ThemeProvider";
 import dynamic from 'next/dynamic';
 import { routes } from '@/client/routes';
 import { Layout } from '@/client/components/Layout';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryProvider } from '@/client/query';
 import {
   AuthWrapper,
@@ -45,16 +45,24 @@ export default function App({ }: AppProps) {
 
 function BootGate({ children }: { children: ReactNode }) {
   const isHydrated = useAllPersistedStoresHydrated();
+  const hasLoggedPassed = useRef(false);
+  const hasLoggedWaiting = useRef(false);
   
-  useEffect(() => {
-    if (isHydrated) {
+  // Log waiting state (only once)
+  if (!isHydrated && !hasLoggedWaiting.current) {
+    hasLoggedWaiting.current = true;
+    markEvent(BOOT_PHASES.BOOT_GATE_WAITING);
+  }
+  
+  if (isHydrated) {
+    // Log synchronously BEFORE rendering children so timeline order is correct
+    // (useEffect would run AFTER child effects, causing confusing order)
+    if (!hasLoggedPassed.current) {
+      hasLoggedPassed.current = true;
       markEvent(BOOT_PHASES.BOOT_GATE_PASSED);
-    } else {
-      markEvent(BOOT_PHASES.BOOT_GATE_WAITING);
     }
-  }, [isHydrated]);
-  
-  if (isHydrated) return <>{children}</>;
+    return <>{children}</>;
+  }
 
   // Intentionally render nothing to avoid a "flash" of a loader for very fast localStorage rehydrate.
   return null;
