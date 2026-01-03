@@ -475,6 +475,71 @@ export const userQueryKey = (id: string) => ['users', id] as const;
 export const filteredTodosKey = (filter: string) => ['todos', { filter }] as const;
 ```
 
+### 🚨 CRITICAL: Query Keys Should Be Stable and Long-Lasting
+
+**The goal is to maximize cache hits.** Show cached data immediately, fetch fresh data in background.
+
+#### ❌ WRONG: Dates in Query Keys
+
+```typescript
+// ❌ BAD: Date in key causes daily cache misses
+const todayKey = ['activities', format(new Date(), 'yyyy-MM-dd')];
+// User waits for loading spinner every day
+
+// ❌ BAD: Timestamp in key
+const recentKey = ['activities', { since: Date.now() - 86400000 }];
+// Cache never hits (key changes every ms)
+```
+
+#### ✅ CORRECT: Stable Keys + Client Filtering
+
+```typescript
+// ✅ GOOD: Stable key, filter client-side
+const activitiesKey = ['activities'] as const;
+
+// In component: filter by date
+const todayActivities = activities.filter(a => isToday(a.date));
+```
+
+#### Pattern: Show Cached Data + Background Refresh
+
+When switching dates or filters, **show cached data immediately** with a subtle refresh indicator:
+
+```typescript
+function ActivityList({ selectedDate }) {
+    const { data, isFetching } = useActivities();
+    
+    // Filter cached data client-side
+    const filtered = data?.activities?.filter(a => 
+        isSameDay(new Date(a.date), selectedDate)
+    ) || [];
+    
+    return (
+        <div>
+            {/* Subtle refresh indicator - NOT full loading screen */}
+            {isFetching && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Updating...
+                </div>
+            )}
+            
+            {/* Show data immediately (from cache) */}
+            <ItemList items={filtered} />
+        </div>
+    );
+}
+```
+
+#### UX Comparison
+
+| Approach | Cache Behavior | User Experience |
+|----------|----------------|-----------------|
+| **Date in key** ❌ | Miss every day | Loading spinner daily |
+| **Stable key** ✅ | Hit for weeks | Instant data, background refresh |
+
+📚 **Detailed Guidelines**: [react-query-mutations.md](./react-query-mutations.md#query-key-design-for-long-lasting-cache)
+
 ---
 
 ## Centralized Configuration
@@ -738,6 +803,14 @@ const isValid = createTTLValidator(STORE_DEFAULTS.TTL);
 
 // Use registry utilities for cache management
 import { getTotalCacheSize } from '@/client/stores';
+
+// Use STABLE query keys (avoid dates that change frequently)
+export const activitiesQueryKey = ['activities'] as const;
+// Then filter client-side by date in the component
+
+// Show cached data immediately with background refresh indicator
+const { data, isFetching } = useQuery(...);
+// Show data even when isFetching=true, with subtle "Updating..." text
 ```
 
 ### DON'T ❌
@@ -763,6 +836,10 @@ useMutation({ mutationFn: updateItem });
 
 // Don't use useState for server data
 const [todos, setTodos] = useState([]); // BAD - use React Query
+
+// Don't put dates in query keys (causes frequent cache misses)
+const queryKey = ['activities', new Date().toISOString()]; // BAD - cache never hits!
+// Use stable key + client-side filtering instead
 ```
 
 ### ESLint Enforcement
@@ -877,12 +954,51 @@ return <ItemsList items={data.items} />;
 
 ### Cache Behavior Summary
 
-| Cache State | `isLoading` | `data` | What to Show |
-|-------------|-------------|--------|--------------|
-| No cache, fetching | `true` | `undefined` | **Loading skeleton** |
-| Cache miss, fetch done | `false` | `{ items: [] }` | **Empty state** |
-| Cache hit (has data) | `false` | `{ items: [...] }` | **Data** |
-| Cache hit, refetching | `false` | `{ items: [...] }` | **Data** (with optional refresh indicator) |
+| Cache State | `isLoading` | `isFetching` | `data` | What to Show |
+|-------------|-------------|--------------|--------|--------------|
+| No cache, fetching | `true` | `true` | `undefined` | **Loading skeleton** |
+| Cache miss, fetch done | `false` | `false` | `{ items: [] }` | **Empty state** |
+| Cache hit (has data) | `false` | `false` | `{ items: [...] }` | **Data** |
+| Cache hit, refetching | `false` | `true` | `{ items: [...] }` | **Data + subtle refresh indicator** |
+
+### Background Refresh Indicator Pattern
+
+**Always show cached data immediately** with a subtle indicator when refreshing:
+
+```typescript
+function ItemList() {
+    const { data, isLoading, isFetching } = useItems();
+    
+    // Loading: no cached data yet
+    if (isLoading || data === undefined) {
+        return <Skeleton />;
+    }
+    
+    return (
+        <div>
+            {/* Subtle refresh indicator - NOT a blocking spinner */}
+            {isFetching && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Updating...
+                </div>
+            )}
+            
+            {/* Show cached data immediately */}
+            {data.items.length === 0 ? (
+                <EmptyState />
+            ) : (
+                <ItemCards items={data.items} />
+            )}
+        </div>
+    );
+}
+```
+
+**Why this matters:**
+- User sees data **instantly** from cache (PWA feel)
+- Background refresh updates data without blocking UI
+- Much better UX than showing loading spinner on every visit
 
 ---
 

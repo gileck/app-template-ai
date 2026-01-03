@@ -632,6 +632,181 @@ function CreateItemButton({ data }: { data: CreateItemInput }) {
 
 ---
 
+## Query Key Design for Long-Lasting Cache
+
+**Query keys should be STABLE and LONG-LASTING.** The goal is to show cached data as often as possible, fetching fresh data in the background.
+
+### 🚨 CRITICAL: Avoid Dates in Query Keys
+
+**Never include dates that change frequently in query keys.** Dates cause cache misses, forcing the user to wait for fresh data instead of seeing cached data immediately.
+
+```typescript
+// ❌ WRONG: Date in key causes frequent cache misses
+const todayKey = ['activities', format(new Date(), 'yyyy-MM-dd')];
+// Key changes every day → Yesterday's cache is useless
+// User sees loading spinner every day instead of instant data
+
+// ❌ WRONG: Time-based key
+const recentKey = ['activities', { since: Date.now() - 24 * 60 * 60 * 1000 }];
+// Key changes every millisecond → Cache never hits
+
+// ✅ CORRECT: Stable key, filter client-side
+const activitiesKey = ['activities'] as const;
+// Key is stable → Cache persists across days
+// Filter by date in component: activities.filter(a => isToday(a.date))
+
+// ✅ CORRECT: If server filtering required, use stable time windows
+const activitiesKey = ['activities', { period: 'last-30-days' }] as const;
+// Key is stable for 30 days → Good cache hit rate
+```
+
+### Pattern: Stable Key + Client-Side Filtering
+
+For date-filtered data, **fetch a broader dataset and filter client-side**:
+
+```typescript
+// Hook fetches all recent activities (stable key)
+export function useActivities() {
+    const queryDefaults = useQueryDefaults();
+    
+    return useQuery({
+        queryKey: ['activities'] as const,  // ✅ Stable - no date
+        queryFn: async () => {
+            // Fetch last 30 days (or whatever makes sense)
+            const response = await getActivities({ days: 30 });
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        ...queryDefaults,
+    });
+}
+
+// Component filters client-side
+function TodayActivities() {
+    const { data, isFetching } = useActivities();
+    const todayActivities = data?.activities?.filter(a => isToday(a.date)) || [];
+    
+    // Show cached data immediately, refresh indicator if fetching
+    return (
+        <div>
+            {isFetching && <RefreshIndicator />}
+            <ActivityList activities={todayActivities} />
+        </div>
+    );
+}
+```
+
+### Pattern: Show Cached Data + Background Refresh Indicator
+
+When data might be stale (e.g., date-based queries where the cache includes old data), show cached data **immediately** and indicate background refresh:
+
+```typescript
+function ActivityDashboard({ selectedDate }: { selectedDate: Date }) {
+    const { data, isFetching, dataUpdatedAt } = useActivities();
+    
+    // Filter cached data by selected date
+    const activities = data?.activities?.filter(a => 
+        isSameDay(new Date(a.date), selectedDate)
+    ) || [];
+    
+    // Check if cache might be stale for this date
+    const cacheAge = Date.now() - dataUpdatedAt;
+    const isStale = cacheAge > 5 * 60 * 1000; // > 5 minutes
+    
+    return (
+        <Card>
+            <CardHeader className="flex items-center justify-between">
+                <CardTitle>Activities for {format(selectedDate, 'MMM d')}</CardTitle>
+                
+                {/* ✅ Subtle refresh indicator */}
+                {isFetching && (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Refreshing...
+                    </div>
+                )}
+            </CardHeader>
+            
+            <CardContent>
+                {/* ✅ Show cached data immediately, even if stale */}
+                {activities.length === 0 ? (
+                    <EmptyState message="No activities for this date" />
+                ) : (
+                    <ActivityList activities={activities} />
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+```
+
+### UX Comparison: Stable Keys vs Date Keys
+
+| Approach | First Load | Return Visit | Date Change |
+|----------|------------|--------------|-------------|
+| **Date in key** ❌ | Loading spinner | Loading spinner (cache miss) | Loading spinner |
+| **Stable key** ✅ | Loading spinner | **Instant data** (cache hit) | **Instant filtered data** |
+
+### When Server-Side Filtering is Required
+
+If the dataset is too large to fetch entirely (e.g., years of data), use **stable time windows**:
+
+```typescript
+// ✅ CORRECT: Stable monthly windows
+export const activitiesQueryKey = (month: string) => 
+    ['activities', { month }] as const;
+// month = '2024-01' - changes once per month, not daily
+
+// ✅ CORRECT: Stable "current period" concept
+export const activitiesQueryKey = ['activities', 'current-month'] as const;
+// Server interprets "current-month" - key is always stable
+```
+
+### Refresh Indicator Component
+
+A reusable pattern for showing background refresh:
+
+```typescript
+// components/RefreshIndicator.tsx
+export function RefreshIndicator({ isFetching }: { isFetching: boolean }) {
+    if (!isFetching) return null;
+    
+    return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Updating...</span>
+        </div>
+    );
+}
+
+// Usage in any component
+function MyList() {
+    const { data, isFetching } = useMyQuery();
+    
+    return (
+        <div>
+            <div className="flex items-center justify-between">
+                <h2>My Items</h2>
+                <RefreshIndicator isFetching={isFetching} />
+            </div>
+            <ItemList items={data?.items || []} />
+        </div>
+    );
+}
+```
+
+### Summary: Query Key Best Practices
+
+| Practice | Do ✅ | Don't ❌ |
+|----------|-------|---------|
+| **Date filtering** | Stable key + client filter | Date in query key |
+| **Time windows** | `'current-month'`, `'last-30-days'` | `new Date().toISOString()` |
+| **Cache priority** | Show cached first, refresh in background | Invalidate cache, show spinner |
+| **Refresh UX** | Subtle indicator while showing data | Full-screen loading spinner |
+| **Key stability** | Keys change monthly at most | Keys change daily or more often |
+
+---
+
 ## Offline behavior note (this app)
 
 When offline, `apiClient.post` queues the request and returns `{ data: {}, isFromCache: false }` immediately.
