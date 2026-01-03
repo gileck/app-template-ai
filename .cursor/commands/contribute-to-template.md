@@ -298,11 +298,15 @@ The following files have been copied to `../app-template-ai`:
 
 ## 🔄 After Template Agent Commits
 
-Come back to this project and run:
+Come back to this project. Your project should now be in sync!
+
+Run `yarn sync-template` to verify - it should show no differences for the contributed files.
+
+**If you see unexpected conflicts**, run:
 ```bash
 yarn sync-template --init-hashes
 ```
-This updates your baselines so these files no longer show as different.
+This resets baselines (needed if template agent modified your contribution before committing).
 ```
 
 ### 10. Commit project changes (if any KEEP files)
@@ -520,7 +524,7 @@ git push
 
 ## 🔄 After Template Commits
 
-Run: `yarn sync-template --init-hashes`
+Run `yarn sync-template` to verify sync is complete.
 ```
 
 ---
