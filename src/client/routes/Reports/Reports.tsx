@@ -99,11 +99,27 @@ function generatePerformanceSummary(report: ReportClient): string | null {
     
     // Resource summary from performanceEntries
     if (report.performanceEntries && report.performanceEntries.length > 0) {
+        // Helper to check file type (handles query strings in URLs)
+        const isJs = (name: string) => {
+            try {
+                return new URL(name).pathname.endsWith('.js');
+            } catch {
+                return name.endsWith('.js');
+            }
+        };
+        const isCss = (name: string) => {
+            try {
+                return new URL(name).pathname.endsWith('.css');
+            } catch {
+                return name.endsWith('.css');
+            }
+        };
+        
         const jsEntries = report.performanceEntries.filter(e => 
-            e.entryType === 'resource' && e.name?.endsWith('.js')
+            e.entryType === 'resource' && e.name && isJs(e.name)
         );
         const cssEntries = report.performanceEntries.filter(e => 
-            e.entryType === 'resource' && e.name?.endsWith('.css')
+            e.entryType === 'resource' && e.name && isCss(e.name)
         );
         
         if (jsEntries.length > 0 || cssEntries.length > 0) {
