@@ -31,6 +31,7 @@ interface TemplateSyncConfig {
   ignoredFiles: string[];
   projectSpecificFiles: string[];
   templateIgnoredFiles: string[];  // Template example/demo files to never sync
+  templateLocalPath?: string;  // Local path to template repo (for contributing changes back)
 }
 
 const CONFIG_FILE = '.template-sync.json';
