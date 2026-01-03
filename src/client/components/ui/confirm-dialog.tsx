@@ -1,6 +1,6 @@
 /**
  * Confirmation Dialog
- * 
+ *
  * Reusable confirmation dialog with customizable content and actions.
  */
 
@@ -38,7 +38,7 @@ export function ConfirmDialog({
     variant = 'default',
 }: ConfirmDialogProps) {
     const isLoading = confirmText.toLowerCase().includes('ing...');
-    
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
@@ -61,4 +61,3 @@ export function ConfirmDialog({
         </AlertDialog>
     );
 }
-
