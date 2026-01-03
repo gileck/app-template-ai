@@ -632,51 +632,87 @@ function getNavigationStats(): NavigationStats | null {
  */
 export function getPerformanceSummary(): string {
     const lines: string[] = [];
+    const navStats = getNavigationStats();
+    const resourceStats = getResourceStats();
+    const resourceTiming = getResourceTimingDetails();
+    const metrics = Array.from(bootPerf.metrics.values());
     
-    lines.push('=== PERFORMANCE SUMMARY ===');
+    lines.push('=== APP LOAD TIMELINE ===');
     lines.push('');
     
-    // Navigation timing
-    const navStats = getNavigationStats();
+    // Build unified timeline (same as printPerformanceLogs)
+    const timeline: Array<{ time: number; label: string }> = [];
+    
+    // Add navigation timing events
     if (navStats) {
-        lines.push('🌐 Page Load Timeline:');
-        lines.push(`  DNS: ${navStats.dnsMs}ms → TCP: ${navStats.tcpMs}ms → TTFB: ${navStats.ttfbMs}ms → Download: ${navStats.downloadMs}ms`);
-        lines.push(`  DOM Ready: ${navStats.domReadyMs}ms → JS Start: ${navStats.bundleStartMs}ms`);
-        lines.push('');
+        const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navEntries.length > 0) {
+            const nav = navEntries[0];
+            timeline.push({ time: 0, label: '🌐 Page request sent' });
+            timeline.push({ time: Math.round(nav.responseStart), label: `TTFB - Server responded (${navStats.ttfbMs}ms)` });
+            timeline.push({ time: Math.round(nav.responseEnd), label: 'HTML downloaded' });
+            timeline.push({ time: Math.round(nav.domInteractive), label: 'DOM Ready' });
+        }
     }
     
-    // Resource stats
-    const resourceStats = getResourceStats();
+    // Add resource timing events
+    if (resourceTiming) {
+        timeline.push({ time: resourceTiming.jsStart, label: '📦 Started downloading JS' });
+        if (resourceTiming.cssStart > 0) {
+            timeline.push({ time: resourceTiming.cssStart, label: '📦 Started downloading CSS' });
+        }
+        if (resourceTiming.cssEnd > 0 && resourceTiming.cssEnd < resourceTiming.jsEnd) {
+            timeline.push({ time: resourceTiming.cssEnd, label: '✓ All CSS loaded' });
+        }
+        timeline.push({ time: resourceTiming.jsEnd, label: '✓ All JS loaded' });
+    }
+    
+    // Add boot phase events
+    for (const metric of metrics) {
+        const icon = (metric.duration && metric.duration > 0) ? '▶' : '●';
+        const durationStr = (metric.duration && metric.duration > 0) ? ` (${Math.round(metric.duration)}ms)` : '';
+        timeline.push({ 
+            time: Math.round(metric.startTime), 
+            label: `${icon} ${metric.phase}${durationStr}` 
+        });
+    }
+    
+    // Sort and print timeline
+    timeline.sort((a, b) => a.time - b.time);
+    for (const event of timeline) {
+        lines.push(`${event.time.toString().padStart(5)}ms  ${event.label}`);
+    }
+    
+    lines.push('');
+    
+    // Resource summary with cache status
     if (resourceStats) {
-        const jsCacheInfo = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : '';
-        const cssCacheInfo = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : '';
-        lines.push('📦 Resources:');
-        lines.push(`  JS: ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheInfo}, ${resourceStats.jsLoadTime}`);
-        lines.push(`  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheInfo}, ${resourceStats.cssLoadTime}`);
-        lines.push('');
-    }
-    
-    // Boot phases timeline (times are absolute from page load)
-    const metrics = Array.from(bootPerf.metrics.values()).sort((a, b) => a.startTime - b.startTime);
-    if (metrics.length > 0) {
-        lines.push('⚡ Boot Timeline (from page load):');
-        for (const metric of metrics) {
-            // Use absolute time from page load (performance.now based)
-            const absoluteTime = Math.round(metric.startTime);
-            const icon = (metric.duration && metric.duration > 0) ? '▶' : '●';
-            const durationStr = (metric.duration && metric.duration > 0) ? ` (${Math.round(metric.duration)}ms)` : '';
-            lines.push(`  ${absoluteTime}ms ${icon} ${metric.phase}${durationStr}`);
-        }
-        lines.push('');
+        lines.push('📦 RESOURCE SUMMARY');
+        lines.push(`  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB`);
+        lines.push(`  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB`);
         
-        // Time to first content
-        const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
-        if (firstContent) {
-            const timeToContent = Math.round(firstContent.startTime);
-            lines.push(`✨ Time to first content: ${timeToContent}ms`);
+        const { swCache, memoryCache, network, totalFiles } = resourceStats.cacheDetails;
+        lines.push(`  Cache Status (${totalFiles} static files):`);
+        if (swCache > 0) {
+            lines.push(`    ✓ ${swCache} from SW/disk cache`);
         }
+        if (memoryCache > 0) {
+            lines.push(`    ✓ ${memoryCache} from memory cache`);
+        }
+        if (network > 0) {
+            lines.push(`    ↓ ${network} from network`);
+        }
+        lines.push('');
     }
     
+    // Time to first content
+    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
+    if (firstContent) {
+        const timeToContent = Math.round(firstContent.startTime);
+        lines.push(`✨ Time to first content: ${timeToContent}ms`);
+    }
+    
+    lines.push('');
     lines.push('===========================');
     
     return lines.join('\n');
