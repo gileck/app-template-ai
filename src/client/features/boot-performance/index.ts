@@ -412,10 +412,26 @@ export function printPerformanceLogs(): void {
     // Resource summary
     if (resourceStats) {
         console.log('%c┌─ 📦 RESOURCE SUMMARY ──────────────────────────────────────┐', 'color: #26C6DA');
-        const jsCacheText = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : '';
-        const cssCacheText = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : '';
-        console.log(`│  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheText}`);
-        console.log(`│  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheText}`);
+        console.log(`│  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB`);
+        console.log(`│  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB`);
+        console.log('│');
+        
+        // Cache status breakdown
+        const { swCache, memoryCache, network, totalFiles } = resourceStats.cacheDetails;
+        console.log(`│  Cache Status (${totalFiles} static files):`);
+        if (swCache > 0) {
+            console.log(`│    ✓ ${swCache} from SW/disk cache (instant, SWR revalidates in background)`);
+        }
+        if (memoryCache > 0) {
+            console.log(`│    ✓ ${memoryCache} from memory cache`);
+        }
+        if (network > 0) {
+            console.log(`│    ↓ ${network} from network`);
+        }
+        if (swCache === 0 && memoryCache === 0 && network === totalFiles) {
+            console.log('│    (fresh load - no cached resources)');
+        }
+        
         console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #26C6DA');
         console.log('');
     }
@@ -497,6 +513,13 @@ interface ResourceStats {
     cssCached: number;
     jsLoadTime: string;
     cssLoadTime: string;
+    // Detailed cache breakdown
+    cacheDetails: {
+        swCache: number;    // Served from Service Worker / disk cache (transferSize=0, decodedBodySize>0)
+        memoryCache: number; // Served from memory cache (transferSize=0, decodedBodySize=0)
+        network: number;    // Fetched from network (transferSize>0)
+        totalFiles: number;
+    };
 }
 
 interface NavigationStats {
@@ -510,6 +533,14 @@ interface NavigationStats {
 
 /**
  * Get aggregated resource loading stats (called on-demand)
+ * 
+ * Cache detection logic:
+ * - SW/Disk cache: transferSize=0, decodedBodySize>0 (served from Service Worker or browser disk cache)
+ * - Memory cache: transferSize=0, decodedBodySize=0 (served from browser memory, e.g. same-page navigation)
+ * - Network: transferSize>0 (fetched from network)
+ * 
+ * Note: For SWR (Stale-While-Revalidate) resources, the response is served from cache instantly,
+ * and revalidation happens in the background. This appears as a cache hit in Resource Timing.
  */
 function getResourceStats(): ResourceStats | null {
     if (typeof window === 'undefined' || !window.performance) {
@@ -526,6 +557,14 @@ function getResourceStats(): ResourceStats | null {
     const cssKB = Math.round(cssResources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
     const jsCached = jsResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
     const cssCached = cssResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
+    
+    // Detailed cache breakdown for all resources (JS + CSS + others)
+    const allStaticResources = entries.filter(e => 
+        e.name.endsWith('.js') || e.name.endsWith('.css')
+    );
+    const swCache = allStaticResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
+    const memoryCache = allStaticResources.filter(r => r.transferSize === 0 && r.decodedBodySize === 0).length;
+    const network = allStaticResources.filter(r => r.transferSize > 0).length;
     
     // JS timing
     const jsLoadTime = jsResources.length > 0
@@ -554,6 +593,12 @@ function getResourceStats(): ResourceStats | null {
         cssCached,
         jsLoadTime,
         cssLoadTime,
+        cacheDetails: {
+            swCache,
+            memoryCache,
+            network,
+            totalFiles: allStaticResources.length,
+        },
     };
 }
 
