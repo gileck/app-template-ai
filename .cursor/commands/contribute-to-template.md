@@ -14,21 +14,27 @@ When you fix a bug or improve template code in your project, you want those chan
 ┌─────────────────────────────────────────────────────────────────┐
 │  YOUR PROJECT                         TEMPLATE REPO             │
 │                                                                 │
-│  1. Fix bug in template file    ───────────────────────────►   │
-│     (e.g., reports UI fix)                                      │
+│  1. Run this command            ───► Reviews ALL template       │
+│                                       file changes              │
 │                                                                 │
-│  2. Run this command            ───► Creates patch file         │
-│                                       Copies to template path   │
-│                                       Stashes project changes   │
-│                                       Generates agent message   │
+│  2. For EACH changed file:                                      │
+│     • Compare project vs template                               │
+│     • Decide: CONTRIBUTE or IGNORE                              │
+│       - CONTRIBUTE: Include in patch (meaningful fix)           │
+│       - IGNORE: Revert to template version (similar enough)     │
 │                                                                 │
-│  3. Copy message to template    ───► Template agent applies     │
+│  3. Creates patch for           ───► Copies to template         │
+│     contributed files                                           │
+│                                                                 │
+│  4. Reverts ignored files       ───► Takes template version     │
+│     in project                                                  │
+│                                                                 │
+│  5. Copy message to template    ───► Template agent applies     │
 │     agent                             patch and commits         │
 │                                                                 │
-│  4. Template pushes changes     ◄───────────────────────────   │
+│  6. Template pushes changes     ◄───────────────────────────   │
 │                                                                 │
-│  5. Run sync-template           ───► Changes sync cleanly!      │
-│     (pop stash)                                                 │
+│  7. Run sync-template           ───► Everything synced!         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,86 +56,69 @@ The template repository should have a clean working directory before applying pa
 
 ## Process
 
-### Step 1: Identify Template Changes
+### Step 1: Review ALL Template File Changes
 
-First, let's see what template files you've modified:
+I'll find all template files you've modified and compare each one with the template version.
 
-```bash
-# Show files that differ from template (not in ignoredFiles or projectSpecificFiles)
-yarn sync-template --dry-run
-```
+For each file, I'll show:
+- The **diff** between your version and template
+- My **recommendation**: CONTRIBUTE or IGNORE
+- **Reasoning** for the recommendation
 
-Look for files in the "Project customizations" or "Conflicts" sections - these are template files you've modified.
+### Step 2: Decide for Each File
 
-**Or manually check:**
+For each changed template file, decide:
 
-```bash
-# List modified files
-git status
+| Decision | When to Use | Action |
+|----------|-------------|--------|
+| **CONTRIBUTE** | Meaningful fix/improvement | Include in patch for template |
+| **IGNORE** | Template code is good enough, minor/cosmetic differences | Revert to template version |
 
-# Show diff for specific file
-git diff src/apis/reports/server.ts
-```
+**Guidelines for deciding:**
 
-### Step 2: Review Changes to Contribute
+✅ **CONTRIBUTE** when:
+- Bug fix that template needs
+- Performance improvement
+- New feature that benefits all projects
+- Security fix
 
-Before contributing, review what you're sending:
+❌ **IGNORE** when:
+- Cosmetic/formatting differences only
+- Project-specific tweaks that don't apply to template
+- Template version is equivalent or better
+- Changes were temporary/experimental
 
-```bash
-# Show all your changes to template files
-git diff HEAD -- <file1> <file2> ...
-```
+### Step 3: Execute Decisions
 
-**Important**: Only contribute changes to **template files**, not:
-- Project-specific config (`src/app.config.js`, etc.)
-- Your custom features (`projectSpecificFiles`)
-- Files in `templateIgnoredFiles` (example code)
+After reviewing all files, I will:
 
-### Step 3: Create the Patch
+1. **For CONTRIBUTE files:**
+   - Create a patch file
+   - Copy to `../app-template-ai/incoming-patches/`
 
-I'll help you create a patch file. Tell me which files to include, or I'll analyze the project to find template file changes.
+2. **For IGNORE files:**
+   - Revert to template version in your project
+   - `git checkout` from template or copy file
 
-**Option A: Specify files manually**
-```
-Create a patch for: src/apis/reports/server.ts, src/client/features/reports/hooks.ts
-```
+3. **Generate contribution message** for template agent
 
-**Option B: Auto-detect template changes**
-```
-Analyze and create patch for all template file changes
-```
+### Step 4: Copy Message to Template Agent
 
-### Step 4: Generate Contribution Package
-
-Once files are identified, I will:
-
-1. **Create patch file** in the template directory:
-   ```
-   ../app-template-ai/incoming-patches/project-contribution-{timestamp}.patch
-   ```
-
-2. **Generate contribution message** for the template agent (see below)
-
-3. **Optionally stash your changes** so next sync works cleanly
-
-### Step 5: Apply in Template
-
-Copy the generated message to the template project's agent. The message includes:
-- Summary of changes
+The generated message includes:
+- Summary of contributed changes
 - Patch file location
 - Instructions for the template agent
 
-### Step 6: After Template Updates
+### Step 5: After Template Updates
 
 Once the template has pushed the changes:
 
 ```bash
-# Pop your stashed changes (if stashed)
-git stash pop
-
-# Sync with template - should merge cleanly now!
+# Sync with template - everything should be clean now!
 yarn sync-template
 ```
+
+Since ignored files were reverted and contributed files will come back via sync, your project stays in sync.
 
 ---
 
@@ -142,65 +131,97 @@ When the user wants to contribute changes to the template, follow these steps:
 The template is always at `../app-template-ai` relative to the project root:
 
 ```bash
-# Get project root
-PROJECT_ROOT=$(pwd)
-
-# Template path is always one level up + app-template-ai
-TEMPLATE_PATH="$(dirname "$PROJECT_ROOT")/app-template-ai"
+TEMPLATE_PATH="../app-template-ai"
 
 # Verify it exists
 ls "$TEMPLATE_PATH"
 ```
 
-### 2. Identify template file changes
-
-Run a diff analysis to find files that:
-- Are modified in the project
-- Are NOT in `ignoredFiles`, `projectSpecificFiles`, or `templateIgnoredFiles`
-- Exist in the template
+### 2. Read sync config and identify template files
 
 ```bash
-# Get list of changed files
-git diff --name-only HEAD
-
-# Or compare against last sync
-git diff --name-only {lastProjectCommit} HEAD
+cat .template-sync.json
 ```
 
-### 3. Let user select files to contribute
+Get the lists of:
+- `ignoredFiles` - skip these
+- `projectSpecificFiles` - skip these
+- `templateIgnoredFiles` - skip these (example code)
 
-Show the list and ask which files to include in the patch.
+### 3. Find ALL changed template files
 
-### 4. Create the patch file
+Compare project files against template to find differences:
 
 ```bash
-# Create patch for selected files
-git diff HEAD -- file1.ts file2.ts > /path/to/template/incoming-patches/contribution-{date}.patch
+# For each file that exists in both project and template
+# and is NOT in any ignore list, check if they differ
 ```
 
-### 5. Copy patch to template
+### 4. Review EACH changed file with the user
 
+For each changed template file, present:
+
+```markdown
+## File: src/apis/reports/server.ts
+
+### Diff (Project vs Template):
+```diff
+[show the actual diff]
+```
+
+### Analysis:
+- **Type of change**: Bug fix / Feature / Refactor / Cosmetic
+- **Impact**: High / Medium / Low
+- **Template benefit**: Would this help other projects?
+
+### Recommendation: CONTRIBUTE / IGNORE
+**Reasoning**: [explain why]
+
+### Your decision? [CONTRIBUTE / IGNORE]
+```
+
+Wait for user decision before moving to next file.
+
+### 5. After all files reviewed, execute decisions
+
+**For CONTRIBUTE files:**
 ```bash
-# Template is always at ../app-template-ai
-TEMPLATE_PATH="../app-template-ai"
+# Create patch for all contributed files
+git diff HEAD -- file1.ts file2.ts file3.ts > contribution.patch
 
-# Ensure directory exists
-mkdir -p "$TEMPLATE_PATH/incoming-patches"
-
-# Copy the patch
-cp contribution.patch "$TEMPLATE_PATH/incoming-patches/"
+# Copy to template
+mkdir -p ../app-template-ai/incoming-patches
+cp contribution.patch ../app-template-ai/incoming-patches/contribution-$(date +%Y%m%d-%H%M%S).patch
 ```
 
-### 6. Optionally stash project changes
-
+**For IGNORE files:**
 ```bash
-# Stash the contributed changes
-git stash push -m "Contributed to template: {summary}" -- file1.ts file2.ts
+# Revert each ignored file to template version
+cp ../app-template-ai/src/path/to/file.ts src/path/to/file.ts
 ```
 
-### 7. Generate the template agent message
+### 6. Generate summary and template agent message
 
-Create a message like this:
+Create a message with:
+- List of contributed files with descriptions
+- Patch file location
+- Instructions for template agent
+
+### 7. Show final status
+
+```markdown
+## Contribution Summary
+
+### Contributed to template (X files):
+- src/apis/reports/server.ts - Bug fix for pagination
+
+### Reverted to template version (Y files):
+- src/client/utils/helpers.ts - Template version preferred
+
+### Next steps:
+1. Copy the message below to template agent
+2. After template pushes, run: yarn sync-template
+```
 
 ---
 
@@ -269,15 +290,94 @@ A project has contributed changes back to the template.
 
 ## Example Workflow
 
-### User's Project
+### User Says: "Contribute to template"
 
-```bash
-# User fixed a bug in reports
-git diff src/apis/reports/handlers/getReports.ts
-# Shows the fix
+### Agent Reviews Each File:
 
-# User runs this command
-# Agent creates patch and copies to template
+```markdown
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## File 1 of 3: src/apis/reports/handlers/getReports.ts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### Diff:
+```diff
+@@ -45,7 +45,7 @@
+ const getReports = async (params) => {
+-  const offset = page * limit;
++  const offset = (page - 1) * limit;  // Fixed: page is 1-indexed
+   const reports = await db.find().skip(offset).limit(limit);
+```
+
+### Analysis:
+- **Type**: Bug fix
+- **Impact**: High - pagination was broken
+- **Template benefit**: YES - all projects need this fix
+
+### Recommendation: ✅ CONTRIBUTE
+**Reasoning**: This is a clear bug fix that affects all projects.
+
+**Your decision?** [CONTRIBUTE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## File 2 of 3: src/client/utils/formatDate.ts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### Diff:
+```diff
+@@ -12,7 +12,7 @@
+-export function formatDate(date: Date): string {
++export function formatDate(date: Date | string): string {
++  const d = typeof date === 'string' ? new Date(date) : date;
+```
+
+### Analysis:
+- **Type**: Enhancement
+- **Impact**: Low - convenience change
+- **Template benefit**: Maybe - depends on use case
+
+### Recommendation: ❓ ASK USER
+**Reasoning**: Minor enhancement, could be useful but not critical.
+
+**Your decision?** [IGNORE - template version is fine]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## File 3 of 3: src/client/components/ui/button.tsx
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### Diff:
+```diff
+@@ -8,6 +8,7 @@
+   return (
+-    <button className={cn("px-4 py-2", className)}>
++    <button className={cn("px-4 py-2", className)} type="button">
+```
+
+### Analysis:
+- **Type**: Best practice fix
+- **Impact**: Medium - prevents form submission bugs
+- **Template benefit**: YES - good default behavior
+
+### Recommendation: ✅ CONTRIBUTE
+**Reasoning**: Adding type="button" is a best practice to prevent accidental form submissions.
+
+**Your decision?** [CONTRIBUTE]
+```
+
+### Agent Executes Decisions:
+
+```markdown
+## Summary
+
+### ✅ Contributing to template (2 files):
+- `src/apis/reports/handlers/getReports.ts` - Pagination bug fix
+- `src/client/components/ui/button.tsx` - Add type="button" default
+
+### ↩️ Reverting to template version (1 file):
+- `src/client/utils/formatDate.ts` - Template version preferred
+
+### Actions taken:
+1. Created patch: `../app-template-ai/incoming-patches/contribution-20240115-143022.patch`
+2. Reverted `formatDate.ts` to template version
+
+### Next: Copy this message to template agent ⬇️
 ```
 
 ### Generated Message (copied to template)
@@ -286,35 +386,34 @@ git diff src/apis/reports/handlers/getReports.ts
 # Incoming Project Contribution
 
 ## Patch Location
-`incoming-patches/contribution-2024-01-15-reports-fix.patch`
+`incoming-patches/contribution-20240115-143022.patch`
 
 ## Summary
-Fixed pagination bug in reports API where offset was incorrectly calculated.
+Bug fixes and improvements from project.
 
 ## Files Changed
-- `src/apis/reports/handlers/getReports.ts` - Fixed offset calculation in pagination
+1. `src/apis/reports/handlers/getReports.ts`
+   - **Fix**: Pagination offset calculation (page is 1-indexed, not 0-indexed)
+   
+2. `src/client/components/ui/button.tsx`
+   - **Fix**: Add type="button" default to prevent form submission bugs
 
 ## Instructions
-1. Review: `cat incoming-patches/contribution-2024-01-15-reports-fix.patch`
-2. Apply: `git apply incoming-patches/contribution-2024-01-15-reports-fix.patch`
+1. Review: `cat incoming-patches/contribution-20240115-143022.patch`
+2. Apply: `git apply incoming-patches/contribution-20240115-143022.patch`
 3. Test: `yarn checks`
-4. Commit: `git commit -am "fix(reports): correct pagination offset calculation"`
+4. Commit: `git commit -am "fix: pagination offset + button type default"`
 5. Push: `git push`
-6. Cleanup: `rm incoming-patches/contribution-2024-01-15-reports-fix.patch`
+6. Cleanup: `rm incoming-patches/contribution-20240115-143022.patch`
 ```
 
-### Template Agent
-
-Receives the message, applies the patch, commits, and pushes.
-
-### Back to User's Project
+### After Template Pushes
 
 ```bash
-# Pop stashed changes
-git stash pop
-
-# Sync - changes merge cleanly!
+# In project - sync to get changes back
 yarn sync-template
+
+# Everything is now in sync!
 ```
 
 ---
@@ -355,17 +454,64 @@ Only template files should be contributed. Remove project-specific files from th
 
 ---
 
+## Decision Criteria Reference
+
+When analyzing each file, use these criteria:
+
+### ✅ CONTRIBUTE - Include in patch
+
+| Indicator | Example |
+|-----------|---------|
+| Bug fix | Off-by-one error, null check missing |
+| Security fix | XSS prevention, auth check |
+| Performance improvement | Optimized query, memoization |
+| Type safety | Added proper types, fixed `any` |
+| Best practice | Added `type="button"`, proper error handling |
+| New feature useful to all | General-purpose utility |
+
+### ❌ IGNORE - Take template version
+
+| Indicator | Example |
+|-----------|---------|
+| Cosmetic only | Formatting, whitespace |
+| Project-specific | Custom business logic |
+| Experimental | Trying something, not sure if good |
+| Template is equivalent | Both versions work the same |
+| Template is better | Cleaner code in template |
+| Local workaround | Hack for local issue |
+
+---
+
 ## What Should I Do?
 
-Tell me what you want to contribute:
+Just say **"Review my template changes"** or **"Contribute to template"** and I'll:
 
-1. **"Contribute my reports fix"** - I'll find changes to reports files
-2. **"Contribute changes to X, Y, Z files"** - I'll create patch for those files
-3. **"Show what template files I've changed"** - I'll analyze and list them
-4. **"Help me set up templateLocalPath"** - I'll help configure the path
+1. **Find all template files you've changed**
+2. **For each file:**
+   - Show the diff between your version and template
+   - Analyze the type and impact of changes
+   - Recommend CONTRIBUTE or IGNORE
+   - Ask for your decision
+3. **Execute your decisions:**
+   - Create patch for CONTRIBUTE files → copy to template
+   - Revert IGNORE files → take template version
+4. **Generate the message** for the template agent
 
-Once you tell me what to contribute, I'll:
-1. Create the patch file
-2. Copy it to the template
-3. Generate the message for the template agent
-4. Optionally stash your changes
+### Quick Commands
+
+| Say This | What Happens |
+|----------|--------------|
+| "Review my template changes" | Full review of all changed files |
+| "Contribute to template" | Same as above |
+| "Just show what's different" | List files without deciding |
+| "Contribute only reports changes" | Filter to specific area |
+
+---
+
+## Notes
+
+- **Only contribute template code**: Files in `projectSpecificFiles` and `templateIgnoredFiles` are automatically excluded
+- **Test before contributing**: Make sure your fix works
+- **Review is interactive**: I'll ask for your decision on each file before taking action
+- **Ignored files are reverted**: When you choose IGNORE, the file is reverted to template version in your project
+- **Template path is automatic**: Always `../app-template-ai` relative to project root
