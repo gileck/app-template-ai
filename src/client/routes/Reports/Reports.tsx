@@ -32,6 +32,7 @@ import {
 import type { ReportClient, ReportType, ReportStatus } from '@/apis/reports/types';
 import { ConfirmDialog } from './ConfirmDialog';
 import { toast } from '@/client/components/ui/toast';
+import { generatePerformanceSummaryFromStoredData } from '@/client/features/boot-performance';
 
 // Types for grouped view
 interface GroupedReport {
@@ -63,108 +64,11 @@ function formatDate(dateString: string): string {
 
 /**
  * Generate performance summary from stored report data
- * Uses sessionLogs (boot events) and performanceEntries (browser timing)
+ * Uses shared logic from boot-performance module
  */
 function generatePerformanceSummary(report: ReportClient): string | null {
-    // Only for performance reports
     if (report.category !== 'performance') return null;
-    
-    const lines: string[] = [];
-    lines.push('=== APP LOAD TIMELINE ===');
-    lines.push('');
-    
-    // Build timeline from session logs (boot events)
-    const bootLogs = report.sessionLogs
-        .filter(log => log.feature === 'boot' && log.performanceTime !== undefined)
-        .sort((a, b) => (a.performanceTime || 0) - (b.performanceTime || 0));
-    
-    if (bootLogs.length === 0) {
-        return null;
-    }
-    
-    // Add navigation timing from performanceEntries if available
-    const navEntry = report.performanceEntries?.find(e => e.entryType === 'navigation');
-    if (navEntry) {
-        lines.push('   0ms  🌐 Page request sent');
-    }
-    
-    // Add boot events
-    for (const log of bootLogs) {
-        const time = log.performanceTime || 0;
-        const timeStr = `${Math.round(time)}ms`.padStart(6);
-        lines.push(`${timeStr}  ${log.message}`);
-    }
-    
-    lines.push('');
-    
-    // Resource summary from performanceEntries
-    if (report.performanceEntries && report.performanceEntries.length > 0) {
-        // Helper to check file type (handles query strings in URLs)
-        const isJs = (name: string) => {
-            try {
-                return new URL(name).pathname.endsWith('.js');
-            } catch {
-                return name.endsWith('.js');
-            }
-        };
-        const isCss = (name: string) => {
-            try {
-                return new URL(name).pathname.endsWith('.css');
-            } catch {
-                return name.endsWith('.css');
-            }
-        };
-        
-        const jsEntries = report.performanceEntries.filter(e => 
-            e.entryType === 'resource' && e.name && isJs(e.name)
-        );
-        const cssEntries = report.performanceEntries.filter(e => 
-            e.entryType === 'resource' && e.name && isCss(e.name)
-        );
-        
-        if (jsEntries.length > 0 || cssEntries.length > 0) {
-            const jsKB = Math.round(jsEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
-            const cssKB = Math.round(cssEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
-            
-            // Cache status breakdown
-            const allStaticEntries = [...jsEntries, ...cssEntries];
-            const swCache = allStaticEntries.filter(e => 
-                e.transferSize === 0 && e.decodedBodySize && e.decodedBodySize > 0
-            ).length;
-            const memoryCache = allStaticEntries.filter(e => 
-                e.transferSize === 0 && (!e.decodedBodySize || e.decodedBodySize === 0)
-            ).length;
-            const network = allStaticEntries.filter(e => 
-                e.transferSize && e.transferSize > 0
-            ).length;
-            
-            lines.push('📦 RESOURCE SUMMARY');
-            lines.push(`  JS:  ${jsEntries.length} files, ${jsKB}KB`);
-            lines.push(`  CSS: ${cssEntries.length} files, ${cssKB}KB`);
-            lines.push(`  Cache Status (${allStaticEntries.length} static files):`);
-            if (swCache > 0) {
-                lines.push(`    ✓ ${swCache} from SW/disk cache`);
-            }
-            if (memoryCache > 0) {
-                lines.push(`    ✓ ${memoryCache} from memory cache`);
-            }
-            if (network > 0) {
-                lines.push(`    ↓ ${network} from network`);
-            }
-            lines.push('');
-        }
-    }
-    
-    // Time to first content
-    const contentShownLog = bootLogs.find(log => log.message.includes('Content Shown'));
-    if (contentShownLog && contentShownLog.performanceTime) {
-        lines.push(`✨ Time to first content: ${Math.round(contentShownLog.performanceTime)}ms`);
-    }
-    
-    lines.push('');
-    lines.push('===========================');
-    
-    return lines.join('\n');
+    return generatePerformanceSummaryFromStoredData(report.sessionLogs, report.performanceEntries);
 }
 
 function ReportCard({ report }: { report: ReportClient }) {

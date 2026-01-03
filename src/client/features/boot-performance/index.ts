@@ -680,19 +680,30 @@ function getNavigationStats(): NavigationStats | null {
  * Uses the same data as printPerformanceLogs() but as plain text.
  */
 export function getPerformanceSummary(): string {
-    const lines: string[] = [];
     const data = buildPerformanceData();
     
     if (!data) {
         return '[Performance data not available]';
     }
     
-    const { timeline, resourceStats, firstContentTime } = data;
+    return formatPerformanceDataAsText(data.timeline, data.resourceStats, data.firstContentTime);
+}
+
+/**
+ * Shared formatting logic - converts performance data to plain text
+ * Used by both live summary and stored report summary
+ */
+function formatPerformanceDataAsText(
+    timeline: Array<{ time: number; label: string; type?: string; duration?: number }>,
+    resourceStats: ResourceStats | null,
+    firstContentTime: number | null
+): string {
+    const lines: string[] = [];
     
     lines.push('=== APP LOAD TIMELINE ===');
     lines.push('');
     
-    // Print timeline (same data, plain text format)
+    // Print timeline
     for (const event of timeline) {
         const timeStr = `${event.time}ms`.padStart(6);
         const durationStr = event.duration ? ` (${event.duration}ms)` : '';
@@ -736,4 +747,129 @@ export function getPerformanceSummary(): string {
     lines.push('===========================');
     
     return lines.join('\n');
+}
+
+// Types for stored report data (matches what's saved in DB)
+interface StoredSessionLog {
+    feature: string;
+    message: string;
+    performanceTime?: number;
+}
+
+interface StoredPerformanceEntry {
+    entryType: string;
+    name?: string;
+    transferSize?: number;
+    decodedBodySize?: number;
+}
+
+/**
+ * Generate performance summary from stored report data.
+ * Use this in Reports page to reconstruct summary from DB data.
+ * 
+ * @param sessionLogs - Session logs from stored report
+ * @param performanceEntries - Performance entries from stored report
+ */
+export function generatePerformanceSummaryFromStoredData(
+    sessionLogs: StoredSessionLog[],
+    performanceEntries?: StoredPerformanceEntry[]
+): string | null {
+    // Build timeline from session logs (boot events)
+    const bootLogs = sessionLogs
+        .filter(log => log.feature === 'boot' && log.performanceTime !== undefined)
+        .sort((a, b) => (a.performanceTime || 0) - (b.performanceTime || 0));
+    
+    if (bootLogs.length === 0) {
+        return null;
+    }
+    
+    // Build timeline events
+    const timeline: Array<{ time: number; label: string; type: string; duration?: number }> = [];
+    
+    // Add navigation timing start
+    const navEntry = performanceEntries?.find(e => e.entryType === 'navigation');
+    if (navEntry) {
+        timeline.push({ time: 0, label: '🌐 Page request sent', type: 'nav' });
+    }
+    
+    // Add boot events from session logs
+    for (const log of bootLogs) {
+        timeline.push({
+            time: Math.round(log.performanceTime || 0),
+            label: log.message,
+            type: 'boot',
+        });
+    }
+    
+    // Sort by time
+    timeline.sort((a, b) => a.time - b.time);
+    
+    // Build resource stats from performanceEntries
+    let resourceStats: ResourceStats | null = null;
+    if (performanceEntries && performanceEntries.length > 0) {
+        // Helper to check file type (handles query strings in URLs)
+        const isJs = (name: string) => {
+            try {
+                return new URL(name).pathname.endsWith('.js');
+            } catch {
+                return name.endsWith('.js');
+            }
+        };
+        const isCss = (name: string) => {
+            try {
+                return new URL(name).pathname.endsWith('.css');
+            } catch {
+                return name.endsWith('.css');
+            }
+        };
+        
+        const jsEntries = performanceEntries.filter(e => 
+            e.entryType === 'resource' && e.name && isJs(e.name)
+        );
+        const cssEntries = performanceEntries.filter(e => 
+            e.entryType === 'resource' && e.name && isCss(e.name)
+        );
+        
+        if (jsEntries.length > 0 || cssEntries.length > 0) {
+            const jsKB = Math.round(jsEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
+            const cssKB = Math.round(cssEntries.reduce((sum, e) => sum + (e.transferSize || 0), 0) / 1024);
+            
+            // Cache status breakdown
+            const allStaticEntries = [...jsEntries, ...cssEntries];
+            const swCache = allStaticEntries.filter(e => 
+                e.transferSize === 0 && e.decodedBodySize && e.decodedBodySize > 0
+            ).length;
+            const memoryCache = allStaticEntries.filter(e => 
+                e.transferSize === 0 && (!e.decodedBodySize || e.decodedBodySize === 0)
+            ).length;
+            const network = allStaticEntries.filter(e => 
+                e.transferSize && e.transferSize > 0
+            ).length;
+            
+            resourceStats = {
+                jsCount: jsEntries.length,
+                cssCount: cssEntries.length,
+                jsKB,
+                cssKB,
+                jsCached: 0,
+                cssCached: 0,
+                jsLoadTime: 'N/A',
+                cssLoadTime: 'N/A',
+                cacheDetails: {
+                    swCache,
+                    memoryCache,
+                    network,
+                    totalFiles: allStaticEntries.length,
+                },
+            };
+        }
+    }
+    
+    // Find first content time
+    const contentShownLog = bootLogs.find(log => log.message.includes('Content Shown'));
+    const firstContentTime = contentShownLog?.performanceTime 
+        ? Math.round(contentShownLog.performanceTime) 
+        : null;
+    
+    return formatPerformanceDataAsText(timeline, resourceStats, firstContentTime);
 }
