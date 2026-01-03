@@ -270,14 +270,6 @@ export function logResourceTiming(filter?: 'js' | 'css' | 'all'): void {
     });
 }
 
-interface TimelineEvent {
-    time: number;
-    label: string;
-    type: 'nav' | 'resource' | 'boot';
-    highlight?: 'success' | 'warning';
-    duration?: number;
-}
-
 /**
  * Get detailed resource timing for unified timeline
  */
@@ -300,9 +292,8 @@ function getResourceTimingDetails(): { jsStart: number; jsEnd: number; cssStart:
 
 /**
  * Print a comprehensive performance summary to the console.
+ * Uses the same format as getPerformanceSummary() for consistency.
  * Call from browser console: printPerformanceLogs()
- * 
- * Shows a unified chronological timeline of all events from page load to app ready.
  */
 export function printPerformanceLogs(): void {
     if (typeof window === 'undefined') {
@@ -310,139 +301,7 @@ export function printPerformanceLogs(): void {
         return;
     }
     
-    const navStats = getNavigationStats();
-    const resourceStats = getResourceStats();
-    const resourceTiming = getResourceTimingDetails();
-    const metrics = Array.from(bootPerf.metrics.values());
-    
-    // Build unified timeline
-    const timeline: TimelineEvent[] = [];
-    
-    // Add navigation timing events
-    if (navStats) {
-        // Get absolute times from navigation timing
-        const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-        if (navEntries.length > 0) {
-            const nav = navEntries[0];
-            timeline.push({ time: 0, label: '🌐 Page request sent', type: 'nav' });
-            if (nav.domainLookupEnd > nav.domainLookupStart) {
-                timeline.push({ time: Math.round(nav.domainLookupStart), label: `DNS Lookup (${navStats.dnsMs}ms)`, type: 'nav' });
-            }
-            if (nav.connectEnd > nav.connectStart) {
-                timeline.push({ time: Math.round(nav.connectStart), label: `TCP Connection (${navStats.tcpMs}ms)`, type: 'nav' });
-            }
-            timeline.push({ time: Math.round(nav.responseStart), label: `TTFB - Server responded (${navStats.ttfbMs}ms)`, type: 'nav' });
-            timeline.push({ time: Math.round(nav.responseEnd), label: 'HTML downloaded', type: 'nav' });
-            timeline.push({ time: Math.round(nav.domInteractive), label: 'DOM Ready', type: 'nav' });
-        }
-    }
-    
-    // Add resource timing events
-    if (resourceTiming) {
-        timeline.push({ time: resourceTiming.jsStart, label: '📦 Started downloading JS', type: 'resource' });
-        if (resourceTiming.cssStart > 0) {
-            timeline.push({ time: resourceTiming.cssStart, label: '📦 Started downloading CSS', type: 'resource' });
-        }
-        if (resourceTiming.cssEnd > 0 && resourceTiming.cssEnd < resourceTiming.jsEnd) {
-            timeline.push({ time: resourceTiming.cssEnd, label: '✓ All CSS loaded', type: 'resource' });
-        }
-        timeline.push({ time: resourceTiming.jsEnd, label: '✓ All JS loaded', type: 'resource' });
-    }
-    
-    // Add boot phase events
-    for (const metric of metrics) {
-        const event: TimelineEvent = {
-            time: Math.round(metric.startTime),
-            label: metric.phase,
-            type: 'boot',
-            duration: metric.duration && metric.duration > 0 ? Math.round(metric.duration) : undefined,
-        };
-        
-        // Add highlights
-        if (metric.phase.includes('Content Shown')) {
-            event.highlight = 'success';
-        } else if (metric.phase.includes('Preflight') || metric.phase.includes('Validation')) {
-            event.highlight = 'warning';
-        }
-        
-        timeline.push(event);
-    }
-    
-    // Sort by time
-    timeline.sort((a, b) => a.time - b.time);
-    
-    // Print header
-    console.log('');
-    console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold');
-    console.log('%c║                    APP LOAD TIMELINE                          ║', 'color: #4CAF50; font-weight: bold');
-    console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold');
-    console.log('');
-    
-    // Print unified timeline
-    for (const event of timeline) {
-        const timeStr = `${event.time}ms`.padStart(6);
-        const durationStr = event.duration ? ` (${event.duration}ms)` : '';
-        
-        let icon = '';
-        if (event.type === 'boot') {
-            icon = event.duration ? '▶ ' : '● ';
-        }
-        
-        // Determine style
-        let style = '';
-        if (event.highlight === 'success') {
-            style = 'color: #4CAF50; font-weight: bold';
-        } else if (event.highlight === 'warning') {
-            style = 'color: #FF9800';
-        } else if (event.type === 'nav') {
-            style = 'color: #2196F3';
-        } else if (event.type === 'resource') {
-            style = 'color: #26C6DA';
-        }
-        
-        if (style) {
-            console.log(`%c${timeStr}  ${icon}${event.label}${durationStr}`, style);
-        } else {
-            console.log(`${timeStr}  ${icon}${event.label}${durationStr}`);
-        }
-    }
-    
-    console.log('');
-    
-    // Resource summary
-    if (resourceStats) {
-        console.log('%c┌─ 📦 RESOURCE SUMMARY ──────────────────────────────────────┐', 'color: #26C6DA');
-        console.log(`│  JS:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB`);
-        console.log(`│  CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB`);
-        console.log('│');
-        
-        // Cache status breakdown
-        const { swCache, memoryCache, network, totalFiles } = resourceStats.cacheDetails;
-        console.log(`│  Cache Status (${totalFiles} static files):`);
-        if (swCache > 0) {
-            console.log(`│    ✓ ${swCache} from SW/disk cache (instant, SWR revalidates in background)`);
-        }
-        if (memoryCache > 0) {
-            console.log(`│    ✓ ${memoryCache} from memory cache`);
-        }
-        if (network > 0) {
-            console.log(`│    ↓ ${network} from network`);
-        }
-        if (swCache === 0 && memoryCache === 0 && network === totalFiles) {
-            console.log('│    (fresh load - no cached resources)');
-        }
-        
-        console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #26C6DA');
-        console.log('');
-    }
-    
-    // Summary line
-    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
-    if (firstContent) {
-        const timeToContent = Math.round(firstContent.startTime);
-        console.log(`%c✨ Time to first content: ${timeToContent}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
-        console.log('');
-    }
+    console.log(getPerformanceSummary());
 }
 
 // Expose to window for console access
