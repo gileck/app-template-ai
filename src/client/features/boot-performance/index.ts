@@ -299,16 +299,19 @@ function getResourceTimingDetails(): { jsStart: number; jsEnd: number; cssStart:
 }
 
 /**
- * Print a comprehensive performance summary to the console.
- * Call from browser console: printPerformanceLogs()
- * 
- * Shows a unified chronological timeline of all events from page load to app ready.
+ * Shared data structure used by both printPerformanceLogs() and getPerformanceSummary()
  */
-export function printPerformanceLogs(): void {
-    if (typeof window === 'undefined') {
-        console.log('[Boot] Not available in SSR');
-        return;
-    }
+interface PerformanceData {
+    timeline: TimelineEvent[];
+    resourceStats: ResourceStats | null;
+    firstContentTime: number | null;
+}
+
+/**
+ * Build the unified performance data (shared by console and report output)
+ */
+function buildPerformanceData(): PerformanceData | null {
+    if (typeof window === 'undefined') return null;
     
     const navStats = getNavigationStats();
     const resourceStats = getResourceStats();
@@ -320,7 +323,6 @@ export function printPerformanceLogs(): void {
     
     // Add navigation timing events
     if (navStats) {
-        // Get absolute times from navigation timing
         const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
         if (navEntries.length > 0) {
             const nav = navEntries[0];
@@ -371,6 +373,38 @@ export function printPerformanceLogs(): void {
     // Sort by time
     timeline.sort((a, b) => a.time - b.time);
     
+    // Find first content time
+    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
+    const firstContentTime = firstContent ? Math.round(firstContent.startTime) : null;
+    
+    return {
+        timeline,
+        resourceStats,
+        firstContentTime,
+    };
+}
+
+/**
+ * Print a comprehensive performance summary to the console with colors.
+ * Call from browser console: printPerformanceLogs()
+ * 
+ * Shows a unified chronological timeline of all events from page load to app ready.
+ * Uses the same data as getPerformanceSummary() but with colored console output.
+ */
+export function printPerformanceLogs(): void {
+    if (typeof window === 'undefined') {
+        console.log('[Boot] Not available in SSR');
+        return;
+    }
+    
+    const data = buildPerformanceData();
+    if (!data) {
+        console.log('[Boot] No performance data available');
+        return;
+    }
+    
+    const { timeline, resourceStats, firstContentTime } = data;
+    
     // Print header
     console.log('');
     console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold');
@@ -378,7 +412,7 @@ export function printPerformanceLogs(): void {
     console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold');
     console.log('');
     
-    // Print unified timeline
+    // Print unified timeline with colors
     for (const event of timeline) {
         const timeStr = `${event.time}ms`.padStart(6);
         const durationStr = event.duration ? ` (${event.duration}ms)` : '';
@@ -437,10 +471,8 @@ export function printPerformanceLogs(): void {
     }
     
     // Summary line
-    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
-    if (firstContent) {
-        const timeToContent = Math.round(firstContent.startTime);
-        console.log(`%c✨ Time to first content: ${timeToContent}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
+    if (firstContentTime !== null) {
+        console.log(`%c✨ Time to first content: ${firstContentTime}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
         console.log('');
     }
 }
@@ -629,58 +661,32 @@ function getNavigationStats(): NavigationStats | null {
  * Generate a formatted performance summary string.
  * Call this when submitting a performance bug report.
  * Returns a string to include directly in the report (not added to session logs).
+ * Uses the same data as printPerformanceLogs() but as plain text.
  */
 export function getPerformanceSummary(): string {
     const lines: string[] = [];
-    const navStats = getNavigationStats();
-    const resourceStats = getResourceStats();
-    const resourceTiming = getResourceTimingDetails();
-    const metrics = Array.from(bootPerf.metrics.values());
+    const data = buildPerformanceData();
+    
+    if (!data) {
+        return '[Performance data not available]';
+    }
+    
+    const { timeline, resourceStats, firstContentTime } = data;
     
     lines.push('=== APP LOAD TIMELINE ===');
     lines.push('');
     
-    // Build unified timeline (same as printPerformanceLogs)
-    const timeline: Array<{ time: number; label: string }> = [];
-    
-    // Add navigation timing events
-    if (navStats) {
-        const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-        if (navEntries.length > 0) {
-            const nav = navEntries[0];
-            timeline.push({ time: 0, label: '🌐 Page request sent' });
-            timeline.push({ time: Math.round(nav.responseStart), label: `TTFB - Server responded (${navStats.ttfbMs}ms)` });
-            timeline.push({ time: Math.round(nav.responseEnd), label: 'HTML downloaded' });
-            timeline.push({ time: Math.round(nav.domInteractive), label: 'DOM Ready' });
-        }
-    }
-    
-    // Add resource timing events
-    if (resourceTiming) {
-        timeline.push({ time: resourceTiming.jsStart, label: '📦 Started downloading JS' });
-        if (resourceTiming.cssStart > 0) {
-            timeline.push({ time: resourceTiming.cssStart, label: '📦 Started downloading CSS' });
-        }
-        if (resourceTiming.cssEnd > 0 && resourceTiming.cssEnd < resourceTiming.jsEnd) {
-            timeline.push({ time: resourceTiming.cssEnd, label: '✓ All CSS loaded' });
-        }
-        timeline.push({ time: resourceTiming.jsEnd, label: '✓ All JS loaded' });
-    }
-    
-    // Add boot phase events
-    for (const metric of metrics) {
-        const icon = (metric.duration && metric.duration > 0) ? '▶' : '●';
-        const durationStr = (metric.duration && metric.duration > 0) ? ` (${Math.round(metric.duration)}ms)` : '';
-        timeline.push({ 
-            time: Math.round(metric.startTime), 
-            label: `${icon} ${metric.phase}${durationStr}` 
-        });
-    }
-    
-    // Sort and print timeline
-    timeline.sort((a, b) => a.time - b.time);
+    // Print timeline (same data, plain text format)
     for (const event of timeline) {
-        lines.push(`${event.time.toString().padStart(5)}ms  ${event.label}`);
+        const timeStr = `${event.time}ms`.padStart(6);
+        const durationStr = event.duration ? ` (${event.duration}ms)` : '';
+        
+        let icon = '';
+        if (event.type === 'boot') {
+            icon = event.duration ? '▶ ' : '● ';
+        }
+        
+        lines.push(`${timeStr}  ${icon}${event.label}${durationStr}`);
     }
     
     lines.push('');
@@ -706,10 +712,8 @@ export function getPerformanceSummary(): string {
     }
     
     // Time to first content
-    const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
-    if (firstContent) {
-        const timeToContent = Math.round(firstContent.startTime);
-        lines.push(`✨ Time to first content: ${timeToContent}ms`);
+    if (firstContentTime !== null) {
+        lines.push(`✨ Time to first content: ${firstContentTime}ms`);
     }
     
     lines.push('');
