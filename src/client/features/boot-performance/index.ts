@@ -13,10 +13,11 @@
  *   ~150-190ms    - JS parsing and compilation
  *   ~190ms+       - First module executes (BUNDLE_LOADED event)
  * 
- * To view boot logs in browser console:
- *   printLogs('boot')         // Show all boot logs
- *   enableLogs('boot')        // Enable live console output for boot logs
- *   logNavigationTiming()     // Log browser navigation timing (0ms to bundle load)
+ * Console commands for debugging:
+ *   printPerformanceLogs()    // Pretty print full performance summary
+ *   printLogs('boot')         // Show all boot session logs
+ *   logNavigationTiming()     // Log browser navigation timing breakdown
+ *   logResourceTiming()       // Log all loaded resources with timing
  */
 
 import { logger } from '@/client/features/session-logs';
@@ -268,11 +269,114 @@ export function logResourceTiming(filter?: 'js' | 'css' | 'all'): void {
     });
 }
 
+/**
+ * Print a comprehensive performance summary to the console.
+ * Call from browser console: printPerformanceLogs()
+ * 
+ * Shows:
+ * - Page load timeline (DNS → TCP → TTFB → Download → DOM → JS)
+ * - Resource loading summary (JS/CSS files, sizes, cache status)
+ * - Boot phases timeline with visual indicators
+ */
+export function printPerformanceLogs(): void {
+    if (typeof window === 'undefined') {
+        console.log('[Boot] Not available in SSR');
+        return;
+    }
+    
+    const navStats = getNavigationStats();
+    const resourceStats = getResourceStats();
+    const metrics = Array.from(bootPerf.metrics.values()).sort((a, b) => a.startTime - b.startTime);
+    
+    console.log('');
+    console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #4CAF50; font-weight: bold');
+    console.log('%c║                    APP LOAD PERFORMANCE                       ║', 'color: #4CAF50; font-weight: bold');
+    console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #4CAF50; font-weight: bold');
+    console.log('');
+    
+    // Section 1: Page Load Timeline
+    console.log('%c┌─ 🌐 PAGE LOAD TIMELINE ─────────────────────────────────────┐', 'color: #2196F3');
+    if (navStats) {
+        console.log(`│  DNS Lookup:      ${navStats.dnsMs.toString().padStart(4)}ms`);
+        console.log(`│  TCP Connection:  ${navStats.tcpMs.toString().padStart(4)}ms`);
+        console.log(`│  TTFB (Server):   ${navStats.ttfbMs.toString().padStart(4)}ms`);
+        console.log(`│  Download HTML:   ${navStats.downloadMs.toString().padStart(4)}ms`);
+        console.log(`│  DOM Ready:       ${navStats.domReadyMs.toString().padStart(4)}ms`);
+        console.log(`│  JS Execution:    ${navStats.bundleStartMs.toString().padStart(4)}ms  ← First code runs`);
+    } else {
+        console.log('│  Navigation timing not available');
+    }
+    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #2196F3');
+    console.log('');
+    
+    // Section 2: Resource Loading
+    console.log('%c┌─ 📦 RESOURCE LOADING ──────────────────────────────────────┐', 'color: #FF9800');
+    if (resourceStats) {
+        const jsCacheText = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : ' (none cached)';
+        const cssCacheText = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : ' (none cached)';
+        console.log(`│  JavaScript:  ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheText}`);
+        console.log(`│              ${resourceStats.jsLoadTime}`);
+        console.log(`│  CSS:        ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheText}`);
+        console.log(`│              ${resourceStats.cssLoadTime}`);
+    } else {
+        console.log('│  Resource timing not available');
+    }
+    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #FF9800');
+    console.log('');
+    
+    // Section 3: Boot Phases Timeline
+    console.log('%c┌─ ⚡ BOOT PHASES TIMELINE ──────────────────────────────────┐', 'color: #9C27B0');
+    if (metrics.length > 0) {
+        const baseTime = metrics[0].startTime;
+        for (const metric of metrics) {
+            const relativeTime = Math.round(metric.startTime - baseTime);
+            const timeStr = `+${relativeTime}ms`.padStart(7);
+            
+            let icon = '●';
+            let durationStr = '';
+            
+            if (metric.duration && metric.duration > 0) {
+                icon = '▶';
+                durationStr = ` (${Math.round(metric.duration)}ms)`;
+            }
+            
+            // Highlight important events
+            let style = '';
+            if (metric.phase.includes('Content Shown')) {
+                style = 'color: #4CAF50; font-weight: bold';
+            } else if (metric.phase.includes('Preflight') || metric.phase.includes('Validation')) {
+                style = 'color: #FF9800';
+            }
+            
+            if (style) {
+                console.log(`│  %c${timeStr}  ${icon} ${metric.phase}${durationStr}`, style);
+            } else {
+                console.log(`│  ${timeStr}  ${icon} ${metric.phase}${durationStr}`);
+            }
+        }
+    } else {
+        console.log('│  No boot metrics recorded');
+    }
+    console.log('%c└─────────────────────────────────────────────────────────────┘', 'color: #9C27B0');
+    console.log('');
+    
+    // Summary line
+    if (metrics.length > 0) {
+        const firstContent = metrics.find(m => m.phase.includes('Content Shown'));
+        if (firstContent) {
+            const timeToContent = Math.round(firstContent.startTime);
+            console.log(`%c✨ Time to first content: ${timeToContent}ms`, 'color: #4CAF50; font-size: 14px; font-weight: bold');
+        }
+    }
+    console.log('');
+}
+
 // Expose to window for console access
 if (typeof window !== 'undefined') {
     const win = window as unknown as Record<string, unknown>;
     win.logNavigationTiming = logNavigationTiming;
     win.logResourceTiming = logResourceTiming;
+    win.printPerformanceLogs = printPerformanceLogs;
 }
 
 // Export constants for phase names
