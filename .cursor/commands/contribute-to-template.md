@@ -94,30 +94,33 @@ The template is always at `../app-template-ai` relative to your project root.
 
 ## Agent Instructions
 
-### 1. Verify template exists
+### 1. Get all diffs using the sync tool
+
+Run this command to get a complete diff report:
 
 ```bash
-TEMPLATE_PATH="../app-template-ai"
-ls "$TEMPLATE_PATH" || echo "Template not found!"
+yarn sync-template --project-diffs
 ```
 
-### 2. Load sync config
+This outputs:
+- Summary of files by change status
+- Full diff for each file
+- Change status: `project-only` | `template-only` | `both-changed` | `no-baseline`
+
+**Change status meanings:**
+- `project-only`: Only project changed this file (template unchanged) → Likely CONTRIBUTE or KEEP
+- `template-only`: Only template changed (rare, usually handled by regular sync)
+- `both-changed`: Both sides changed → Needs MERGE or decision
+- `no-baseline`: No hash baseline, can't determine who changed → Review carefully
+
+### 2. Load sync config for context
 
 ```bash
 cat .template-sync.json
 ```
 
-Extract ignore lists:
-- `ignoredFiles` - system files, skip
-- `projectSpecificFiles` - project-only code, skip  
-- `templateIgnoredFiles` - example code, skip
-
-### 3. Find ALL differing files
-
-Compare every file in project against template. A file differs if:
-- Content is different (use diff or hash comparison)
-- File exists in both repos
-- File is NOT in any ignore list
+Check:
+- `projectSpecificFiles` - files already marked as project-only
 
 ### 4. Review EACH file with user
 
