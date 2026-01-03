@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getReports, updateReportStatus, deleteReport, deleteAllReports } from '@/apis/reports/client';
 import type { GetReportsRequest, ReportStatus } from '@/apis/reports/types';
 import { useQueryDefaults } from '@/client/query';
+import { toast } from '@/client/components/ui/toast';
 
 const reportsBaseQueryKey = ['reports'] as const;
 
@@ -88,9 +89,11 @@ export function useDeleteReport() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
+            toast.error('Failed to delete report');
         },
-        onSuccess: () => {},
-        onSettled: () => {},
+        onSuccess: () => {
+            toast.success('Report deleted successfully');
+        },
     });
 }
 

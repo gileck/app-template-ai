@@ -203,15 +203,9 @@ END OF REPORT
     };
 
     const handleDelete = () => {
-        deleteReportMutation.mutate(report._id, {
-            onSuccess: () => {
-                toast.success('Report deleted successfully');
-                setShowDeleteDialog(false);
-            },
-            onError: (error) => {
-                toast.error(`Failed to delete report: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            },
-        });
+        setShowDeleteDialog(false);
+        deleteReportMutation.mutate(report._id);
+        // Toast shown in hook (component unmounts after optimistic update)
     };
 
     return (
