@@ -208,8 +208,8 @@ export function logResourceTiming(filter?: 'js' | 'css' | 'all'): void {
     
     // Filter by type
     const filtered = entries.filter(e => {
-        if (filter === 'js') return e.name.endsWith('.js');
-        if (filter === 'css') return e.name.endsWith('.css');
+        if (filter === 'js') return isJsResource(e.name);
+        if (filter === 'css') return isCssResource(e.name);
         return true;
     });
     
@@ -219,8 +219,8 @@ export function logResourceTiming(filter?: 'js' | 'css' | 'all'): void {
     console.group(`[Boot] 📦 Resource Timing (${sorted.length} resources${filter ? `, filter: ${filter}` : ''})`);
     
     // Summary stats
-    const jsResources = sorted.filter(r => r.name.endsWith('.js'));
-    const cssResources = sorted.filter(r => r.name.endsWith('.css'));
+    const jsResources = sorted.filter(r => isJsResource(r.name));
+    const cssResources = sorted.filter(r => isCssResource(r.name));
     const totalSize = sorted.reduce((sum, r) => sum + (r.transferSize || 0), 0);
     const cachedCount = sorted.filter(r => r.transferSize === 0).length;
     
@@ -279,14 +279,30 @@ interface TimelineEvent {
 }
 
 /**
+ * Check if a resource URL is a JS file (handles query strings)
+ */
+function isJsResource(url: string): boolean {
+    const pathname = new URL(url, window.location.origin).pathname;
+    return pathname.endsWith('.js');
+}
+
+/**
+ * Check if a resource URL is a CSS file (handles query strings)
+ */
+function isCssResource(url: string): boolean {
+    const pathname = new URL(url, window.location.origin).pathname;
+    return pathname.endsWith('.css');
+}
+
+/**
  * Get detailed resource timing for unified timeline
  */
 function getResourceTimingDetails(): { jsStart: number; jsEnd: number; cssStart: number; cssEnd: number } | null {
     if (typeof window === 'undefined' || !window.performance) return null;
     
     const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-    const jsResources = entries.filter(e => e.name.endsWith('.js'));
-    const cssResources = entries.filter(e => e.name.endsWith('.css'));
+    const jsResources = entries.filter(e => isJsResource(e.name));
+    const cssResources = entries.filter(e => isCssResource(e.name));
     
     if (jsResources.length === 0) return null;
     
@@ -582,8 +598,8 @@ function getResourceStats(): ResourceStats | null {
     const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
     if (entries.length === 0) return null;
     
-    const jsResources = entries.filter(e => e.name.endsWith('.js'));
-    const cssResources = entries.filter(e => e.name.endsWith('.css'));
+    const jsResources = entries.filter(e => isJsResource(e.name));
+    const cssResources = entries.filter(e => isCssResource(e.name));
     
     const jsKB = Math.round(jsResources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
     const cssKB = Math.round(cssResources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
@@ -592,7 +608,7 @@ function getResourceStats(): ResourceStats | null {
     
     // Detailed cache breakdown for all resources (JS + CSS + others)
     const allStaticResources = entries.filter(e => 
-        e.name.endsWith('.js') || e.name.endsWith('.css')
+        isJsResource(e.name) || isCssResource(e.name)
     );
     const swCache = allStaticResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
     const memoryCache = allStaticResources.filter(r => r.transferSize === 0 && r.decodedBodySize === 0).length;
