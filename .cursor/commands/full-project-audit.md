@@ -1,6 +1,22 @@
-# Full Project Audit
+# Full Project Audit (Report Only)
 
 This command performs a comprehensive audit of the entire project against all documentation and rules. It systematically reviews every feature, route, API, and component to ensure compliance with established guidelines.
+
+**⚠️ OUTPUT: This command produces a detailed AUDIT REPORT with all violations and a fix plan. It does NOT make any code changes.**
+
+## 📁 Report Output Location
+
+**The audit report MUST be saved to a file:**
+
+```
+audits/audit-YYYY-MM-DD.md
+```
+
+**Example**: `audits/audit-2026-01-03.md`
+
+This single file contains both the audit findings AND the progress tracker with checkboxes that can be marked as done during implementation.
+
+If the `audits/` folder doesn't exist, create it.
 
 📚 **Primary References**:
 - [CLAUDE.md](mdc:../../CLAUDE.md) - Project guidelines summary
@@ -11,12 +27,13 @@ This command performs a comprehensive audit of the entire project against all do
 
 ## ⚠️ CRITICAL: Read This First
 
-This is a **comprehensive audit**. Before starting, understand:
+This is a **comprehensive audit report**. Before starting, understand:
 
 1. **This will take time** - You'll review every file in the project systematically
 2. **Create a TODO list FIRST** - Track your progress through each audit area
-3. **Don't fix immediately** - Collect all findings first, then propose fixes
-4. **Get approval** - Present findings and wait for user approval before making changes
+3. **Collect ALL findings** - Document every violation, issue, and recommendation
+4. **DO NOT FIX ANYTHING** - This audit produces a report only, no code changes
+5. **Output a comprehensive report** - The final deliverable is a detailed audit summary with a fix plan
 
 ---
 
@@ -47,9 +64,7 @@ This audit is too large to complete without tracking. The TODO list ensures:
 9. [pending] Phase 3.12: Audit React Components (CRITICAL)
 10. [pending] Phase 4: Check Cross-Cutting Concerns
 11. [pending] Phase 5: Check Documentation Sync
-12. [pending] Phase 6: Create Summary & Get Approval
-13. [pending] Phase 7: Implement Approved Fixes
-14. [pending] Phase 8: Run yarn checks & Verify
+12. [pending] Phase 6: Generate Final Audit Report
 ```
 
 ### Step 2: Expand TODOs During Discovery
@@ -126,15 +141,12 @@ Phase 5: Documentation Sync
     │ - Check docs match implementation
     │ - Identify gaps/contradictions
     ▼
-Phase 6: Summary & Approval
-    │ - Present all findings
-    │ - Wait for explicit user approval
-    │ - ⛔ DO NOT PROCEED without approval
-    ▼
-Phase 7: Implementation
-    │ - Fix approved issues
-    │ - Run yarn checks (must pass with 0 errors)
-    │ - List flows for user to verify
+Phase 6: Generate Final Audit Report
+    │ - Compile ALL violations found
+    │ - Categorize by severity and area
+    │ - Create detailed fix plan with tasks
+    │ - Output comprehensive report
+    │ - ⛔ DO NOT MAKE ANY CODE CHANGES
 ```
 
 ---
@@ -1206,7 +1218,7 @@ yarn tsc --noEmit
 
 For EACH collection:
 
-#### 3.7.1: File Structure
+#### 3.10.1: File Structure
 
 | Check | Status |
 |-------|--------|
@@ -1214,7 +1226,7 @@ For EACH collection:
 | Has `types.ts` | |
 | Has `<collection>.ts` | |
 
-#### 3.7.2: ID Handling
+#### 3.10.2: ID Handling
 
 ```typescript
 // ✅ CORRECT: Use ID utilities
@@ -1233,7 +1245,7 @@ new ObjectId(clientId) // Breaks on UUID strings
 | No direct `.toHexString()` calls | |
 | No `new ObjectId(clientId)` without validation | |
 
-#### 3.7.3: API Layer Separation
+#### 3.10.3: API Layer Separation
 
 | Check | Status |
 |-------|--------|
@@ -1618,182 +1630,413 @@ For each documentation file, verify:
 
 ---
 
-## Phase 6: Summary & Approval
+## Phase 6: Generate Final Audit Report
 
-### 6.1: Compile All Findings
+**⚠️ CRITICAL: This is the final output. DO NOT make any code changes.**
 
-**Action**: Create a comprehensive summary of all findings.
+### 6.1: Create Output File
+
+**Action**: Create the audit report file in the `audits/` folder:
+
+```
+audits/audit-YYYY-MM-DD.md
+```
+
+This file contains:
+- Full audit findings and violations
+- Fix implementation plan with phases
+- **Progress tracker with checkboxes** that can be marked `[x]` during implementation
+
+**If the `audits/` folder doesn't exist, create it first.**
+
+### 6.2: Compile All Findings
+
+**Action**: Create a comprehensive audit report with ALL findings from the audit phases.
+
+The final report MUST include these sections:
+
+---
+
+## 📋 AUDIT REPORT TEMPLATE
+
+Use this template to generate the final audit report:
 
 ```markdown
-## Audit Summary
+# Project Audit Report
 
-### ✅ Compliant Areas (X total)
+**Generated**: [YYYY-MM-DD]
+**Project**: [Project Name]
+**Status**: 🔴 Not Started | 🟡 In Progress | 🟢 Complete
+
+---
+
+## Progress Overview
+
+| Category | Total Tasks | Completed | Remaining |
+|----------|-------------|-----------|-----------|
+| 🚨 Critical | X | 0 | X |
+| ⚠️ High | X | 0 | X |
+| 📝 Medium | X | 0 | X |
+| 💡 Low | X | 0 | X |
+| **Total** | **X** | **0** | **X** |
+
+**Overall Progress**: 0%
+
+---
+
+## Executive Summary
+
+| Category | Total Items | Compliant | Violations | Compliance % |
+|----------|-------------|-----------|------------|--------------|
+| APIs | X | X | X | XX% |
+| Features | X | X | X | XX% |
+| Routes | X | X | X | XX% |
+| Mutations | X | X | X | XX% |
+| Stores | X | X | X | XX% |
+| Theming | X | X | X | XX% |
+| TypeScript | X | X | X | XX% |
+| Components | X | X | X | XX% |
+| **TOTAL** | **X** | **X** | **X** | **XX%** |
+
+### Overall Health Score: [X/10]
+
+---
+
+## 🚨 CRITICAL Issues (Must Fix)
+
+Issues that cause bugs, data loss, or security vulnerabilities.
+
+| # | Area | File | Issue | Impact |
+|---|------|------|-------|--------|
+| 1 | Mutations | path/to/file.ts | [Description] | Race conditions |
+| 2 | Stores | path/to/file.ts | [Description] | Boot failures |
+| ... | ... | ... | ... | ... |
+
+---
+
+## ⚠️ HIGH Priority Issues
+
+Issues that cause poor UX or violate core patterns.
+
+| # | Area | File | Issue | Impact |
+|---|------|------|-------|--------|
+| 1 | Loading States | path/to/file.tsx | [Description] | Empty state during loading |
+| 2 | Theming | path/to/file.tsx | [Description] | Broken dark mode |
+| ... | ... | ... | ... | ... |
+
+---
+
+## 📝 MEDIUM Priority Issues
+
+Issues that should be fixed but don't cause immediate problems.
+
+| # | Area | File | Issue | Impact |
+|---|------|------|-------|--------|
+| 1 | Component Size | path/to/file.tsx | [Description] | Maintainability |
+| 2 | TypeScript | path/to/file.ts | [Description] | Type safety |
+| ... | ... | ... | ... | ... |
+
+---
+
+## 💡 LOW Priority Issues / Recommendations
+
+Best practice improvements and nice-to-haves.
+
+| # | Area | File | Recommendation |
+|---|------|------|----------------|
+| 1 | ... | ... | ... |
+| ... | ... | ... | ... |
+
+---
+
+## ✅ Compliant Areas
+
+Areas that fully meet guidelines (brief summary).
+
 | Area | Details |
 |------|---------|
 | auth API | Proper structure, correct patterns |
+| settings feature | Uses createStore correctly |
 | ... | ... |
 
-### ⚠️ Minor Issues (X total)
-| Area | Issue | Severity | Fix |
-|------|-------|----------|-----|
-| Todos route | Missing empty state | Low | Add EmptyState component |
-| ... | ... | ... | ... |
+---
 
-### ❌ Non-Compliant Areas (X total)
-| Area | Issue | Severity | Fix Required |
-|------|-------|----------|--------------|
-| useCreateTodo | Uses temp ID pattern | High | Convert to non-optimistic |
-| ProfileCard | Hardcoded colors | Medium | Use semantic tokens |
-| ... | ... | ... | ... |
+## 📚 Documentation Issues
 
-### 📝 Documentation Updates Needed
-| Doc | Update Needed |
-|-----|---------------|
-| state-management.md | Add new settings store example |
-| ... | ... |
+| Doc | Issue | Update Needed |
+|-----|-------|---------------|
+| state-management.md | Missing example | Add [specific example] |
+| ... | ... | ... |
 
-### 📊 Overall Compliance Score
-- APIs: X/Y compliant (XX%)
-- Features: X/Y compliant (XX%)
-- Routes: X/Y compliant (XX%)
-- Mutations: X/Y compliant (XX%)
-- Theming: X/Y compliant (XX%)
-- TypeScript: X/Y compliant (XX%)
-- MongoDB: X/Y compliant (XX%)
-```
+---
 
-### 6.2: Propose Fixes
+## 🔧 FIX IMPLEMENTATION PLAN & PROGRESS TRACKER
 
-For each non-compliant area, provide:
+> **How to use**: Mark tasks complete by changing `[ ]` to `[x]` as you implement fixes.
+> Update the Progress Overview table at the top of this document as you complete tasks.
 
-```markdown
-## Fix: [Area Name]
+### Overview
 
-**File**: `path/to/file.ts`
+| Phase | Description | Estimated Effort | Files Affected | Status |
+|-------|-------------|------------------|----------------|--------|
+| 1 | Critical Mutation Fixes | X hours | X files | ⬜ |
+| 2 | Store Factory Migration | X hours | X files | ⬜ |
+| 3 | Loading State Fixes | X hours | X files | ⬜ |
+| 4 | Theming Compliance | X hours | X files | ⬜ |
+| 5 | TypeScript Cleanup | X hours | X files | ⬜ |
+| 6 | Component Refactoring | X hours | X files | ⬜ |
+| 7 | Documentation Updates | X hours | X files | ⬜ |
+
+---
+
+### Phase 1: Critical Mutation Fixes
+
+**Priority**: 🚨 CRITICAL
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 1.1: [Specific mutation name]
+
+- [ ] **Fix [mutation name]** in `path/to/file.ts`
+
 **Issue**: [Description]
-**Severity**: High/Medium/Low
 
-### Current Code (Non-Compliant):
+<details>
+<summary>View Code Changes</summary>
+
+**Current Code (Non-Compliant)**:
 ```typescript
-// Show problematic code
+// Show the actual problematic code from the codebase
 ```
 
-### Proposed Fix:
+**Required Fix**:
 ```typescript
-// Show corrected code
+// Show the correct implementation
 ```
 
-### Impact:
-- [ ] Code change only
-- [ ] UX change (describe)
-- [ ] Requires testing
-```
+</details>
 
-### 6.3: Get User Approval
-
-**Action**: Present all findings and wait for explicit approval.
-
-```markdown
-## Summary of Proposed Changes
-
-### Code Changes (no UX impact):
-1. [file] - [change description]
-2. ...
-
-### UX-Affecting Changes:
-1. [file] - [change description]
-   - Before: [behavior]
-   - After: [behavior]
-2. ...
-
-### Documentation Updates:
-1. [doc] - [update description]
-2. ...
+**Why This Matters**: [Brief explanation of the bug this causes]
 
 ---
 
-**Please review and reply:**
-- **"Approve all"** - Proceed with all changes
-- **"Approve except [X]"** - Skip specific changes
-- **"Questions about [X]"** - I'll explain further
-- **"Show me the code for [X]"** - I'll show the specific implementation
-```
+#### Task 1.2: [Next mutation]
 
-**⛔ DO NOT PROCEED without explicit user approval.**
+- [ ] **Fix [mutation name]** in `path/to/file.ts`
+
+... (repeat for each mutation issue)
 
 ---
 
-## Phase 7: Implementation
+### Phase 2: Store Factory Migration
 
-### 7.1: Make Approved Changes
+**Priority**: 🚨 CRITICAL
+**Estimated Effort**: X hours
+**Files Affected**: X
 
-After approval, implement changes systematically:
+#### Task 2.1: [Specific store name]
 
-1. Fix one area at a time
-2. Run `yarn checks` after each area
-3. Update documentation if needed
-4. Track progress in TODO list
+- [ ] **Migrate [store name] to createStore** in `path/to/file.ts`
 
-### 7.2: Final Verification
+**Issue**: [Description]
 
-```bash
-# Run all checks
-yarn checks
+<details>
+<summary>View Code Changes</summary>
 
-# This runs:
-# - TypeScript compilation
-# - ESLint
+**Current Code (Non-Compliant)**:
+```typescript
+// Show the actual problematic code
 ```
 
-**The audit is NOT complete until `yarn checks` passes with 0 errors.**
-
-### 7.3: 🚨 Verify ALL TODOs Completed
-
-**Before finishing the audit, verify ALL TODOs are marked as `completed` or `cancelled`.**
-
-Use the TODO list to confirm:
-- [ ] All discovered APIs audited
-- [ ] All discovered features audited
-- [ ] All discovered routes audited
-- [ ] **ALL discovered mutations audited** (most critical)
-- [ ] All discovered stores audited
-- [ ] All cross-cutting concerns checked
-- [ ] Summary created and user approved changes
-- [ ] All approved fixes implemented
-
-**⛔ The audit is NOT complete if any TODOs remain `pending` or `in_progress`.**
-
-### 7.4: Test Critical Flows
-
-List flows that should be manually tested:
-
-```markdown
-## Please Verify These Flows
-
-### Mutations:
-- [ ] Edit flows feel instant (optimistic)
-- [ ] Delete flows feel instant (optimistic)
-- [ ] Create flows show appropriate loading state
-- [ ] Offline mode queues mutations
-
-### Routes:
-- [ ] Loading states show correctly
-- [ ] Error states show correctly
-- [ ] Empty states only show when truly empty
-
-### Theming:
-- [ ] Test with light mode
-- [ ] Test with dark mode
-- [ ] Test with different theme presets
+**Required Fix**:
+```typescript
+// Show the correct implementation
 ```
+
+</details>
 
 ---
 
-## Master Checklist
+### Phase 3: Loading State Fixes
 
-Complete ALL items before finishing the audit:
+**Priority**: ⚠️ HIGH
+**Estimated Effort**: X hours
+**Files Affected**: X
 
-### Phase 1: Documentation Review (REQUIRED FIRST)
+#### Task 3.1: [Specific component]
+
+- [ ] **Fix loading state** in `path/to/file.tsx`
+
+**Issue**: Shows empty state before data loads
+
+<details>
+<summary>View Code Changes</summary>
+
+**Current Code (Non-Compliant)**:
+```typescript
+// Show the actual problematic code
+```
+
+**Required Fix**:
+```typescript
+// Show the correct implementation
+```
+
+</details>
+
+---
+
+### Phase 4: Theming Compliance
+
+**Priority**: ⚠️ HIGH
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 4.1: Replace hardcoded colors in [file]
+
+- [ ] **Replace hardcoded colors** in `path/to/file.tsx`
+
+| Line | Current | Replace With |
+|------|---------|--------------|
+| XX | `bg-white` | `bg-background` |
+| XX | `text-gray-500` | `text-muted-foreground` |
+| ... | ... | ... |
+
+---
+
+### Phase 5: TypeScript Cleanup
+
+**Priority**: 📝 MEDIUM
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 5.1: Remove `any` types
+
+- [ ] **Remove `any` types** in `path/file.ts`
+
+| Line | Current | Replace With |
+|------|---------|--------------|
+| XX | `: any` | `[proper type]` |
+| ... | ... | ... |
+
+---
+
+### Phase 6: Component Refactoring
+
+**Priority**: 📝 MEDIUM
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 6.1: Split [ComponentName] (XXX lines)
+
+- [ ] **Split component** `path/to/Component.tsx`
+
+**Current Size**: XXX lines
+**Target**: < 150 lines each
+
+**Proposed Split**:
+1. `ComponentHeader.tsx` - Header section (~XX lines)
+2. `ComponentList.tsx` - List rendering (~XX lines)
+3. `ComponentItem.tsx` - Individual items (~XX lines)
+4. `Component.tsx` - Main composition (~XX lines)
+
+---
+
+### Phase 7: Documentation Updates
+
+**Priority**: 💡 LOW
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 7.1: Update [doc name]
+
+- [ ] **Update documentation** `docs/[name].md`
+
+**Changes Needed**:
+- Add example for [topic]
+- Update outdated section about [topic]
+- Fix contradiction with [other doc]
+
+---
+
+## ✅ Final Verification Checklist
+
+Complete these checks after ALL fixes are implemented:
+
+### Code Quality
+- [ ] `yarn checks` passes with 0 errors
+- [ ] All mutations use correct optimistic-only pattern
+- [ ] All stores use createStore factory
+- [ ] No empty states shown during loading
+- [ ] No hardcoded colors remain
+- [ ] No `any` types remain
+- [ ] All components < 200 lines
+
+### Manual Testing
+- [ ] Light mode works correctly
+- [ ] Dark mode works correctly
+- [ ] Offline mode works correctly
+- [ ] Edit operations feel instant (optimistic)
+- [ ] Delete operations feel instant (optimistic)
+- [ ] Create operations show appropriate feedback
+- [ ] Rapid clicking doesn't cause race conditions
+- [ ] Initial page load shows skeleton (not empty state)
+- [ ] Background refresh shows subtle indicator
+
+---
+
+## 📝 Implementation Log
+
+Track your implementation progress here:
+
+| Date | Tasks Completed | Notes |
+|------|-----------------|-------|
+| | | |
+| | | |
+| | | |
+
+---
+
+## Appendix: Files Inventory
+
+### All Files Audited
+
+| File | Lines | Issues Found | Priority |
+|------|-------|--------------|----------|
+| src/client/routes/Todos/hooks.ts | XXX | X | CRITICAL |
+| src/client/features/auth/store.ts | XXX | X | HIGH |
+| ... | ... | ... | ... |
+
+### Files Requiring Changes
+
+| File | Change Type | Estimated Lines Changed |
+|------|-------------|-------------------------|
+| path/to/file.ts | Mutation fix | ~XX lines |
+| path/to/file.tsx | Loading state | ~XX lines |
+| ... | ... | ... |
+```
+
+### 6.3: Important Notes for Report Generation
+
+When generating the final report:
+
+1. **Be Specific**: Include actual file paths, line numbers, and code snippets
+2. **Prioritize Correctly**: 
+   - 🚨 CRITICAL = Bugs, data loss, security issues
+   - ⚠️ HIGH = Poor UX, major pattern violations
+   - 📝 MEDIUM = Maintainability, best practices
+   - 💡 LOW = Nice-to-haves, minor improvements
+3. **Show Real Code**: Copy actual code from files, don't make up examples
+4. **Calculate Metrics**: Provide accurate counts and percentages
+5. **Make Tasks Actionable**: Each task should be self-contained and implementable
+
+---
+
+## Master Checklist (For Auditor)
+
+Complete ALL items to finish the audit:
+
+### Phase 1: Documentation Review
 - [ ] Read CLAUDE.md
 - [ ] Read docs/architecture.md
 - [ ] Read **docs/state-management.md** (CRITICAL)
@@ -1813,149 +2056,47 @@ Complete ALL items before finishing the audit:
 - [ ] Listed all database collections
 - [ ] Created comprehensive TODO list
 
-### Phase 3: API Audit
+### Phase 3: Systematic Audit
 - [ ] Audited EVERY API domain
-- [ ] Checked file structure (index.ts, types.ts, server.ts, client.ts)
-- [ ] Checked index.ts patterns (names only, no functions)
-- [ ] Checked types.ts (no duplicates elsewhere)
-- [ ] Checked server.ts patterns (`export * from './index'`)
-- [ ] Checked client.ts patterns (imports from `./index`)
-- [ ] Verified registration in apis.ts
-
-### Phase 4: React Query Mutations Audit (CRITICAL - docs/react-query-mutations.md)
-- [ ] Found and classified EVERY mutation (edit/delete/create)
-- [ ] **Edit/Delete mutations**: Verified optimistic-only pattern
-  - [ ] Has `onMutate` with optimistic update
-  - [ ] Has `onError` with rollback
-  - [ ] `onSuccess` is empty
-  - [ ] `onSettled` is empty
-  - [ ] No `invalidateQueries` on same data
-  - [ ] No `setQueryData` with server response in `onSuccess`
-- [ ] **Create mutations**: Verified correct pattern
-  - [ ] Client-generated ID (optimistic) OR server ID (show loading)
-  - [ ] NO temp ID replacement patterns (`temp-${Date.now()}`)
-  - [ ] If server ID: guards against empty `{}` in `onSuccess`
-- [ ] Server handlers use ID utilities (`toDocumentId`, `toQueryId`, `toStringId`)
-- [ ] UX: Dialogs close immediately for optimistic ops (no loading spinners)
-
-### Phase 5: Zustand Stores Audit (CRITICAL - docs/zustand-stores.md)
-- [ ] All stores use `createStore` from `@/client/stores`
-- [ ] NO direct zustand imports anywhere in `src/client`
-- [ ] **Persisted stores** have:
-  - [ ] `key` property
-  - [ ] `label` property
-  - [ ] `creator` function
-  - [ ] `persistOptions` object
-- [ ] **In-memory stores** have:
-  - [ ] `key` property
-  - [ ] `label` property
-  - [ ] `inMemoryOnly: true`
-- [ ] Stores with TTL use `createTTLValidator` + `onRehydrateStorage`
-- [ ] `_app.tsx` uses `BootGate` or `useAllPersistedStoresHydrated`
-
-### Phase 6: State Management Patterns (CRITICAL - docs/state-management.md)
-- [ ] React Query used for ALL API data
-- [ ] Zustand used for ALL persistent client state
-- [ ] useState used ONLY for ephemeral UI state
-- [ ] Query hooks use `useQueryDefaults()` (no hardcoded cache times)
-- [ ] No hardcoded `staleTime`/`gcTime` values
-- [ ] **Loading state pattern**: `if (isLoading || data === undefined)` BEFORE empty check
-- [ ] No components show empty state during loading
-
-### Phase 7: Offline PWA Support (CRITICAL - docs/offline-pwa-support.md)
-- [ ] Auth preflight handles offline (`skippedOffline` flag)
-- [ ] Hints NOT cleared when offline
-- [ ] POST queue returns `{}` (not error) when offline
-- [ ] All `onSuccess` handlers guard against empty data
-- [ ] Offline banner exists in TopNavBar
-- [ ] Batch sync alert feature exists and initialized
-- [ ] Service worker has `reloadOnOnline: false`
-- [ ] React Query uses localStorage (not IndexedDB)
-
-### Phase 8: Feature Audit
-- [ ] Audited EVERY feature folder
-- [ ] Each feature has `index.ts` with public exports
-- [ ] Features exported from `features/index.ts`
-- [ ] Components import from `@/client/features/{name}` (not internal files)
-
-### Phase 9: Route Audit
+- [ ] Audited EVERY feature
 - [ ] Audited EVERY route
-- [ ] Routes registered in `routes/index.ts`
-- [ ] Loading state pattern correct (Loading → Error → Empty → Data)
-- [ ] Components under 200 lines (split if larger)
-- [ ] Uses React Query hooks (not direct API calls)
+- [ ] Audited EVERY mutation (most critical)
+- [ ] Audited EVERY store
+- [ ] Checked theming compliance
+- [ ] Checked TypeScript quality
+- [ ] Checked MongoDB patterns
+- [ ] Checked component organization
 
-### Phase 10: Theming Audit
-- [ ] No hardcoded colors (`bg-white`, `bg-gray-*`, etc.)
-- [ ] All colors use semantic tokens (`bg-background`, `text-foreground`, etc.)
-- [ ] Tested in light AND dark mode
+### Phase 4: Cross-Cutting Concerns
+- [ ] Verified import patterns
+- [ ] Verified server/client separation
+- [ ] Verified offline handling
 
-### Phase 11: TypeScript Audit
-- [ ] No `: any` types
-- [ ] No `as any` casts
-- [ ] `yarn tsc --noEmit` passes
+### Phase 5: Documentation Sync
+- [ ] Compared docs to implementation
+- [ ] Identified gaps and contradictions
 
-### Phase 12: MongoDB Audit
-- [ ] All collections in `server/database/collections/`
-- [ ] Uses ID utilities (not direct ObjectId methods)
-- [ ] No `mongodb` imports in `src/apis/`
+### Phase 6: Report Generation
+- [ ] Created `audits/` folder (if it doesn't exist)
+- [ ] Saved report to `audits/audit-YYYY-MM-DD.md`
+- [ ] Compiled all violations with file paths and line numbers
+- [ ] Categorized by severity (Critical/High/Medium/Low)
+- [ ] Created fix implementation plan with specific tasks
+- [ ] **Included checkboxes `[ ]` for each task** (progress tracker)
+- [ ] Included actual code snippets (current vs. required)
+- [ ] Calculated compliance scores
+- [ ] Added Progress Overview table at top
+- [ ] Added Implementation Log section
+- [ ] Added Final Verification Checklist
 
-### Phase 13: React Components Audit (CRITICAL)
-- [ ] **Component Organization**
-  - [ ] Components under 150 lines (200 max)
-  - [ ] Single responsibility per component
-  - [ ] Logic extracted to hooks, not in components
-- [ ] **File Structure**
-  - [ ] Route-specific code in `routes/[ROUTE_NAME]/`
-  - [ ] Feature code in `features/[FEATURE_NAME]/`
-  - [ ] Only shared primitives in `components/ui/`
-- [ ] **Data Fetching (CRITICAL)**
-  - [ ] Uses `useQuery` for data fetching (not useState + useEffect)
-  - [ ] Uses `useMutation` for mutations
-  - [ ] Uses `useQueryDefaults()` for query config
-  - [ ] Query keys exported as constants
-- [ ] **Loading State Pattern (CRITICAL UX)**
-  - [ ] Checks `isLoading` FIRST
-  - [ ] Checks `error` SECOND
-  - [ ] Checks `!data` THIRD
-  - [ ] Checks `items.length === 0` LAST (after data exists)
-  - [ ] No empty state shown during loading
-  - [ ] Uses skeleton loaders (not spinners)
-- [ ] **Background Refresh**
-  - [ ] Uses `isFetching` for refresh indicator
-  - [ ] Shows cached data immediately
-  - [ ] Subtle refresh indicator (not blocking)
-- [ ] **Mobile-First**
-  - [ ] Uses responsive Tailwind classes
-  - [ ] Touch-friendly tap targets
-  - [ ] No fixed pixel widths breaking mobile
-
-### Phase 14: shadcn/ui Audit
-- [ ] No other UI library imports (MUI, Ant Design, Chakra)
-- [ ] All UI from `@/client/components/ui/*`
-- [ ] Icons from `lucide-react` only
-
-### Phase 15: Cross-Cutting Concerns
-- [ ] Import patterns correct (features, stores, UI)
-- [ ] Server/client separation maintained
-- [ ] No circular dependencies
-
-### Phase 16: Documentation Sync
-- [ ] Docs match implementation
-- [ ] No contradictions found OR documented
-- [ ] No gaps found OR documented
-
-### Phase 17: Summary & Approval
-- [ ] Created comprehensive summary table
-- [ ] Proposed all fixes with code examples
-- [ ] Got **explicit user approval**
-- [ ] Did NOT proceed without approval
-
-### Phase 18: Implementation
-- [ ] Made all approved changes
-- [ ] `yarn checks` passes with 0 errors
-- [ ] Listed specific flows for user to test
-- [ ] User confirmed all flows work
+### Final Verification
+- [ ] All TODOs marked as completed
+- [ ] Report saved to `audits/audit-YYYY-MM-DD.md`
+- [ ] Report includes all sections from template
+- [ ] Each violation has a corresponding fix task with checkbox
+- [ ] Fix tasks are specific and actionable
+- [ ] Progress tracker is ready to use
+- [ ] ⛔ **NO CODE CHANGES WERE MADE**
 
 ---
 
@@ -2027,19 +2168,31 @@ Complete ALL items before finishing the audit:
 
 ## Notes
 
+### This is a REPORT-ONLY Audit
+
+- **DO NOT** make any code changes during this audit
+- **DO NOT** fix any issues you find
+- **DO** save the report to `audits/audit-YYYY-MM-DD.md`
+- **DO** document every violation with specific details
+- **DO** create a comprehensive fix plan with actionable tasks
+- **DO** include checkboxes `[ ]` for each task (for progress tracking)
+- **DO** include actual code snippets showing current vs. required code
+
+### Using the Progress Tracker
+
+The saved audit file serves as both a report AND a progress tracker:
+1. Each fix task has a checkbox `[ ]`
+2. When implementing fixes later, change `[ ]` to `[x]` as tasks are completed
+3. Update the Progress Overview table at the top
+4. Add entries to the Implementation Log
+5. Complete the Final Verification Checklist when done
+
 ### TODO Tracking (Essential)
 - **Create TODO list FIRST** using `todo_write` before any audit work
 - **Expand TODOs after discovery** with specific items for each API, feature, route, mutation
 - **Update TODOs throughout** - mark items as `completed` as you finish them
 - **Verify all TODOs complete** before finishing the audit
 - **The audit is incomplete** if any TODOs remain `pending`
-
-### General Guidelines
-- This audit is comprehensive and may take significant time
-- Always collect all findings before proposing fixes
-- Get explicit approval before making any changes
-- Run `yarn checks` after every change
-- Document any new patterns discovered for future reference
 
 ### If Interrupted
 - The TODO list allows you to resume the audit
