@@ -575,6 +575,28 @@ class TemplateSyncTool {
     return templateHash !== storedHash;
   }
 
+  /**
+   * Check if a file existed in the template at the last sync commit.
+   * Used to determine if a file is truly NEW in the template.
+   */
+  private fileExistedInTemplateAtLastSync(filePath: string): boolean {
+    if (!this.config.lastSyncCommit) {
+      return false; // First sync - all files are "new" to us
+    }
+
+    const templatePath = path.join(this.projectRoot, TEMPLATE_DIR);
+    try {
+      // Check if the file existed at the lastSyncCommit
+      this.exec(
+        `git cat-file -e ${this.config.lastSyncCommit}:${filePath}`,
+        { cwd: templatePath, silent: true }
+      );
+      return true; // File existed at last sync
+    } catch {
+      return false; // File didn't exist at last sync (it's new)
+    }
+  }
+
   private analyzeChanges(changes: FileChange[]): AnalysisResult {
     const result: AnalysisResult = {
       safeChanges: [],
@@ -600,11 +622,23 @@ class TemplateSyncTool {
         const status = this.getChangeStatus(change.path);
 
         if (!status.hasBaseline) {
-          // No baseline hash - first sync or file was never synced
-          // Files differ but we don't know who changed what
-          // Treat as conflict to be safe (user should decide)
-          this.logVerbose(`No baseline hash for ${change.path} - treating as conflict`);
-          result.conflictChanges.push(change);
+          // No baseline hash - check if this is a NEW file in the template
+          const isNewInTemplate = !this.fileExistedInTemplateAtLastSync(change.path);
+          
+          if (isNewInTemplate) {
+            // File is NEW in template (didn't exist at last sync)
+            // Even though project has a different version, treat as safe change
+            // Template's new file takes precedence
+            this.logVerbose(`${change.path} is NEW in template (no baseline) - treating as safe change`);
+            result.newChanges.add(change.path);
+            result.safeChanges.push(change);
+          } else {
+            // File existed in template at last sync but has no baseline hash
+            // This means it was synced before the hash system was introduced
+            // Files differ but we don't know who changed what - treat as conflict
+            this.logVerbose(`No baseline hash for ${change.path} (existed at last sync) - treating as conflict`);
+            result.conflictChanges.push(change);
+          }
         } else if (status.templateChanged && status.projectChanged) {
           // Both changed - conflict
           result.newChanges.add(change.path);  // Mark as new since template changed
