@@ -303,17 +303,45 @@ export const BOOT_PHASES = {
 } as const;
 
 /**
- * Get aggregated resource loading stats
+ * Log bundle loaded event (called automatically when this module loads)
+ * This is lightweight - no performance calculations here.
  */
-function getResourceStats(): { 
+function logBundleLoaded(): void {
+    logger.info('boot', `● ${BOOT_PHASES.BUNDLE_LOADED}`);
+}
+
+// Log bundle loaded immediately when this module first executes
+// This is the earliest point we can log - when JS first runs
+logBundleLoaded();
+
+// ============================================================================
+// ON-DEMAND PERFORMANCE DETAILS (only calculated when reporting performance issues)
+// ============================================================================
+
+interface ResourceStats {
     jsCount: number; 
     cssCount: number; 
     jsKB: number; 
-    cssKB: number; 
-    cachedCount: number; 
-    totalCount: number;
-    loadTimeMs: string; // "startMs→endMs (durationMs)"
-} | null {
+    cssKB: number;
+    jsCached: number;
+    cssCached: number;
+    jsLoadTime: string;
+    cssLoadTime: string;
+}
+
+interface NavigationStats {
+    dnsMs: number;
+    tcpMs: number;
+    ttfbMs: number;
+    downloadMs: number;
+    domReadyMs: number;
+    bundleStartMs: number;
+}
+
+/**
+ * Get aggregated resource loading stats (called on-demand)
+ */
+function getResourceStats(): ResourceStats | null {
     if (typeof window === 'undefined' || !window.performance) {
         return null;
     }
@@ -326,35 +354,43 @@ function getResourceStats(): {
     
     const jsKB = Math.round(jsResources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
     const cssKB = Math.round(cssResources.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024);
-    const cachedCount = entries.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
+    const jsCached = jsResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
+    const cssCached = cssResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0).length;
     
-    // Calculate timing: first start to last end
-    const firstStart = Math.round(Math.min(...entries.map(e => e.startTime)));
-    const lastEnd = Math.round(Math.max(...entries.map(e => e.responseEnd)));
-    const duration = lastEnd - firstStart;
+    // JS timing
+    const jsLoadTime = jsResources.length > 0
+        ? (() => {
+            const jsFirst = Math.round(Math.min(...jsResources.map(e => e.startTime)));
+            const jsLast = Math.round(Math.max(...jsResources.map(e => e.responseEnd)));
+            return `${jsFirst}→${jsLast}ms`;
+        })()
+        : 'N/A';
+    
+    // CSS timing
+    const cssLoadTime = cssResources.length > 0
+        ? (() => {
+            const cssFirst = Math.round(Math.min(...cssResources.map(e => e.startTime)));
+            const cssLast = Math.round(Math.max(...cssResources.map(e => e.responseEnd)));
+            return `${cssFirst}→${cssLast}ms`;
+        })()
+        : 'N/A';
     
     return {
         jsCount: jsResources.length,
         cssCount: cssResources.length,
         jsKB,
         cssKB,
-        cachedCount,
-        totalCount: entries.length,
-        loadTimeMs: `${firstStart}→${lastEnd}ms (${duration}ms)`,
+        jsCached,
+        cssCached,
+        jsLoadTime,
+        cssLoadTime,
     };
 }
 
 /**
- * Get navigation timing metrics for the page load
+ * Get navigation timing metrics (called on-demand)
  */
-function getNavigationStats(): {
-    dnsMs: number;
-    tcpMs: number;
-    ttfbMs: number;
-    downloadMs: number;
-    domReadyMs: number;
-    bundleStartMs: number;
-} | null {
+function getNavigationStats(): NavigationStats | null {
     if (typeof window === 'undefined' || !window.performance) {
         return null;
     }
@@ -367,7 +403,7 @@ function getNavigationStats(): {
     return {
         dnsMs: Math.round(nav.domainLookupEnd - nav.domainLookupStart),
         tcpMs: Math.round(nav.connectEnd - nav.connectStart),
-        ttfbMs: Math.round(nav.responseStart - nav.requestStart), // Time to First Byte
+        ttfbMs: Math.round(nav.responseStart - nav.requestStart),
         downloadMs: Math.round(nav.responseEnd - nav.responseStart),
         domReadyMs: Math.round(nav.domInteractive),
         bundleStartMs: Math.round(bundleLoadedAt),
@@ -375,53 +411,32 @@ function getNavigationStats(): {
 }
 
 /**
- * Log bundle loaded event with resource stats (called automatically when this module loads)
+ * Capture detailed performance information and add to session logs.
+ * Call this when submitting a performance bug report.
+ * This runs expensive calculations only when actually needed.
  */
-function logBundleLoaded(): void {
-    const stats = getResourceStats();
-    
-    logger.info('boot', `● ${BOOT_PHASES.BUNDLE_LOADED}`, {
-        meta: {
-            event: BOOT_PHASES.BUNDLE_LOADED,
-            ...(stats && {
-                jsFiles: stats.jsCount,
-                cssFiles: stats.cssCount,
-                jsKB: stats.jsKB,
-                cssKB: stats.cssKB,
-                cached: stats.cachedCount,
-                total: stats.totalCount,
-                loadTime: stats.loadTimeMs,
-            }),
-        }
-    });
-}
-
-/**
- * Log navigation timing as a single session log entry (called automatically after bundle loads)
- */
-function logNavigationTimingToSession(): void {
+export function capturePerformanceDetails(): void {
+    // Navigation timing: DNS 0ms → TCP 0ms → TTFB 56ms → Download 1ms → DOM 83ms → JS 186ms
     const navStats = getNavigationStats();
-    if (!navStats) return;
+    if (navStats) {
+        const timeline = [
+            `DNS ${navStats.dnsMs}ms`,
+            `TCP ${navStats.tcpMs}ms`,
+            `TTFB ${navStats.ttfbMs}ms`,
+            `Download ${navStats.downloadMs}ms`,
+            `DOM ${navStats.domReadyMs}ms`,
+            `JS ${navStats.bundleStartMs}ms`,
+        ].join(' → ');
+        logger.info('boot', `🌐 Page Load: ${timeline}`);
+    }
     
-    // Single log with key metrics: DNS, TCP, TTFB, Download, DOM Ready, Bundle Start
-    logger.info('boot', '🌐 Page Load Timing', {
-        meta: {
-            dns: `${navStats.dnsMs}ms`,
-            tcp: `${navStats.tcpMs}ms`,
-            ttfb: `${navStats.ttfbMs}ms`,
-            download: `${navStats.downloadMs}ms`,
-            domReady: `${navStats.domReadyMs}ms`,
-            jsStart: `${navStats.bundleStartMs}ms`,
-        }
-    });
-}
-
-// Log bundle loaded immediately when this module first executes
-// This is the earliest point we can log - when JS first runs
-logBundleLoaded();
-
-// Log navigation timing shortly after (navigation timing may not be fully available at bundle load)
-// Use setTimeout to ensure navigation timing entries are populated
-if (typeof window !== 'undefined') {
-    setTimeout(logNavigationTimingToSession, 0);
+    // Resource stats: JS and CSS details
+    const resourceStats = getResourceStats();
+    if (resourceStats) {
+        const jsCacheInfo = resourceStats.jsCached > 0 ? ` (${resourceStats.jsCached} cached)` : '';
+        logger.info('boot', `📦 JS: ${resourceStats.jsCount} files, ${resourceStats.jsKB}KB${jsCacheInfo}, ${resourceStats.jsLoadTime}`);
+        
+        const cssCacheInfo = resourceStats.cssCached > 0 ? ` (${resourceStats.cssCached} cached)` : '';
+        logger.info('boot', `📦 CSS: ${resourceStats.cssCount} files, ${resourceStats.cssKB}KB${cssCacheInfo}, ${resourceStats.cssLoadTime}`);
+    }
 }

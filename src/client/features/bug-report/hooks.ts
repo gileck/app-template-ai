@@ -7,6 +7,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { createReport } from '@/apis/reports/client';
 import { getSessionLogs } from '../session-logs';
+import { capturePerformanceDetails } from '../boot-performance';
 import { useUser } from '../auth';
 import { useRouter } from '@/client/router';
 import type { BrowserInfo, UserInfo, BugCategory, PerformanceEntryData } from './types';
@@ -85,6 +86,12 @@ export function useSubmitBugReport() {
 
     return useMutation({
         mutationFn: async ({ description, screenshot, category = 'bug' }: SubmitBugReportParams) => {
+            // For performance reports, capture detailed timing info (adds to session logs)
+            // This runs expensive calculations only when user actually reports a performance issue
+            if (category === 'performance') {
+                capturePerformanceDetails();
+            }
+            
             const sessionLogs = getSessionLogs();
             const browserInfo = getBrowserInfo();
             const networkStatus = getNetworkStatus();
