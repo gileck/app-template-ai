@@ -106,20 +106,13 @@ Configure network access to allow reaching `https://registry.npmjs.org/` for spe
 
 **Why it didn't work:** Network/firewall restrictions prevent access to the public npm registry.
 
-### Option C: Upgrade to TypeScript 5.x with Bundler Resolution
-Upgrade TypeScript to 5.x and use `moduleResolution: "bundler"`, which properly supports modern ES module exports.
-
-**Why it didn't work:**
-1. Requires `yarn install` which takes ~10 minutes
-2. The broken `@typescript-eslint` packages would still cause the `tsutils` error regardless of TypeScript version
-
-## Workaround (Currently Implemented)
+## Current Workaround
 
 The workaround disables ESLint for TypeScript files entirely and relies on the TypeScript compiler for type checking.
 
-### Changes Made
+### ESLint Configuration
 
-#### 1. `eslint.config.mjs`
+In `eslint.config.mjs`, TypeScript files are ignored:
 ```javascript
 const eslintConfig = [
   // Ignore ALL TypeScript files to avoid the broken parser
@@ -132,18 +125,16 @@ const eslintConfig = [
 ];
 ```
 
-#### 2. `scripts/investigate-bugs.ts`
-Changed SDK imports to use `require()` instead of ES module imports for TypeScript 4.9.5 compatibility:
-```typescript
-// Dynamic import workaround for TypeScript 4.9.5 compatibility
-const claudeAgentSdk = require('@anthropic-ai/claude-agent-sdk') as {
-  query: (params: { prompt: string; options?: Record<string, unknown> }) => AsyncGenerator<SDKMessage, void>;
-};
+### TypeScript Configuration
 
-// Manually defined type interfaces
-interface SDKAssistantMessage { ... }
-interface SDKResultMessage { ... }
-interface SDKToolProgressMessage { ... }
+TypeScript 5.x is used with modern settings in `tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    // ... other options
+  }
+}
 ```
 
 ### Trade-offs
@@ -167,6 +158,51 @@ yarn lint
 yarn checks
 ```
 
+## Yarn Lock Management
+
+### The Problem
+
+When running `yarn install` locally with the wixpress registry, `yarn.lock` gets populated with wixpress URLs:
+```
+"@typescript-eslint/parser@npm:^8.0.0":
+  version: 8.52.0
+  resolution: "@typescript-eslint/parser@npm:8.52.0"
+  ...
+```
+
+If this `yarn.lock` is committed and pushed, **Vercel builds will fail** because Vercel uses the public npm registry and can't find these wixpress-specific versions.
+
+### The Solution
+
+**Before every commit**, checkout `yarn.lock` to keep the clean version with npmjs.org URLs:
+
+```bash
+git checkout yarn.lock
+git add <other-files>
+git commit -m "your message"
+git push
+```
+
+This ensures:
+- **Locally:** Your `yarn.lock` has wixpress URLs (works with your registry)
+- **Git/Vercel:** The committed `yarn.lock` has npmjs.org URLs (works on Vercel)
+
+### Why Not .gitignore?
+
+Adding `yarn.lock` to `.gitignore` was considered but rejected because:
+- Less reproducible builds
+- Different developers might get different package versions
+- Not a best practice for production projects
+
+## Environment Differences
+
+| Environment | Registry | TypeScript | ESLint | Works? |
+|-------------|----------|------------|--------|--------|
+| Local (wixpress) | npm.dev.wixpress.com | 5.x | Skips TS files | Yes |
+| Vercel | registry.npmjs.org | 5.x | Could lint TS files* | Yes |
+
+*Vercel gets correct `@typescript-eslint` packages from public npm, so ESLint could theoretically lint TypeScript files there. However, we keep the workaround consistent across environments.
+
 ## Future Resolution
 
 When one of the following becomes available, the workaround can be removed:
@@ -175,16 +211,15 @@ When one of the following becomes available, the workaround can be removed:
 2. **Network access** to public npm registry is granted
 3. **Alternative registry** with correct packages becomes available
 
-To revert the workaround:
+### To Revert the Workaround
 
 1. Remove the `ignores: ["**/*.ts", "**/*.tsx"]` block from `eslint.config.mjs`
 2. Add back `"next/typescript"` to the extends array
 3. Change `no-unused-vars` back to `@typescript-eslint/no-unused-vars`
-4. Update `scripts/investigate-bugs.ts` to use proper ES module imports
 
 ## Related Files
 
-- `eslint.config.mjs` - ESLint configuration with workaround
-- `package.json` - Contains resolutions (ineffective but left for documentation)
-- `tsconfig.json` - TypeScript configuration (uses `moduleResolution: "node"` for 4.9.5 compatibility)
-- `scripts/investigate-bugs.ts` - Uses require() workaround for SDK imports
+- `eslint.config.mjs` - ESLint configuration with TypeScript files ignored
+- `package.json` - TypeScript ^5.0.0, contains resolutions (ineffective but left for documentation)
+- `tsconfig.json` - TypeScript configuration with `moduleResolution: "bundler"`
+- `yarn.lock` - Must be checked out before commits to avoid wixpress URLs
