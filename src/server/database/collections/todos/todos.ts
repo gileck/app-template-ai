@@ -42,8 +42,9 @@ export const findTodoById = async (
     const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return collection.findOne({ _id: todoIdQuery as any, userId: userIdObj });
+    // TypeScript doesn't know that toQueryId() returns ObjectId | string compatible with MongoDB's _id
+    // This assertion is safe because MongoDB accepts both ObjectId and string for _id queries
+    return collection.findOne({ _id: todoIdQuery, userId: userIdObj } as Parameters<typeof collection.findOne>[0]);
 };
 
 /**
@@ -79,8 +80,8 @@ interface TodoItemWithFlexId extends Omit<TodoItem, '_id'> {
 export const createTodoWithId = async (todo: TodoItemWithFlexId): Promise<TodoItem> => {
     const collection = await getTodosCollection();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await collection.insertOne(todo as any);
+    // MongoDB's insertOne accepts documents with flexible _id types (string or ObjectId)
+    const result = await collection.insertOne(todo as TodoItem);
 
     if (!result.insertedId) {
         throw new Error('Failed to create todo item');
@@ -107,9 +108,10 @@ export const updateTodo = async (
     const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
+    // TypeScript doesn't know that toQueryId() returns ObjectId | string compatible with MongoDB's _id
+    // This assertion is safe because MongoDB accepts both ObjectId and string for _id queries
     const result = await collection.findOneAndUpdate(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { _id: todoIdQuery as any, userId: userIdObj },
+        { _id: todoIdQuery, userId: userIdObj } as Parameters<typeof collection.findOneAndUpdate>[0],
         { $set: update },
         { returnDocument: 'after' }
     );
@@ -132,7 +134,8 @@ export const deleteTodo = async (
     const todoIdQuery = typeof todoId === 'string' ? toQueryId(todoId) : todoId;
     const userIdObj = typeof userId === 'string' ? new ObjectId(userId) : userId;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await collection.deleteOne({ _id: todoIdQuery as any, userId: userIdObj });
+    // TypeScript doesn't know that toQueryId() returns ObjectId | string compatible with MongoDB's _id
+    // This assertion is safe because MongoDB accepts both ObjectId and string for _id queries
+    const result = await collection.deleteOne({ _id: todoIdQuery, userId: userIdObj } as Parameters<typeof collection.deleteOne>[0]);
     return result.deletedCount === 1;
 }; 

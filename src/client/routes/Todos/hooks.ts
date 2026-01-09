@@ -71,6 +71,14 @@ export function useTodo(todoId: string, options?: { enabled?: boolean }) {
 
 /**
  * Hook to invalidate todos queries
+ *
+ * ⚠️ USE CASE: This is for NON-OPTIMISTIC operations only:
+ * - External updates (websocket events, polling)
+ * - Bulk operations where optimistic update is impractical
+ * - Manual refresh triggers
+ *
+ * ❌ DO NOT use in mutation `onSettled` handlers for optimistic updates
+ * (see docs/react-query-mutations.md for optimistic-only pattern)
  */
 export function useInvalidateTodos() {
     const queryClient = useQueryClient();
