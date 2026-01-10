@@ -55,13 +55,37 @@ jobs:
             -d "text=${MESSAGE}"
 
       - name: Wait for Vercel deployment
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
         id: deployment
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          max_timeout: 600
-          check_interval: 30
-          environment: ${{ steps.deploy-type.outputs.env }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ENV: ${{ steps.deploy-type.outputs.env }}
+        run: |
+          echo "Waiting for Vercel $DEPLOY_ENV deployment..."
+          for i in {1..40}; do
+            DEPLOY_URL=$(gh api repos/${{ github.repository }}/deployments \
+              --jq ".[] | select(.sha==\"${{ github.sha }}\" and .environment==\"$DEPLOY_ENV\") | .id" \
+              | head -1)
+
+            if [ -n "$DEPLOY_URL" ]; then
+              STATUS=$(gh api repos/${{ github.repository }}/deployments/${DEPLOY_URL}/statuses --jq '.[0].state // "pending"')
+              URL=$(gh api repos/${{ github.repository }}/deployments/${DEPLOY_URL}/statuses --jq '.[0].environment_url // ""')
+              echo "Deployment status: $STATUS"
+
+              if [ "$STATUS" = "success" ]; then
+                echo "url=$URL" >> $GITHUB_OUTPUT
+                echo "Deployment successful: $URL"
+                exit 0
+              elif [ "$STATUS" = "failure" ] || [ "$STATUS" = "error" ]; then
+                echo "Deployment failed"
+                exit 1
+              fi
+            fi
+
+            echo "Waiting... (attempt $i/40)"
+            sleep 15
+          done
+          echo "Timeout waiting for deployment"
+          exit 1
 
       - name: Send deployment success notification
         if: success()
