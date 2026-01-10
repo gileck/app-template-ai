@@ -254,6 +254,28 @@ logger.info('feature', 'Message', { meta: { ... } });
 
 ---
 
+## Telegram Notifications
+
+Server-side notification system via Telegram bot.
+
+**Summary:** Users configure their Telegram chat ID in their Profile. Server-side code can send notifications to specific users.
+
+**Key Points:**
+- Requires `TELEGRAM_BOT_TOKEN` in `.env`
+- Each user sets their own chat ID in Profile
+- Run `yarn telegram-setup` to get your chat ID
+- Notifications fail silently (don't break app flow)
+
+```typescript
+import { sendTelegramNotificationToUser } from '@/server/telegram';
+
+await sendTelegramNotificationToUser(userId, 'Your message');
+```
+
+**Docs:** [docs/telegram-notifications.md](docs/telegram-notifications.md)
+
+---
+
 ## TypeScript
 
 Strict TypeScript guidelines.

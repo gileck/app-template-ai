@@ -2,6 +2,7 @@ import { API_UPDATE_TODO } from '../index';
 import { ApiHandlerContext, UpdateTodoRequest, UpdateTodoResponse } from '../types';
 import { todos } from '@/server/database';
 import { toStringId } from '@/server/utils';
+import { sendTelegramNotificationToUser } from '@/server/telegram';
 
 export const updateTodo = async (
     request: UpdateTodoRequest,
@@ -44,6 +45,11 @@ export const updateTodo = async (
 
         if (!updatedTodo) {
             return { error: "Todo not found" };
+        }
+
+        // Send Telegram notification when todo is marked as done
+        if (request.completed === true) {
+            await sendTelegramNotificationToUser(context.userId, `Todo completed: ${updatedTodo.title}`);
         }
 
         // Convert to client format
