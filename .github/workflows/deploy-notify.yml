@@ -32,21 +32,25 @@ jobs:
             echo "env=Production" >> $GITHUB_OUTPUT
             echo "emoji=🚀" >> $GITHUB_OUTPUT
             echo "type=Production" >> $GITHUB_OUTPUT
+            echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
           else
             echo "env=Preview" >> $GITHUB_OUTPUT
             echo "emoji=👀" >> $GITHUB_OUTPUT
             echo "type=Preview (PR #${{ github.event.pull_request.number }})" >> $GITHUB_OUTPUT
+            # For PRs, Vercel uses the head commit SHA, not the merge commit
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Send deployment started notification
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+          COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
           MESSAGE="${{ steps.deploy-type.outputs.emoji }} *${{ steps.deploy-type.outputs.type }} Deployment Started*
 
           📦 Repository: ${{ github.repository }}
-          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -59,11 +63,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_ENV: ${{ steps.deploy-type.outputs.env }}
+          COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
-          echo "Waiting for Vercel $DEPLOY_ENV deployment..."
+          echo "Waiting for Vercel $DEPLOY_ENV deployment (SHA: ${COMMIT_SHA::7})..."
           for i in {1..40}; do
             DEPLOY_URL=$(gh api repos/${{ github.repository }}/deployments \
-              --jq ".[] | select(.sha==\"${{ github.sha }}\" and .environment==\"$DEPLOY_ENV\") | .id" \
+              --jq ".[] | select(.sha==\"${COMMIT_SHA}\" and .environment==\"$DEPLOY_ENV\") | .id" \
               | head -1)
 
             if [ -n "$DEPLOY_URL" ]; then
@@ -92,6 +97,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+          COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
           if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
             TITLE="✅ *Production Deployment Complete - Live*"
@@ -102,7 +108,7 @@ jobs:
           MESSAGE="${TITLE}
 
           📦 Repository: ${{ github.repository }}
-          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
           KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"}]]}'
@@ -118,11 +124,12 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+          COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
           MESSAGE="❌ *${{ steps.deploy-type.outputs.type }} Deployment Failed*
 
           📦 Repository: ${{ github.repository }}
-          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}
           🔍 [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
