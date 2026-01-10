@@ -1,0 +1,106 @@
+# Vercel Deployment Notifications via Telegram
+#
+# Sends Telegram notifications when Vercel deployments succeed or fail.
+# Supports both Production (push to main) and Preview (pull requests).
+#
+# Required GitHub Secrets:
+#   - TELEGRAM_BOT_TOKEN: Your Telegram bot token
+#   - OWNER_TELEGRAM_CHAT_ID: Chat ID to receive notifications
+#
+# Setup:
+#   1. Run `yarn telegram-setup` to get your chat ID
+#   2. Add secrets in GitHub: Settings → Secrets and variables → Actions
+
+name: Deployment Notification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      IS_PRODUCTION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Set deployment type
+        id: deploy-type
+        run: |
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            echo "env=Production" >> $GITHUB_OUTPUT
+            echo "emoji=🚀" >> $GITHUB_OUTPUT
+            echo "type=Production" >> $GITHUB_OUTPUT
+          else
+            echo "env=Preview" >> $GITHUB_OUTPUT
+            echo "emoji=👀" >> $GITHUB_OUTPUT
+            echo "type=Preview (PR #${{ github.event.pull_request.number }})" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send deployment started notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="${{ steps.deploy-type.outputs.emoji }} *${{ steps.deploy-type.outputs.type }} Deployment Started*
+
+          📦 Repository: ${{ github.repository }}
+          📝 Commit: \`${GITHUB_SHA::7}\`
+          👤 Author: ${{ github.actor }}"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "parse_mode=Markdown" \
+            -d "text=${MESSAGE}"
+
+      - name: Wait for Vercel deployment
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
+        id: deployment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+          check_interval: 30
+          environment: ${{ steps.deploy-type.outputs.env }}
+
+      - name: Send deployment success notification
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            TITLE="✅ *Production Deployment Complete - Live*"
+          else
+            TITLE="✅ *Preview Deployment Ready (PR #${{ github.event.pull_request.number }})*"
+          fi
+
+          MESSAGE="${TITLE}
+
+          📦 Repository: ${{ github.repository }}
+          🔗 URL: ${{ steps.deployment.outputs.url }}
+          📝 Commit: \`${GITHUB_SHA::7}\`
+          👤 Author: ${{ github.actor }}"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "parse_mode=Markdown" \
+            -d "text=${MESSAGE}"
+
+      - name: Send failure notification
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="❌ *${{ steps.deploy-type.outputs.type }} Deployment Failed*
+
+          📦 Repository: ${{ github.repository }}
+          📝 Commit: \`${GITHUB_SHA::7}\`
+          👤 Author: ${{ github.actor }}
+          🔍 Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "parse_mode=Markdown" \
+            -d "text=${MESSAGE}"
