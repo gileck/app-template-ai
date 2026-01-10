@@ -21,7 +21,9 @@
     "github-pr": "tsx scripts/github-pr.ts",
     "telegram-setup": "tsx scripts/telegram-setup.ts",
     "send-telegram": "tsx scripts/send-telegram.ts",
-    "setup-github-secrets": "tsx scripts/setup-github-secrets.ts"
+    "setup-github-secrets": "tsx scripts/setup-github-secrets.ts",
+    "sync-children": "tsx scripts/sync-child-projects.ts",
+    "push-sync": "./scripts/push-and-sync.sh"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",

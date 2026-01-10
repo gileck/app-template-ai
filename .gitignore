@@ -50,3 +50,6 @@ template-diff-summary.md
 
 # audit reports
 /audits/
+
+# child projects config (local only)
+child-projects.json
