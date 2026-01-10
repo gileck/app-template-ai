@@ -173,9 +173,9 @@ jobs:
             fi
 
             if [ -n "$LOG_URL" ]; then
-              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Vercel Logs","url":"'"${LOG_URL}"'"},{"text":"📋 GitHub Actions","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]]}'
+              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Logs","url":"'"${LOG_URL}"'"}]]}'
             else
-              KEYBOARD='{"inline_keyboard":[[{"text":"📋 GitHub Actions","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]]}'
+              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Logs","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]]}'
             fi
           else
             MESSAGE="❌ *Preview Deployment Failed (PR #${{ github.event.pull_request.number }})*
@@ -191,9 +191,9 @@ jobs:
             fi
 
             if [ -n "$LOG_URL" ]; then
-              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Vercel Logs","url":"'"${LOG_URL}"'"},{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
+              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Logs","url":"'"${LOG_URL}"'"},{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
             else
-              KEYBOARD='{"inline_keyboard":[[{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"},{"text":"📋 GitHub Actions","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]]}'
+              KEYBOARD='{"inline_keyboard":[[{"text":"🔍 View Logs","url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"},{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
             fi
           fi
 
