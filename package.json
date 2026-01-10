@@ -14,7 +14,7 @@
     "checks": "yarn ts; yarn lint",
     "watch-checks": "node scripts/watch-checks.js",
     "init-template": "tsx scripts/template-scripts/init-template.ts",
-    "sync-template": "tsx scripts/template-scripts/sync-template.ts",
+    "sync-template": "tsx scripts/template-scripts/sync-template/index.ts",
     "merge-template": "tsx scripts/template-scripts/merge-template-files.ts",
     "generate-icons": "tsx scripts/generate-icons.ts",
     "investigate-bugs": "tsx scripts/investigate-bugs.ts",
