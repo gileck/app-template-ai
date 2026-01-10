@@ -46,7 +46,7 @@ jobs:
           MESSAGE="${{ steps.deploy-type.outputs.emoji }} *${{ steps.deploy-type.outputs.type }} Deployment Started*
 
           📦 Repository: ${{ github.repository }}
-          📝 Commit: \`${GITHUB_SHA::7}\`
+          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
           👤 Author: ${{ github.actor }}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -79,7 +79,7 @@ jobs:
 
           📦 Repository: ${{ github.repository }}
           🔗 URL: ${{ steps.deployment.outputs.url }}
-          📝 Commit: \`${GITHUB_SHA::7}\`
+          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
           👤 Author: ${{ github.actor }}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -96,9 +96,9 @@ jobs:
           MESSAGE="❌ *${{ steps.deploy-type.outputs.type }} Deployment Failed*
 
           📦 Repository: ${{ github.repository }}
-          📝 Commit: \`${GITHUB_SHA::7}\`
+          📝 Commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
           👤 Author: ${{ github.actor }}
-          🔍 Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          🔍 [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${CHAT_ID}" \
