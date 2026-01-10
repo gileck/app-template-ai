@@ -32,6 +32,15 @@ import 'dotenv/config';
 import { Octokit } from '@octokit/rest';
 import { Command } from 'commander';
 
+// Configure proxy for cloud environments (must be done before any HTTP requests)
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
+if (proxyUrl) {
+    // Use undici's ProxyAgent which is built into Node.js 18+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ProxyAgent, setGlobalDispatcher } = require('undici');
+    setGlobalDispatcher(new ProxyAgent(proxyUrl));
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
