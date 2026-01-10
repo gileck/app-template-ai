@@ -42,7 +42,7 @@ interface Config {
     repo: string;
 }
 
-function getConfig(): Config {
+function getConfig(cliOwner?: string, cliRepo?: string): Config {
     const token = process.env.GITHUB_TOKEN;
     if (!token) {
         console.error('Error: GITHUB_TOKEN environment variable is required');
@@ -50,13 +50,21 @@ function getConfig(): Config {
         process.exit(1);
     }
 
-    // Try to get owner/repo from git remote
-    const { owner, repo } = getRepoFromGit();
+    // Use CLI options first, then try to get from git remote
+    const gitInfo = getRepoFromGit();
+    const owner = cliOwner || gitInfo?.owner;
+    const repo = cliRepo || gitInfo?.repo;
+
+    if (!owner || !repo) {
+        console.error('Error: Could not determine GitHub owner/repo from git remote');
+        console.error('Use --owner and --repo options to specify manually');
+        process.exit(1);
+    }
 
     return { token, owner, repo };
 }
 
-function getRepoFromGit(): { owner: string; repo: string } {
+function getRepoFromGit(): { owner: string; repo: string } | null {
     try {
         const { execSync } = require('child_process');
         const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf-8' }).trim();
@@ -64,10 +72,12 @@ function getRepoFromGit(): { owner: string; repo: string } {
         // Parse GitHub URL (supports both HTTPS and SSH)
         // https://github.com/owner/repo.git
         // git@github.com:owner/repo.git
+        // Also supports proxy format: http://proxy@host/git/owner/repo
         const httpsMatch = remoteUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
         const sshMatch = remoteUrl.match(/github\.com:([^/]+)\/([^/.]+)/);
+        const proxyMatch = remoteUrl.match(/\/git\/([^/]+)\/([^/.]+)/);
 
-        const match = httpsMatch || sshMatch;
+        const match = httpsMatch || sshMatch || proxyMatch;
         if (match) {
             return { owner: match[1], repo: match[2] };
         }
@@ -75,9 +85,7 @@ function getRepoFromGit(): { owner: string; repo: string } {
         // Ignore errors
     }
 
-    console.error('Error: Could not determine GitHub owner/repo from git remote');
-    console.error('Use --owner and --repo options to specify manually');
-    process.exit(1);
+    return null;
 }
 
 function createOctokit(token: string): Octokit {
@@ -366,9 +374,9 @@ program
     .option('--base <branch>', 'Branch to merge into (default: repo default branch)')
     .option('--draft', 'Create as draft PR', false)
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
 
         const head = options.head || getCurrentBranch();
@@ -389,9 +397,9 @@ program
     .requiredOption('--pr <number>', 'PR number')
     .requiredOption('--message <text>', 'Comment message')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
         await addComment(octokit, owner, repo, parseInt(options.pr), options.message);
     });
@@ -403,9 +411,9 @@ program
     .requiredOption('--pr <number>', 'PR number')
     .requiredOption('--text <title>', 'New title')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
         await updateTitle(octokit, owner, repo, parseInt(options.pr), options.text);
     });
@@ -417,9 +425,9 @@ program
     .requiredOption('--pr <number>', 'PR number')
     .requiredOption('--text <body>', 'New description')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
         await updateBody(octokit, owner, repo, parseInt(options.pr), options.text);
     });
@@ -432,9 +440,9 @@ program
     .option('--add <labels>', 'Labels to add (comma-separated)')
     .option('--remove <labels>', 'Labels to remove (comma-separated)')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
 
         if (options.add) {
@@ -461,9 +469,9 @@ program
     .option('--users <usernames>', 'User reviewers (comma-separated)')
     .option('--teams <teams>', 'Team reviewers (comma-separated)')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
 
         const users = options.users ? options.users.split(',').map((u: string) => u.trim()) : [];
@@ -486,9 +494,9 @@ program
     .option('--title <title>', 'Commit title (for squash/merge)')
     .option('--message <message>', 'Commit message (for squash/merge)')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
 
         const method = options.method as 'merge' | 'squash' | 'rebase';
@@ -506,9 +514,9 @@ program
     .description('Close a PR')
     .requiredOption('--pr <number>', 'PR number')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
         await closePR(octokit, owner, repo, parseInt(options.pr));
     });
@@ -519,9 +527,9 @@ program
     .description('Get PR information')
     .requiredOption('--pr <number>', 'PR number')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
         await getPRInfo(octokit, owner, repo, parseInt(options.pr));
     });
@@ -532,9 +540,9 @@ program
     .description('List pull requests')
     .option('--state <state>', 'PR state: open, closed, all', 'open')
     .action(async (options) => {
-        const config = getConfig();
-        const owner = program.opts().owner || config.owner;
-        const repo = program.opts().repo || config.repo;
+        const globalOpts = program.opts();
+        const config = getConfig(globalOpts.owner, globalOpts.repo);
+        const { owner, repo } = config;
         const octokit = createOctokit(config.token);
 
         const state = options.state as 'open' | 'closed' | 'all';
