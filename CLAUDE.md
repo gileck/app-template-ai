@@ -254,11 +254,13 @@ logger.info('feature', 'Message', { meta: { ... } });
 
 ---
 
-## Telegram Notifications
+## Telegram Notifications (App Runtime)
 
-Server-side notification system via Telegram bot.
+> **What this is:** Application feature that sends notifications to logged-in users when app events occur (e.g., todo completed). This is runtime application logic in the source code.
+>
+> **NOT to be confused with:** "Send Message to User" below, which is a development tool for Claude Code.
 
-**Summary:** Users configure their Telegram chat ID in their Profile. Server-side code can send notifications to specific users.
+**Summary:** Users configure their Telegram chat ID in their Profile. Server-side code can send notifications to specific users based on app events.
 
 **Key Points:**
 - Requires `TELEGRAM_BOT_TOKEN` in `.env`
@@ -273,6 +275,28 @@ await sendTelegramNotificationToUser(userId, 'Your message');
 ```
 
 **Docs:** [docs/telegram-notifications.md](docs/telegram-notifications.md)
+
+---
+
+## Send Message to User (Claude Code CLI/Cloud Only)
+
+> **What this is:** A development tool for Claude Code (CLI or Cloud) to send Telegram messages to the developer during coding sessions. Useful for long-running tasks, notifications when work is done, etc.
+>
+> **NOT to be confused with:** "Telegram Notifications" above, which is an app runtime feature for end users.
+
+**This is NOT application code** - it's a CLI script for the AI agent to communicate with the developer.
+
+**Setup:**
+1. `TELEGRAM_BOT_TOKEN` must be in `.env`
+2. Run `yarn telegram-setup` to get your chat ID
+3. Add `LOCAL_TELEGRAM_CHAT_ID=your_chat_id` to `.env`
+
+**Usage (from Claude Code CLI or Cloud):**
+```bash
+yarn send-telegram "Task completed successfully"
+yarn send-telegram "Build finished with 0 errors"
+yarn send-telegram "Need your input on something"
+```
 
 ---
 
