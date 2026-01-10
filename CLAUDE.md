@@ -466,12 +466,18 @@ Sync template changes to projects cloned from this template.
 }
 ```
 
+2. (Optional) Enable post-push hook:
+```bash
+yarn setup-hooks  # Enables 'git pushh' command
+```
+
 **Commands:**
 ```bash
 yarn sync-children            # Sync all child projects
 yarn sync-children --dry-run  # Preview without applying
 yarn push-sync                # Push + prompt to sync children
 yarn push-sync "message"      # Push with commit message + prompt
+git pushh                     # git push + prompt to sync (after setup-hooks)
 ```
 
 **Behavior:**
