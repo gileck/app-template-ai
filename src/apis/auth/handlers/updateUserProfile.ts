@@ -18,7 +18,7 @@ export const updateUserProfile = async (
         }
 
         // Validate update data
-        if (!request.username && !request.profilePicture && request.telegramChatId === undefined) {
+        if (!request.username && !request.email && !request.profilePicture && request.telegramChatId === undefined) {
             return { success: false, error: "No update data provided" };
         }
 
@@ -26,6 +26,7 @@ export const updateUserProfile = async (
         const updateData: {
             updatedAt: Date;
             username?: string;
+            email?: string;
             profilePicture?: string;
             telegramChatId?: string;
         } = {
@@ -34,6 +35,10 @@ export const updateUserProfile = async (
 
         if (request.username) {
             updateData.username = request.username;
+        }
+
+        if (request.email !== undefined) {
+            updateData.email = request.email;
         }
 
         if (request.profilePicture) {

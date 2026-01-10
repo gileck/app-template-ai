@@ -36,6 +36,7 @@ export type LogoutResponse = {
 
 export interface UpdateProfileRequest {
     username?: string;
+    email?: string;
     profilePicture?: string;
     telegramChatId?: string;
 }
