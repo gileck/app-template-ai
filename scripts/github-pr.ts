@@ -52,7 +52,8 @@ interface Config {
 }
 
 function getConfig(cliOwner?: string, cliRepo?: string): Config {
-    const token = process.env.GITHUB_TOKEN;
+    // Strip quotes if present (some environments add literal quotes)
+    const token = process.env.GITHUB_TOKEN?.replace(/^["']|["']$/g, '');
     if (!token) {
         console.error('Error: GITHUB_TOKEN environment variable is required');
         console.error('Set it with: export GITHUB_TOKEN=your_token');
