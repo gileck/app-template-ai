@@ -3501,9 +3501,9 @@
   dependencies:
     "@types/webidl-conversions" "*"
 
-"@typescript-eslint/eslint-plugin@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
+"@typescript-eslint/eslint-plugin@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0", "@typescript-eslint/eslint-plugin@^8.0.0":
   version "8.52.0"
-  resolved "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.52.0.tgz#9a9f1d2ee974ed77a8b1bda94e77123f697ee8b4"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.52.0.tgz#9a9f1d2ee974ed77a8b1bda94e77123f697ee8b4"
   integrity sha512-okqtOgqu2qmZJ5iN4TWlgfF171dZmx2FzdOv2K/ixL2LZWDStL8+JgQerI2sa8eAEfoydG9+0V96m7V+P8yE1Q==
   dependencies:
     "@eslint-community/regexpp" "^4.12.2"
@@ -3515,9 +3515,9 @@
     natural-compare "^1.4.0"
     ts-api-utils "^2.4.0"
 
-"@typescript-eslint/parser@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0":
+"@typescript-eslint/parser@^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0", "@typescript-eslint/parser@^8.0.0":
   version "8.52.0"
-  resolved "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.52.0.tgz#9fae9f5f13ebb1c8f31a50c34381bfd6bf96a05f"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/parser/-/parser-8.52.0.tgz#9fae9f5f13ebb1c8f31a50c34381bfd6bf96a05f"
   integrity sha512-iIACsx8pxRnguSYhHiMn2PvhvfpopO9FXHyn1mG5txZIsAaB6F0KwbFnUQN3KCiG3Jcuad/Cao2FAs1Wp7vAyg==
   dependencies:
     "@typescript-eslint/scope-manager" "8.52.0"
@@ -3525,15 +3525,6 @@
     "@typescript-eslint/typescript-estree" "8.52.0"
     "@typescript-eslint/visitor-keys" "8.52.0"
     debug "^4.4.3"
-
-"@typescript-eslint/project-service@8.50.2-alpha.7":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.50.2-alpha.7.tgz#784404898ef3d55996b5284816f7ea19d3738e61"
-  integrity sha512-73dAjDTVqXsx2PmC7uCt7gBG4YwGglcUPbBIcaD7MpL0Wpq5yFd8MSTCQF/eZeQ71Cl3XfjdqhoBhQNTdNb/BA==
-  dependencies:
-    "@typescript-eslint/tsconfig-utils" "^8.50.2-alpha.7"
-    "@typescript-eslint/types" "^8.50.2-alpha.7"
-    debug "^4.3.4"
 
 "@typescript-eslint/project-service@8.52.0":
   version "8.52.0"
@@ -3544,13 +3535,13 @@
     "@typescript-eslint/types" "^8.52.0"
     debug "^4.4.3"
 
-"@typescript-eslint/scope-manager@8.50.2-alpha.7":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.50.2-alpha.7.tgz#1246677dd1c41255df5cdc3000385a93e2cdbb67"
-  integrity sha512-vzBqWqpsowxpt+TT+AXfR25yUEqb+2dvBocBXNDmhMuhBqDvgjsTjKD6CtJQhpw3PyO8hVjzgVsSBM8jGdzPzQ==
+"@typescript-eslint/scope-manager@8.50.2-alpha.14":
+  version "8.50.2-alpha.14"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/scope-manager/-/scope-manager-8.50.2-alpha.14.tgz#4e8106318d753412f35d1ca8fa5992ccd2f39507"
+  integrity sha512-poq8xdB4N1J3uleZGFHQkYSTqglDPlh+X1x01kxRmcq01lwc/lo5HLJKG9jRVHXEt0Hfij9i+86krxiFQlBUzQ==
   dependencies:
-    "@typescript-eslint/types" "8.50.2-alpha.7"
-    "@typescript-eslint/visitor-keys" "8.50.2-alpha.7"
+    "@typescript-eslint/types" "8.50.2-alpha.14"
+    "@typescript-eslint/visitor-keys" "8.50.2-alpha.14"
 
 "@typescript-eslint/scope-manager@8.52.0":
   version "8.52.0"
@@ -3560,12 +3551,7 @@
     "@typescript-eslint/types" "8.52.0"
     "@typescript-eslint/visitor-keys" "8.52.0"
 
-"@typescript-eslint/tsconfig-utils@8.50.2-alpha.7":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.50.2-alpha.7.tgz#477ba6420bd22e21a3f25a180b6a12985ad31b46"
-  integrity sha512-tNRO55UXZC5Aa6M9R0K7vGn/DxOCljNvkR0bMsR+/G4SWbSxqB1eX7qnUfXC0b37nW7I78S9ijpDGvVo34LPtg==
-
-"@typescript-eslint/tsconfig-utils@8.52.0", "@typescript-eslint/tsconfig-utils@^8.50.2-alpha.7", "@typescript-eslint/tsconfig-utils@^8.52.0":
+"@typescript-eslint/tsconfig-utils@8.52.0", "@typescript-eslint/tsconfig-utils@^8.52.0":
   version "8.52.0"
   resolved "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.52.0.tgz#0296751c22ed05c83787a6eaec65ae221bd8b8ed"
   integrity sha512-jl+8fzr/SdzdxWJznq5nvoI7qn2tNYV/ZBAEcaFMVXf+K6jmXvAFrgo/+5rxgnL152f//pDEAYAhhBAZGrVfwg==
@@ -3581,34 +3567,19 @@
     debug "^4.4.3"
     ts-api-utils "^2.4.0"
 
-"@typescript-eslint/types@8.50.2-alpha.7":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.50.2-alpha.7.tgz#b27c8b09ea929c9ffff0441a0fe0bf03615fd32e"
-  integrity sha512-FnHMYKJqlfEwha53KBIWOJWPddPlNgkOPMY0pVavFzgwf4KpoHDjXd1BApY23Zb0oJ/9UCLoue/SRmvLK24XgQ==
+"@typescript-eslint/types@8.50.2-alpha.14":
+  version "8.50.2-alpha.14"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/types/-/types-8.50.2-alpha.14.tgz#69b7bb9aab95c6a0f8398f26841f5a5a86b5d7e4"
+  integrity sha512-zkGhPAiOubTAkQ6GJLNcx6FhHKAnm01Kp3mOnG04ULtU4Gn9udTC5Req4GonTRRutj+16rvlICMCMj72gzw27Q==
 
-"@typescript-eslint/types@8.52.0", "@typescript-eslint/types@^8.50.2-alpha.7", "@typescript-eslint/types@^8.52.0":
+"@typescript-eslint/types@8.52.0", "@typescript-eslint/types@^8.52.0":
   version "8.52.0"
   resolved "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.52.0.tgz#1eb0a16b324824bc23b89d109a267c38c9213c4a"
   integrity sha512-LWQV1V4q9V4cT4H5JCIx3481iIFxH1UkVk+ZkGGAV1ZGcjGI9IoFOfg3O6ywz8QqCDEp7Inlg6kovMofsNRaGg==
 
-"@typescript-eslint/typescript-estree@8.50.2-alpha.7":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.50.2-alpha.7.tgz#04c3d85818c5beb2dc8d677e1fc4ff4dea3da739"
-  integrity sha512-gOOUipNROSCNpND/IQ/ov2BqrzmUpBL7O7g4EjDTzMDobqX/oKVjQmm9yTnjnwARCvpj3vq716ueaYNXdgszeQ==
-  dependencies:
-    "@typescript-eslint/project-service" "8.50.2-alpha.7"
-    "@typescript-eslint/tsconfig-utils" "8.50.2-alpha.7"
-    "@typescript-eslint/types" "8.50.2-alpha.7"
-    "@typescript-eslint/visitor-keys" "8.50.2-alpha.7"
-    debug "^4.3.4"
-    minimatch "^9.0.4"
-    semver "^7.6.0"
-    tinyglobby "^0.2.15"
-    ts-api-utils "^2.1.0"
-
-"@typescript-eslint/typescript-estree@8.52.0":
+"@typescript-eslint/typescript-estree@8.50.2-alpha.14", "@typescript-eslint/typescript-estree@8.52.0", "@typescript-eslint/typescript-estree@^8.0.0":
   version "8.52.0"
-  resolved "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.52.0.tgz#2ad7721c671be2127951286cb7f44c4ce55b0591"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/typescript-estree/-/typescript-estree-8.52.0.tgz#2ad7721c671be2127951286cb7f44c4ce55b0591"
   integrity sha512-XP3LClsCc0FsTK5/frGjolyADTh3QmsLp6nKd476xNI9CsSsLnmn4f0jrzNoAulmxlmNIpeXuHYeEQv61Q6qeQ==
   dependencies:
     "@typescript-eslint/project-service" "8.52.0"
@@ -3622,21 +3593,21 @@
     ts-api-utils "^2.4.0"
 
 "@typescript-eslint/utils@8.52.0":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.50.2-alpha.7.tgz#3c214fc37c814a61dcb95cb7903eabce1347ed55"
-  integrity sha512-gDDujjdjJiTVBat/JIu720k6OUzq+FFcs/fXvvk7JiCZdUPH+y8FjSgW7Rc3+d95KCoOvU9nCrHkVAZfJUi2PA==
+  version "8.50.2-alpha.14"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/utils/-/utils-8.50.2-alpha.14.tgz#7a37f4e0e70ad8442eb1e224f25b7f574824a86a"
+  integrity sha512-H2rKJCscw4nZB9fZgbNu/pTsAx8G5K15ARgoxERb6AQunbg0KiYg/Iu5wRbW4ki379Jd/H+gdycQs+b41FfYUw==
   dependencies:
     "@eslint-community/eslint-utils" "^4.7.0"
-    "@typescript-eslint/scope-manager" "8.50.2-alpha.7"
-    "@typescript-eslint/types" "8.50.2-alpha.7"
-    "@typescript-eslint/typescript-estree" "8.50.2-alpha.7"
+    "@typescript-eslint/scope-manager" "8.50.2-alpha.14"
+    "@typescript-eslint/types" "8.50.2-alpha.14"
+    "@typescript-eslint/typescript-estree" "8.50.2-alpha.14"
 
-"@typescript-eslint/visitor-keys@8.50.2-alpha.7", "@typescript-eslint/visitor-keys@8.52.0":
-  version "8.50.2-alpha.7"
-  resolved "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.50.2-alpha.7.tgz#9fb9b1267a95f8e44d5515c7d365fdb00ab0c928"
-  integrity sha512-TlGbZXLbG6aK7L1N0njOmW3MWRTsz0yZZ4tOsR9VNqhUe0oOfZdNdTDav4CVdqA0I5mwry3Y1ej/wi3ChGDNVA==
+"@typescript-eslint/visitor-keys@8.50.2-alpha.14", "@typescript-eslint/visitor-keys@8.52.0":
+  version "8.50.2-alpha.14"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/@typescript-eslint/visitor-keys/-/visitor-keys-8.50.2-alpha.14.tgz#e48d6d216834bf25b4ee7bcca41a0a19b19234ab"
+  integrity sha512-q0O32M7VcBQE0fyzJaU3lHrsTzy9u/XGaCLtzxLE1h0YvBRcpt//l5rglSU3kilUuGFb610fLj485WxmHitY7A==
   dependencies:
-    "@typescript-eslint/types" "8.50.2-alpha.7"
+    "@typescript-eslint/types" "8.50.2-alpha.14"
     eslint-visitor-keys "^4.2.1"
 
 "@unrs/resolver-binding-android-arm-eabi@1.11.1":
@@ -4442,7 +4413,7 @@ data-view-byte-offset@^1.0.1:
     es-errors "^1.3.0"
     is-data-view "^1.0.1"
 
-debug@4, debug@^4.1.0, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@^4.4.0, debug@^4.4.1, debug@^4.4.3:
+debug@4, debug@^4.1.0, debug@^4.3.1, debug@^4.3.2, debug@^4.4.0, debug@^4.4.1, debug@^4.4.3:
   version "4.4.3"
   resolved "https://registry.npmjs.org/debug/-/debug-4.4.3.tgz#c6ae432d9bd9662582fce08709b038c58e9e3d6a"
   integrity sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==
@@ -5876,6 +5847,11 @@ jmespath@0.16.0:
   resolved "https://registry.npmjs.org/jmespath/-/jmespath-0.16.0.tgz#b15b0a85dfd4d930d43e69ed605943c802785076"
   integrity sha512-9FzQjJ7MATs1tSpnco1K6ayiYE3figslrXA72G2HQ/n76RzvYlofyi5QM+iX4YRs/pu3yzxlVQSST23+dMDknw==
 
+jose@^6.1.3:
+  version "6.1.3"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/jose/-/jose-6.1.3.tgz#8453d7be88af7bb7d64a0481d6a35a0145ba3ea5"
+  integrity sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ==
+
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
@@ -7024,7 +7000,7 @@ semver@^6.0.0, semver@^6.3.1:
   resolved "https://registry.npmjs.org/semver/-/semver-6.3.1.tgz#556d2ef8689146e46dcea4bfdd095f3434dffcb4"
   integrity sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==
 
-semver@^7.5.4, semver@^7.6.0, semver@^7.6.3, semver@^7.7.1, semver@^7.7.3:
+semver@^7.5.4, semver@^7.6.3, semver@^7.7.1, semver@^7.7.3:
   version "7.7.3"
   resolved "https://registry.npmjs.org/semver/-/semver-7.7.3.tgz#4b5f4143d007633a8dc671cd0a6ef9147b8bb946"
   integrity sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==
@@ -7542,10 +7518,10 @@ ts-algebra@^2.0.0:
   resolved "https://registry.npmjs.org/ts-algebra/-/ts-algebra-2.0.0.tgz#4e3e0953878f26518fce7f6bb115064a65388b7a"
   integrity sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==
 
-ts-api-utils@^2.1.0, ts-api-utils@^2.4.0:
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.1.0.tgz#595f7094e46eed364c13fd23e75f9513d29baf91"
-  integrity sha512-CUgTZL1irw8u29bzrOD/nH85jqyc74D6SshFgujOIA7osm2Rz7dYH77agkx7H4FBNxDq7Cjf+IjaX/8zwFW+ZQ==
+ts-api-utils@^2.4.0:
+  version "2.2.0"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/ts-api-utils/-/ts-api-utils-2.2.0.tgz#5ebcda090c1656b628a53d08915c8e5c325d8452"
+  integrity sha512-L6f5oQRAoLU1RwXz0Ab9mxsE7LtxeVB6AIR1lpkZMsOyg/JXeaxBaXa/FVCBZyNr9S9I4wkHrlZTklX+im+WMw==
 
 tsconfig-paths@^3.15.0:
   version "3.15.0"
@@ -7629,9 +7605,9 @@ typed-array-length@^1.0.7:
     possible-typed-array-names "^1.0.0"
     reflect.getprototypeof "^1.0.6"
 
-typescript@^5:
+typescript@^5.0.0:
   version "5.9.3"
-  resolved "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz#5b4f59e15310ab17a216f5d6cf53ee476ede670f"
+  resolved "https://npm.dev.wixpress.com/api/npm/npm-repos/typescript/-/typescript-5.9.3.tgz#5b4f59e15310ab17a216f5d6cf53ee476ede670f"
   integrity sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==
 
 unbox-primitive@^1.1.0:

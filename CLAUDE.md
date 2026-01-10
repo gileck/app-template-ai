@@ -75,6 +75,19 @@ Instant-boot authentication pattern for PWA.
 - Use `useUser()` for validated user, `useIsAuthenticated()` for auth check
 - Use `useAuthStore(s => s.userPublicHint)` for instant-boot UI (before validation)
 
+**Preview Auto-Login:**
+
+Automatically logs in a test user on Vercel preview deployments (PR previews).
+
+Setup:
+1. Create a test user account in the app
+2. Get the user's ID from MongoDB (`_id` field)
+3. Add `PREVIEW_USER_ID` to Vercel: Settings → Environment Variables
+   - Set for **Preview** environment only (NOT Production)
+   - Value: the test user's MongoDB `_id`
+
+When visiting a preview URL, the middleware automatically sets an auth cookie for the test user.
+
 **Docs:** [docs/authentication.md](docs/authentication.md)
 
 ---
