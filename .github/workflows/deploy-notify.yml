@@ -111,7 +111,11 @@ jobs:
           📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
-          KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"}]]}'
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"}]]}'
+          else
+            KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"},{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
+          fi
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${CHAT_ID}" \
