@@ -4,10 +4,11 @@
  */
 
 import { useState, useEffect, useRef, ReactNode } from 'react';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Info, Loader2 } from 'lucide-react';
 import { Input } from '@/client/components/ui/input';
 import { Button } from '@/client/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/client/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/ui/dialog';
 
 interface EditableFieldProps {
     label: string;
@@ -18,6 +19,8 @@ interface EditableFieldProps {
     readOnly?: boolean;
     placeholder?: string;
     helperText?: string;
+    infoTitle?: string;
+    infoContent?: ReactNode;
 }
 
 export function EditableField({
@@ -29,6 +32,8 @@ export function EditableField({
     readOnly,
     placeholder,
     helperText,
+    infoTitle,
+    infoContent,
 }: EditableFieldProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral edit mode toggle
     const [isOpen, setIsOpen] = useState(false);
@@ -94,8 +99,31 @@ export function EditableField({
                             {icon}
                         </span>
                     )}
-                    <span className="text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
                         {label}
+                        {infoContent && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.stopPropagation(); }}
+                                        className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer"
+                                    >
+                                        <Info className="h-3.5 w-3.5" />
+                                    </span>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>{infoTitle || 'Information'}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="mt-2">
+                                        {infoContent}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                     </span>
                 </div>
 

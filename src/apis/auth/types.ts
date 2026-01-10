@@ -38,6 +38,7 @@ export interface UpdateProfileRequest {
     username?: string;
     email?: string;
     profilePicture?: string;
+    notificationsEnabled?: boolean;
     telegramChatId?: string;
 }
 
@@ -54,6 +55,7 @@ export interface UserResponse {
     email?: string;
     createdAt: string;
     profilePicture?: string;
+    notificationsEnabled?: boolean;
     telegramChatId?: string;
     isAdmin: boolean;
 }

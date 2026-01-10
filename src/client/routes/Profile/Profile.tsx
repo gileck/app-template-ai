@@ -15,6 +15,7 @@ import { EditableField } from './components/EditableField';
 import { ImageUploadDialog } from './components/ImageUploadDialog';
 import { Skeleton } from '@/client/components/ui/skeleton';
 import { Bell, Calendar, Mail, MessageSquare, User } from 'lucide-react';
+import { Switch } from '@/client/components/ui/switch';
 
 export const Profile = () => {
     const user = useUser();
@@ -67,8 +68,8 @@ export const Profile = () => {
         }
     }, [user]);
 
-    const handleSaveField = async (field: keyof UpdateProfileRequest, value: string) => {
-        if (field === 'username' && !value.trim()) {
+    const handleSaveField = async (field: keyof UpdateProfileRequest, value: string | boolean) => {
+        if (field === 'username' && typeof value === 'string' && !value.trim()) {
             toast.error('Username cannot be empty');
             return false;
         }
@@ -218,15 +219,39 @@ export const Profile = () => {
                 </ProfileSection>
 
                 <ProfileSection title="Notifications" icon={<Bell className="h-5 w-5" />}>
-                    <EditableField
-                        label="Telegram Chat ID"
-                        value={displayUser.telegramChatId || ''}
-                        icon={<MessageSquare className="h-4 w-4" />}
-                        onSave={(value) => handleSaveField('telegramChatId', value)}
-                        isSaving={savingField === 'telegramChatId'}
-                        placeholder="Enter chat ID for notifications"
-                        helperText="Get your chat ID by messaging @userinfobot on Telegram"
-                    />
+                    {/* Notifications toggle */}
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                            <Bell className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Enable Notifications</span>
+                        </div>
+                        <Switch
+                            checked={displayUser.notificationsEnabled ?? false}
+                            onCheckedChange={(checked) => handleSaveField('notificationsEnabled', checked)}
+                            disabled={savingField === 'notificationsEnabled'}
+                        />
+                    </div>
+
+                    {/* Telegram Chat ID - only shown when notifications enabled */}
+                    {displayUser.notificationsEnabled && (
+                        <EditableField
+                            label="Telegram Chat ID"
+                            value={displayUser.telegramChatId || ''}
+                            icon={<MessageSquare className="h-4 w-4" />}
+                            onSave={(value) => handleSaveField('telegramChatId', value)}
+                            isSaving={savingField === 'telegramChatId'}
+                            placeholder="Enter chat ID for notifications"
+                            infoTitle="How to Get Your Telegram Chat ID"
+                            infoContent={
+                                <ol className="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
+                                    <li>Open <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary underline">@userinfobot</a> on Telegram</li>
+                                    <li>Start a chat and send any message</li>
+                                    <li>The bot will reply with your Chat ID</li>
+                                    <li>Copy the ID number and paste it in the field</li>
+                                </ol>
+                            }
+                        />
+                    )}
                 </ProfileSection>
 
                 <ProfileSection title="Account" icon={<Calendar className="h-5 w-5" />}>
