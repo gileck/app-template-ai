@@ -53,10 +53,19 @@ jobs:
           📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${CHAT_ID}" \
-            -d "parse_mode=Markdown" \
-            -d "text=${MESSAGE}"
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${CHAT_ID}" \
+              -d "parse_mode=Markdown" \
+              -d "text=${MESSAGE}"
+          else
+            KEYBOARD='{"inline_keyboard":[[{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${CHAT_ID}" \
+              -d "parse_mode=Markdown" \
+              -d "text=${MESSAGE}" \
+              -d "reply_markup=${KEYBOARD}"
+          fi
 
       - name: Wait for Vercel deployment
         id: deployment
