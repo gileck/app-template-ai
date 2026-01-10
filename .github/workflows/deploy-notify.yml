@@ -47,18 +47,24 @@ jobs:
           CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
           COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
-          MESSAGE="${{ steps.deploy-type.outputs.emoji }} *${{ steps.deploy-type.outputs.type }} Deployment Started*
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            MESSAGE="🚀 *Production Deployment Started*
 
           📦 Repository: ${{ github.repository }}
           📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
-          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d "chat_id=${CHAT_ID}" \
               -d "parse_mode=Markdown" \
               -d "text=${MESSAGE}"
           else
+            MESSAGE="👀 *Preview Deployment Started (PR #${{ github.event.pull_request.number }})*
+
+          📦 Repository: ${{ github.repository }}
+          📝 PR: ${{ github.event.pull_request.title }}
+          👤 Author: ${{ github.actor }}"
+
             KEYBOARD='{"inline_keyboard":[[{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d "chat_id=${CHAT_ID}" \
@@ -109,20 +115,20 @@ jobs:
           COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
           if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
-            TITLE="✅ *Production Deployment Complete - Live*"
-          else
-            TITLE="✅ *Preview Deployment Ready (PR #${{ github.event.pull_request.number }})*"
-          fi
-
-          MESSAGE="${TITLE}
+            MESSAGE="✅ *Production Deployment Complete - Live*
 
           📦 Repository: ${{ github.repository }}
           📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}"
 
-          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
             KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"}]]}'
           else
+            MESSAGE="✅ *Preview Deployment Ready (PR #${{ github.event.pull_request.number }})*
+
+          📦 Repository: ${{ github.repository }}
+          📝 PR: ${{ github.event.pull_request.title }}
+          👤 Author: ${{ github.actor }}"
+
             KEYBOARD='{"inline_keyboard":[[{"text":"🔗 Open URL","url":"${{ steps.deployment.outputs.url }}"},{"text":"📋 Open PR","url":"${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"}]]}'
           fi
 
@@ -139,12 +145,21 @@ jobs:
           CHAT_ID: ${{ secrets.OWNER_TELEGRAM_CHAT_ID }}
           COMMIT_SHA: ${{ steps.deploy-type.outputs.sha }}
         run: |
-          MESSAGE="❌ *${{ steps.deploy-type.outputs.type }} Deployment Failed*
+          if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
+            MESSAGE="❌ *Production Deployment Failed*
 
           📦 Repository: ${{ github.repository }}
           📝 Commit: [${COMMIT_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${COMMIT_SHA})
           👤 Author: ${{ github.actor }}
           🔍 [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          else
+            MESSAGE="❌ *Preview Deployment Failed (PR #${{ github.event.pull_request.number }})*
+
+          📦 Repository: ${{ github.repository }}
+          📝 PR: ${{ github.event.pull_request.title }}
+          👤 Author: ${{ github.actor }}
+          🔍 [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          fi
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${CHAT_ID}" \
