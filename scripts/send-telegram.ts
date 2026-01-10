@@ -6,16 +6,41 @@
  *
  * Usage:
  *   yarn send-telegram "Your message here"
+ *   yarn send-telegram --cloud-proxy "Your message here"
  */
 
 import 'dotenv/config';
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
 
+function setupCloudProxy() {
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (proxyUrl) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { ProxyAgent, setGlobalDispatcher } = require('undici');
+        setGlobalDispatcher(new ProxyAgent(proxyUrl));
+    }
+}
+
 async function main() {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    // Check for --cloud-proxy flag
+    const args = process.argv.slice(2);
+    const cloudProxyIndex = args.indexOf('--cloud-proxy');
+    const useCloudProxy = cloudProxyIndex !== -1;
+
+    if (useCloudProxy) {
+        args.splice(cloudProxyIndex, 1);
+        setupCloudProxy();
+    }
+
+    let botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.LOCAL_TELEGRAM_CHAT_ID;
-    const message = process.argv.slice(2).join(' ');
+    const message = args.join(' ');
+
+    // Strip quotes from token if present (cloud may add literal quotes)
+    if (useCloudProxy && botToken) {
+        botToken = botToken.replace(/^["']|["']$/g, '');
+    }
 
     if (!botToken) {
         console.error('Error: TELEGRAM_BOT_TOKEN not found in .env');
