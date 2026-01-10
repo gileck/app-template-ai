@@ -459,6 +459,19 @@ yarn github-pr merge --pr 1 --method squash \
 - Loads `GITHUB_TOKEN` from `.env` automatically
 - Merge methods: `merge`, `squash`, `rebase` (default: `squash`)
 
+**Cloud Environment (Claude Code Web):**
+```bash
+yarn github-pr --cloud-proxy list --state open
+yarn github-pr --cloud-proxy create --title "feat: feature" --body "Description"
+```
+
+Use `--cloud-proxy` when running in Claude Code cloud environment. This enables:
+- HTTP proxy support via `HTTPS_PROXY`/`HTTP_PROXY` env vars
+- Quote stripping from `GITHUB_TOKEN` (cloud may add literal quotes)
+- Proxy git remote URL parsing (`/git/owner/repo` format)
+
+**IMPORTANT:** Always use `--cloud-proxy` flag when running github-pr commands.
+
 **Script:** `scripts/github-pr.ts`
 
 ---
