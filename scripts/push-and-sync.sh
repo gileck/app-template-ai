@@ -32,15 +32,22 @@ if [ ! -f "$PROJECT_DIR/child-projects.json" ]; then
     exit 0
 fi
 
-# Ask user if they want to sync child projects
-echo ""
-read -p "🔄 Sync child projects? (y/N): " response
-case "$response" in
-    [yY]|[yY][eE][sS])
-        echo ""
-        yarn sync-children
-        ;;
-    *)
-        echo "Skipping child sync."
-        ;;
-esac
+# Check if running in interactive shell
+if [ -t 0 ]; then
+    # Interactive: ask user
+    echo ""
+    read -p "🔄 Sync child projects? (y/N): " response
+    case "$response" in
+        [yY]|[yY][eE][sS])
+            echo ""
+            yarn sync-children
+            ;;
+        *)
+            echo "Skipping child sync."
+            ;;
+    esac
+else
+    # Non-interactive: just print a hint
+    echo ""
+    echo "💡 To sync child projects, run: yarn sync-children"
+fi
