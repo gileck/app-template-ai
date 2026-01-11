@@ -11,13 +11,23 @@ import { Theme } from './Theme';
 
 /**
  * Route definitions with optional metadata.
- * 
+ *
  * Simple format (requires auth by default):
  *   '/path': Component
- * 
+ *
  * With metadata:
  *   '/path': { component: Component, public: true }
  *   '/admin/path': { component: Component, adminOnly: true }
+ *
+ * REMINDER: When adding a new route, consider if it should be added to:
+ *   - navItems (bottom nav bar) in src/client/components/NavLinks.tsx
+ *   - menuItems (hamburger menu) in src/client/components/NavLinks.tsx
+ *
+ * Routes that typically DON'T need menu entries:
+ *   - Dynamic routes like '/todos/:todoId' (accessed via in-app links)
+ *   - '/not-found' (fallback route)
+ *   - '/profile' (accessed via avatar in header)
+ *   - Public share pages (accessed via direct links)
  */
 export const routes = createRoutes({
   // Protected routes (default - require authentication)
