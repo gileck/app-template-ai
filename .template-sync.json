@@ -1,0 +1,16 @@
+{
+  "templateRepo": "",
+  "templateBranch": "main",
+  "baseCommit": null,
+  "lastSyncCommit": null,
+  "lastProjectCommit": null,
+  "lastSyncDate": null,
+  "ignoredFiles": [],
+  "projectSpecificFiles": [],
+  "templateIgnoredFiles": [
+    ".claude/commands/sync-children.md",
+    "scripts/sync-child-projects.ts",
+    "scripts/push-and-sync.sh",
+    "scripts/hooks/**"
+  ]
+}
