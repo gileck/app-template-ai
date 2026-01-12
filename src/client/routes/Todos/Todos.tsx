@@ -13,7 +13,7 @@ import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
 import { Card } from '@/client/components/ui/card';
 import { Separator } from '@/client/components/ui/separator';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, Loader2 } from 'lucide-react';
 import { useTodos, useDeleteTodo } from './hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 import { logger } from '@/client/features/session-logs';
@@ -115,7 +115,16 @@ export function Todos() {
     return (
         <div className="mx-auto max-w-3xl p-3">
             <div className="mb-3 flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">My Todos</h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-semibold">My Todos</h1>
+                    {/* Background refresh indicator - shows when fetching with existing data */}
+                    {isFetching && !isLoading && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Updating...</span>
+                        </div>
+                    )}
+                </div>
                 <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
                     <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
                 </Button>
