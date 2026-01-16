@@ -19,6 +19,7 @@
     "generate-icons": "tsx scripts/generate-icons.ts",
     "investigate-bugs": "tsx scripts/investigate-bugs.ts",
     "github-pr": "tsx scripts/github-pr.ts",
+    "vercel-cli": "tsx scripts/vercel-cli.ts",
     "telegram-setup": "tsx scripts/telegram-setup.ts",
     "send-telegram": "tsx scripts/send-telegram.ts",
     "setup-github-secrets": "tsx scripts/setup-github-secrets.ts",
