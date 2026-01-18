@@ -18,10 +18,36 @@ interface ChildProjectsConfig {
   projects: string[];
 }
 
+/**
+ * JSON result from sync-template --json
+ */
+interface SyncJsonResult {
+  status: 'success' | 'no-changes' | 'checks-failed' | 'error';
+  message: string;
+  filesApplied: string[];
+  filesSkipped: string[];
+  filesConflicted: string[];
+  projectOnlyChanges: string[];
+  errors: string[];
+  templateCommit?: string;
+  projectCommit?: string;
+  checksResult?: {
+    passed: boolean;
+    tsErrors: string[];
+    lintErrors: string[];
+  };
+}
+
 interface SyncResult {
   project: string;
-  status: 'synced' | 'skipped' | 'error' | 'not-found';
+  status: 'synced' | 'no-changes' | 'skipped' | 'checks-failed' | 'error' | 'not-found';
   message: string;
+  filesApplied?: string[];
+  checksResult?: {
+    passed: boolean;
+    tsErrors: string[];
+    lintErrors: string[];
+  };
 }
 
 const CONFIG_FILE = 'child-projects.json';
@@ -106,9 +132,9 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
     };
   }
 
-  // Run sync-template
+  // Run sync-template with --json flag
   try {
-    const flags = dryRun ? '--dry-run --quiet' : '--auto-safe-only --quiet';
+    const flags = dryRun ? '--dry-run --json' : '--json';
     const command = `yarn sync-template ${flags}`;
 
     console.log(`\n📦 Syncing ${projectName}...`);
@@ -117,46 +143,84 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
       cwd: projectPath,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large outputs
     });
 
-    // Check if there were any changes synced
-    const hasChanges = output.includes('✅ Template sync completed') ||
-                       output.includes('Committed as');
-    const noChanges = output.includes('No changes detected') ||
-                      output.includes('Nothing to sync');
-
-    if (noChanges) {
+    // Parse JSON output
+    let jsonResult: SyncJsonResult;
+    try {
+      jsonResult = JSON.parse(output.trim());
+    } catch {
+      // Fallback if JSON parsing fails
       return {
         project: projectName,
-        status: 'synced',
-        message: 'Already up to date',
+        status: 'error',
+        message: 'Failed to parse sync-template output',
       };
     }
 
-    if (hasChanges) {
-      return {
-        project: projectName,
-        status: 'synced',
-        message: dryRun ? 'Changes available (dry run)' : 'Changes synced and committed',
-      };
-    }
+    // Map JSON result to SyncResult
+    switch (jsonResult.status) {
+      case 'success':
+        return {
+          project: projectName,
+          status: 'synced',
+          message: jsonResult.message,
+          filesApplied: jsonResult.filesApplied,
+          checksResult: jsonResult.checksResult,
+        };
 
-    return {
-      project: projectName,
-      status: 'synced',
-      message: dryRun ? 'Checked (dry run)' : 'Sync completed',
-    };
+      case 'no-changes':
+        return {
+          project: projectName,
+          status: 'no-changes',
+          message: jsonResult.message,
+          checksResult: jsonResult.checksResult,
+        };
+
+      case 'checks-failed':
+        return {
+          project: projectName,
+          status: 'checks-failed',
+          message: jsonResult.message,
+          filesApplied: jsonResult.filesApplied,
+          checksResult: jsonResult.checksResult,
+        };
+
+      case 'error':
+        return {
+          project: projectName,
+          status: 'error',
+          message: jsonResult.message,
+        };
+
+      default:
+        return {
+          project: projectName,
+          status: 'error',
+          message: `Unknown status: ${jsonResult.status}`,
+        };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Check for specific known messages
-    if (errorMessage.includes('No changes detected') ||
-        errorMessage.includes('Nothing to sync')) {
-      return {
-        project: projectName,
-        status: 'synced',
-        message: 'Already up to date',
-      };
+    // Try to extract JSON from stderr if present
+    if (error && typeof error === 'object' && 'stdout' in error) {
+      const stdout = (error as { stdout?: string }).stdout;
+      if (stdout) {
+        try {
+          const jsonResult = JSON.parse(stdout.trim()) as SyncJsonResult;
+          return {
+            project: projectName,
+            status: jsonResult.status === 'checks-failed' ? 'checks-failed' : 'error',
+            message: jsonResult.message,
+            filesApplied: jsonResult.filesApplied,
+            checksResult: jsonResult.checksResult,
+          };
+        } catch {
+          // Not JSON, continue with error handling
+        }
+      }
     }
 
     return {
@@ -173,18 +237,56 @@ function printSummary(results: SyncResult[]): void {
   console.log('='.repeat(60));
 
   const synced = results.filter(r => r.status === 'synced');
+  const noChanges = results.filter(r => r.status === 'no-changes');
   const skipped = results.filter(r => r.status === 'skipped');
+  const checksFailed = results.filter(r => r.status === 'checks-failed');
   const errors = results.filter(r => r.status === 'error');
   const notFound = results.filter(r => r.status === 'not-found');
 
   if (synced.length > 0) {
     console.log(`\n✅ Synced (${synced.length}):`);
-    synced.forEach(r => console.log(`   • ${r.project}: ${r.message}`));
+    synced.forEach(r => {
+      console.log(`   • ${r.project}: ${r.message}`);
+      if (r.filesApplied && r.filesApplied.length > 0) {
+        r.filesApplied.slice(0, 5).forEach(f => console.log(`     - ${f}`));
+        if (r.filesApplied.length > 5) {
+          console.log(`     ... and ${r.filesApplied.length - 5} more`);
+        }
+      }
+    });
+  }
+
+  if (noChanges.length > 0) {
+    console.log(`\n📋 Up to date (${noChanges.length}):`);
+    noChanges.forEach(r => console.log(`   • ${r.project}`));
   }
 
   if (skipped.length > 0) {
     console.log(`\n⏭️  Skipped (${skipped.length}):`);
     skipped.forEach(r => console.log(`   • ${r.project}: ${r.message}`));
+  }
+
+  if (checksFailed.length > 0) {
+    console.log(`\n⚠️  Checks Failed (${checksFailed.length}):`);
+    checksFailed.forEach(r => {
+      console.log(`   • ${r.project}: ${r.message}`);
+      if (r.checksResult) {
+        if (r.checksResult.tsErrors.length > 0) {
+          console.log(`     TypeScript errors:`);
+          r.checksResult.tsErrors.slice(0, 3).forEach(e => console.log(`       ${e}`));
+          if (r.checksResult.tsErrors.length > 3) {
+            console.log(`       ... and ${r.checksResult.tsErrors.length - 3} more`);
+          }
+        }
+        if (r.checksResult.lintErrors.length > 0) {
+          console.log(`     ESLint errors:`);
+          r.checksResult.lintErrors.slice(0, 3).forEach(e => console.log(`       ${e}`));
+          if (r.checksResult.lintErrors.length > 3) {
+            console.log(`       ... and ${r.checksResult.lintErrors.length - 3} more`);
+          }
+        }
+      }
+    });
   }
 
   if (notFound.length > 0) {
@@ -198,7 +300,9 @@ function printSummary(results: SyncResult[]): void {
   }
 
   console.log('\n' + '='.repeat(60));
-  console.log(`Total: ${results.length} projects | Synced: ${synced.length} | Skipped: ${skipped.length} | Errors: ${errors.length + notFound.length}`);
+  const successCount = synced.length + noChanges.length;
+  const problemCount = checksFailed.length + errors.length + notFound.length;
+  console.log(`Total: ${results.length} projects | Success: ${successCount} | Skipped: ${skipped.length} | Problems: ${problemCount}`);
   console.log('='.repeat(60) + '\n');
 }
 
@@ -238,9 +342,9 @@ async function main(): Promise<void> {
 
   printSummary(results);
 
-  // Exit with error code if any projects failed
-  const hasErrors = results.some(r => r.status === 'error');
-  if (hasErrors) {
+  // Exit with error code if any projects had problems
+  const hasProblems = results.some(r => r.status === 'error' || r.status === 'checks-failed');
+  if (hasProblems) {
     process.exit(1);
   }
 }
