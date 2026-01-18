@@ -17,6 +17,7 @@ import {
     API_SET_NEEDS_USER_INPUT,
     API_DELETE_FEATURE_REQUEST,
     API_APPROVE_FEATURE_REQUEST,
+    API_GET_GITHUB_STATUS,
 } from './index';
 
 // Import handlers
@@ -34,6 +35,7 @@ import { updatePriority } from './handlers/updatePriority';
 import { setNeedsUserInput } from './handlers/setNeedsUserInput';
 import { deleteFeatureRequest } from './handlers/deleteFeatureRequest';
 import { approveFeatureRequest } from './handlers/approveFeatureRequest';
+import { getGitHubStatus } from './handlers/getGitHubStatus';
 
 // Export consolidated handlers object
 export const featureRequestsApiHandlers = {
@@ -51,4 +53,5 @@ export const featureRequestsApiHandlers = {
     [API_SET_NEEDS_USER_INPUT]: { process: setNeedsUserInput },
     [API_DELETE_FEATURE_REQUEST]: { process: deleteFeatureRequest },
     [API_APPROVE_FEATURE_REQUEST]: { process: approveFeatureRequest },
+    [API_GET_GITHUB_STATUS]: { process: getGitHubStatus },
 };

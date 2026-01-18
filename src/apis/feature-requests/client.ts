@@ -15,6 +15,7 @@ import {
     API_SET_NEEDS_USER_INPUT,
     API_DELETE_FEATURE_REQUEST,
     API_APPROVE_FEATURE_REQUEST,
+    API_GET_GITHUB_STATUS,
 } from './index';
 import {
     CreateFeatureRequestRequest,
@@ -45,6 +46,8 @@ import {
     DeleteFeatureRequestResponse,
     ApproveFeatureRequestRequest,
     ApproveFeatureRequestResponse,
+    GetGitHubStatusRequest,
+    GetGitHubStatusResponse,
 } from './types';
 
 // ============================================================
@@ -179,4 +182,18 @@ export const approveFeatureRequest = async (
     params: ApproveFeatureRequestRequest
 ): Promise<CacheResult<ApproveFeatureRequestResponse>> => {
     return apiClient.post(API_APPROVE_FEATURE_REQUEST, params);
+};
+
+// ============================================================
+// GitHub Status Endpoint
+// ============================================================
+
+/**
+ * Get GitHub Project status for a feature request
+ * Users can view status of their own requests, admins can view any
+ */
+export const getGitHubStatus = async (
+    params: GetGitHubStatusRequest
+): Promise<CacheResult<GetGitHubStatusResponse>> => {
+    return apiClient.call(API_GET_GITHUB_STATUS, params);
 };

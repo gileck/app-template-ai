@@ -90,6 +90,16 @@ export const findFeatureRequestById = async (
 };
 
 /**
+ * Find a feature request by GitHub issue number
+ */
+export const findByGitHubIssueNumber = async (
+    issueNumber: number
+): Promise<FeatureRequestDocument | null> => {
+    const collection = await getFeatureRequestsCollection();
+    return collection.findOne({ githubIssueNumber: issueNumber });
+};
+
+/**
  * Create a new feature request
  */
 export const createFeatureRequest = async (
@@ -454,6 +464,8 @@ export const updateGitHubFields = async (
         githubIssueUrl?: string;
         githubIssueNumber?: number;
         githubProjectItemId?: string;
+        githubProjectStatus?: string;
+        githubReviewStatus?: string;
         githubPrUrl?: string;
         githubPrNumber?: number;
     }

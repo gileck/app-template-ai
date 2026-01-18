@@ -109,6 +109,8 @@ export interface FeatureRequestDocument {
     githubIssueUrl?: string;          // URL to the GitHub issue
     githubIssueNumber?: number;       // GitHub issue number
     githubProjectItemId?: string;     // GitHub Project item ID (for status updates)
+    githubProjectStatus?: string;     // Current status in GitHub Project (e.g., "Product Design Review")
+    githubReviewStatus?: string;      // Review Status in GitHub Project (e.g., "Waiting for Review")
     githubPrUrl?: string;             // URL to the pull request
     githubPrNumber?: number;          // GitHub PR number
 
@@ -145,6 +147,8 @@ export interface FeatureRequestClient {
     githubIssueUrl?: string;
     githubIssueNumber?: number;
     githubProjectItemId?: string;
+    githubProjectStatus?: string;
+    githubReviewStatus?: string;
     githubPrUrl?: string;
     githubPrNumber?: number;
     createdAt: string;

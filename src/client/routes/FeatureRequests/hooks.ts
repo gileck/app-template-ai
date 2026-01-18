@@ -13,6 +13,7 @@ import {
     deleteFeatureRequest,
     addAdminComment,
     approveFeatureRequest,
+    getGitHubStatus,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -320,5 +321,26 @@ export function useApproveFeatureRequest() {
             }
         },
         onSettled: () => {},
+    });
+}
+
+/**
+ * Hook to fetch GitHub Project status for a feature request
+ * Only enabled when there's a GitHub project item ID
+ */
+export function useGitHubStatus(requestId: string | null, enabled: boolean = true) {
+    return useQuery({
+        queryKey: ['github-status', requestId],
+        queryFn: async () => {
+            if (!requestId) return null;
+            const result = await getGitHubStatus({ requestId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        enabled: enabled && !!requestId,
+        staleTime: 30000, // 30 seconds - status can change frequently
+        refetchOnWindowFocus: true,
     });
 }

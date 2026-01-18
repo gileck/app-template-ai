@@ -229,6 +229,7 @@ This requires:
 | `.github/workflows/issue-notifications.yml` | Issues, comments |
 | `.github/workflows/project-notifications.yml` | Project item status changes |
 | `.github/workflows/pr-notifications.yml` | Pull requests, reviews |
+| `.github/workflows/reset-review-status.yml` | Auto-reset Review Status |
 
 ### Notification Examples
 
@@ -266,6 +267,49 @@ feat: Add dark mode toggle
 ### Disabling Notifications
 
 Set the `TELEGRAM_NOTIFICATIONS_ENABLED` variable to `false` or delete it to disable all notifications.
+
+### Auto-Reset Review Status
+
+The repository includes a GitHub Action that automatically resets the Review Status field when the main Status changes. This prevents confusion when moving items between phases (e.g., Review Status staying "Approved" when moving to the next phase).
+
+**Behavior:**
+- When Status changes to a **non-review phase** (e.g., "Ready for Technical Design"), Review Status is **cleared**
+- When Status changes to a **review phase** and Review Status is "Approved", it's **reset to "Waiting for Review"**
+
+**Configuration:**
+- Enabled by default
+- To disable, set repository variable `AUTO_RESET_REVIEW_STATUS` to `false`
+
+**Workflow File:** `.github/workflows/reset-review-status.yml`
+
+## Viewing GitHub Status in the App
+
+The app UI displays live GitHub Project status for feature requests that have been synced to GitHub.
+
+### What's Displayed
+
+When you expand a feature request card in the admin panel, you'll see:
+- **GitHub Issue Link**: Click to view the issue on GitHub
+- **GitHub PR Link**: Click to view the PR (when created)
+- **Project Status**: The current status in GitHub Projects (e.g., "Product Design Review")
+- **Review Status**: The current review status (e.g., "Waiting for Review")
+
+### How It Works
+
+The status is fetched **directly from GitHub API** in real-time:
+1. When you expand a feature request card, it fetches the current status from GitHub
+2. Status refreshes automatically when the window regains focus
+3. Data is considered stale after 30 seconds
+
+This approach ensures you always see the **actual current status** from GitHub, not a cached copy in the database.
+
+### API Endpoint
+
+The UI uses the `feature-requests/github-status` API endpoint which:
+- Requires authentication
+- Users can only view status of their own requests
+- Admins can view status of any request
+- Returns: `status`, `reviewStatus`, `issueState`, `issueUrl`
 
 ## Workflow Guide
 
@@ -592,13 +636,26 @@ scripts/
 
 src/
 ├── server/
-│   └── github-sync/
-│       └── index.ts           # Server-side GitHub sync (approval flow)
+│   ├── github-sync/
+│   │   └── index.ts           # Server-side GitHub sync (approval flow)
+│   └── github-status/
+│       └── index.ts           # Fetch GitHub Project status for UI
+├── apis/
+│   └── feature-requests/
+│       └── handlers/
+│           └── getGitHubStatus.ts  # API handler for fetching status
 ├── pages/
 │   └── api/
 │       └── feature-requests/
 │           └── approve/
 │               └── [requestId].ts  # Telegram approval endpoint
+
+.github/
+└── workflows/
+    ├── issue-notifications.yml     # Issue event notifications
+    ├── project-notifications.yml   # Project status change notifications
+    ├── pr-notifications.yml        # PR event notifications
+    └── reset-review-status.yml     # Auto-reset Review Status on Status change
 ```
 
 ## Related Documentation

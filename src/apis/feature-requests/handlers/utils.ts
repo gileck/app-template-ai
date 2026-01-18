@@ -55,6 +55,14 @@ export function toFeatureRequestClient(doc: FeatureRequestDocument): FeatureRequ
         comments: (doc.comments || []).map(toCommentClient),
         adminNotes: doc.adminNotes,
         priority: doc.priority,
+        // GitHub integration fields
+        githubIssueUrl: doc.githubIssueUrl,
+        githubIssueNumber: doc.githubIssueNumber,
+        githubProjectItemId: doc.githubProjectItemId,
+        githubProjectStatus: doc.githubProjectStatus,
+        githubReviewStatus: doc.githubReviewStatus,
+        githubPrUrl: doc.githubPrUrl,
+        githubPrNumber: doc.githubPrNumber,
         createdAt: doc.createdAt.toISOString(),
         updatedAt: doc.updatedAt.toISOString(),
     };

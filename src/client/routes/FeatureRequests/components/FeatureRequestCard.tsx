@@ -16,7 +16,7 @@ import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText,
 import { StatusBadge, PriorityBadge } from './StatusBadge';
 import { DesignReviewPanel } from './DesignReviewPanel';
 import type { FeatureRequestClient, FeatureRequestStatus, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
-import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest } from '../hooks';
+import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus } from '../hooks';
 
 interface FeatureRequestCardProps {
     request: FeatureRequestClient;
@@ -49,6 +49,12 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     const updatePriorityMutation = useUpdatePriority();
     const deleteMutation = useDeleteFeatureRequest();
     const approveMutation = useApproveFeatureRequest();
+
+    // Fetch GitHub Project status only if there's a GitHub project item
+    const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useGitHubStatus(
+        request.githubProjectItemId ? request._id : null,
+        !!request.githubProjectItemId
+    );
 
     const handleStatusChange = (status: FeatureRequestStatus) => {
         updateStatusMutation.mutate({ requestId: request._id, status });
@@ -97,10 +103,33 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     <div className="flex-1 space-y-1">
                         <CardTitle className="text-base font-medium">{request.title}</CardTitle>
                         <div className="flex flex-wrap items-center gap-2">
-                            <StatusBadge
-                                status={request.status}
-                                reviewStatus={currentDesignPhase?.reviewStatus}
-                            />
+                            {/* Show GitHub status as primary when linked, fallback to DB status */}
+                            {request.githubProjectItemId ? (
+                                isLoadingGitHubStatus ? (
+                                    <span className="text-sm text-muted-foreground">Loading status...</span>
+                                ) : githubStatus?.status ? (
+                                    <div className="flex items-center gap-2">
+                                        <span className="rounded-md bg-primary px-2.5 py-0.5 text-sm font-medium text-primary-foreground">
+                                            {githubStatus.status}
+                                        </span>
+                                        {githubStatus.reviewStatus && (
+                                            <span className="text-xs text-muted-foreground">
+                                                ({githubStatus.reviewStatus})
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <StatusBadge
+                                        status={request.status}
+                                        reviewStatus={currentDesignPhase?.reviewStatus}
+                                    />
+                                )
+                            ) : (
+                                <StatusBadge
+                                    status={request.status}
+                                    reviewStatus={currentDesignPhase?.reviewStatus}
+                                />
+                            )}
                             <PriorityBadge priority={request.priority} />
                         </div>
                     </div>

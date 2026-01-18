@@ -175,6 +175,19 @@ export interface ApproveFeatureRequestResponse {
     error?: string;
 }
 
+// Get GitHub Project status
+export interface GetGitHubStatusRequest {
+    requestId: string;
+}
+
+export interface GetGitHubStatusResponse {
+    status?: string | null;
+    reviewStatus?: string | null;
+    issueState?: 'OPEN' | 'CLOSED' | null;
+    issueUrl?: string;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type {
     FeatureRequestClient,
