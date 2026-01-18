@@ -8,6 +8,7 @@ Use this command to:
 - Push template updates to all child projects at once
 - See which projects were synced successfully
 - Identify projects that were skipped (uncommitted changes) or had errors
+- See validation errors (TypeScript/ESLint) if sync causes issues
 
 ## Prerequisites
 
@@ -36,45 +37,72 @@ This will:
 1. Read the list of child projects from `child-projects.json`
 2. For each project, check if it has uncommitted changes
 3. Skip projects with uncommitted changes
-4. Run `yarn sync-template --auto-safe-only` on clean projects
-5. Print a summary of results
+4. Run `yarn sync-template --json` on clean projects
+5. Parse the structured JSON response for reliable status detection
+6. Run validation (TypeScript + ESLint) and capture any errors
+7. Print a summary of results
 
 ### Step 2: Capture and Summarize Results
 
 After the command completes, provide a clear summary to the user including:
 
-1. **Synced Projects**: List projects that were successfully synced
-2. **Skipped Projects**: List projects that were skipped and why (e.g., uncommitted changes)
-3. **Errors**: List any projects that encountered errors during sync
-4. **Recommendations**: Suggest next steps for skipped/failed projects
+1. **Synced Projects**: List projects that were successfully synced with files applied
+2. **Up to Date**: Projects with no changes needed
+3. **Skipped Projects**: Projects skipped due to uncommitted changes
+4. **Checks Failed**: Projects where sync applied but TypeScript/ESLint failed (with error details)
+5. **Errors**: Projects that encountered errors during sync
+6. **Recommendations**: Suggest next steps for failed projects
 
 ## Output Format
 
-Present the summary in a clear, readable format:
+The script outputs a structured summary:
 
 ```
-## Sync Children Summary
+============================================================
+📊 SYNC SUMMARY
+============================================================
 
-### Successfully Synced
-- **project-1**: Changes synced and committed
-- **project-2**: Already up to date
+✅ Synced (2):
+   • project-1: Synced 5 file(s) successfully.
+     - src/client/features/index.template.ts
+     - scripts/template-scripts/sync-template/modes/json-mode.ts
+     ... and 3 more
+   • project-2: Synced 3 file(s) successfully.
 
-### Skipped
-- **project-3**: Has uncommitted changes
-  - Action: Commit or stash changes, then run sync again
+📋 Up to date (1):
+   • project-3
 
-### Errors
-- **project-4**: Not a git repository
-  - Action: Check if path is correct in child-projects.json
+⏭️  Skipped (1):
+   • project-4: Has uncommitted changes
 
-### Next Steps
-1. For skipped projects: commit their changes first, then re-run sync
-2. For errors: verify the project paths in child-projects.json
+⚠️  Checks Failed (1):
+   • project-5: Sync applied but validation failed. Changes NOT committed.
+     TypeScript errors:
+       src/client/components/Layout.tsx(9,27): error TS2305: Module...
+       ... and 2 more
+
+❌ Errors (1):
+   • project-6: Failed to clone template
+
+============================================================
+Total: 6 projects | Success: 3 | Skipped: 1 | Problems: 2
+============================================================
 ```
+
+## JSON Mode
+
+The sync-children script uses `--json` mode when calling sync-template, which provides:
+
+- **Reliable status detection**: No string matching, uses structured JSON response
+- **Validation results**: Includes TypeScript and ESLint errors if checks fail
+- **File lists**: Shows exactly which files were applied, skipped, or conflicted
+- **Backward compatibility**: Falls back to string matching for older child projects
 
 ## Notes
 
 - Only safe changes (no conflicts) are synced automatically
 - Projects with uncommitted changes are always skipped to prevent data loss
 - Each synced project gets a commit with the template changes
+- Validation (yarn checks) runs automatically - changes are NOT committed if it fails
 - Use `yarn sync-children --dry-run` to preview without applying changes
+- Exit code is non-zero if any project has errors or checks failed
