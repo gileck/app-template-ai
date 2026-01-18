@@ -12,6 +12,7 @@ import {
     updatePriority,
     deleteFeatureRequest,
     addAdminComment,
+    approveFeatureRequest,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -264,6 +265,60 @@ export function useAddAdminComment() {
             toast.error('Failed to add comment');
         },
         onSuccess: () => {},
+        onSettled: () => {},
+    });
+}
+
+export function useApproveFeatureRequest() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (requestId: string) => {
+            const result = await approveFeatureRequest({ requestId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onMutate: async (requestId) => {
+            await queryClient.cancelQueries({ queryKey: featureRequestsBaseQueryKey });
+            const previous = queryClient.getQueriesData({ queryKey: featureRequestsBaseQueryKey });
+
+            // Optimistically update status to product_design
+            queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((request) =>
+                    request._id === requestId
+                        ? { ...request, status: 'product_design' as FeatureRequestStatus }
+                        : request
+                );
+            });
+
+            return { previous };
+        },
+        onError: (_err, _variables, context) => {
+            if (!context?.previous) return;
+            for (const [key, data] of context.previous) {
+                queryClient.setQueryData(key, data);
+            }
+            toast.error('Failed to approve feature request');
+        },
+        onSuccess: (data) => {
+            // Update with actual GitHub data
+            if (data.featureRequest) {
+                queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
+                    if (!Array.isArray(old)) return old;
+                    return old.map((request) =>
+                        request._id === data.featureRequest?._id ? data.featureRequest : request
+                    );
+                });
+            }
+            if (data.githubIssueUrl) {
+                toast.success(`Approved! GitHub Issue #${data.githubIssueNumber} created`);
+            } else {
+                toast.success('Feature request approved');
+            }
+        },
         onSettled: () => {},
     });
 }

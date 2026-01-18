@@ -695,6 +695,47 @@ Use `--cloud-proxy` when running in Claude Code cloud environment. This enables:
 
 ---
 
+## GitHub Projects Integration
+
+Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
+
+**Summary:** CLI agents that automate the design and development workflow:
+1. Sync approved feature requests to GitHub Issues
+2. Generate Product Design documents using Claude
+3. Generate Technical Design documents using Claude
+4. Implement features and create PRs using Claude
+
+**Setup:**
+1. Create a GitHub Project with required statuses (see docs)
+2. Add `GITHUB_TOKEN` to `.env` with `repo` and `project` scopes
+3. Configure `scripts/agents/shared/config.ts` for your project
+
+**CLI Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `yarn agent:sync-to-github` | Sync approved feature requests to GitHub Issues |
+| `yarn agent:product-design` | Generate product design documents |
+| `yarn agent:tech-design` | Generate technical design documents |
+| `yarn agent:implement` | Implement features and create PRs |
+
+**Common Options:**
+- `--id <id>` - Process specific item
+- `--dry-run` - Preview without changes
+- `--stream` - Stream Claude output
+- `--limit <n>` - Limit items to process
+
+**Workflow:**
+```
+Feature Request → GitHub Issue → Product Design → Tech Design → PR → Merge
+```
+
+Each phase has a review step where admin can approve or request changes.
+
+**Docs:** [docs/github-projects-integration.md](docs/github-projects-integration.md)
+
+---
+
 ## Vercel CLI Tool
 
 Command-line tool for managing Vercel deployments and projects.

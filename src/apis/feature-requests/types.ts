@@ -163,6 +163,18 @@ export interface DeleteFeatureRequestResponse {
     error?: string;
 }
 
+// Approve feature request (creates GitHub issue)
+export interface ApproveFeatureRequestRequest {
+    requestId: string;
+}
+
+export interface ApproveFeatureRequestResponse {
+    featureRequest?: FeatureRequestClient;
+    githubIssueUrl?: string;
+    githubIssueNumber?: number;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type {
     FeatureRequestClient,

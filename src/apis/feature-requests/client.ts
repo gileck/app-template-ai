@@ -14,6 +14,7 @@ import {
     API_UPDATE_PRIORITY,
     API_SET_NEEDS_USER_INPUT,
     API_DELETE_FEATURE_REQUEST,
+    API_APPROVE_FEATURE_REQUEST,
 } from './index';
 import {
     CreateFeatureRequestRequest,
@@ -42,6 +43,8 @@ import {
     SetNeedsUserInputResponse,
     DeleteFeatureRequestRequest,
     DeleteFeatureRequestResponse,
+    ApproveFeatureRequestRequest,
+    ApproveFeatureRequestResponse,
 } from './types';
 
 // ============================================================
@@ -167,4 +170,13 @@ export const deleteFeatureRequest = async (
     params: DeleteFeatureRequestRequest
 ): Promise<CacheResult<DeleteFeatureRequestResponse>> => {
     return apiClient.post(API_DELETE_FEATURE_REQUEST, params);
+};
+
+/**
+ * Approve a feature request and create GitHub issue (admin only)
+ */
+export const approveFeatureRequest = async (
+    params: ApproveFeatureRequestRequest
+): Promise<CacheResult<ApproveFeatureRequestResponse>> => {
+    return apiClient.post(API_APPROVE_FEATURE_REQUEST, params);
 };

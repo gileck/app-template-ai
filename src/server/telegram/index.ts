@@ -28,9 +28,16 @@ import { appConfig } from '@/app.config';
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
 
+export interface InlineKeyboardButton {
+    text: string;
+    url?: string;
+    callback_data?: string;
+}
+
 export interface SendMessageOptions {
     parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
     disableNotification?: boolean;
+    inlineKeyboard?: InlineKeyboardButton[][];
 }
 
 export interface SendMessageResult {
@@ -54,15 +61,24 @@ async function sendToChat(
     }
 
     try {
+        const body: Record<string, unknown> = {
+            chat_id: chatId,
+            text: message,
+            parse_mode: options?.parseMode,
+            disable_notification: options?.disableNotification
+        };
+
+        // Add inline keyboard if provided
+        if (options?.inlineKeyboard) {
+            body.reply_markup = {
+                inline_keyboard: options.inlineKeyboard
+            };
+        }
+
         const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: message,
-                parse_mode: options?.parseMode,
-                disable_notification: options?.disableNotification
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {

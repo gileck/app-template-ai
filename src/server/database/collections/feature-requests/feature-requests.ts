@@ -446,6 +446,71 @@ export const deleteFeatureRequest = async (
 };
 
 /**
+ * Update GitHub fields on a feature request
+ */
+export const updateGitHubFields = async (
+    requestId: ObjectId | string,
+    fields: {
+        githubIssueUrl?: string;
+        githubIssueNumber?: number;
+        githubProjectItemId?: string;
+        githubPrUrl?: string;
+        githubPrNumber?: number;
+    }
+): Promise<FeatureRequestDocument | null> => {
+    const collection = await getFeatureRequestsCollection();
+    const requestIdObj = typeof requestId === 'string' ? new ObjectId(requestId) : requestId;
+
+    const result = await collection.findOneAndUpdate(
+        { _id: requestIdObj },
+        {
+            $set: {
+                ...fields,
+                updatedAt: new Date(),
+            },
+        },
+        { returnDocument: 'after' }
+    );
+
+    return result || null;
+};
+
+/**
+ * Update or clear the approval token
+ */
+export const updateApprovalToken = async (
+    requestId: ObjectId | string,
+    token: string | null
+): Promise<boolean> => {
+    const collection = await getFeatureRequestsCollection();
+    const requestIdObj = typeof requestId === 'string' ? new ObjectId(requestId) : requestId;
+
+    if (token === null) {
+        // Remove the token field
+        const result = await collection.updateOne(
+            { _id: requestIdObj },
+            {
+                $unset: { approvalToken: '' },
+                $set: { updatedAt: new Date() },
+            }
+        );
+        return result.modifiedCount === 1;
+    }
+
+    const result = await collection.updateOne(
+        { _id: requestIdObj },
+        {
+            $set: {
+                approvalToken: token,
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    return result.modifiedCount === 1;
+};
+
+/**
  * Get feature request counts by status
  */
 export const getFeatureRequestCounts = async (): Promise<Record<FeatureRequestStatus, number>> => {

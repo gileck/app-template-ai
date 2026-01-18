@@ -12,11 +12,11 @@ import {
     DropdownMenuSubTrigger,
 } from '@/client/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
-import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye, ExternalLink, GitPullRequest, CheckCircle } from 'lucide-react';
 import { StatusBadge, PriorityBadge } from './StatusBadge';
 import { DesignReviewPanel } from './DesignReviewPanel';
 import type { FeatureRequestClient, FeatureRequestStatus, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
-import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest } from '../hooks';
+import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest } from '../hooks';
 
 interface FeatureRequestCardProps {
     request: FeatureRequestClient;
@@ -48,6 +48,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     const updateStatusMutation = useUpdateFeatureRequestStatus();
     const updatePriorityMutation = useUpdatePriority();
     const deleteMutation = useDeleteFeatureRequest();
+    const approveMutation = useApproveFeatureRequest();
 
     const handleStatusChange = (status: FeatureRequestStatus) => {
         updateStatusMutation.mutate({ requestId: request._id, status });
@@ -62,6 +63,13 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
             onSuccess: () => setShowDeleteDialog(false),
         });
     };
+
+    const handleApprove = () => {
+        approveMutation.mutate(request._id);
+    };
+
+    // Show approve button for new or in_review requests that don't have a GitHub issue yet
+    const canApprove = (request.status === 'new' || request.status === 'in_review') && !request.githubIssueUrl;
 
     const currentDesignPhase =
         request.status === 'product_design'
@@ -97,6 +105,18 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
+                        {canApprove && (
+                            <Button
+                                variant="default"
+                                size="sm"
+                                onClick={handleApprove}
+                                disabled={approveMutation.isPending}
+                                className="gap-1"
+                            >
+                                <CheckCircle className="h-4 w-4" />
+                                {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                            </Button>
+                        )}
                         {canReviewDesign && (
                             <Button
                                 variant="outline"
@@ -181,6 +201,34 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <FileText className="h-4 w-4" />
                             <span>Page: {request.page}</span>
+                        </div>
+                    )}
+
+                    {/* GitHub Links */}
+                    {(request.githubIssueUrl || request.githubPrUrl) && (
+                        <div className="flex flex-wrap gap-3 text-sm">
+                            {request.githubIssueUrl && (
+                                <a
+                                    href={request.githubIssueUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 hover:bg-muted/80 transition-colors"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>Issue #{request.githubIssueNumber}</span>
+                                </a>
+                            )}
+                            {request.githubPrUrl && (
+                                <a
+                                    href={request.githubPrUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 hover:bg-muted/80 transition-colors"
+                                >
+                                    <GitPullRequest className="h-3.5 w-3.5" />
+                                    <span>PR #{request.githubPrNumber}</span>
+                                </a>
+                            )}
                         </div>
                     )}
 

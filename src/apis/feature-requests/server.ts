@@ -16,6 +16,7 @@ import {
     API_UPDATE_PRIORITY,
     API_SET_NEEDS_USER_INPUT,
     API_DELETE_FEATURE_REQUEST,
+    API_APPROVE_FEATURE_REQUEST,
 } from './index';
 
 // Import handlers
@@ -32,6 +33,7 @@ import { updateAdminNotes } from './handlers/updateAdminNotes';
 import { updatePriority } from './handlers/updatePriority';
 import { setNeedsUserInput } from './handlers/setNeedsUserInput';
 import { deleteFeatureRequest } from './handlers/deleteFeatureRequest';
+import { approveFeatureRequest } from './handlers/approveFeatureRequest';
 
 // Export consolidated handlers object
 export const featureRequestsApiHandlers = {
@@ -48,4 +50,5 @@ export const featureRequestsApiHandlers = {
     [API_UPDATE_PRIORITY]: { process: updatePriority },
     [API_SET_NEEDS_USER_INPUT]: { process: setNeedsUserInput },
     [API_DELETE_FEATURE_REQUEST]: { process: deleteFeatureRequest },
+    [API_APPROVE_FEATURE_REQUEST]: { process: approveFeatureRequest },
 };

@@ -1,10 +1,15 @@
 #!/usr/bin/env tsx
 /**
- * Setup GitHub Secrets from .env
+ * Setup GitHub Secrets and Variables from .env
  *
- * Configures GitHub repository secrets needed for workflows:
+ * Configures GitHub repository secrets and variables needed for workflows:
+ *
+ * Secrets:
  * - TELEGRAM_BOT_TOKEN: For Telegram notifications
- * - LOCAL_TELEGRAM_CHAT_ID: Chat ID to receive notifications (from LOCAL_TELEGRAM_CHAT_ID in .env)
+ * - TELEGRAM_CHAT_ID: Chat ID to receive notifications (from LOCAL_TELEGRAM_CHAT_ID in .env)
+ *
+ * Variables:
+ * - TELEGRAM_NOTIFICATIONS_ENABLED: Set to 'true' to enable GitHub Actions notifications
  *
  * Usage:
  *   yarn setup-github-secrets
@@ -20,9 +25,15 @@ import { resolve } from 'path';
 
 const ENV_FILE = resolve(process.cwd(), '.env');
 
+// Secrets (sensitive values)
 const REQUIRED_SECRETS = [
     { envKey: 'TELEGRAM_BOT_TOKEN', githubKey: 'TELEGRAM_BOT_TOKEN', description: 'Telegram Bot Token' },
-    { envKey: 'LOCAL_TELEGRAM_CHAT_ID', githubKey: 'LOCAL_TELEGRAM_CHAT_ID', description: 'Owner Telegram Chat ID' },
+    { envKey: 'LOCAL_TELEGRAM_CHAT_ID', githubKey: 'TELEGRAM_CHAT_ID', description: 'Telegram Chat ID' },
+];
+
+// Variables (non-sensitive configuration)
+const REQUIRED_VARIABLES = [
+    { githubKey: 'TELEGRAM_NOTIFICATIONS_ENABLED', value: 'true', description: 'Enable Telegram notifications' },
 ];
 
 function parseEnvFile(filePath: string): Record<string, string> {
@@ -75,6 +86,15 @@ function checkGhAuth(): boolean {
 function setGitHubSecret(key: string, value: string): boolean {
     try {
         execSync(`gh secret set ${key} --body "${value}"`, { stdio: 'inherit' });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function setGitHubVariable(key: string, value: string): boolean {
+    try {
+        execSync(`gh variable set ${key} --body "${value}"`, { stdio: 'inherit' });
         return true;
     } catch {
         return false;
@@ -138,8 +158,8 @@ async function main() {
     // Set secrets
     console.log('Setting GitHub secrets...\n');
 
-    let success = 0;
-    let failed = 0;
+    let secretsSuccess = 0;
+    let secretsFailed = 0;
 
     for (const secret of REQUIRED_SECRETS) {
         const value = env[secret.envKey];
@@ -147,16 +167,39 @@ async function main() {
 
         if (setGitHubSecret(secret.githubKey, value)) {
             console.log('✓');
-            success++;
+            secretsSuccess++;
         } else {
             console.log('✗');
-            failed++;
+            secretsFailed++;
         }
     }
 
-    console.log(`\n✅ Done! ${success} secrets configured${failed > 0 ? `, ${failed} failed` : ''}.`);
+    // Set variables
+    console.log('\nSetting GitHub variables...\n');
 
-    if (failed === 0) {
+    let varsSuccess = 0;
+    let varsFailed = 0;
+
+    for (const variable of REQUIRED_VARIABLES) {
+        process.stdout.write(`  ${variable.githubKey}=${variable.value}... `);
+
+        if (setGitHubVariable(variable.githubKey, variable.value)) {
+            console.log('✓');
+            varsSuccess++;
+        } else {
+            console.log('✗');
+            varsFailed++;
+        }
+    }
+
+    const totalSuccess = secretsSuccess + varsSuccess;
+    const totalFailed = secretsFailed + varsFailed;
+
+    console.log(`\n✅ Done! ${totalSuccess} items configured${totalFailed > 0 ? `, ${totalFailed} failed` : ''}.`);
+    console.log(`   - ${secretsSuccess} secrets`);
+    console.log(`   - ${varsSuccess} variables`);
+
+    if (totalFailed === 0) {
         console.log('\nYour GitHub workflows are now configured to send Telegram notifications.');
     }
 }

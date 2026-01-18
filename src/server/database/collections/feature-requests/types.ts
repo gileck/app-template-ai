@@ -105,6 +105,16 @@ export interface FeatureRequestDocument {
     adminNotes?: string;              // Internal notes (not shown to user)
     priority?: FeatureRequestPriority;
 
+    // GitHub integration fields
+    githubIssueUrl?: string;          // URL to the GitHub issue
+    githubIssueNumber?: number;       // GitHub issue number
+    githubProjectItemId?: string;     // GitHub Project item ID (for status updates)
+    githubPrUrl?: string;             // URL to the pull request
+    githubPrNumber?: number;          // GitHub PR number
+
+    // Approval token for Telegram quick-approve link
+    approvalToken?: string;           // Secure token for one-click approval
+
     // Timestamps
     createdAt: Date;
     updatedAt: Date;
@@ -131,6 +141,12 @@ export interface FeatureRequestClient {
     comments: FeatureRequestCommentClient[];
     adminNotes?: string;
     priority?: FeatureRequestPriority;
+    // GitHub integration fields
+    githubIssueUrl?: string;
+    githubIssueNumber?: number;
+    githubProjectItemId?: string;
+    githubPrUrl?: string;
+    githubPrNumber?: number;
     createdAt: string;
     updatedAt: string;
 }

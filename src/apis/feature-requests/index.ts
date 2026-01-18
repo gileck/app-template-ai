@@ -24,3 +24,4 @@ export const API_UPDATE_ADMIN_NOTES = 'admin/feature-requests/updateAdminNotes';
 export const API_UPDATE_PRIORITY = 'admin/feature-requests/updatePriority';
 export const API_SET_NEEDS_USER_INPUT = 'admin/feature-requests/setNeedsUserInput';
 export const API_DELETE_FEATURE_REQUEST = 'admin/feature-requests/delete';
+export const API_APPROVE_FEATURE_REQUEST = 'admin/feature-requests/approve';
