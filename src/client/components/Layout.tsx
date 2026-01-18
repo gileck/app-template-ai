@@ -5,7 +5,8 @@ import { DrawerMenu } from './layout/DrawerMenu';
 import { Footer } from './layout/Footer';
 import { NavigatorStandalone } from './layout/types';
 import { filterAdminNavItems, menuItems, navItems, adminMenuItems } from './NavLinks';
-import { BugReportDialog, FeatureRequestDialog, useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
+import { useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
+import { GlobalDialogs } from './GlobalDialogs';
 import { ToastContainer } from './ui/toast';
 import { useIsAdmin } from '@/client/features/auth';
 
@@ -72,11 +73,8 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
       {/* Bottom Navigation (mobile only) */}
       <BottomNavBar navItems={filterAdminNavItems(navItems, isAdmin)} />
 
-      {/* Bug Report Dialog */}
-      <BugReportDialog />
-
-      {/* Feature Request Dialog */}
-      <FeatureRequestDialog />
+      {/* Global Dialogs (template + project) */}
+      <GlobalDialogs />
 
       {/* Toast Notifications */}
       <ToastContainer />
