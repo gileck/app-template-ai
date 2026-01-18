@@ -5,7 +5,13 @@
   "lastSyncCommit": null,
   "lastProjectCommit": null,
   "lastSyncDate": null,
-  "ignoredFiles": [],
+  "ignoredFiles": [
+    "src/client/features/index.ts",
+    "src/client/components/NavLinks.tsx",
+    "src/server/database/collections/index.ts",
+    "src/client/routes/index.ts",
+    "src/apis/apis.ts"
+  ],
   "projectSpecificFiles": [],
   "templateIgnoredFiles": [
     ".claude/commands/sync-children.md",
