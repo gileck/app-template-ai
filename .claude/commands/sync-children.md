@@ -98,6 +98,66 @@ The sync-children script uses `--json` mode when calling sync-template, which pr
 - **File lists**: Shows exactly which files were applied, skipped, or conflicted
 - **Backward compatibility**: Falls back to string matching for older child projects
 
+## Handling "Checks Failed" Projects
+
+When a project reports "Checks Failed", the sync was applied but validation (TypeScript/ESLint) failed, so changes were **NOT committed**. You need to investigate and fix the issues.
+
+### Step 1: Examine the Errors
+
+Look at the `checksResult` in the output:
+- `tsErrors`: TypeScript compilation errors
+- `lintErrors`: ESLint errors
+
+### Step 2: Identify the Root Cause
+
+Check errors often fall into these categories:
+
+#### A. Template Bug
+The error is in a **template file that was synced**. This suggests a bug in the template itself.
+
+**Solution**: Fix the issue in the **template repository**, then re-run sync-children.
+
+#### B. Integration Issue with Skipped Files
+This is the most common cause. The error is often because:
+- The project has **ignored/skipped files** that were modified in the template
+- Template files were synced, but related project-specific files were NOT synced
+- This creates a mismatch (e.g., template exports a new feature, but project's `index.ts` doesn't import it)
+
+**How to identify**: Look at `filesSkipped` in the JSON output. If skipped files are related to the error location, this is likely the cause.
+
+**Solution**: Manually merge the skipped files with template changes:
+1. Go to the child project
+2. Run `yarn sync-template --show-drift` to see all differences
+3. For each relevant skipped file, manually merge the template changes
+4. Be careful - both project and template may have changes that need to be combined
+5. Run `yarn checks` to verify
+6. Commit the merged changes
+
+#### C. Project-Specific Code Issue
+The error is in project-specific code that's incompatible with template changes.
+
+**Solution**: Update the project-specific code in the child project to work with the new template.
+
+### Step 3: Commit the Changes
+
+After fixing the issues in the child project:
+
+```bash
+cd ../child-project
+yarn checks  # Verify fixes work
+git add .
+git commit -m "fix: resolve sync integration issues"
+```
+
+### Edge Cases on Large Template Changes
+
+Large template changes (like restructuring exports, adding new features, or changing APIs) are more likely to cause integration issues with skipped files. When this happens:
+
+1. **Don't panic** - the sync applied changes but didn't commit, so you can review
+2. **Check the skipped files list** - these are often the source of integration problems
+3. **Consider running interactive sync**: `yarn sync-template` (without `--auto-safe-only`) to handle conflicts manually
+4. **Merge carefully** - skipped files have both project customizations AND template changes that need to be combined
+
 ## Notes
 
 - Only safe changes (no conflicts) are synced automatically
