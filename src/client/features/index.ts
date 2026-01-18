@@ -12,6 +12,7 @@ export * from './router';
 export * from './offline-sync';
 export * from './session-logs';
 export * from './bug-report';
+export * from './feature-request';
 export * from './error-tracking';
 export * from './theme';
 export * from './boot-performance';

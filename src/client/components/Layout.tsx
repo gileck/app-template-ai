@@ -5,7 +5,7 @@ import { DrawerMenu } from './layout/DrawerMenu';
 import { Footer } from './layout/Footer';
 import { NavigatorStandalone } from './layout/types';
 import { filterAdminNavItems, menuItems, navItems, adminMenuItems } from './NavLinks';
-import { BugReportDialog, useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
+import { BugReportDialog, FeatureRequestDialog, useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
 import { ToastContainer } from './ui/toast';
 import { useIsAdmin } from '@/client/features/auth';
 
@@ -74,6 +74,9 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 
       {/* Bug Report Dialog */}
       <BugReportDialog />
+
+      {/* Feature Request Dialog */}
+      <FeatureRequestDialog />
 
       {/* Toast Notifications */}
       <ToastContainer />

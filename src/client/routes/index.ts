@@ -7,6 +7,8 @@ import { SingleTodo } from './SingleTodo';
 import { createRoutes } from '../router';
 import { Profile } from './Profile';
 import { Reports } from './Reports';
+import { FeatureRequests } from './FeatureRequests';
+import { MyFeatureRequests } from './MyFeatureRequests';
 import { Theme } from './Theme';
 
 /**
@@ -38,9 +40,11 @@ export const routes = createRoutes({
   '/settings': Settings,
   '/theme': Theme,
   '/profile': Profile,
-  
+  '/my-requests': MyFeatureRequests,
+
   // Admin routes
   '/admin/reports': Reports,
+  '/admin/feature-requests': FeatureRequests,
   
   // Public routes (no authentication required)
   // Example: '/share/:id': { component: SharePage, public: true },
