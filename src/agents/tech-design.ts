@@ -84,18 +84,27 @@ async function processItem(
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
 
     try {
-        // Extract product design (required for tech design)
+        // Extract product design (optional - may be skipped for internal/technical work)
         const productDesign = extractProductDesign(content.body);
-        if (!productDesign) {
-            return { success: false, error: 'No product design found in issue body' };
+
+        // Always fetch comments - they provide context for any phase
+        const comments = await adapter.getIssueComments(issueNumber);
+        const issueComments = comments.map((c) => ({
+            id: c.id,
+            body: c.body,
+            author: c.author,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        }));
+        if (issueComments.length > 0) {
+            console.log(`  Found ${issueComments.length} comment(s) on issue`);
         }
 
         let prompt: string;
-        let feedbackComments: Array<{ id: number; body: string; author: string; createdAt: string; updatedAt?: string }> = [];
 
         if (mode === 'new') {
             // Flow A: New design
-            prompt = buildTechDesignPrompt(content, productDesign);
+            prompt = buildTechDesignPrompt(content, productDesign, issueComments);
         } else {
             // Flow B: Address feedback
             const existingTechDesign = extractTechDesign(content.body);
@@ -103,20 +112,11 @@ async function processItem(
                 return { success: false, error: 'No existing technical design found to revise' };
             }
 
-            // Fetch feedback comments
-            const comments = await adapter.getIssueComments(issueNumber);
-            feedbackComments = comments.map((c) => ({
-                id: c.id,
-                body: c.body,
-                author: c.author,
-                createdAt: c.createdAt,
-                updatedAt: c.updatedAt,
-            }));
-            if (feedbackComments.length === 0) {
+            if (issueComments.length === 0) {
                 return { success: false, error: 'No feedback comments found' };
             }
 
-            prompt = buildTechDesignRevisionPrompt(content, productDesign, existingTechDesign, feedbackComments);
+            prompt = buildTechDesignRevisionPrompt(content, productDesign, existingTechDesign, issueComments);
         }
 
         // Run the agent

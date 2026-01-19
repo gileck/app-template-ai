@@ -183,19 +183,32 @@ async function processItem(
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
         }
 
-        // Extract designs from issue body (required for implementation)
+        // Extract designs from issue body (optional - may be skipped for simple/internal work)
         const productDesign = extractProductDesign(content.body);
         const techDesign = extractTechDesign(content.body);
 
-        if (!productDesign) {
-            return { success: false, error: 'No product design found in issue body' };
+        if (!techDesign && !productDesign) {
+            console.log('  Note: No design documents found - implementing from issue description only');
+        } else if (!techDesign) {
+            console.log('  Note: No technical design found - implementing from product design and issue description');
+        } else if (!productDesign) {
+            console.log('  Note: No product design found - implementing from technical design only (internal work)');
         }
-        if (!techDesign) {
-            return { success: false, error: 'No technical design found in issue body' };
+
+        // Always fetch issue comments - they provide context for any phase
+        const allIssueComments = await adapter.getIssueComments(issueNumber);
+        const issueComments: GitHubComment[] = allIssueComments.map((c) => ({
+            id: c.id,
+            body: c.body,
+            author: c.author,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        }));
+        if (issueComments.length > 0) {
+            console.log(`  Found ${issueComments.length} comment(s) on issue`);
         }
 
         let prompt: string;
-        let feedbackComments: GitHubComment[] = [];
         let prReviewComments: Array<{ path?: string; line?: number; body: string; author: string }> = [];
 
         if (mode === 'new') {
@@ -206,22 +219,14 @@ async function processItem(
                 console.log(`  Branch ${branchName} already exists, will use it`);
             }
 
-            prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName);
+            prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName, issueComments);
         } else {
             // Flow B: Address feedback
             if (!processable.prNumber) {
                 return { success: false, error: 'No PR number available for feedback mode' };
             }
 
-            // Fetch feedback comments
-            const issueComments = await adapter.getIssueComments(issueNumber);
-            feedbackComments = issueComments.map((c) => ({
-                id: c.id,
-                body: c.body,
-                author: c.author,
-                createdAt: c.createdAt,
-                updatedAt: c.updatedAt,
-            }));
+            // Fetch PR review comments
             const prComments = await adapter.getPRReviewComments(processable.prNumber);
             prReviewComments = prComments.map((c) => ({
                 path: c.path,
@@ -230,13 +235,13 @@ async function processItem(
                 author: c.author,
             }));
 
-            if (feedbackComments.length === 0 && prReviewComments.length === 0) {
+            if (issueComments.length === 0 && prReviewComments.length === 0) {
                 return { success: false, error: 'No feedback comments found' };
             }
 
-            console.log(`  Found ${feedbackComments.length} issue comments, ${prReviewComments.length} PR review comments`);
+            console.log(`  Found ${issueComments.length} issue comments, ${prReviewComments.length} PR review comments`);
 
-            prompt = buildPRRevisionPrompt(content, productDesign, techDesign, feedbackComments, prReviewComments);
+            prompt = buildPRRevisionPrompt(content, productDesign, techDesign, issueComments, prReviewComments);
         }
 
         // Checkout the feature branch

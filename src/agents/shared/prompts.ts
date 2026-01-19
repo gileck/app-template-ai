@@ -18,11 +18,15 @@ import type { GitHubComment } from './types';
 /**
  * Build prompt for generating a new product design
  */
-export function buildProductDesignPrompt(issue: ProjectItemContent): string {
+export function buildProductDesignPrompt(issue: ProjectItemContent, comments?: GitHubComment[]): string {
+    const commentsSection = comments && comments.length > 0
+        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
     return `You are creating a Product Design document for a GitHub issue. Your task is to:
 1. Understand the feature from the issue description
 2. Explore the codebase to understand existing patterns and architecture
-3. Create a comprehensive Product Design document
+3. Create a Product Design document
 
 IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
 
@@ -34,26 +38,23 @@ IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use
 
 **Description:**
 ${issue.body || 'No description provided'}
-
+${commentsSection}
 ## Your Task
 
-Create a Product Design document that covers:
+Create a Product Design document. The size of your output should match the complexity of the feature - simple features get simple designs, complex features get detailed designs.
 
-1. **Overview** - Brief summary of what this feature does and why it's needed
-2. **User Stories** - Who uses this and what they want to achieve
-   - Format: "As a [user type], I want to [action] so that [benefit]"
+**Required sections:**
+1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
+2. **Overview** - Brief summary of what this feature does and why it's needed
 3. **UI/UX Design** - How the feature will look and behave
    - Describe the interface elements
    - User flow and interactions
-   - Consider mobile/responsive needs
-4. **Edge Cases** - What happens when things go wrong?
-   - Empty states
-   - Error handling
-   - Loading states
-   - Permission/auth considerations
-5. **Success Criteria** - How do we know this feature is complete?
-   - Measurable outcomes
-   - Acceptance criteria
+   - Include error handling and loading states naturally within the flow
+   - Consider mobile/responsive needs if relevant
+
+**Optional sections (include only when relevant):**
+- **User Stories** - Only for features where multiple user types or complex workflows need clarification
+- **Edge Cases** - Only for features with non-obvious edge cases that need explicit design decisions
 
 ## Research Strategy
 
@@ -65,24 +66,39 @@ Before writing the design, explore the codebase:
 
 ## Output Format
 
-Your final output MUST be a complete Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Your final output MUST be a Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
 
-The document should be professional, clear, and actionable.
+Keep it concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 
-Example structure:
+Example for a SMALL feature (S):
+
+\`\`\`markdown
+# Product Design: Add logout button
+
+**Size: S**
+
+## Overview
+Add a logout button to the user menu dropdown. When clicked, clears the session and redirects to the login page.
+
+## UI/UX Design
+- Add "Logout" item at the bottom of the existing user dropdown menu
+- Shows loading spinner while logging out
+- On success: redirect to /login
+- On error: show toast notification
+\`\`\`
+
+Example for a MEDIUM/LARGE feature:
 
 \`\`\`markdown
 # Product Design: [Feature Title]
 
+**Size: M** (or L)
+
 ## Overview
 [1-2 paragraph summary]
 
-## User Stories
-
-### Primary User
+## User Stories (if needed)
 - As a user, I want to...
-
-### Admin (if applicable)
 - As an admin, I want to...
 
 ## UI/UX Design
@@ -93,26 +109,14 @@ Example structure:
 ### User Flow
 1. User navigates to...
 2. User clicks...
-3. System shows...
+3. System shows loading state...
+4. On success/error...
 
 ### Mobile Considerations
-[Responsive design notes]
+[Only if relevant]
 
-## Edge Cases
-
-### Empty State
-[What to show when there's no data]
-
-### Error Handling
-[How to handle failures]
-
-### Loading States
-[What to show while loading]
-
-## Success Criteria
-- [ ] User can...
-- [ ] System handles...
-- [ ] Feature integrates with...
+## Edge Cases (if needed)
+[Only non-obvious cases that need design decisions]
 \`\`\`
 
 Now explore the codebase and create the Product Design document.`;
@@ -157,13 +161,13 @@ ${feedbackSection}
 1. Carefully read and understand all feedback comments
 2. Research any areas mentioned in the feedback
 3. Revise the Product Design to address ALL feedback points
-4. Ensure the revised design is complete and self-contained
+4. Keep the output size proportional to the feature complexity
 
 ## Output Format
 
 Your final output MUST be the COMPLETE revised Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
 
-Do NOT output just the changes - output the entire revised document.
+Do NOT output just the changes - output the entire revised document. Keep it concise.
 
 Now revise the Product Design based on the feedback.`;
 }
@@ -175,8 +179,19 @@ Now revise the Product Design based on the feedback.`;
 /**
  * Build prompt for generating a new technical design
  */
-export function buildTechDesignPrompt(issue: ProjectItemContent, productDesign: string): string {
-    return `You are creating a Technical Design document for a GitHub issue. The Product Design has been approved, and now you need to define the technical implementation.
+export function buildTechDesignPrompt(issue: ProjectItemContent, productDesign: string | null, comments?: GitHubComment[]): string {
+    const productDesignSection = productDesign
+        ? `## Approved Product Design
+
+${productDesign}`
+        : `## Note
+No product design phase for this item (internal/technical work). Base your technical design on the issue description.`;
+
+    const commentsSection = comments && comments.length > 0
+        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    return `You are creating a Technical Design document for a GitHub issue.${productDesign ? ' The Product Design has been approved, and now you need to define the technical implementation.' : ' This is internal/technical work that skipped the product design phase.'}
 
 IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
 
@@ -187,61 +202,78 @@ IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use
 
 **Original Description:**
 ${issue.body || 'No description provided'}
-
-## Approved Product Design
-
-${productDesign}
+${commentsSection}
+${productDesignSection}
 
 ## Your Task
 
-Create a Technical Design document that covers:
+Create a Technical Design document. The size of your output should match the complexity of the feature - simple features get simple designs, complex features get detailed designs.
 
-1. **Architecture Overview** - High-level approach
-2. **Files to Create/Modify** - Specific files and what changes
-3. **Data Model** - Database schema changes (if any)
-4. **API Changes** - New endpoints or modifications
-5. **State Management** - Client-side state considerations
-6. **Migration/Compatibility** - Any migration needs
-7. **Testing Strategy** - How to test this feature
+**Required sections:**
+1. **Size & Complexity** - Effort (S/M/L) and complexity (Low/Medium/High)
+2. **Overview** - Brief technical approach (1-2 sentences for small features)
+3. **Files to Create/Modify** - List of files with brief description of changes
+
+**Optional sections (include only when relevant):**
+- **Data Model** - Only if new collections or schema changes needed
+- **API Changes** - Only if new endpoints or modifications needed
+- **State Management** - Only if non-trivial state handling needed
+- **Implementation Notes** - Only for complex logic that needs explanation
 
 ## Research Strategy
 
-Explore the codebase thoroughly:
+Explore the codebase:
 1. Read existing similar features to understand patterns
 2. Check \`src/apis/\` for API patterns
 3. Check \`src/server/database/collections/\` for database patterns
 4. Look at \`src/client/routes/\` for component patterns
-5. Review hooks and stores patterns
 
 ## Output Format
 
-Your final output MUST be a complete Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Your final output MUST be a Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
 
-Example structure:
+Keep it concise. A small feature might only need a short list of files. A large feature needs more detail.
+
+Example for a SMALL feature (S):
+
+\`\`\`markdown
+# Technical Design: Add logout button
+
+**Size: S** | **Complexity: Low**
+
+## Overview
+Add logout menu item that calls existing auth API and redirects.
+
+## Files to Modify
+| File | Changes |
+|------|---------|
+| \`src/client/components/UserMenu.tsx\` | Add logout menu item with onClick handler |
+| \`src/client/features/auth/hooks.ts\` | Add useLogout hook (calls auth/logout API) |
+\`\`\`
+
+Example for a MEDIUM/LARGE feature:
 
 \`\`\`markdown
 # Technical Design: [Feature Title]
 
-## Architecture Overview
-[High-level approach and key decisions]
+**Size: M** | **Complexity: Medium**
+
+## Overview
+[Brief technical approach]
 
 ## Files to Create
-
-### New Files
 | File | Purpose |
 |------|---------|
-| \`src/apis/feature-name/...\` | API layer |
-| \`src/client/routes/FeatureName/...\` | UI components |
+| \`src/apis/feature-name/types.ts\` | Types |
+| \`src/apis/feature-name/handlers/create.ts\` | Create handler |
+| \`src/client/routes/FeatureName/index.tsx\` | Main component |
 
-### Files to Modify
+## Files to Modify
 | File | Changes |
 |------|---------|
-| \`src/client/routes/index.ts\` | Add new route |
-| \`src/client/components/NavLinks.tsx\` | Add nav item |
+| \`src/client/routes/index.ts\` | Add route |
 
-## Data Model
-
-### New Collection (if applicable)
+## Data Model (if needed)
 \`\`\`typescript
 interface FeatureDocument {
   _id: ObjectId;
@@ -249,34 +281,12 @@ interface FeatureDocument {
 }
 \`\`\`
 
-## API Endpoints
+## API Endpoints (if needed)
+- \`feature-name/create\` - POST - Creates new feature item
+- \`feature-name/list\` - GET - Lists user's items
 
-### Create Feature
-- **Endpoint:** \`feature-name/create\`
-- **Method:** POST
-- **Auth:** Required
-- **Request:** \`{ title: string, ... }\`
-- **Response:** \`{ feature: Feature }\`
-
-## State Management
-
-### Server State (React Query)
-- Query key: \`['features']\`
-- Mutations with optimistic updates
-
-### Client State (Zustand)
-[If applicable]
-
-## Implementation Order
-1. Database layer
-2. API layer
-3. Client hooks
-4. UI components
-5. Navigation updates
-
-## Testing Strategy
-- Unit tests for...
-- Integration tests for...
+## Implementation Notes (if needed)
+[Only for complex logic]
 \`\`\`
 
 Now explore the codebase and create the Technical Design document.`;
@@ -287,13 +297,21 @@ Now explore the codebase and create the Technical Design document.`;
  */
 export function buildTechDesignRevisionPrompt(
     issue: ProjectItemContent,
-    productDesign: string,
+    productDesign: string | null,
     existingTechDesign: string,
     feedbackComments: GitHubComment[]
 ): string {
     const feedbackSection = feedbackComments
         .map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`)
         .join('\n\n---\n\n');
+
+    const productDesignSection = productDesign
+        ? `## Approved Product Design
+
+${productDesign}
+
+`
+        : '';
 
     return `You are revising a Technical Design document based on admin feedback.
 
@@ -304,11 +322,7 @@ IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use
 **Title:** ${issue.title}
 **Number:** #${issue.number || 'Draft'}
 
-## Approved Product Design
-
-${productDesign}
-
-## Existing Technical Design
+${productDesignSection}## Existing Technical Design
 
 ${existingTechDesign}
 
@@ -323,13 +337,13 @@ ${feedbackSection}
 1. Carefully read and understand all feedback comments
 2. Research any areas mentioned in the feedback
 3. Revise the Technical Design to address ALL feedback points
-4. Ensure the revised design is complete and self-contained
+4. Keep the output size proportional to the feature complexity
 
 ## Output Format
 
 Your final output MUST be the COMPLETE revised Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
 
-Do NOT output just the changes - output the entire revised document.
+Do NOT output just the changes - output the entire revised document. Keep it concise.
 
 Now revise the Technical Design based on the feedback.`;
 }
@@ -343,11 +357,47 @@ Now revise the Technical Design based on the feedback.`;
  */
 export function buildImplementationPrompt(
     issue: ProjectItemContent,
-    productDesign: string,
-    techDesign: string,
-    branchName: string
+    productDesign: string | null,
+    techDesign: string | null,
+    branchName: string,
+    comments?: GitHubComment[]
 ): string {
-    return `You are implementing a feature based on approved Product and Technical Design documents.
+    let designContext = '';
+    let implementationSource = '';
+
+    if (techDesign && productDesign) {
+        designContext = `## Approved Product Design
+
+${productDesign}
+
+## Approved Technical Design
+
+${techDesign}`;
+        implementationSource = 'the Technical Design document';
+    } else if (techDesign) {
+        designContext = `## Approved Technical Design
+
+${techDesign}
+
+Note: No product design phase for this item (internal/technical work).`;
+        implementationSource = 'the Technical Design document';
+    } else if (productDesign) {
+        designContext = `## Approved Product Design
+
+${productDesign}
+
+Note: No technical design phase for this item. Implement based on the product design.`;
+        implementationSource = 'the Product Design document';
+    } else {
+        designContext = `Note: No design documents for this item (simple fix/change). Implement based on the issue description.`;
+        implementationSource = 'the issue description';
+    }
+
+    const commentsSection = comments && comments.length > 0
+        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    return `You are implementing a feature${techDesign || productDesign ? ' based on approved design documents' : ''}.
 
 IMPORTANT: You are in WRITE mode. You CAN and SHOULD create and modify files to implement this feature.
 
@@ -359,18 +409,12 @@ IMPORTANT: You are in WRITE mode. You CAN and SHOULD create and modify files to 
 
 **Original Description:**
 ${issue.body || 'No description provided'}
-
-## Approved Product Design
-
-${productDesign}
-
-## Approved Technical Design
-
-${techDesign}
+${commentsSection}
+${designContext}
 
 ## Your Task
 
-Implement the feature as specified in the Technical Design document:
+Implement the feature as specified in ${implementationSource}:
 
 1. Create all new files listed in "Files to Create"
 2. Modify all files listed in "Files to Modify"
@@ -413,8 +457,8 @@ Begin implementing the feature now.`;
  */
 export function buildPRRevisionPrompt(
     issue: ProjectItemContent,
-    productDesign: string,
-    techDesign: string,
+    productDesign: string | null,
+    techDesign: string | null,
     feedbackComments: GitHubComment[],
     prReviewComments: Array<{ path?: string; line?: number; body: string; author: string }>
 ): string {
@@ -429,6 +473,17 @@ export function buildPRRevisionPrompt(
         })
         .join('\n\n---\n\n');
 
+    let contextSection = '## Context\n\n';
+    if (productDesign) {
+        contextSection += `### Product Design\n${productDesign}\n\n`;
+    }
+    if (techDesign) {
+        contextSection += `### Technical Design\n${techDesign}\n\n`;
+    }
+    if (!productDesign && !techDesign) {
+        contextSection += `*No design documents (simple fix/change)*\n\n`;
+    }
+
     return `You are addressing PR review feedback for a feature implementation.
 
 IMPORTANT: You are in WRITE mode. You CAN and SHOULD modify files to address the feedback.
@@ -438,13 +493,7 @@ IMPORTANT: You are in WRITE mode. You CAN and SHOULD modify files to address the
 **Title:** ${issue.title}
 **Number:** #${issue.number || 'Draft'}
 
-## Context
-
-### Product Design
-${productDesign}
-
-### Technical Design
-${techDesign}
+${contextSection}
 
 ## Review Feedback
 

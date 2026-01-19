@@ -74,6 +74,7 @@ export {
     notifyPRReady,
     notifyAgentError,
     notifyBatchComplete,
+    notifyAutoAdvance,
     notifyAdmin,
 } from './notifications';
 

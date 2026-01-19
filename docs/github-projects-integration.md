@@ -297,10 +297,11 @@ This requires:
 | File | Events |
 |------|--------|
 | `.github/workflows/issue-notifications.yml` | Issues, comments |
-| `.github/workflows/project-notifications.yml` | Project item status changes |
 | `.github/workflows/pr-notifications.yml` | Pull requests, reviews |
-| `.github/workflows/auto-advance-on-approval.yml` | Auto-advance when Review Status = "Approved" |
-| `.github/workflows/reset-review-status.yml` | Auto-reset Review Status |
+| `.github/workflows/deploy-notify.yml` | Deployment notifications |
+| `.github/workflows/pr-checks.yml` | PR checks |
+
+> **Note:** Project-level webhooks (`projects_v2_item` events) don't work for user-owned projects due to GitHub limitations. The auto-advance functionality is handled by `yarn github-workflows-agent --auto-advance` instead.
 
 ### Notification Examples
 
@@ -341,7 +342,7 @@ Set the `TELEGRAM_NOTIFICATIONS_ENABLED` variable to `false` or delete it to dis
 
 ### Auto-Advance on Approval
 
-The repository includes a GitHub Action that automatically advances items to the next phase when you set Review Status to "Approved". This streamlines the workflow so you don't need to manually move items after approving.
+The `--auto-advance` flag (or `yarn github-workflows-agent --auto-advance`) automatically advances items to the next phase when Review Status = "Approved".
 
 **Transitions:**
 | Current Status | On Approval → | Next Status |
@@ -350,32 +351,24 @@ The repository includes a GitHub Action that automatically advances items to the
 | Technical Design | → | Implementation |
 | Implementation | (no auto-advance) | Manual PR merge required → Done |
 
-**Example:**
+**Example workflow:**
 1. AI agent generates Product Design, sets Review Status = "Waiting for Review"
-2. You review and set Review Status = "Approved"
-3. **Automatically**: Item moves to "Technical Design" and Review Status is cleared
-4. AI agent can now pick it up for Technical Design generation
+2. You receive Telegram notification with Approve/Request Changes buttons
+3. You tap "Approve" (or set Review Status = "Approved" in GitHub)
+4. Run `yarn github-workflows-agent --auto-advance` (or `--all`)
+5. Item moves to "Technical Design" and Review Status is cleared
+6. AI agent can now pick it up for Technical Design generation
 
-**Configuration:**
-- Enabled by default
-- To disable, set repository variable `AUTO_ADVANCE_ON_APPROVAL` to `false`
-- Sends Telegram notification when auto-advancing
+**Usage:**
+```bash
+# Run auto-advance only
+yarn github-workflows-agent --auto-advance
 
-**Workflow File:** `.github/workflows/auto-advance-on-approval.yml`
+# Run as part of full workflow (auto-advance runs first)
+yarn github-workflows-agent --all
+```
 
-### Auto-Reset Review Status
-
-The repository includes a GitHub Action that automatically resets the Review Status field when the main Status changes. This prevents confusion when moving items between phases (e.g., Review Status staying "Approved" when moving to the next phase).
-
-**Behavior:**
-- When Status changes to **Backlog** or **Done**, Review Status is **cleared**
-- When Status changes to a **work phase** (Product Design, Technical Design, Implementation) and Review Status is "Approved", it's **reset to empty** (ready for AI)
-
-**Configuration:**
-- Enabled by default
-- To disable, set repository variable `AUTO_RESET_REVIEW_STATUS` to `false`
-
-**Workflow File:** `.github/workflows/reset-review-status.yml`
+> **Note:** GitHub Actions webhooks for project events (`projects_v2_item`) don't work for user-owned projects due to GitHub limitations. That's why auto-advance is handled via CLI instead of GitHub Actions.
 
 ## Viewing GitHub Status in the App
 
@@ -538,7 +531,9 @@ Admins can change status either from GitHub Projects directly or from the app UI
 
 | Phase | Admin Action | Effect |
 |-------|--------------|--------|
-| Backlog | Move to "Product Design" | Enables product design agent |
+| Backlog | Move to "Product Design" | Standard flow - enables product design agent |
+| Backlog | Move to "Technical Design" | Skip product design (internal/technical work) |
+| Backlog | Move to "Implementation" | Skip both designs (simple fixes) |
 | Product Design | Set Review Status = "Approved" | Auto-advances to Technical Design |
 | Product Design | Set Review Status = "Request Changes" + comment | Agent revises design |
 | Technical Design | Set Review Status = "Approved" | Auto-advances to Implementation |
@@ -547,27 +542,78 @@ Admins can change status either from GitHub Projects directly or from the app UI
 | Implementation | Set Review Status = "Approved" + merge PR | Move to Done |
 | Implementation | Set Review Status = "Request Changes" + review comments | Agent addresses feedback |
 
+### Alternative Workflows (Non-Product Features)
+
+Not all work requires a product design phase. For internal implementations, architecture changes, refactoring, or bug fixes, you can skip phases:
+
+**Skip Product Design (Backlog → Technical Design → Implementation):**
+- Architecture changes
+- Internal refactoring
+- Performance improvements
+- Technical debt cleanup
+- Infrastructure work
+
+**Skip Both Designs (Backlog → Implementation):**
+- Simple bug fixes
+- Config changes
+- Dependency updates
+- Very small changes with clear implementation
+
+**How to skip phases:**
+Simply move the issue directly to the appropriate column in GitHub Projects:
+
+```
+# Skip Product Design
+Backlog → Technical Design    (admin moves manually)
+         ↓
+         yarn github-workflows-agent --tech-design
+         ↓
+Technical Design → Implementation (via auto-advance on approval)
+         ↓
+         yarn github-workflows-agent --implement
+
+# Skip Both Designs
+Backlog → Implementation      (admin moves manually)
+         ↓
+         yarn github-workflows-agent --implement
+```
+
+The agents only process items in their specific status column, so skipping phases works automatically.
+
+**Tip:** Add a label like `internal` or `no-product-design` to make it clear why product design was skipped.
+
 ## Running the Agents
 
-### CLI Commands Reference
+### Master Command (Recommended)
+
+Use `yarn github-workflows-agent` as the single entry point for all agent workflows:
 
 ```bash
-# Generate product designs
+# Run specific agents
+yarn github-workflows-agent --product-design     # Generate product designs
+yarn github-workflows-agent --tech-design        # Generate technical designs
+yarn github-workflows-agent --implement          # Implement and create PRs
+yarn github-workflows-agent --auto-advance       # Auto-advance approved items
+
+# Run all agents in sequence
+yarn github-workflows-agent --all                # Runs: auto-advance → product-design → tech-design → implement
+
+# With options
+yarn github-workflows-agent --all --dry-run      # Preview all without changes
+yarn github-workflows-agent --product-design --id <item-id> --stream
+```
+
+The master command delegates to individual scripts and passes through all options.
+
+### Individual Agent Commands
+
+You can also run agents directly if needed:
+
+```bash
 yarn agent:product-design                    # Process all pending
-yarn agent:product-design --id <item-id>     # Specific item
-yarn agent:product-design --dry-run          # Preview
-yarn agent:product-design --stream           # Stream Claude output
-
-# Generate technical designs
-yarn agent:tech-design                       # Process all pending
 yarn agent:tech-design --id <item-id>        # Specific item
-yarn agent:tech-design --dry-run --stream    # Preview with streaming
-
-# Implement and create PRs
-yarn agent:implement                         # Process all pending
-yarn agent:implement --id <item-id>          # Specific item
 yarn agent:implement --dry-run               # Preview
-yarn agent:implement --skip-push             # Skip git push (for testing)
+yarn agent:auto-advance                      # Advance approved items
 ```
 
 > **Note:** GitHub issues are created automatically when you approve a feature request via the app UI or Telegram link. No CLI command is needed for this step.
@@ -587,18 +633,19 @@ yarn agent:implement --skip-push             # Skip git push (for testing)
 
 **Manual (recommended for getting started):**
 ```bash
-# Run each agent when needed
-yarn agent:product-design
-yarn agent:tech-design
-yarn agent:implement
+# Run all agents with one command
+yarn github-workflows-agent --all
+
+# Or run specific phases
+yarn github-workflows-agent --product-design
+yarn github-workflows-agent --tech-design
+yarn github-workflows-agent --implement
 ```
 
 **Automated (via cron or CI):**
 ```bash
 # Run all agents that have pending work
-yarn agent:product-design && \
-yarn agent:tech-design && \
-yarn agent:implement
+yarn github-workflows-agent --all
 ```
 
 ## Handling Feedback Loops
@@ -673,7 +720,36 @@ Review and approve to proceed to Technical Design.
 📊 Status: Implementation (Waiting for Review)
 
 Review and merge to complete.
+
+[✅ Approve] [📝 Request Changes] [❌ Reject]  ← inline buttons
 ```
+
+### Telegram Quick Actions
+
+All "Waiting for Review" notifications include inline keyboard buttons:
+- **✅ Approve** - Sets Review Status to "Approved"
+- **📝 Request Changes** - Sets Review Status to "Request Changes"
+- **❌ Reject** - Sets Review Status to "Rejected"
+
+When you tap a button, it updates GitHub Project status immediately via webhook.
+
+**Setup:**
+1. Deploy your app (the webhook endpoint needs to be publicly accessible)
+2. Register the webhook URL with Telegram:
+   ```bash
+   yarn telegram-webhook set https://your-app.vercel.app/api/telegram-webhook
+   ```
+3. Verify it's set:
+   ```bash
+   yarn telegram-webhook info
+   ```
+
+**How it works:**
+1. Agent sends notification with inline buttons
+2. You tap a button in Telegram
+3. Telegram calls your `/api/telegram-webhook` endpoint
+4. Webhook updates GitHub Project via the adapter
+5. Message is edited to show the action taken
 
 ## Troubleshooting
 
@@ -736,9 +812,11 @@ For projects based on this template:
 ```
 src/
 ├── agents/                          # CLI agent scripts
+│   ├── index.ts                     # Master CLI (yarn github-workflows-agent)
 │   ├── product-design.ts            # Generate product design
 │   ├── tech-design.ts               # Generate technical design
 │   ├── implement.ts                 # Implement + create PR
+│   ├── auto-advance.ts              # Auto-advance approved items
 │   └── shared/
 │       ├── config.ts                # Agent-specific config + re-exports
 │       ├── claude.ts                # Claude SDK runner
@@ -772,9 +850,9 @@ src/
 .github/
 └── workflows/
     ├── issue-notifications.yml      # Issue event notifications
-    ├── project-notifications.yml    # Project status change notifications
     ├── pr-notifications.yml         # PR event notifications
-    └── reset-review-status.yml      # Auto-reset Review Status on Status change
+    ├── pr-checks.yml                # PR checks
+    └── deploy-notify.yml            # Deployment notifications
 ```
 
 ## Related Documentation

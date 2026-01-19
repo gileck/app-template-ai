@@ -2,6 +2,7 @@
  * Telegram Notifications for Agent Scripts
  *
  * Provides notification functions for each step of the GitHub Projects workflow.
+ * Supports inline keyboard buttons for quick approve/reject actions.
  */
 
 import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
@@ -18,6 +19,21 @@ interface SendResult {
 }
 
 /**
+ * Inline keyboard button for Telegram
+ */
+interface InlineButton {
+    text: string;
+    callback_data: string;
+}
+
+/**
+ * Inline keyboard markup for Telegram
+ */
+interface InlineKeyboardMarkup {
+    inline_keyboard: InlineButton[][];
+}
+
+/**
  * Get the owner's Telegram chat ID from app.config.js
  */
 async function getOwnerChatId(): Promise<string | null> {
@@ -31,9 +47,28 @@ async function getOwnerChatId(): Promise<string | null> {
 }
 
 /**
+ * Build review action buttons for a GitHub issue
+ * Callback data format: action:issueNumber (e.g., "approve:123")
+ */
+function buildReviewButtons(issueNumber: number): InlineKeyboardMarkup {
+    return {
+        inline_keyboard: [
+            [
+                { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
+                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+                { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
+            ],
+        ],
+    };
+}
+
+/**
  * Send a Telegram message to the admin/owner
  */
-async function sendToAdmin(message: string): Promise<SendResult> {
+async function sendToAdmin(
+    message: string,
+    replyMarkup?: InlineKeyboardMarkup
+): Promise<SendResult> {
     if (!agentConfig.telegram.enabled) {
         return { success: true }; // Silently skip if disabled
     }
@@ -51,15 +86,21 @@ async function sendToAdmin(message: string): Promise<SendResult> {
     }
 
     try {
+        const body: Record<string, unknown> = {
+            chat_id: chatId,
+            text: message,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+        };
+
+        if (replyMarkup) {
+            body.reply_markup = replyMarkup;
+        }
+
         const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: message,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!response.ok) {
@@ -123,7 +164,7 @@ export async function notifyProductDesignReady(
 
 ${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Technical Design.`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildReviewButtons(issueNumber));
 }
 
 /**
@@ -146,7 +187,7 @@ export async function notifyTechDesignReady(
 
 ${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Implementation.`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildReviewButtons(issueNumber));
 }
 
 /**
@@ -172,7 +213,7 @@ export async function notifyPRReady(
 
 ${isRevision ? 'Changes have been made based on your review feedback.\n' : ''}Review and merge to complete.`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildReviewButtons(issueNumber));
 }
 
 /**
@@ -230,6 +271,29 @@ function escapeHtml(text: string): string {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+/**
+ * Notify admin that an item was auto-advanced to the next phase
+ */
+export async function notifyAutoAdvance(
+    title: string,
+    issueNumber: number,
+    fromStatus: string,
+    toStatus: string
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const message = `⏭️ <b>Auto-Advanced!</b>
+
+📋 ${escapeHtml(title)}
+🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
+
+${escapeHtml(fromStatus)} → ${escapeHtml(toStatus)}
+
+Item is ready for the next phase.`;
+
+    return sendToAdmin(message);
 }
 
 /**

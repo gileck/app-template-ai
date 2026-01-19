@@ -82,12 +82,24 @@ async function processItem(
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
 
     try {
+        // Always fetch comments - they provide context for any phase
+        const comments = await adapter.getIssueComments(issueNumber);
+        const issueComments = comments.map((c) => ({
+            id: c.id,
+            body: c.body,
+            author: c.author,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        }));
+        if (issueComments.length > 0) {
+            console.log(`  Found ${issueComments.length} comment(s) on issue`);
+        }
+
         let prompt: string;
-        let feedbackComments: Array<{ id: number; body: string; author: string; createdAt: string; updatedAt?: string }> = [];
 
         if (mode === 'new') {
             // Flow A: New design
-            prompt = buildProductDesignPrompt(content);
+            prompt = buildProductDesignPrompt(content, issueComments);
         } else {
             // Flow B: Address feedback
             const existingDesign = extractProductDesign(content.body);
@@ -95,20 +107,11 @@ async function processItem(
                 return { success: false, error: 'No existing product design found to revise' };
             }
 
-            // Fetch feedback comments
-            const comments = await adapter.getIssueComments(issueNumber);
-            feedbackComments = comments.map((c) => ({
-                id: c.id,
-                body: c.body,
-                author: c.author,
-                createdAt: c.createdAt,
-                updatedAt: c.updatedAt,
-            }));
-            if (feedbackComments.length === 0) {
+            if (issueComments.length === 0) {
                 return { success: false, error: 'No feedback comments found' };
             }
 
-            prompt = buildProductDesignRevisionPrompt(content, existingDesign, feedbackComments);
+            prompt = buildProductDesignRevisionPrompt(content, existingDesign, issueComments);
         }
 
         // Run the agent
