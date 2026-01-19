@@ -7,6 +7,7 @@
  * Secrets:
  * - TELEGRAM_BOT_TOKEN: For Telegram notifications
  * - TELEGRAM_CHAT_ID: Chat ID to receive notifications (from LOCAL_TELEGRAM_CHAT_ID in .env)
+ * - PROJECT_TOKEN: For GitHub Projects V2 access (from GITHUB_TOKEN in .env)
  *
  * Variables:
  * - TELEGRAM_NOTIFICATIONS_ENABLED: Set to 'true' to enable GitHub Actions notifications
@@ -16,7 +17,7 @@
  *
  * Prerequisites:
  *   - GitHub CLI (gh) installed and authenticated
- *   - .env file with TELEGRAM_BOT_TOKEN and LOCAL_TELEGRAM_CHAT_ID
+ *   - .env file with TELEGRAM_BOT_TOKEN, LOCAL_TELEGRAM_CHAT_ID, and GITHUB_TOKEN
  */
 
 import { execSync } from 'child_process';
@@ -29,6 +30,7 @@ const ENV_FILE = resolve(process.cwd(), '.env');
 const REQUIRED_SECRETS = [
     { envKey: 'TELEGRAM_BOT_TOKEN', githubKey: 'TELEGRAM_BOT_TOKEN', description: 'Telegram Bot Token' },
     { envKey: 'LOCAL_TELEGRAM_CHAT_ID', githubKey: 'TELEGRAM_CHAT_ID', description: 'Telegram Chat ID' },
+    { envKey: 'GITHUB_TOKEN', githubKey: 'PROJECT_TOKEN', description: 'GitHub PAT for Projects V2 access' },
 ];
 
 // Variables (non-sensitive configuration)
@@ -200,7 +202,9 @@ async function main() {
     console.log(`   - ${varsSuccess} variables`);
 
     if (totalFailed === 0) {
-        console.log('\nYour GitHub workflows are now configured to send Telegram notifications.');
+        console.log('\nYour GitHub workflows are now configured for:');
+        console.log('   - Telegram notifications');
+        console.log('   - GitHub Projects V2 integration');
     }
 }
 
