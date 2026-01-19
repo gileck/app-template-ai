@@ -119,7 +119,7 @@ export async function notifyProductDesignReady(
 
 📋 ${escapeHtml(title)}
 🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
-📊 Status: Product Design Review
+📊 Status: Product Design (Waiting for Review)
 
 ${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Technical Design.`;
 
@@ -142,7 +142,7 @@ export async function notifyTechDesignReady(
 
 📋 ${escapeHtml(title)}
 🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
-📊 Status: Technical Design Review
+📊 Status: Technical Design (Waiting for Review)
 
 ${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Implementation.`;
 
@@ -168,7 +168,7 @@ export async function notifyPRReady(
 📋 ${escapeHtml(title)}
 🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
 🔀 <a href="${prUrl}">Pull Request #${prNumber}</a>
-📊 Status: PR Review
+📊 Status: Implementation (Waiting for Review)
 
 ${isRevision ? 'Changes have been made based on your review feedback.\n' : ''}Review and merge to complete.`;
 

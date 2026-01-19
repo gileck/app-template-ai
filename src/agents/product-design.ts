@@ -5,14 +5,13 @@
  * Generates Product Design documents for GitHub Project items.
  *
  * Flow A (New Design):
- *   - Fetches items in "Ready for Product Design" status
+ *   - Fetches items in "Product Design" status with empty Review Status
  *   - Generates product design using Claude (read-only mode)
  *   - Updates issue body with design
- *   - Moves to "Product Design Review" status
  *   - Sets Review Status to "Waiting for Review"
  *
  * Flow B (Address Feedback):
- *   - Fetches items in "Product Design Review" with Review Status = "Request Changes"
+ *   - Fetches items in "Product Design" with Review Status = "Request Changes"
  *   - Reads admin feedback comments
  *   - Revises product design based on feedback
  *   - Updates issue body with revised design
@@ -145,7 +144,6 @@ async function processItem(
 
         if (options.dryRun) {
             console.log('  [DRY RUN] Would update issue body');
-            console.log('  [DRY RUN] Would update status to Product Design Review');
             console.log('  [DRY RUN] Would set Review Status to Waiting for Review');
             console.log('  [DRY RUN] Would send notification');
             return { success: true };
@@ -158,13 +156,7 @@ async function processItem(
         await adapter.updateIssueBody(issueNumber, newBody);
         console.log('  Issue body updated');
 
-        // Update status if new design
-        if (mode === 'new') {
-            await adapter.updateItemStatus(item.id, STATUSES.productDesignReview);
-            console.log(`  Status updated to: ${STATUSES.productDesignReview}`);
-        }
-
-        // Update review status
+        // Update review status (status stays at "Product Design")
         if (adapter.hasReviewStatusField()) {
             await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.waitingForReview);
             console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
@@ -235,38 +227,37 @@ async function main(): Promise<void> {
             process.exit(1);
         }
 
-        // Determine mode based on current status
+        // Determine mode based on current status and review status
         let mode: 'new' | 'feedback';
-        if (item.status === STATUSES.readyForProductDesign) {
+        if (item.status === STATUSES.productDesign && !item.reviewStatus) {
             mode = 'new';
-        } else if (item.status === STATUSES.productDesignReview && item.reviewStatus === REVIEW_STATUSES.requestChanges) {
+        } else if (item.status === STATUSES.productDesign && item.reviewStatus === REVIEW_STATUSES.requestChanges) {
             mode = 'feedback';
         } else {
             console.error(`Item is not in a processable state.`);
             console.error(`  Status: ${item.status}`);
             console.error(`  Review Status: ${item.reviewStatus}`);
-            console.error(`  Expected: "${STATUSES.readyForProductDesign}" or "${STATUSES.productDesignReview}" with Review Status "${REVIEW_STATUSES.requestChanges}"`);
+            console.error(`  Expected: "${STATUSES.productDesign}" with empty Review Status or Review Status "${REVIEW_STATUSES.requestChanges}"`);
             process.exit(1);
         }
 
         itemsToProcess.push({ item, mode });
     } else {
-        // Flow A: Fetch items ready for new design
-        console.log(`\nFetching items in "${STATUSES.readyForProductDesign}"...`);
-        const newItems = await adapter.listItems({ status: STATUSES.readyForProductDesign, limit: options.limit || 50 });
+        // Flow A: Fetch items ready for new design (Product Design status with empty Review Status)
+        console.log(`\nFetching items in "${STATUSES.productDesign}" with empty Review Status...`);
+        const allProductDesignItems = await adapter.listItems({ status: STATUSES.productDesign, limit: options.limit || 50 });
+        const newItems = allProductDesignItems.filter((item) => !item.reviewStatus);
         for (const item of newItems) {
             itemsToProcess.push({ item, mode: 'new' });
         }
         console.log(`  Found ${newItems.length} item(s) for new design`);
 
-        // Flow B: Fetch items needing revision
+        // Flow B: Fetch items needing revision (Product Design status with Request Changes)
         if (adapter.hasReviewStatusField()) {
             console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.requestChanges}"...`);
-            const feedbackItems = await adapter.listItems({
-                status: STATUSES.productDesignReview,
-                reviewStatus: REVIEW_STATUSES.requestChanges,
-                limit: options.limit || 50,
-            });
+            const feedbackItems = allProductDesignItems.filter(
+                (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
+            );
             for (const item of feedbackItems) {
                 itemsToProcess.push({ item, mode: 'feedback' });
             }

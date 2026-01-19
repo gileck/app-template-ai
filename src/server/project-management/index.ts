@@ -12,7 +12,7 @@
  * const adapter = getProjectManagementAdapter();
  * await adapter.init();
  *
- * const items = await adapter.listItems({ status: STATUSES.readyForProductDesign });
+ * const items = await adapter.listItems({ status: STATUSES.productDesign });
  * ```
  */
 

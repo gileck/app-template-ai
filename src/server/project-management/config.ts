@@ -11,16 +11,26 @@
 
 /**
  * Main status values (GitHub Project board columns)
+ *
+ * Simplified 5-column workflow:
+ * - Backlog: New items, not yet started
+ * - Product Design: AI generates product design, human reviews
+ * - Technical Design: AI generates tech design, human reviews
+ * - Implementation: AI implements and creates PR, human reviews/merges
+ * - Done: Completed and merged
+ *
+ * Review Status field tracks sub-states within each phase:
+ * - (empty): Ready for AI agent to process
+ * - Waiting for Review: AI finished, human needs to review
+ * - Approved: Human approved, ready to advance to next phase
+ * - Request Changes: Human wants revisions
+ * - Rejected: Won't proceed
  */
 export const STATUSES = {
     backlog: 'Backlog',
-    readyForProductDesign: 'Ready for Product Design',
-    productDesignReview: 'Product Design Review',
-    readyForTechDesign: 'Ready for Technical Design',
-    techDesignReview: 'Technical Design Review',
-    readyForDev: 'Ready for development',
-    prReview: 'PR Review',
-    inReview: 'In review',
+    productDesign: 'Product Design',
+    techDesign: 'Technical Design',
+    implementation: 'Implementation',
     done: 'Done',
 } as const;
 

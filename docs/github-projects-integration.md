@@ -4,16 +4,20 @@ This document describes the GitHub Projects integration that automates the featu
 
 ## Overview
 
-The integration creates a complete pipeline:
+The integration creates a complete pipeline using a simplified 5-column workflow:
 
 1. **User submits** feature request via app UI → stored in MongoDB
 2. **Admin gets Telegram notification** with one-click approval link
 3. **Admin approves** (via Telegram link or app UI) → server creates GitHub Issue + adds to Project "Backlog"
-4. **Admin gets GitHub notification** (via GitHub Actions) → moves issue to "Ready for Product Design"
-5. **Generate Product Design** (CLI agent) → updates issue → moves to "Product Design Review"
-6. **Generate Tech Design** (CLI agent) → updates issue → moves to "Technical Design Review"
-7. **Implement + Create PR** (CLI agent) → creates branch, implements, opens PR → moves to "PR Review"
-8. **Admin merges PR** → Done
+4. **Admin moves to Product Design** → AI agent generates design → sets Review Status = "Waiting for Review"
+5. **Admin approves** → auto-advances to Technical Design → AI generates tech design
+6. **Admin approves** → auto-advances to Implementation → AI implements and creates PR
+7. **Admin merges PR** → moves to Done
+
+**Key concepts:**
+- **5 board columns**: Backlog → Product Design → Technical Design → Implementation → Done
+- **Review Status field** tracks sub-states within each phase (empty → Waiting for Review → Approved/Request Changes)
+- **Auto-advance on approval**: When you set Review Status = "Approved", the item automatically moves to the next phase
 
 ## Architecture
 
@@ -70,19 +74,17 @@ The integration creates a complete pipeline:
 
 ### Step 2: Configure Status Column
 
-The project needs a Status field with these exact values:
+The project uses a simplified 5-column workflow. Create a Status field with these exact values:
 
 | Status | Description |
 |--------|-------------|
 | `Backlog` | New items, not yet started |
-| `Ready for Product Design` | Ready for product design generation |
-| `Product Design Review` | Product design generated, awaiting review |
-| `Ready for Technical Design` | Product design approved, ready for tech design |
-| `Technical Design Review` | Tech design generated, awaiting review |
-| `Ready for development` | Tech design approved, ready for implementation |
-| `PR Review` | Implementation complete, PR awaiting review |
-| `In review` | PR being actively reviewed |
+| `Product Design` | AI generates product design, human reviews |
+| `Technical Design` | AI generates tech design, human reviews |
+| `Implementation` | AI implements and creates PR, human reviews/merges |
 | `Done` | Completed and merged |
+
+**How it works**: Each phase uses the Review Status field to track sub-states within that phase (see below).
 
 ### Step 3: Create Review Status Custom Field
 
@@ -95,7 +97,17 @@ The project needs a Status field with these exact values:
    - `Request Changes`
    - `Rejected`
 
-This field is used within review phases to track the sub-status of items.
+**Review Status meanings within each phase:**
+
+| Review Status | Meaning |
+|---------------|---------|
+| *(empty)* | Ready for AI agent to process |
+| `Waiting for Review` | AI finished, human needs to review |
+| `Approved` | Human approved, ready to advance to next phase (auto-advances) |
+| `Request Changes` | Human wants revisions, AI will address feedback |
+| `Rejected` | Won't proceed with this item |
+
+This allows each phase to have its own lifecycle (AI work → Human review → Approved/Rejected) without needing separate board columns.
 
 ## Environment Setup
 
@@ -175,7 +187,7 @@ const statuses = await adapter.getAvailableStatuses();
 const reviewStatuses = await adapter.getAvailableReviewStatuses();
 
 // Update project item status
-await adapter.updateItemStatus(itemId, STATUSES.productDesignReview);
+await adapter.updateItemStatus(itemId, STATUSES.productDesign);
 await adapter.updateItemReviewStatus(itemId, REVIEW_STATUSES.waitingForReview);
 
 // Fetch project item details
@@ -287,6 +299,7 @@ This requires:
 | `.github/workflows/issue-notifications.yml` | Issues, comments |
 | `.github/workflows/project-notifications.yml` | Project item status changes |
 | `.github/workflows/pr-notifications.yml` | Pull requests, reviews |
+| `.github/workflows/auto-advance-on-approval.yml` | Auto-advance when Review Status = "Approved" |
 | `.github/workflows/reset-review-status.yml` | Auto-reset Review Status |
 
 ### Notification Examples
@@ -307,7 +320,7 @@ Add dark mode toggle
 
 #123: Add dark mode toggle
 
-➡️ Ready for Product Design
+➡️ Product Design
 👤 by admin
 🔗 https://github.com/...
 ```
@@ -326,13 +339,37 @@ feat: Add dark mode toggle
 
 Set the `TELEGRAM_NOTIFICATIONS_ENABLED` variable to `false` or delete it to disable all notifications.
 
+### Auto-Advance on Approval
+
+The repository includes a GitHub Action that automatically advances items to the next phase when you set Review Status to "Approved". This streamlines the workflow so you don't need to manually move items after approving.
+
+**Transitions:**
+| Current Status | On Approval → | Next Status |
+|----------------|---------------|-------------|
+| Product Design | → | Technical Design |
+| Technical Design | → | Implementation |
+| Implementation | (no auto-advance) | Manual PR merge required → Done |
+
+**Example:**
+1. AI agent generates Product Design, sets Review Status = "Waiting for Review"
+2. You review and set Review Status = "Approved"
+3. **Automatically**: Item moves to "Technical Design" and Review Status is cleared
+4. AI agent can now pick it up for Technical Design generation
+
+**Configuration:**
+- Enabled by default
+- To disable, set repository variable `AUTO_ADVANCE_ON_APPROVAL` to `false`
+- Sends Telegram notification when auto-advancing
+
+**Workflow File:** `.github/workflows/auto-advance-on-approval.yml`
+
 ### Auto-Reset Review Status
 
 The repository includes a GitHub Action that automatically resets the Review Status field when the main Status changes. This prevents confusion when moving items between phases (e.g., Review Status staying "Approved" when moving to the next phase).
 
 **Behavior:**
-- When Status changes to a **non-review phase** (e.g., "Ready for Technical Design"), Review Status is **cleared**
-- When Status changes to a **review phase** and Review Status is "Approved", it's **reset to "Waiting for Review"**
+- When Status changes to **Backlog** or **Done**, Review Status is **cleared**
+- When Status changes to a **work phase** (Product Design, Technical Design, Implementation) and Review Status is "Approved", it's **reset to empty** (ready for AI)
 
 **Configuration:**
 - Enabled by default
@@ -349,7 +386,7 @@ The app UI displays live GitHub Project status for feature requests that have be
 When you expand a feature request card in the admin panel, you'll see:
 - **GitHub Issue Link**: Click to view the issue on GitHub
 - **GitHub PR Link**: Click to view the PR (when created)
-- **Project Status**: The current status in GitHub Projects (e.g., "Product Design Review")
+- **Project Status**: The current status in GitHub Projects (e.g., "Product Design")
 - **Review Status**: The current review status (e.g., "Waiting for Review")
 
 ### How It Works
@@ -375,13 +412,9 @@ The status updates immediately in GitHub Projects, and the card refreshes to sho
 
 **Available statuses:**
 - Backlog
-- Ready for Product Design
-- Product Design Review
-- Ready for Technical Design
-- Technical Design Review
-- Ready for development
-- PR Review
-- In review
+- Product Design
+- Technical Design
+- Implementation
 - Done
 
 **Note:** The "GitHub Status" menu option only appears for requests that have been synced to GitHub (i.e., have a `githubProjectItemId`).
@@ -426,14 +459,15 @@ Feature Request Submitted
     │ MongoDB: 'product_design'
     └─────────┬───────────┘
               │
-              ▼ (Admin moves to Ready for Product Design)
-    ┌─────────────────────────────────┐
-    │ Status: Ready for Product Design │
-    └─────────────────┬───────────────┘
+              ▼ (Admin moves to Product Design)
+    ┌─────────────────────────────────────┐
+    │ Status: Product Design              │
+    │ Review Status: (empty)              │
+    └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:product-design
     ┌─────────────────────────────────────┐
-    │ Status: Product Design Review       │
+    │ Status: Product Design              │
     │ Review Status: Waiting for Review   │
     │ (Issue body updated with design)    │
     └─────────────────┬───────────────────┘
@@ -447,14 +481,15 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Admin moves to Ready for Technical Design)
+                      ▼ (Auto-advances to Technical Design)
     ┌─────────────────────────────────────┐
-    │ Status: Ready for Technical Design  │
+    │ Status: Technical Design            │
+    │ Review Status: (empty)              │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:tech-design
     ┌─────────────────────────────────────┐
-    │ Status: Technical Design Review     │
+    │ Status: Technical Design            │
     │ Review Status: Waiting for Review   │
     │ (Issue body updated with design)    │
     └─────────────────┬───────────────────┘
@@ -468,14 +503,15 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Admin moves to Ready for development)
+                      ▼ (Auto-advances to Implementation)
     ┌─────────────────────────────────────┐
-    │ Status: Ready for development       │
+    │ Status: Implementation              │
+    │ Review Status: (empty)              │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:implement
     ┌─────────────────────────────────────┐
-    │ Status: PR Review                   │
+    │ Status: Implementation              │
     │ Review Status: Waiting for Review   │
     │ (PR created, branch pushed)         │
     └─────────────────┬───────────────────┘
@@ -489,7 +525,7 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼
+                      ▼ (Admin merges PR, moves to Done)
     ┌─────────────────────────────────────┐
     │ Status: Done                        │
     │ (PR merged)                         │
@@ -502,14 +538,14 @@ Admins can change status either from GitHub Projects directly or from the app UI
 
 | Phase | Admin Action | Effect |
 |-------|--------------|--------|
-| Backlog | Move to "Ready for Product Design" | Enables product design agent |
-| Product Design Review | Set Review Status = "Approved" | Ready for tech design |
-| Product Design Review | Set Review Status = "Request Changes" + comment | Agent revises design |
-| Technical Design Review | Set Review Status = "Approved" | Ready for development |
-| Technical Design Review | Set Review Status = "Request Changes" + comment | Agent revises design |
-| Ready for development | (automatic) | Implementation agent creates PR |
-| PR Review | Set Review Status = "Approved" + merge PR | Done |
-| PR Review | Set Review Status = "Request Changes" + review comments | Agent addresses feedback |
+| Backlog | Move to "Product Design" | Enables product design agent |
+| Product Design | Set Review Status = "Approved" | Auto-advances to Technical Design |
+| Product Design | Set Review Status = "Request Changes" + comment | Agent revises design |
+| Technical Design | Set Review Status = "Approved" | Auto-advances to Implementation |
+| Technical Design | Set Review Status = "Request Changes" + comment | Agent revises design |
+| Implementation | (agent creates PR automatically) | |
+| Implementation | Set Review Status = "Approved" + merge PR | Move to Done |
+| Implementation | Set Review Status = "Request Changes" + review comments | Agent addresses feedback |
 
 ## Running the Agents
 
@@ -622,7 +658,7 @@ Waiting for product design generation.
 
 📋 Add dark mode toggle
 🔗 Issue #123
-📊 Status: Product Design Review
+📊 Status: Product Design (Waiting for Review)
 
 Review and approve to proceed to Technical Design.
 ```
@@ -634,7 +670,7 @@ Review and approve to proceed to Technical Design.
 📋 Add dark mode toggle
 🔗 Issue #123
 🔀 PR #456
-📊 Status: PR Review
+📊 Status: Implementation (Waiting for Review)
 
 Review and merge to complete.
 ```

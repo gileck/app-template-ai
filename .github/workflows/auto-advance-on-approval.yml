@@ -1,0 +1,274 @@
+name: Auto-Advance on Approval
+
+# Automatically move items to the next phase when Review Status is set to "Approved"
+# This enables a streamlined workflow where approving a review automatically queues
+# the item for the next agent to process.
+
+on:
+  projects_v2_item:
+    types: [edited]
+
+env:
+  REVIEW_STATUS_FIELD: 'Review Status'
+  # Status transitions when approved (simplified 5-column workflow)
+  # Format: "Current Status" -> "Next Status"
+  # Product Design -> Technical Design
+  # Technical Design -> Implementation
+  # Implementation -> (no auto-advance, requires manual merge)
+
+jobs:
+  auto-advance:
+    runs-on: ubuntu-latest
+    # Only run if AUTO_ADVANCE_ON_APPROVAL is enabled (default: true)
+    if: ${{ vars.AUTO_ADVANCE_ON_APPROVAL != 'false' }}
+
+    steps:
+      - name: Auto-Advance on Approval
+        uses: actions/github-script@v7
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ENABLED: ${{ vars.TELEGRAM_NOTIFICATIONS_ENABLED }}
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const itemId = context.payload.projects_v2_item.node_id;
+            const projectNodeId = context.payload.projects_v2_item.project_node_id;
+            const reviewStatusFieldName = process.env.REVIEW_STATUS_FIELD;
+
+            // Define status transitions (simplified 5-column workflow)
+            const statusTransitions = {
+              'Product Design': 'Technical Design',
+              'Technical Design': 'Implementation',
+              // Implementation requires manual merge, no auto-advance
+            };
+
+            console.log('Processing item:', itemId);
+
+            // Query to get item details including content (issue title)
+            const itemQuery = `
+              query($itemId: ID!) {
+                node(id: $itemId) {
+                  ... on ProjectV2Item {
+                    id
+                    content {
+                      ... on Issue {
+                        number
+                        title
+                        url
+                      }
+                    }
+                    fieldValues(first: 20) {
+                      nodes {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          optionId
+                          field {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            // Query to get project fields and options
+            const projectFieldsQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 30) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            // Function to send Telegram notification
+            async function sendTelegramNotification(message) {
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              const chatId = process.env.TELEGRAM_CHAT_ID;
+              const enabled = process.env.TELEGRAM_ENABLED;
+
+              if (enabled !== 'true' || !botToken || !chatId) {
+                console.log('Telegram notifications disabled or not configured');
+                return;
+              }
+
+              try {
+                const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message,
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true,
+                  }),
+                });
+
+                if (!response.ok) {
+                  console.error('Telegram API error:', await response.text());
+                }
+              } catch (error) {
+                console.error('Failed to send Telegram notification:', error.message);
+              }
+            }
+
+            try {
+              // Get current item field values
+              const itemResult = await github.graphql(itemQuery, { itemId });
+              if (!itemResult.node) {
+                console.log('Item not found');
+                return;
+              }
+
+              const fieldValues = itemResult.node.fieldValues?.nodes || [];
+              const content = itemResult.node.content;
+              const issueTitle = content?.title || 'Unknown';
+              const issueNumber = content?.number;
+              const issueUrl = content?.url;
+
+              // Find current Status and Review Status values
+              let currentStatus = null;
+              let currentReviewStatus = null;
+              let statusFieldId = null;
+              let reviewStatusFieldId = null;
+
+              for (const fv of fieldValues) {
+                if (fv?.field?.name === 'Status') {
+                  currentStatus = fv.name;
+                  statusFieldId = fv.field.id;
+                }
+                if (fv?.field?.name === reviewStatusFieldName) {
+                  currentReviewStatus = fv.name;
+                  reviewStatusFieldId = fv.field.id;
+                }
+              }
+
+              console.log('Current Status:', currentStatus);
+              console.log('Current Review Status:', currentReviewStatus);
+
+              // Only proceed if Review Status is "Approved"
+              if (currentReviewStatus !== 'Approved') {
+                console.log('Review Status is not Approved, skipping');
+                return;
+              }
+
+              // Check if this status has a transition defined
+              const nextStatus = statusTransitions[currentStatus];
+              if (!nextStatus) {
+                console.log(`No auto-advance transition defined for status: ${currentStatus}`);
+                return;
+              }
+
+              console.log(`Will advance from "${currentStatus}" to "${nextStatus}"`);
+
+              // Get project fields to find Status field ID and option IDs
+              const fieldsResult = await github.graphql(projectFieldsQuery, { projectId: projectNodeId });
+              const fields = fieldsResult.node?.fields?.nodes || [];
+
+              let statusOptions = new Map();
+              for (const field of fields) {
+                if (field.name === 'Status' && field.options) {
+                  statusFieldId = field.id;
+                  for (const opt of field.options) {
+                    statusOptions.set(opt.name, opt.id);
+                  }
+                }
+                if (field.name === reviewStatusFieldName && field.options) {
+                  reviewStatusFieldId = field.id;
+                }
+              }
+
+              const nextStatusOptionId = statusOptions.get(nextStatus);
+              if (!nextStatusOptionId) {
+                console.error(`Status option "${nextStatus}" not found in project`);
+                return;
+              }
+
+              // Update the Status field to the next phase
+              const updateStatusMutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { singleSelectOptionId: $optionId }
+                    }
+                  ) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+
+              await github.graphql(updateStatusMutation, {
+                projectId: projectNodeId,
+                itemId: itemId,
+                fieldId: statusFieldId,
+                optionId: nextStatusOptionId
+              });
+
+              console.log(`Status updated to: ${nextStatus}`);
+
+              // Clear the Review Status field (the reset-review-status workflow will handle this,
+              // but we clear it here to be explicit)
+              if (reviewStatusFieldId) {
+                const clearMutation = `
+                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+                    clearProjectV2ItemFieldValue(
+                      input: {
+                        projectId: $projectId
+                        itemId: $itemId
+                        fieldId: $fieldId
+                      }
+                    ) {
+                      projectV2Item { id }
+                    }
+                  }
+                `;
+
+                await github.graphql(clearMutation, {
+                  projectId: projectNodeId,
+                  itemId: itemId,
+                  fieldId: reviewStatusFieldId
+                });
+
+                console.log('Review Status cleared');
+              }
+
+              // Send Telegram notification
+              const issueLink = issueUrl ? `<a href="${issueUrl}">#${issueNumber}</a>` : `#${issueNumber || 'N/A'}`;
+              const message = `✅ <b>Review Approved - Auto-Advanced</b>
+
+📋 ${issueTitle}
+🔗 ${issueLink}
+
+➡️ <b>${currentStatus}</b>
+⬇️
+✨ <b>${nextStatus}</b>
+
+Ready for the next phase!`;
+
+              await sendTelegramNotification(message);
+
+            } catch (error) {
+              console.error('Error:', error.message);
+              // Don't fail the workflow for errors
+            }

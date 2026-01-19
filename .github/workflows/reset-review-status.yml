@@ -9,8 +9,9 @@ on:
 
 env:
   REVIEW_STATUS_FIELD: 'Review Status'
-  # Review phases that should have Review Status set
-  REVIEW_PHASES: 'Product Design Review,Technical Design Review,PR Review'
+  # Phases that use Review Status (simplified 5-column workflow)
+  # All phases except Backlog and Done use Review Status
+  REVIEW_PHASES: 'Product Design,Technical Design,Implementation'
 
 jobs:
   reset-review-status:
