@@ -5,121 +5,13 @@
  * Used by both the API (approve action) and CLI (batch sync).
  */
 
-import { Octokit } from '@octokit/rest';
 import { featureRequests } from '@/server/database';
 import type { FeatureRequestDocument } from '@/server/database/collections/feature-requests/types';
 import { sendNotificationToOwner } from '@/server/telegram';
+import { getProjectManagementAdapter, STATUSES } from '@/server/project-management';
 
 // ============================================================
-// CONFIGURATION
-// ============================================================
-
-// Status constants (same as scripts/agents/shared/config.ts)
-const STATUSES = {
-    backlog: 'Backlog',
-} as const;
-
-// Load config from environment or use defaults
-const getConfig = () => {
-    const owner = process.env.GITHUB_OWNER || 'gileck';
-    const repo = process.env.GITHUB_REPO || 'app-template-ai';
-    const projectNumber = parseInt(process.env.GITHUB_PROJECT_NUMBER || '3', 10);
-    const ownerType = (process.env.GITHUB_OWNER_TYPE || 'user') as 'user' | 'org';
-
-    return { owner, repo, projectNumber, ownerType };
-};
-
-// ============================================================
-// GITHUB CLIENT
-// ============================================================
-
-let octokit: Octokit | null = null;
-let projectId: string | null = null;
-let statusFieldId: string | null = null;
-let statusOptions: Map<string, string> | null = null;
-
-function getOctokit(): Octokit {
-    if (!octokit) {
-        const token = process.env.GITHUB_TOKEN;
-        if (!token) {
-            throw new Error('GITHUB_TOKEN environment variable is required');
-        }
-        octokit = new Octokit({ auth: token });
-    }
-    return octokit;
-}
-
-async function initProjectData(): Promise<void> {
-    if (projectId && statusFieldId && statusOptions) {
-        return; // Already initialized
-    }
-
-    const config = getConfig();
-    const client = getOctokit();
-
-    // Get project ID
-    const projectQuery = config.ownerType === 'user'
-        ? `query { user(login: "${config.owner}") { projectV2(number: ${config.projectNumber}) { id } } }`
-        : `query { organization(login: "${config.owner}") { projectV2(number: ${config.projectNumber}) { id } } }`;
-
-    const projectResult = await client.graphql<{
-        user?: { projectV2: { id: string } };
-        organization?: { projectV2: { id: string } };
-    }>(projectQuery);
-
-    projectId = config.ownerType === 'user'
-        ? projectResult.user?.projectV2?.id ?? null
-        : projectResult.organization?.projectV2?.id ?? null;
-
-    if (!projectId) {
-        throw new Error(`Project #${config.projectNumber} not found`);
-    }
-
-    // Get status field and options
-    const fieldsQuery = `
-        query($projectId: ID!) {
-            node(id: $projectId) {
-                ... on ProjectV2 {
-                    fields(first: 50) {
-                        nodes {
-                            ... on ProjectV2SingleSelectField {
-                                id
-                                name
-                                options { id name }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    `;
-
-    const fieldsResult = await client.graphql<{
-        node: {
-            fields: {
-                nodes: Array<{
-                    id: string;
-                    name: string;
-                    options?: Array<{ id: string; name: string }>;
-                }>;
-            };
-        };
-    }>(fieldsQuery, { projectId });
-
-    const statusField = fieldsResult.node.fields.nodes.find(
-        (f) => f.name === 'Status' && f.options
-    );
-
-    if (!statusField) {
-        throw new Error('Status field not found in project');
-    }
-
-    statusFieldId = statusField.id;
-    statusOptions = new Map(statusField.options!.map((o) => [o.name, o.id]));
-}
-
-// ============================================================
-// SYNC LOGIC
+// HELPERS
 // ============================================================
 
 function buildIssueBody(request: FeatureRequestDocument): string {
@@ -154,6 +46,10 @@ function getLabels(request: FeatureRequestDocument): string[] {
     return labels;
 }
 
+// ============================================================
+// PUBLIC API
+// ============================================================
+
 export interface SyncToGitHubResult {
     success: boolean;
     issueNumber?: number;
@@ -186,68 +82,22 @@ export async function syncFeatureRequestToGitHub(
             };
         }
 
-        // Initialize GitHub connection
-        await initProjectData();
-        const client = getOctokit();
-        const config = getConfig();
+        // Initialize project management adapter
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
 
         // Create the issue
         const issueBody = buildIssueBody(request);
         const labels = getLabels(request);
 
-        const issueResponse = await client.issues.create({
-            owner: config.owner,
-            repo: config.repo,
-            title: request.title,
-            body: issueBody,
-            labels,
-        });
-
-        const issueNumber = issueResponse.data.number;
-        const issueUrl = issueResponse.data.html_url;
-        const issueNodeId = issueResponse.data.node_id;
+        const issueResult = await adapter.createIssue(request.title, issueBody, labels);
+        const { number: issueNumber, url: issueUrl, nodeId: issueNodeId } = issueResult;
 
         // Add issue to project
-        const addToProjectMutation = `
-            mutation($projectId: ID!, $contentId: ID!) {
-                addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
-                    item { id }
-                }
-            }
-        `;
-
-        const addResult = await client.graphql<{
-            addProjectV2ItemById: { item: { id: string } };
-        }>(addToProjectMutation, {
-            projectId: projectId!,
-            contentId: issueNodeId,
-        });
-
-        const projectItemId = addResult.addProjectV2ItemById.item.id;
+        const projectItemId = await adapter.addIssueToProject(issueNodeId);
 
         // Set status to Backlog
-        const backlogOptionId = statusOptions!.get(STATUSES.backlog);
-        if (backlogOptionId) {
-            const updateStatusMutation = `
-                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                    updateProjectV2ItemFieldValue(input: {
-                        projectId: $projectId
-                        itemId: $itemId
-                        fieldId: $fieldId
-                        value: { singleSelectOptionId: $optionId }
-                    }) {
-                        projectV2Item { id }
-                    }
-                }
-            `;
-
-            await client.graphql(updateStatusMutation, {
-                projectId: projectId!,
-                itemId: projectItemId,
-                fieldId: statusFieldId!,
-                optionId: backlogOptionId,
-            });
-        }
+        await adapter.updateItemStatus(projectItemId, STATUSES.backlog);
 
         // Update MongoDB with GitHub fields
         await featureRequests.updateGitHubFields(requestId, {

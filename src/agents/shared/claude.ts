@@ -6,7 +6,7 @@
  */
 
 import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage } from '@anthropic-ai/claude-agent-sdk';
-import { config } from './config';
+import { agentConfig } from './config';
 import type { AgentResult, UsageStats } from './types';
 
 // ============================================================
@@ -51,7 +51,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
         allowWrite = false,
         stream = false,
         verbose = false,
-        timeout = config.claude.timeoutSeconds,
+        timeout = agentConfig.claude.timeoutSeconds,
         progressLabel = 'Processing',
     } = options;
 
@@ -95,8 +95,8 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentResult> {
             options: {
                 allowedTools,
                 cwd: PROJECT_ROOT,
-                model: config.claude.model,
-                maxTurns: config.claude.maxTurns,
+                model: agentConfig.claude.model,
+                maxTurns: agentConfig.claude.maxTurns,
                 permissionMode: 'bypassPermissions',
                 allowDangerouslySkipPermissions: true,
                 abortController,

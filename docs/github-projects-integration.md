@@ -31,7 +31,18 @@ The integration creates a complete pipeline:
 └─────────────────┘      └──────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  CLI Agent Scripts (scripts/agents/)                                    │
+│  Project Management Abstraction (src/server/project-management/)       │
+│  ┌────────────────────────────────────────────────────────────────────┐│
+│  │ ProjectManagementAdapter interface (adapter pattern)               ││
+│  │ └── adapters/github.ts  # GitHub implementation                   ││
+│  │ ├── types.ts            # Domain types                            ││
+│  │ ├── config.ts           # Status constants, project config        ││
+│  │ └── index.ts            # Singleton factory + exports             ││
+│  └────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  CLI Agent Scripts (src/agents/)                                        │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────┐  │
 │  │ product-design   │  │ tech-design      │  │ implement            │  │
 │  │ .ts              │  │ .ts              │  │ .ts                  │  │
@@ -39,12 +50,11 @@ The integration creates a complete pipeline:
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ shared/                                                           │  │
-│  │ ├── config.ts         # Repo/project URLs (per-repo config)      │  │
-│  │ ├── github.ts         # GitHub API utilities                     │  │
+│  │ ├── config.ts         # Agent-specific config + re-exports       │  │
 │  │ ├── claude.ts         # Claude SDK utilities                     │  │
 │  │ ├── notifications.ts  # Telegram notifications                   │  │
 │  │ ├── prompts.ts        # Prompt templates                         │  │
-│  │ └── types.ts          # Shared types                             │  │
+│  │ └── types.ts          # Agent-specific types                     │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -117,16 +127,23 @@ TELEGRAM_BOT_TOKEN=xxxxxxxxxxxxx
 
 ## Configuration
 
-The configuration is in `scripts/agents/shared/config.ts`:
+Project configuration is controlled via environment variables:
+
+```bash
+# Required
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxx
+
+# Optional (defaults shown)
+GITHUB_OWNER=gileck
+GITHUB_REPO=app-template-ai
+GITHUB_PROJECT_NUMBER=3
+GITHUB_OWNER_TYPE=user  # 'user' or 'org'
+```
+
+Agent-specific configuration (Claude model, timeout) is in `src/agents/shared/config.ts`:
 
 ```typescript
-export const config: AgentConfig = {
-    github: {
-        owner: 'gileck',           // GitHub username or org
-        repo: 'app-template-ai',   // Repository name
-        projectNumber: 3,          // Project number from URL
-        ownerType: 'user',         // 'user' or 'org'
-    },
+export const agentConfig: AgentConfig = {
     telegram: {
         enabled: true,
     },
@@ -138,40 +155,48 @@ export const config: AgentConfig = {
 };
 ```
 
-**Note:** The status values in `STATUSES` and `REVIEW_STATUSES` are constants and should NOT be modified. Only modify the `config` object for your project.
+**Note:** The status values in `STATUSES` and `REVIEW_STATUSES` are constants defined in `src/server/project-management/config.ts` and should NOT be modified.
 
-### Shared GitHub Client
+### Project Management Adapter
 
-The GitHub API logic is shared between the server (for the app UI) and CLI agents to avoid code duplication:
+The GitHub API logic uses an adapter pattern for flexibility. Both the server (app UI) and CLI agents share the same adapter:
 
-**File:** `src/server/github/client.ts`
+**File:** `src/server/project-management/`
 
 ```typescript
-import { getGitHubClient } from '@/server/github';
+import { getProjectManagementAdapter, STATUSES, REVIEW_STATUSES } from '@/server/project-management';
+
+// Initialize and use the adapter
+const adapter = getProjectManagementAdapter();
+await adapter.init();
 
 // Get available statuses
-const client = getGitHubClient();
-const statuses = await client.getStatusOptions();
-const reviewStatuses = await client.getReviewStatusOptions();
+const statuses = await adapter.getAvailableStatuses();
+const reviewStatuses = await adapter.getAvailableReviewStatuses();
 
 // Update project item status
-await client.updateProjectItemStatus(itemId, 'Ready for Product Design');
-await client.updateProjectItemReviewStatus(itemId, 'Waiting for Review');
+await adapter.updateItemStatus(itemId, STATUSES.productDesignReview);
+await adapter.updateItemReviewStatus(itemId, REVIEW_STATUSES.waitingForReview);
 
 // Fetch project item details
-const item = await client.getProjectItem(itemId);
+const item = await adapter.getItem(itemId);
 ```
 
-The client uses a singleton pattern and caches project metadata (field IDs, status options) after initialization to minimize API calls.
+The adapter uses a singleton pattern and caches project metadata (field IDs, status options) after initialization to minimize API calls.
 
-**Key methods:**
+**Key interface methods:**
 | Method | Description |
 |--------|-------------|
-| `getStatusOptions()` | Returns available main statuses |
-| `getReviewStatusOptions()` | Returns available review statuses |
-| `getProjectItem(itemId)` | Fetch item with status and review status |
-| `updateProjectItemStatus()` | Update main status |
-| `updateProjectItemReviewStatus()` | Update review status |
+| `init()` | Initialize the adapter (authenticate, fetch metadata) |
+| `getAvailableStatuses()` | Returns available main statuses |
+| `getAvailableReviewStatuses()` | Returns available review statuses |
+| `listItems(options)` | List project items with optional filters |
+| `getItem(itemId)` | Fetch item with status and review status |
+| `updateItemStatus()` | Update main status |
+| `updateItemReviewStatus()` | Update review status |
+| `createIssue()` | Create a new issue |
+| `addIssueToProject()` | Add an issue to the project |
+| `createPullRequest()` | Create a PR |
 
 ## Feature Request Approval Flow
 
@@ -656,73 +681,64 @@ The agents are designed to minimize API calls. If you hit limits:
 
 For projects based on this template:
 
-1. **Edit configuration** in `scripts/agents/shared/config.ts`:
-   ```typescript
-   export const config: AgentConfig = {
-       github: {
-           owner: 'your-username',
-           repo: 'your-repo',
-           projectNumber: 1,  // Your project number
-           ownerType: 'user',
-       },
-       // ... rest stays the same
-   };
+1. **Set environment variables** in `.env`:
+   ```bash
+   GITHUB_TOKEN=your_token
+   GITHUB_OWNER=your-username
+   GITHUB_REPO=your-repo
+   GITHUB_PROJECT_NUMBER=1
+   GITHUB_OWNER_TYPE=user
+   TELEGRAM_BOT_TOKEN=your_bot_token  # optional
    ```
 
 2. **Create GitHub Project** with required statuses (see Setup section)
 
-3. **Set environment variables**:
-   ```bash
-   GITHUB_TOKEN=your_token
-   TELEGRAM_BOT_TOKEN=your_bot_token  # optional
-   ```
-
-4. **Run agents** as normal - everything uses config automatically
+3. **Run agents** as normal - everything uses environment variables automatically
 
 ## File Structure
 
 ```
-scripts/
-├── agents/
-│   ├── product-design.ts      # Generate product design
-│   ├── tech-design.ts         # Generate technical design
-│   ├── implement.ts           # Implement + create PR
-│   └── shared/
-│       ├── config.ts          # Repo/project configuration
-│       ├── github.ts          # GitHub API (GraphQL + REST)
-│       ├── claude.ts          # Claude SDK runner
-│       ├── notifications.ts   # Telegram notifications
-│       ├── prompts.ts         # Prompt templates
-│       ├── types.ts           # Shared types
-│       └── index.ts           # Barrel exports
-
 src/
+├── agents/                          # CLI agent scripts
+│   ├── product-design.ts            # Generate product design
+│   ├── tech-design.ts               # Generate technical design
+│   ├── implement.ts                 # Implement + create PR
+│   └── shared/
+│       ├── config.ts                # Agent-specific config + re-exports
+│       ├── claude.ts                # Claude SDK runner
+│       ├── notifications.ts         # Telegram notifications
+│       ├── prompts.ts               # Prompt templates
+│       ├── types.ts                 # Agent-specific types
+│       └── index.ts                 # Barrel exports
 ├── server/
-│   ├── github/
-│   │   ├── client.ts          # Shared GitHub client (used by server + agents)
-│   │   └── index.ts           # Barrel exports
+│   ├── project-management/          # Project management abstraction layer
+│   │   ├── adapters/
+│   │   │   └── github.ts            # GitHub Projects V2 adapter
+│   │   ├── types.ts                 # Adapter interface + domain types
+│   │   ├── config.ts                # Status constants, project config
+│   │   └── index.ts                 # Singleton factory + exports
 │   ├── github-sync/
-│   │   └── index.ts           # Server-side GitHub sync (approval flow)
+│   │   └── index.ts                 # Server-side GitHub sync (approval flow)
 │   └── github-status/
-│       └── index.ts           # Fetch/update GitHub Project status
+│       └── index.ts                 # Fetch/update GitHub Project status
 ├── apis/
 │   └── feature-requests/
 │       └── handlers/
-│           ├── getGitHubStatus.ts     # API: fetch status for a request
-│           ├── getGitHubStatuses.ts   # API: get available status options
-│           └── updateGitHubStatus.ts  # API: update status (admin only)
+│           ├── getGitHubStatus.ts   # API: fetch status for a request
+│           ├── getGitHubStatuses.ts # API: get available status options
+│           └── updateGitHubStatus.ts # API: update status (admin only)
 ├── pages/
 │   └── api/
 │       └── feature-requests/
 │           └── approve/
-│               └── [requestId].ts  # Telegram approval endpoint
+│               └── [requestId].ts   # Telegram approval endpoint
 
 .github/
 └── workflows/
-    ├── issue-notifications.yml     # Issue event notifications
-    ├── project-notifications.yml   # Project status change notifications
-    ├── pr-notifications.yml        # PR event notifications
-    └── reset-review-status.yml     # Auto-reset Review Status on Status change
+    ├── issue-notifications.yml      # Issue event notifications
+    ├── project-notifications.yml    # Project status change notifications
+    ├── pr-notifications.yml         # PR event notifications
+    └── reset-review-status.yml      # Auto-reset Review Status on Status change
 ```
 
 ## Related Documentation

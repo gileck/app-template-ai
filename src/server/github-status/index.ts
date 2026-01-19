@@ -2,12 +2,19 @@
  * GitHub Project Status Service
  *
  * Fetches and updates GitHub Project status for feature requests.
- * Uses the shared GitHub client.
+ * Uses the project management adapter.
  */
 
-import { getGitHubClient, type GitHubProjectStatus } from '@/server/github';
+import { getProjectManagementAdapter } from '@/server/project-management';
 
-export type { GitHubProjectStatus };
+/**
+ * GitHub Project status for a project item
+ */
+export interface GitHubProjectStatus {
+    status: string | null;
+    reviewStatus: string | null;
+    issueState: 'OPEN' | 'CLOSED' | null;
+}
 
 /**
  * Get the GitHub Project status for a project item
@@ -16,8 +23,17 @@ export async function getGitHubProjectStatus(
     projectItemId: string
 ): Promise<GitHubProjectStatus | null> {
     try {
-        const client = getGitHubClient();
-        return await client.getProjectItemStatus(projectItemId);
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        const item = await adapter.getItem(projectItemId);
+        if (!item) return null;
+
+        return {
+            status: item.status,
+            reviewStatus: item.reviewStatus,
+            issueState: item.content?.state || null,
+        };
     } catch (error) {
         console.error('Failed to fetch GitHub project status:', error);
         return null;
@@ -29,8 +45,9 @@ export async function getGitHubProjectStatus(
  */
 export async function getAvailableStatuses(): Promise<string[]> {
     try {
-        const client = getGitHubClient();
-        return await client.getStatusOptions();
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+        return await adapter.getAvailableStatuses();
     } catch (error) {
         console.error('Failed to fetch available statuses:', error);
         return [];
@@ -42,8 +59,9 @@ export async function getAvailableStatuses(): Promise<string[]> {
  */
 export async function getAvailableReviewStatuses(): Promise<string[]> {
     try {
-        const client = getGitHubClient();
-        return await client.getReviewStatusOptions();
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+        return await adapter.getAvailableReviewStatuses();
     } catch (error) {
         console.error('Failed to fetch available review statuses:', error);
         return [];
@@ -58,8 +76,9 @@ export async function updateGitHubProjectStatus(
     status: string
 ): Promise<boolean> {
     try {
-        const client = getGitHubClient();
-        await client.updateProjectItemStatus(projectItemId, status);
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+        await adapter.updateItemStatus(projectItemId, status);
         return true;
     } catch (error) {
         console.error('Failed to update GitHub project status:', error);
@@ -75,8 +94,9 @@ export async function updateGitHubReviewStatus(
     reviewStatus: string
 ): Promise<boolean> {
     try {
-        const client = getGitHubClient();
-        await client.updateProjectItemReviewStatus(projectItemId, reviewStatus);
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+        await adapter.updateItemReviewStatus(projectItemId, reviewStatus);
         return true;
     } catch (error) {
         console.error('Failed to update GitHub review status:', error);

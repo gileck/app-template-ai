@@ -708,16 +708,21 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 **Setup:**
 1. Create a GitHub Project with required statuses (see docs)
 2. Add `GITHUB_TOKEN` to `.env` with `repo` and `project` scopes
-3. Configure `scripts/agents/shared/config.ts` for your project
+3. Set environment variables: `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_PROJECT_NUMBER`, `GITHUB_OWNER_TYPE`
 
 **CLI Commands:**
 
 | Command | Description |
 |---------|-------------|
-| `yarn agent:sync-to-github` | Sync approved feature requests to GitHub Issues |
 | `yarn agent:product-design` | Generate product design documents |
 | `yarn agent:tech-design` | Generate technical design documents |
 | `yarn agent:implement` | Implement features and create PRs |
+
+**Architecture:**
+
+The project management system uses an adapter pattern for flexibility:
+- `src/server/project-management/` - Abstraction layer with types, config, and adapters
+- `src/agents/` - CLI agents that use the project management adapter
 
 **Common Options:**
 - `--id <id>` - Process specific item

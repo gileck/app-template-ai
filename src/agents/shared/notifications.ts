@@ -2,10 +2,9 @@
  * Telegram Notifications for Agent Scripts
  *
  * Provides notification functions for each step of the GitHub Projects workflow.
- * Uses the app's existing Telegram notification system.
  */
 
-import { config, getIssueUrl, getPrUrl, getProjectUrl } from './config';
+import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
 
 // ============================================================
 // TELEGRAM API
@@ -24,7 +23,7 @@ interface SendResult {
 async function getOwnerChatId(): Promise<string | null> {
     try {
         // Dynamic import to avoid bundling issues
-        const { appConfig } = await import('../../../src/app.config');
+        const { appConfig } = await import('@/app.config');
         return appConfig.ownerTelegramChatId || null;
     } catch {
         return null;
@@ -35,7 +34,7 @@ async function getOwnerChatId(): Promise<string | null> {
  * Send a Telegram message to the admin/owner
  */
 async function sendToAdmin(message: string): Promise<SendResult> {
-    if (!config.telegram.enabled) {
+    if (!agentConfig.telegram.enabled) {
         return { success: true }; // Silently skip if disabled
     }
 
@@ -114,7 +113,6 @@ export async function notifyProductDesignReady(
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const action = isRevision ? 'revised' : 'generated';
     const emoji = isRevision ? '🔄' : '📝';
 
     const message = `${emoji} <b>Product Design ${isRevision ? 'Revised' : 'Ready for Review'}!</b>

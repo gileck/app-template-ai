@@ -8,7 +8,8 @@
  * - Feedback handling (revisions)
  */
 
-import type { ProjectItemContent, GitHubComment } from './types';
+import type { ProjectItemContent } from '@/server/project-management';
+import type { GitHubComment } from './types';
 
 // ============================================================
 // PRODUCT DESIGN PROMPTS

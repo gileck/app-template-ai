@@ -1,9 +1,8 @@
 /**
- * Agent Configuration
+ * Project Management Configuration
  *
- * This file contains configuration for the GitHub Projects integration agents.
- * - STATUSES and REVIEW_STATUSES are constants (same for all projects)
- * - config object contains project-specific settings (child repos modify this)
+ * Status constants and configuration for the project management system.
+ * These values are shared across the app (server APIs, agents, etc.)
  */
 
 // ============================================================
@@ -45,10 +44,10 @@ export type Status = (typeof STATUSES)[keyof typeof STATUSES];
 export type ReviewStatus = (typeof REVIEW_STATUSES)[keyof typeof REVIEW_STATUSES];
 
 // ============================================================
-// PROJECT CONFIG - Child repos modify this section only
+// PROJECT CONFIG
 // ============================================================
 
-export interface AgentConfig {
+export interface ProjectConfig {
     github: {
         /** GitHub username or organization name */
         owner: string;
@@ -59,42 +58,21 @@ export interface AgentConfig {
         /** Whether the project is owned by a user or organization */
         ownerType: 'user' | 'org';
     };
-    telegram: {
-        /** Whether to send Telegram notifications */
-        enabled: boolean;
-    };
-    claude: {
-        /** Claude model to use */
-        model: 'sonnet' | 'opus' | 'haiku';
-        /** Maximum number of agent turns */
-        maxTurns: number;
-        /** Timeout in seconds for agent execution */
-        timeoutSeconds: number;
-    };
 }
 
 /**
- * Project configuration
- *
- * Child repos: modify this config object for your project.
- * The status values above should NOT be changed.
+ * Get project configuration from environment or defaults
  */
-export const config: AgentConfig = {
-    github: {
-        owner: 'gileck',
-        repo: 'app-template-ai',
-        projectNumber: 3,
-        ownerType: 'user',
-    },
-    telegram: {
-        enabled: true,
-    },
-    claude: {
-        model: 'sonnet',
-        maxTurns: 100,
-        timeoutSeconds: 600,
-    },
-};
+export function getProjectConfig(): ProjectConfig {
+    return {
+        github: {
+            owner: process.env.GITHUB_OWNER || 'gileck',
+            repo: process.env.GITHUB_REPO || 'app-template-ai',
+            projectNumber: parseInt(process.env.GITHUB_PROJECT_NUMBER || '3', 10),
+            ownerType: (process.env.GITHUB_OWNER_TYPE || 'user') as 'user' | 'org',
+        },
+    };
+}
 
 // ============================================================
 // DERIVED VALUES
@@ -103,28 +81,30 @@ export const config: AgentConfig = {
 /**
  * Get the GitHub repository URL
  */
-export function getRepoUrl(): string {
-    return `https://github.com/${config.github.owner}/${config.github.repo}`;
+export function getRepoUrl(config?: ProjectConfig): string {
+    const c = config || getProjectConfig();
+    return `https://github.com/${c.github.owner}/${c.github.repo}`;
 }
 
 /**
  * Get the GitHub Project URL
  */
-export function getProjectUrl(): string {
-    const ownerPath = config.github.ownerType === 'user' ? 'users' : 'orgs';
-    return `https://github.com/${ownerPath}/${config.github.owner}/projects/${config.github.projectNumber}`;
+export function getProjectUrl(config?: ProjectConfig): string {
+    const c = config || getProjectConfig();
+    const ownerPath = c.github.ownerType === 'user' ? 'users' : 'orgs';
+    return `https://github.com/${ownerPath}/${c.github.owner}/projects/${c.github.projectNumber}`;
 }
 
 /**
  * Get issue URL
  */
-export function getIssueUrl(issueNumber: number): string {
-    return `${getRepoUrl()}/issues/${issueNumber}`;
+export function getIssueUrl(issueNumber: number, config?: ProjectConfig): string {
+    return `${getRepoUrl(config)}/issues/${issueNumber}`;
 }
 
 /**
  * Get PR URL
  */
-export function getPrUrl(prNumber: number): string {
-    return `${getRepoUrl()}/pull/${prNumber}`;
+export function getPrUrl(prNumber: number, config?: ProjectConfig): string {
+    return `${getRepoUrl(config)}/pull/${prNumber}`;
 }
