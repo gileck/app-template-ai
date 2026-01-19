@@ -16,6 +16,7 @@ import {
     getGitHubStatus,
     getGitHubStatuses,
     updateGitHubStatus,
+    updateGitHubReviewStatus,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -385,6 +386,31 @@ export function useUpdateGitHubStatus() {
         },
         onError: () => {
             toast.error('Failed to update GitHub status');
+        },
+    });
+}
+
+/**
+ * Hook to update GitHub Project review status
+ */
+export function useUpdateGitHubReviewStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ requestId, reviewStatus }: { requestId: string; reviewStatus: string }) => {
+            const result = await updateGitHubReviewStatus({ requestId, reviewStatus });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSuccess: (_data, { requestId }) => {
+            // Invalidate the GitHub status query to refetch
+            queryClient.invalidateQueries({ queryKey: ['github-status', requestId] });
+            toast.success('GitHub review status updated');
+        },
+        onError: () => {
+            toast.error('Failed to update GitHub review status');
         },
     });
 }

@@ -30,3 +30,4 @@ export const API_APPROVE_FEATURE_REQUEST = 'admin/feature-requests/approve';
 export const API_GET_GITHUB_STATUS = 'feature-requests/github-status';
 export const API_GET_GITHUB_STATUSES = 'feature-requests/github-statuses';
 export const API_UPDATE_GITHUB_STATUS = 'admin/feature-requests/update-github-status';
+export const API_UPDATE_GITHUB_REVIEW_STATUS = 'admin/feature-requests/update-github-review-status';
