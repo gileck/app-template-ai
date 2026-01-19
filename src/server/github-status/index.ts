@@ -1,102 +1,85 @@
 /**
  * GitHub Project Status Service
  *
- * Fetches the current status and review status of a project item from GitHub Projects V2.
- * Used by the UI to display live status from GitHub rather than synced database values.
+ * Fetches and updates GitHub Project status for feature requests.
+ * Uses the shared GitHub client.
  */
 
-import { Octokit } from '@octokit/rest';
+import { getGitHubClient, type GitHubProjectStatus } from '@/server/github';
 
-// Review Status field name (same as agents config)
-const REVIEW_STATUS_FIELD = 'Review Status';
-
-export interface GitHubProjectStatus {
-    status: string | null;
-    reviewStatus: string | null;
-    issueState: 'OPEN' | 'CLOSED' | null;
-}
+export type { GitHubProjectStatus };
 
 /**
  * Get the GitHub Project status for a project item
- * @param projectItemId - The GitHub Project V2 item ID
- * @returns The current status and review status
  */
 export async function getGitHubProjectStatus(
     projectItemId: string
 ): Promise<GitHubProjectStatus | null> {
-    const token = process.env.GITHUB_TOKEN;
-
-    if (!token) {
-        console.warn('GITHUB_TOKEN not configured');
-        return null;
-    }
-
-    const octokit = new Octokit({ auth: token.replace(/^["']|["']$/g, '') });
-
     try {
-        const query = `query($itemId: ID!) {
-            node(id: $itemId) {
-                ... on ProjectV2Item {
-                    content {
-                        ... on Issue {
-                            state
-                        }
-                    }
-                    fieldValues(first: 20) {
-                        nodes {
-                            ... on ProjectV2ItemFieldSingleSelectValue {
-                                name
-                                field {
-                                    ... on ProjectV2SingleSelectField {
-                                        name
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }`;
-
-        const result = await octokit.graphql<{
-            node: {
-                content: {
-                    state?: string;
-                } | null;
-                fieldValues: {
-                    nodes: Array<{
-                        name?: string;
-                        field?: { name: string };
-                    }>;
-                };
-            } | null;
-        }>(query, {
-            itemId: projectItemId,
-        });
-
-        if (!result.node) {
-            return null;
-        }
-
-        let status: string | null = null;
-        let reviewStatus: string | null = null;
-
-        for (const fv of result.node.fieldValues.nodes) {
-            if (fv.field?.name === 'Status' && fv.name) {
-                status = fv.name;
-            }
-            if (fv.field?.name === REVIEW_STATUS_FIELD && fv.name) {
-                reviewStatus = fv.name;
-            }
-        }
-
-        return {
-            status,
-            reviewStatus,
-            issueState: (result.node.content?.state as 'OPEN' | 'CLOSED') || null,
-        };
+        const client = getGitHubClient();
+        return await client.getProjectItemStatus(projectItemId);
     } catch (error) {
         console.error('Failed to fetch GitHub project status:', error);
         return null;
+    }
+}
+
+/**
+ * Get available GitHub Project status options
+ */
+export async function getAvailableStatuses(): Promise<string[]> {
+    try {
+        const client = getGitHubClient();
+        return await client.getStatusOptions();
+    } catch (error) {
+        console.error('Failed to fetch available statuses:', error);
+        return [];
+    }
+}
+
+/**
+ * Get available GitHub Project review status options
+ */
+export async function getAvailableReviewStatuses(): Promise<string[]> {
+    try {
+        const client = getGitHubClient();
+        return await client.getReviewStatusOptions();
+    } catch (error) {
+        console.error('Failed to fetch available review statuses:', error);
+        return [];
+    }
+}
+
+/**
+ * Update the GitHub Project status for a project item
+ */
+export async function updateGitHubProjectStatus(
+    projectItemId: string,
+    status: string
+): Promise<boolean> {
+    try {
+        const client = getGitHubClient();
+        await client.updateProjectItemStatus(projectItemId, status);
+        return true;
+    } catch (error) {
+        console.error('Failed to update GitHub project status:', error);
+        return false;
+    }
+}
+
+/**
+ * Update the GitHub Project review status for a project item
+ */
+export async function updateGitHubReviewStatus(
+    projectItemId: string,
+    reviewStatus: string
+): Promise<boolean> {
+    try {
+        const client = getGitHubClient();
+        await client.updateProjectItemReviewStatus(projectItemId, reviewStatus);
+        return true;
+    } catch (error) {
+        console.error('Failed to update GitHub review status:', error);
+        return false;
     }
 }

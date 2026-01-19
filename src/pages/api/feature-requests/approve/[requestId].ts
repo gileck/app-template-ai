@@ -1,3 +1,5 @@
+/* eslint-disable restrict-api-routes/no-direct-api-routes */
+// This endpoint must be a direct API route because it returns HTML for Telegram approval links
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { featureRequests } from '@/server/database';
 import { approveFeatureRequest } from '@/server/github-sync';

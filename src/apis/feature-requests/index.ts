@@ -26,5 +26,7 @@ export const API_SET_NEEDS_USER_INPUT = 'admin/feature-requests/setNeedsUserInpu
 export const API_DELETE_FEATURE_REQUEST = 'admin/feature-requests/delete';
 export const API_APPROVE_FEATURE_REQUEST = 'admin/feature-requests/approve';
 
-// GitHub status endpoint (user can view their own request's GitHub status)
+// GitHub status endpoints
 export const API_GET_GITHUB_STATUS = 'feature-requests/github-status';
+export const API_GET_GITHUB_STATUSES = 'feature-requests/github-statuses';
+export const API_UPDATE_GITHUB_STATUS = 'admin/feature-requests/update-github-status';

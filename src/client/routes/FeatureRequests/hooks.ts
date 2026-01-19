@@ -14,6 +14,8 @@ import {
     addAdminComment,
     approveFeatureRequest,
     getGitHubStatus,
+    getGitHubStatuses,
+    updateGitHubStatus,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -342,5 +344,47 @@ export function useGitHubStatus(requestId: string | null, enabled: boolean = tru
         enabled: enabled && !!requestId,
         staleTime: 30000, // 30 seconds - status can change frequently
         refetchOnWindowFocus: true,
+    });
+}
+
+/**
+ * Hook to fetch available GitHub Project statuses
+ */
+export function useGitHubStatuses() {
+    return useQuery({
+        queryKey: ['github-statuses'],
+        queryFn: async () => {
+            const result = await getGitHubStatuses();
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes - statuses rarely change
+    });
+}
+
+/**
+ * Hook to update GitHub Project status
+ */
+export function useUpdateGitHubStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ requestId, status }: { requestId: string; status: string }) => {
+            const result = await updateGitHubStatus({ requestId, status });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSuccess: (_data, { requestId }) => {
+            // Invalidate the GitHub status query to refetch
+            queryClient.invalidateQueries({ queryKey: ['github-status', requestId] });
+            toast.success('GitHub status updated');
+        },
+        onError: () => {
+            toast.error('Failed to update GitHub status');
+        },
     });
 }

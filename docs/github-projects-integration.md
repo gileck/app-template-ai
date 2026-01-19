@@ -140,6 +140,39 @@ export const config: AgentConfig = {
 
 **Note:** The status values in `STATUSES` and `REVIEW_STATUSES` are constants and should NOT be modified. Only modify the `config` object for your project.
 
+### Shared GitHub Client
+
+The GitHub API logic is shared between the server (for the app UI) and CLI agents to avoid code duplication:
+
+**File:** `src/server/github/client.ts`
+
+```typescript
+import { getGitHubClient } from '@/server/github';
+
+// Get available statuses
+const client = getGitHubClient();
+const statuses = await client.getStatusOptions();
+const reviewStatuses = await client.getReviewStatusOptions();
+
+// Update project item status
+await client.updateProjectItemStatus(itemId, 'Ready for Product Design');
+await client.updateProjectItemReviewStatus(itemId, 'Waiting for Review');
+
+// Fetch project item details
+const item = await client.getProjectItem(itemId);
+```
+
+The client uses a singleton pattern and caches project metadata (field IDs, status options) after initialization to minimize API calls.
+
+**Key methods:**
+| Method | Description |
+|--------|-------------|
+| `getStatusOptions()` | Returns available main statuses |
+| `getReviewStatusOptions()` | Returns available review statuses |
+| `getProjectItem(itemId)` | Fetch item with status and review status |
+| `updateProjectItemStatus()` | Update main status |
+| `updateProjectItemReviewStatus()` | Update review status |
+
 ## Feature Request Approval Flow
 
 When a user submits a feature request, the system provides two ways for admins to approve it:
@@ -303,13 +336,40 @@ The status is fetched **directly from GitHub API** in real-time:
 
 This approach ensures you always see the **actual current status** from GitHub, not a cached copy in the database.
 
-### API Endpoint
+### Updating GitHub Status from the App
 
-The UI uses the `feature-requests/github-status` API endpoint which:
-- Requires authentication
-- Users can only view status of their own requests
-- Admins can view status of any request
-- Returns: `status`, `reviewStatus`, `issueState`, `issueUrl`
+Admins can change the GitHub Project status directly from the Feature Requests UI without leaving the app:
+
+1. Open the Feature Requests page in the admin panel
+2. Find a request that's linked to GitHub (has an issue link)
+3. Click the **three-dot menu** (⋮) on the card
+4. Select **GitHub Status** submenu
+5. Choose the new status from the list
+
+The status updates immediately in GitHub Projects, and the card refreshes to show the new status.
+
+**Available statuses:**
+- Backlog
+- Ready for Product Design
+- Product Design Review
+- Ready for Technical Design
+- Technical Design Review
+- Ready for development
+- PR Review
+- In review
+- Done
+
+**Note:** The "GitHub Status" menu option only appears for requests that have been synced to GitHub (i.e., have a `githubProjectItemId`).
+
+### API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `feature-requests/github-status` | Fetch current status for a request |
+| `feature-requests/github-statuses` | Get all available status options |
+| `admin/feature-requests/update-github-status` | Update status (admin only) |
+
+All endpoints require authentication. The update endpoint is admin-only.
 
 ## Workflow Guide
 
@@ -412,6 +472,8 @@ Feature Request Submitted
 ```
 
 ### Admin Actions
+
+Admins can change status either from GitHub Projects directly or from the app UI (via the three-dot menu > "GitHub Status").
 
 | Phase | Admin Action | Effect |
 |-------|--------------|--------|
@@ -636,14 +698,19 @@ scripts/
 
 src/
 ├── server/
+│   ├── github/
+│   │   ├── client.ts          # Shared GitHub client (used by server + agents)
+│   │   └── index.ts           # Barrel exports
 │   ├── github-sync/
 │   │   └── index.ts           # Server-side GitHub sync (approval flow)
 │   └── github-status/
-│       └── index.ts           # Fetch GitHub Project status for UI
+│       └── index.ts           # Fetch/update GitHub Project status
 ├── apis/
 │   └── feature-requests/
 │       └── handlers/
-│           └── getGitHubStatus.ts  # API handler for fetching status
+│           ├── getGitHubStatus.ts     # API: fetch status for a request
+│           ├── getGitHubStatuses.ts   # API: get available status options
+│           └── updateGitHubStatus.ts  # API: update status (admin only)
 ├── pages/
 │   └── api/
 │       └── feature-requests/

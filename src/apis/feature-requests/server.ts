@@ -18,6 +18,8 @@ import {
     API_DELETE_FEATURE_REQUEST,
     API_APPROVE_FEATURE_REQUEST,
     API_GET_GITHUB_STATUS,
+    API_GET_GITHUB_STATUSES,
+    API_UPDATE_GITHUB_STATUS,
 } from './index';
 
 // Import handlers
@@ -36,6 +38,8 @@ import { setNeedsUserInput } from './handlers/setNeedsUserInput';
 import { deleteFeatureRequest } from './handlers/deleteFeatureRequest';
 import { approveFeatureRequest } from './handlers/approveFeatureRequest';
 import { getGitHubStatus } from './handlers/getGitHubStatus';
+import { getGitHubStatuses } from './handlers/getGitHubStatuses';
+import { updateGitHubStatus } from './handlers/updateGitHubStatus';
 
 // Export consolidated handlers object
 export const featureRequestsApiHandlers = {
@@ -54,4 +58,6 @@ export const featureRequestsApiHandlers = {
     [API_DELETE_FEATURE_REQUEST]: { process: deleteFeatureRequest },
     [API_APPROVE_FEATURE_REQUEST]: { process: approveFeatureRequest },
     [API_GET_GITHUB_STATUS]: { process: getGitHubStatus },
+    [API_GET_GITHUB_STATUSES]: { process: getGitHubStatuses },
+    [API_UPDATE_GITHUB_STATUS]: { process: updateGitHubStatus },
 };

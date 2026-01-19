@@ -16,7 +16,7 @@ import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText,
 import { StatusBadge, PriorityBadge } from './StatusBadge';
 import { DesignReviewPanel } from './DesignReviewPanel';
 import type { FeatureRequestClient, FeatureRequestStatus, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
-import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus } from '../hooks';
+import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus, useGitHubStatuses, useUpdateGitHubStatus } from '../hooks';
 
 interface FeatureRequestCardProps {
     request: FeatureRequestClient;
@@ -56,12 +56,20 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
         !!request.githubProjectItemId
     );
 
+    // Fetch available GitHub statuses and mutation for updating
+    const { data: availableStatuses } = useGitHubStatuses();
+    const updateGitHubStatusMutation = useUpdateGitHubStatus();
+
     const handleStatusChange = (status: FeatureRequestStatus) => {
         updateStatusMutation.mutate({ requestId: request._id, status });
     };
 
     const handlePriorityChange = (priority: FeatureRequestPriority) => {
         updatePriorityMutation.mutate({ requestId: request._id, priority });
+    };
+
+    const handleGitHubStatusChange = (status: string) => {
+        updateGitHubStatusMutation.mutate({ requestId: request._id, status });
     };
 
     const handleDelete = () => {
@@ -203,6 +211,22 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                         ))}
                                     </DropdownMenuSubContent>
                                 </DropdownMenuSub>
+                                {request.githubProjectItemId && availableStatuses?.statuses && (
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>GitHub Status</DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent>
+                                            {availableStatuses.statuses.map((status) => (
+                                                <DropdownMenuItem
+                                                    key={status}
+                                                    onClick={() => handleGitHubStatusChange(status)}
+                                                    disabled={status === githubStatus?.status || updateGitHubStatusMutation.isPending}
+                                                >
+                                                    {status}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="text-destructive"

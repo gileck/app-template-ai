@@ -188,6 +188,26 @@ export interface GetGitHubStatusResponse {
     error?: string;
 }
 
+// Get available GitHub statuses
+export type GetGitHubStatusesRequest = Record<string, never>;
+
+export interface GetGitHubStatusesResponse {
+    statuses?: string[];
+    reviewStatuses?: string[];
+    error?: string;
+}
+
+// Update GitHub Project status
+export interface UpdateGitHubStatusRequest {
+    requestId: string;
+    status: string;
+}
+
+export interface UpdateGitHubStatusResponse {
+    success?: boolean;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type {
     FeatureRequestClient,
