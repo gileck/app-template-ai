@@ -16,7 +16,7 @@ jobs:
         id: get-details
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const itemId = context.payload.projects_v2_item.node_id;
             const projectNumber = context.payload.projects_v2_item.project_node_id;
