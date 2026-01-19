@@ -155,7 +155,7 @@ export async function approveFeatureRequest(
             return { success: false, error: 'Feature request not found' };
         }
 
-        // Then sync to GitHub
+        // Then sync to GitHub (creates issue with Backlog status)
         const githubResult = await syncFeatureRequestToGitHub(requestId);
 
         if (!githubResult.success) {
@@ -165,6 +165,18 @@ export async function approveFeatureRequest(
                 success: false,
                 error: `GitHub sync failed: ${githubResult.error}`,
             };
+        }
+
+        // Update GitHub Project status to Product Design (ready for agent)
+        // This sets the item to the first phase with empty review status
+        if (githubResult.projectItemId) {
+            const adapter = getProjectManagementAdapter();
+            await adapter.init();
+            await adapter.updateItemStatus(githubResult.projectItemId, STATUSES.productDesign);
+            // Ensure review status is empty (ready for agent to process)
+            if (adapter.hasReviewStatusField()) {
+                await adapter.updateItemReviewStatus(githubResult.projectItemId, '');
+            }
         }
 
         // Fetch the updated request with GitHub fields

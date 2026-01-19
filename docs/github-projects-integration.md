@@ -7,17 +7,18 @@ This document describes the GitHub Projects integration that automates the featu
 The integration creates a complete pipeline using a simplified 5-column workflow:
 
 1. **User submits** feature request via app UI → stored in MongoDB
-2. **Admin gets Telegram notification** with one-click approval link
-3. **Admin approves** (via Telegram link or app UI) → server creates GitHub Issue + adds to Project "Backlog"
-4. **Admin moves to Product Design** → AI agent generates design → sets Review Status = "Waiting for Review"
-5. **Admin approves** → auto-advances to Technical Design → AI generates tech design
+2. **Admin gets Telegram notification** with one-click "Approve" button
+3. **Admin approves** (via Telegram button or app UI) → server creates GitHub Issue + sets to "Product Design" status
+4. **AI agent generates design** → sets Review Status = "Waiting for Review"
+5. **Admin approves** (via Telegram button) → auto-advances to Technical Design → AI generates tech design
 6. **Admin approves** → auto-advances to Implementation → AI implements and creates PR
 7. **Admin merges PR** → moves to Done
 
 **Key concepts:**
 - **5 board columns**: Backlog → Product Design → Technical Design → Implementation → Done
 - **Review Status field** tracks sub-states within each phase (empty → Waiting for Review → Approved/Request Changes)
-- **Auto-advance on approval**: When you set Review Status = "Approved", the item automatically moves to the next phase
+- **Auto-advance on approval**: When approved via Telegram or when Review Status = "Approved", the item automatically moves to the next phase
+- **Single webhook**: All Telegram approval buttons use `/api/telegram-webhook` for instant in-app feedback
 
 ## Architecture
 
@@ -218,9 +219,9 @@ When a user submits a feature request, the system provides two ways for admins t
 
 When a feature request is submitted:
 1. Admin receives a Telegram notification with the request details
-2. The notification includes a secure one-click "Approve" link
-3. Clicking the link approves the request and creates the GitHub issue
-4. A success page confirms the action with a link to the GitHub issue
+2. The notification includes an inline "Approve" button (callback button, not URL)
+3. Tapping the button triggers the webhook, which approves the request instantly
+4. The Telegram message is updated to show success with a link to the GitHub issue
 
 **Telegram Notification Example:**
 ```
@@ -232,13 +233,20 @@ Users have requested a dark mode option for the app to reduce eye strain...
 
 📍 Page: Settings
 
-✅ Approve & Create GitHub Issue
+[✅ Approve & Create GitHub Issue]  ← inline callback button
 ```
 
-The approval link contains a secure token that:
+When you tap the button:
+- Request is approved via webhook (stays in Telegram)
+- Message updates to show success with GitHub issue link
+- No browser required
+
+The approval uses a secure token that:
 - Is unique to each feature request
 - Can only be used once
-- Expires after approval (token is cleared)
+- Is cleared after approval
+
+**Note:** For localhost development (HTTP), a text link is shown instead since Telegram callback buttons require HTTPS.
 
 ### Option 2: App UI Approval
 
@@ -250,8 +258,8 @@ The approval link contains a secure token that:
 Both methods:
 - Update the feature request status to `product_design`
 - Create a GitHub issue with the request details
-- Add the issue to the GitHub Project with "Backlog" status
-- Send a Telegram notification confirming the sync
+- Add the issue to the GitHub Project with "Product Design" status (ready for AI agent)
+- Review Status is empty (ready for agent to pick up)
 
 ## GitHub Notifications (Telegram)
 
@@ -440,22 +448,17 @@ Feature Request Submitted
     ┌────────────────────┐      ┌────────────────────────┐
     │ Telegram           │      │ Admin Panel            │
     │ Notification       │      │ "Approve" Button       │
-    │ + Approval Link    │      │                        │
+    │ + Approve Button   │      │                        │
     └─────────┬──────────┘      └───────────┬────────────┘
               │                             │
               └──────────┬──────────────────┘
                          │
                          ▼ (Admin approves - creates GitHub issue)
-    ┌─────────────────────┐
-    │ GitHub Issue        │
-    │ Status: Backlog     │
-    │ MongoDB: 'product_design'
-    └─────────┬───────────┘
-              │
-              ▼ (Admin moves to Product Design)
     ┌─────────────────────────────────────┐
+    │ GitHub Issue Created                │
     │ Status: Product Design              │
     │ Review Status: (empty)              │
+    │ MongoDB: 'product_design'           │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:product-design
@@ -527,20 +530,28 @@ Feature Request Submitted
 
 ### Admin Actions
 
-Admins can change status either from GitHub Projects directly or from the app UI (via the three-dot menu > "GitHub Status").
+Admins can approve/reject via Telegram buttons, GitHub Projects directly, or the app UI (via the three-dot menu > "GitHub Status").
+
+**Telegram Quick Actions** (Recommended):
+- All "Waiting for Review" notifications have inline buttons: Approve / Request Changes / Reject
+- Tapping a button updates GitHub Project immediately via webhook
+- For Product Design and Tech Design: "Approve" auto-advances to next phase and clears Review Status
 
 | Phase | Admin Action | Effect |
 |-------|--------------|--------|
-| Backlog | Move to "Product Design" | Standard flow - enables product design agent |
-| Backlog | Move to "Technical Design" | Skip product design (internal/technical work) |
-| Backlog | Move to "Implementation" | Skip both designs (simple fixes) |
-| Product Design | Set Review Status = "Approved" | Auto-advances to Technical Design |
-| Product Design | Set Review Status = "Request Changes" + comment | Agent revises design |
-| Technical Design | Set Review Status = "Approved" | Auto-advances to Implementation |
-| Technical Design | Set Review Status = "Request Changes" + comment | Agent revises design |
-| Implementation | (agent creates PR automatically) | |
-| Implementation | Set Review Status = "Approved" + merge PR | Move to Done |
-| Implementation | Set Review Status = "Request Changes" + review comments | Agent addresses feedback |
+| (New Request) | Tap "Approve" in Telegram | Creates issue, sets Status = "Product Design", Review Status = empty |
+| Product Design | Tap "Approve" in Telegram | Status → "Technical Design", Review Status → empty |
+| Product Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
+| Technical Design | Tap "Approve" in Telegram | Status → "Implementation", Review Status → empty |
+| Technical Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
+| Implementation | Tap "Approve" in Telegram | Review Status = "Approved" (PR needs manual merge) |
+| Implementation | Tap "Request Changes" + review comments | Agent addresses feedback |
+
+**Skipping Phases** (via GitHub Projects or App UI):
+| Action | Use Case |
+|--------|----------|
+| Backlog → Technical Design | Internal/technical work (skip product design) |
+| Backlog → Implementation | Simple fixes (skip both designs) |
 
 ### Alternative Workflows (Non-Product Features)
 
@@ -673,9 +684,9 @@ The agent will attempt to address ALL comments in the issue.
 
 ## Telegram Notifications
 
-Notifications are sent at each step:
+Notifications are sent at each step, all using callback buttons for instant in-Telegram actions:
 
-**New Feature Request (with approval link):**
+**New Feature Request:**
 ```
 📝 New Feature Request!
 
@@ -685,18 +696,20 @@ Users have requested a dark mode option for the app...
 
 📍 Page: Settings
 
-✅ Approve & Create GitHub Issue  ← clickable link
+[✅ Approve & Create GitHub Issue]  ← callback button
 ```
 
-**Feature Request Approved & Synced:**
+After tapping "Approve", the message updates to:
 ```
-✅ Feature request synced to GitHub!
+📝 New Feature Request!
 
 📋 Add dark mode toggle
-🔗 Issue #123
-📊 Status: Backlog
+...
 
-Waiting for product design generation.
+✅ Approved
+GitHub issue created for "Add dark mode toggle"
+
+🔗 View GitHub Issue
 ```
 
 **Design Ready for Review:**
@@ -724,14 +737,24 @@ Review and merge to complete.
 [✅ Approve] [📝 Request Changes] [❌ Reject]  ← inline buttons
 ```
 
-### Telegram Quick Actions
+### Telegram Quick Actions (Single Webhook)
 
-All "Waiting for Review" notifications include inline keyboard buttons:
-- **✅ Approve** - Sets Review Status to "Approved"
+All Telegram approval buttons use a single webhook (`/api/telegram-webhook`) for consistent behavior:
+
+**Initial Feature Request Approval:**
+- **✅ Approve & Create GitHub Issue** - Creates issue, sets to Product Design status
+
+**Design Review Actions (Product Design / Tech Design / Implementation):**
+- **✅ Approve** - Approves and auto-advances to next phase (clears Review Status)
 - **📝 Request Changes** - Sets Review Status to "Request Changes"
 - **❌ Reject** - Sets Review Status to "Rejected"
 
-When you tap a button, it updates GitHub Project status immediately via webhook.
+When you tap a button:
+1. Telegram calls `/api/telegram-webhook`
+2. Webhook performs the action (create issue / update status)
+3. For approve: auto-advances to next phase and clears Review Status
+4. Message is edited to show the action taken
+5. Toast notification confirms the action
 
 **Setup:**
 1. Deploy your app (the webhook endpoint needs to be publicly accessible)
@@ -744,12 +767,9 @@ When you tap a button, it updates GitHub Project status immediately via webhook.
    yarn telegram-webhook info
    ```
 
-**How it works:**
-1. Agent sends notification with inline buttons
-2. You tap a button in Telegram
-3. Telegram calls your `/api/telegram-webhook` endpoint
-4. Webhook updates GitHub Project via the adapter
-5. Message is edited to show the action taken
+**Callback Data Formats:**
+- Initial approval: `approve_request:{requestId}:{token}`
+- Design review: `approve:{issueNumber}`, `changes:{issueNumber}`, `reject:{issueNumber}`
 
 ## Troubleshooting
 
@@ -843,9 +863,10 @@ src/
 │           └── updateGitHubStatus.ts # API: update status (admin only)
 ├── pages/
 │   └── api/
+│       ├── telegram-webhook.ts      # Telegram callback webhook (all approvals)
 │       └── feature-requests/
 │           └── approve/
-│               └── [requestId].ts   # Telegram approval endpoint
+│               └── [requestId].ts   # Fallback approval endpoint (localhost only)
 
 .github/
 └── workflows/
