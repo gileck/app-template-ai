@@ -67,8 +67,7 @@ export const createFeatureRequest = async (
         // Send Telegram notification to admin with approval button
         try {
             const baseUrl = getBaseUrl();
-            const approveUrl = `${baseUrl}/api/feature-requests/approve/${newRequest._id}?token=${approvalToken}`;
-            const isHttps = approveUrl.startsWith('https://');
+            const isHttps = baseUrl.startsWith('https://');
 
             const message = [
                 `📝 New Feature Request!`,
@@ -77,16 +76,24 @@ export const createFeatureRequest = async (
                 ``,
                 `${newRequest.description.slice(0, 300)}${newRequest.description.length > 300 ? '...' : ''}`,
                 newRequest.page ? `\n📍 Page: ${newRequest.page}` : '',
-                // For localhost (HTTP), include link in message since buttons require HTTPS
-                !isHttps ? `\n\n🔗 Approve: ${approveUrl}` : '',
             ].filter(Boolean).join('\n');
 
-            // Telegram inline buttons require HTTPS URLs
-            await sendNotificationToOwner(message, isHttps ? {
-                inlineKeyboard: [[
-                    { text: '✅ Approve & Create GitHub Issue', url: approveUrl }
-                ]]
-            } : undefined);
+            // Use callback button for webhook (works in production)
+            // Fall back to URL link for localhost (webhook not available)
+            if (isHttps) {
+                // Callback data format: "approve_request:requestId:token"
+                const callbackData = `approve_request:${newRequest._id}:${approvalToken}`;
+                await sendNotificationToOwner(message, {
+                    inlineKeyboard: [[
+                        { text: '✅ Approve & Create GitHub Issue', callback_data: callbackData }
+                    ]]
+                });
+            } else {
+                // Localhost fallback - use URL button
+                const approveUrl = `${baseUrl}/api/feature-requests/approve/${newRequest._id}?token=${approvalToken}`;
+                const localMessage = `${message}\n\n🔗 Approve: ${approveUrl}`;
+                await sendNotificationToOwner(localMessage);
+            }
         } catch (notifyError) {
             // Don't fail the request if notification fails
             console.error('Failed to send Telegram notification:', notifyError);

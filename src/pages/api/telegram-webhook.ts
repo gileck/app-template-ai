@@ -3,18 +3,25 @@
  * Telegram Webhook API Endpoint
  *
  * Handles callback queries from inline keyboard buttons in Telegram notifications.
- * Updates GitHub Project review status based on button clicks.
+ * Supports multiple flows:
+ *
+ * 1. Initial Feature Request Approval:
+ *    - Callback: "approve_request:requestId:token"
+ *    - Creates GitHub issue from feature request
+ *
+ * 2. Design Review Actions (Product/Tech Design):
+ *    - Callback: "approve:issueNumber" | "changes:issueNumber" | "reject:issueNumber"
+ *    - Updates GitHub Project review status
  *
  * This is a direct API route because Telegram sends webhook requests directly to this URL.
  * It cannot go through the standard API architecture.
- *
- * Callback data format: "action:issueNumber" (e.g., "approve:123")
- * Actions: approve, changes, reject
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { featureRequests } from '@/server/database';
+import { approveFeatureRequest } from '@/server/github-sync';
 
 /**
  * Status transitions when approved - move to next phase
@@ -87,7 +94,7 @@ async function answerCallbackQuery(
 }
 
 /**
- * Edit the original message to show the action taken
+ * Edit the original message to show the action taken (for design review)
  */
 async function editMessageTextWithExtra(
     botToken: string,
@@ -119,6 +126,40 @@ async function editMessageTextWithExtra(
 }
 
 /**
+ * Edit message with custom content (for initial approval)
+ */
+async function editMessageWithResult(
+    botToken: string,
+    chatId: number,
+    messageId: number,
+    originalText: string,
+    success: boolean,
+    resultMessage: string,
+    linkUrl?: string
+): Promise<void> {
+    const emoji = success ? '✅' : '❌';
+    const status = success ? 'Approved' : 'Error';
+
+    let newText = `${originalText}\n\n${emoji} <b>${status}</b>\n${resultMessage}`;
+    if (linkUrl) {
+        newText += `\n\n🔗 <a href="${linkUrl}">View GitHub Issue</a>`;
+    }
+
+    await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text: newText,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            reply_markup: { inline_keyboard: [] },
+        }),
+    });
+}
+
+/**
  * Find project item by issue number
  */
 async function findItemByIssueNumber(
@@ -138,6 +179,153 @@ async function findItemByIssueNumber(
     }
 
     return null;
+}
+
+/**
+ * Handle initial feature request approval
+ * Callback format: "approve_request:requestId:token"
+ */
+async function handleFeatureRequestApproval(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    requestId: string,
+    token: string
+): Promise<{ success: boolean; error?: string }> {
+    // Fetch the feature request
+    const request = await featureRequests.findFeatureRequestById(requestId);
+
+    if (!request) {
+        return { success: false, error: 'Feature request not found' };
+    }
+
+    // Verify the token
+    if (!request.approvalToken || request.approvalToken !== token) {
+        return { success: false, error: 'Invalid or expired approval token' };
+    }
+
+    // Check if already approved
+    if (request.githubIssueUrl) {
+        // Already approved - still success, show the existing issue
+        if (callbackQuery.message) {
+            await editMessageWithResult(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                callbackQuery.message.text || '',
+                true,
+                'Already approved!',
+                request.githubIssueUrl
+            );
+        }
+        return { success: true };
+    }
+
+    // Approve the request (updates status + creates GitHub issue)
+    const result = await approveFeatureRequest(requestId);
+
+    if (!result.success) {
+        return { success: false, error: result.error || 'Failed to approve' };
+    }
+
+    // Clear the approval token (one-time use)
+    await featureRequests.updateApprovalToken(requestId, null);
+
+    // Update the message with success
+    if (callbackQuery.message) {
+        await editMessageWithResult(
+            botToken,
+            callbackQuery.message.chat.id,
+            callbackQuery.message.message_id,
+            callbackQuery.message.text || '',
+            true,
+            `GitHub issue created for "${request.title}"`,
+            result.githubResult?.issueUrl
+        );
+    }
+
+    console.log(`Telegram webhook: approved feature request ${requestId}`);
+    return { success: true };
+}
+
+/**
+ * Handle design review actions (approve/changes/reject)
+ * Callback format: "action:issueNumber"
+ */
+async function handleDesignReviewAction(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    action: ReviewAction,
+    issueNumber: number
+): Promise<{ success: boolean; error?: string }> {
+    const reviewStatus = ACTION_TO_REVIEW_STATUS[action];
+
+    // Initialize the adapter
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    // Find the project item by issue number
+    const item = await findItemByIssueNumber(adapter, issueNumber);
+
+    if (!item) {
+        return { success: false, error: `Issue #${issueNumber} not found in project` };
+    }
+
+    // Update the review status
+    await adapter.updateItemReviewStatus(item.itemId, reviewStatus);
+
+    let advancedTo: string | null = null;
+    let finalStatus = item.status;
+    let finalReviewStatus = reviewStatus;
+
+    // If approved, also auto-advance to next phase
+    if (action === 'approve' && item.status) {
+        const nextStatus = STATUS_TRANSITIONS[item.status];
+        if (nextStatus) {
+            await adapter.updateItemStatus(item.itemId, nextStatus);
+            // Clear review status for next phase
+            await adapter.updateItemReviewStatus(item.itemId, '');
+            advancedTo = nextStatus;
+            finalStatus = nextStatus;
+            finalReviewStatus = '';
+            console.log(`Telegram webhook: auto-advanced to ${nextStatus}`);
+        }
+    }
+
+    // Build detailed status message for the edited message
+    let statusDetails = '';
+    if (action === 'approve') {
+        if (advancedTo) {
+            statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${advancedTo}\n📋 Review Status: (ready for agent)`;
+        } else {
+            // Implementation phase - no auto-advance
+            statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Merge the PR to complete.`;
+        }
+    } else if (action === 'changes') {
+        statusDetails = `\n\n📝 <b>Changes Requested</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Add comments on the issue, then run agents.`;
+    } else if (action === 'reject') {
+        statusDetails = `\n\n❌ <b>Rejected</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}`;
+    }
+
+    // Acknowledge the button click (toast notification)
+    const toastMessage = advancedTo
+        ? `✅ Approved → ${advancedTo}`
+        : `${ACTION_EMOJIS[action]} ${ACTION_LABELS[action]}`;
+    await answerCallbackQuery(botToken, callbackQuery.id, toastMessage);
+
+    // Edit the message to show the action taken with full details
+    if (callbackQuery.message) {
+        await editMessageTextWithExtra(
+            botToken,
+            callbackQuery.message.chat.id,
+            callbackQuery.message.message_id,
+            callbackQuery.message.text || '',
+            action,
+            statusDetails
+        );
+    }
+
+    console.log(`Telegram webhook: ${action} issue #${issueNumber} (item ${item.itemId})`);
+    return { success: true };
 }
 
 export default async function handler(
@@ -170,93 +358,77 @@ export default async function handler(
         return res.status(200).json({ ok: true });
     }
 
-    // Parse callback data: "action:issueNumber"
-    const [action, issueNumberStr] = callbackData.split(':');
-    const issueNumber = parseInt(issueNumberStr, 10);
-
-    if (!action || !issueNumber || !['approve', 'changes', 'reject'].includes(action)) {
-        await answerCallbackQuery(botToken, callback_query.id, 'Invalid action');
-        return res.status(200).json({ ok: true });
-    }
-
-    const reviewAction = action as ReviewAction;
-    const reviewStatus = ACTION_TO_REVIEW_STATUS[reviewAction];
+    // Parse callback data - supports multiple formats:
+    // - "approve_request:requestId:token" - Initial feature request approval
+    // - "action:issueNumber" - Design review actions
+    const parts = callbackData.split(':');
+    const action = parts[0];
 
     try {
-        // Initialize the adapter
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
-
-        // Find the project item by issue number
-        const item = await findItemByIssueNumber(adapter, issueNumber);
-
-        if (!item) {
-            await answerCallbackQuery(
+        // Route to appropriate handler based on action type
+        if (action === 'approve_request' && parts.length === 3) {
+            // Initial feature request approval: "approve_request:requestId:token"
+            const [, requestId, token] = parts;
+            const result = await handleFeatureRequestApproval(
                 botToken,
-                callback_query.id,
-                `Issue #${issueNumber} not found in project`
+                callback_query,
+                requestId,
+                token
             );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '✅ Approved!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+                // Edit message to show error
+                if (callback_query.message) {
+                    await editMessageWithResult(
+                        botToken,
+                        callback_query.message.chat.id,
+                        callback_query.message.message_id,
+                        callback_query.message.text || '',
+                        false,
+                        result.error || 'Unknown error'
+                    );
+                }
+            }
+
             return res.status(200).json({ ok: true });
         }
 
-        // Update the review status
-        await adapter.updateItemReviewStatus(item.itemId, reviewStatus);
+        // Design review actions: "approve:123", "changes:123", "reject:123"
+        if (['approve', 'changes', 'reject'].includes(action) && parts.length === 2) {
+            const issueNumber = parseInt(parts[1], 10);
 
-        let advancedTo: string | null = null;
-        let finalStatus = item.status;
-        let finalReviewStatus = reviewStatus;
-
-        // If approved, also auto-advance to next phase
-        if (reviewAction === 'approve' && item.status) {
-            const nextStatus = STATUS_TRANSITIONS[item.status];
-            if (nextStatus) {
-                await adapter.updateItemStatus(item.itemId, nextStatus);
-                // Clear review status for next phase
-                await adapter.updateItemReviewStatus(item.itemId, '');
-                advancedTo = nextStatus;
-                finalStatus = nextStatus;
-                finalReviewStatus = '';
-                console.log(`Telegram webhook: auto-advanced to ${nextStatus}`);
+            if (!issueNumber) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
+                return res.status(200).json({ ok: true });
             }
-        }
 
-        // Build detailed status message for the edited message
-        let statusDetails = '';
-        if (reviewAction === 'approve') {
-            if (advancedTo) {
-                statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${advancedTo}\n📋 Review Status: (ready for agent)`;
-            } else {
-                // Implementation phase - no auto-advance
-                statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Merge the PR to complete.`;
-            }
-        } else if (reviewAction === 'changes') {
-            statusDetails = `\n\n📝 <b>Changes Requested</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Add comments on the issue, then run agents.`;
-        } else if (reviewAction === 'reject') {
-            statusDetails = `\n\n❌ <b>Rejected</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}`;
-        }
-
-        // Acknowledge the button click (toast notification)
-        const toastMessage = advancedTo
-            ? `✅ Approved → ${advancedTo}`
-            : `${ACTION_EMOJIS[reviewAction]} ${ACTION_LABELS[reviewAction]}`;
-        await answerCallbackQuery(botToken, callback_query.id, toastMessage);
-
-        // Edit the message to show the action taken with full details
-        if (callback_query.message) {
-            await editMessageTextWithExtra(
+            const result = await handleDesignReviewAction(
                 botToken,
-                callback_query.message.chat.id,
-                callback_query.message.message_id,
-                callback_query.message.text || '',
-                reviewAction,
-                statusDetails
+                callback_query,
+                action as ReviewAction,
+                issueNumber
             );
+
+            if (!result.success) {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
         }
 
-        console.log(
-            `Telegram webhook: ${reviewAction} issue #${issueNumber} (item ${item.itemId})`
-        );
-
+        // Unknown action
+        await answerCallbackQuery(botToken, callback_query.id, 'Unknown action');
         return res.status(200).json({ ok: true });
     } catch (error) {
         console.error('Telegram webhook error:', error);
@@ -271,14 +443,13 @@ export default async function handler(
 
         // Edit message to show error
         if (callback_query.message) {
-            const errorDetails = `\n\n❌ <b>Error</b>\n${errorMessage.slice(0, 200)}`;
-            await editMessageTextWithExtra(
+            await editMessageWithResult(
                 botToken,
                 callback_query.message.chat.id,
                 callback_query.message.message_id,
                 callback_query.message.text || '',
-                'reject', // Use reject emoji for error
-                errorDetails
+                false,
+                errorMessage.slice(0, 200)
             );
         }
 
