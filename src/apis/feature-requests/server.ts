@@ -20,6 +20,7 @@ import {
     API_GET_GITHUB_STATUS,
     API_GET_GITHUB_STATUSES,
     API_UPDATE_GITHUB_STATUS,
+    API_UPDATE_GITHUB_REVIEW_STATUS,
 } from './index';
 
 // Import handlers
@@ -40,6 +41,7 @@ import { approveFeatureRequest } from './handlers/approveFeatureRequest';
 import { getGitHubStatus } from './handlers/getGitHubStatus';
 import { getGitHubStatuses } from './handlers/getGitHubStatuses';
 import { updateGitHubStatus } from './handlers/updateGitHubStatus';
+import { updateGitHubReviewStatusHandler } from './handlers/updateGitHubReviewStatus';
 
 // Export consolidated handlers object
 export const featureRequestsApiHandlers = {
@@ -60,4 +62,5 @@ export const featureRequestsApiHandlers = {
     [API_GET_GITHUB_STATUS]: { process: getGitHubStatus },
     [API_GET_GITHUB_STATUSES]: { process: getGitHubStatuses },
     [API_UPDATE_GITHUB_STATUS]: { process: updateGitHubStatus },
+    [API_UPDATE_GITHUB_REVIEW_STATUS]: { process: updateGitHubReviewStatusHandler },
 };

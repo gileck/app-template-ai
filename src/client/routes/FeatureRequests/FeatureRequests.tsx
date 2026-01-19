@@ -170,7 +170,7 @@ export function FeatureRequests() {
                     </CardContent>
                 </Card>
             ) : (
-                <div>
+                <div className="space-y-4">
                     {requests?.map((request) => (
                         <FeatureRequestCard key={request._id} request={request} />
                     ))}
