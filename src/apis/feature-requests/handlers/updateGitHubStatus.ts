@@ -47,6 +47,11 @@ export const updateGitHubStatus = async (
             return { error: 'Failed to update GitHub status' };
         }
 
+        // Clear Review Status when manually changing status (admin is essentially approving/advancing)
+        // This prevents "Waiting for Review" from being stuck when moving to the next phase
+        const { updateGitHubReviewStatus } = await import('@/server/github-status');
+        await updateGitHubReviewStatus(featureRequest.githubProjectItemId, '');
+
         return { success: true };
     } catch (error: unknown) {
         console.error('Update GitHub status error:', error);
