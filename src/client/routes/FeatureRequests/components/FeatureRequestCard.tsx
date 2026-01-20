@@ -249,7 +249,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     <div className="flex flex-wrap gap-2 text-sm">
                         <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
                             <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground">{request.requestedBy}</span>
+                            <span className="text-muted-foreground">{request.requestedByName}</span>
                         </div>
                         <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />

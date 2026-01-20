@@ -100,6 +100,7 @@ export interface FeatureRequestDocument {
     // User interaction
     needsUserInput: boolean;          // True when admin needs more info from user
     requestedBy: ObjectId;            // User who submitted
+    requestedByName?: string;         // Username of who submitted
     comments: FeatureRequestComment[];
 
     // Admin-only fields
@@ -141,6 +142,7 @@ export interface FeatureRequestClient {
     techDesign?: DesignPhaseClient;
     needsUserInput: boolean;
     requestedBy: string;
+    requestedByName: string;
     comments: FeatureRequestCommentClient[];
     adminNotes?: string;
     priority?: FeatureRequestPriority;
