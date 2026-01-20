@@ -16,6 +16,7 @@ import {
     getGitHubStatus,
     getGitHubStatuses,
     updateGitHubStatus,
+    updateGitHubReviewStatus,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -385,6 +386,49 @@ export function useUpdateGitHubStatus() {
         },
         onError: () => {
             toast.error('Failed to update GitHub status');
+        },
+    });
+}
+
+/**
+ * Hook to update GitHub Project review status
+ */
+export function useUpdateGitHubReviewStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ requestId, reviewStatus }: { requestId: string; reviewStatus: string }) => {
+            const result = await updateGitHubReviewStatus({ requestId, reviewStatus });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onMutate: async ({ requestId, reviewStatus }) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ['github-status', requestId] });
+
+            // Snapshot previous value
+            const previous = queryClient.getQueryData(['github-status', requestId]);
+
+            // Optimistically update UI
+            queryClient.setQueryData(['github-status', requestId], (old: unknown) => ({
+                ...(old as Record<string, unknown>),
+                reviewStatus
+            }));
+
+            return { previous };
+        },
+        onError: (_err, { requestId }, context) => {
+            // Rollback on error
+            if (context?.previous) {
+                queryClient.setQueryData(['github-status', requestId], context.previous);
+            }
+            toast.error('Failed to update GitHub review status');
+        },
+        onSuccess: () => {
+            toast.success('GitHub review status updated');
+            // No invalidateQueries needed - UI already updated optimistically
         },
     });
 }

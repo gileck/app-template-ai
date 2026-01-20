@@ -18,6 +18,7 @@ import {
     API_GET_GITHUB_STATUS,
     API_GET_GITHUB_STATUSES,
     API_UPDATE_GITHUB_STATUS,
+    API_UPDATE_GITHUB_REVIEW_STATUS,
 } from './index';
 import {
     CreateFeatureRequestRequest,
@@ -54,6 +55,8 @@ import {
     GetGitHubStatusesResponse,
     UpdateGitHubStatusRequest,
     UpdateGitHubStatusResponse,
+    UpdateGitHubReviewStatusRequest,
+    UpdateGitHubReviewStatusResponse,
 } from './types';
 
 // ============================================================
@@ -220,4 +223,13 @@ export const updateGitHubStatus = async (
     params: UpdateGitHubStatusRequest
 ): Promise<CacheResult<UpdateGitHubStatusResponse>> => {
     return apiClient.post(API_UPDATE_GITHUB_STATUS, params);
+};
+
+/**
+ * Update GitHub Project review status for a feature request (admin only)
+ */
+export const updateGitHubReviewStatus = async (
+    params: UpdateGitHubReviewStatusRequest
+): Promise<CacheResult<UpdateGitHubReviewStatusResponse>> => {
+    return apiClient.post(API_UPDATE_GITHUB_REVIEW_STATUS, params);
 };
