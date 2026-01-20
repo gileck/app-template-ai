@@ -116,6 +116,9 @@ async function main() {
     // Remove duplicates while preserving order
     const uniqueScripts = [...new Set(scriptsToRun)];
 
+    // Options that only apply to Claude-based agents (not auto-advance)
+    const claudeOnlyOptions = ['--stream', '--verbose'];
+
     // Run scripts in sequence
     for (const scriptName of uniqueScripts) {
         const scriptPath = SCRIPTS[scriptName as keyof typeof SCRIPTS];
@@ -129,7 +132,12 @@ async function main() {
         console.log(`Running: ${scriptName}`);
         console.log('='.repeat(60));
 
-        const exitCode = await runScript(scriptPath, passThrough);
+        // Filter out Claude-only options for auto-advance
+        const scriptArgs = scriptName === 'auto-advance'
+            ? passThrough.filter(arg => !claudeOnlyOptions.includes(arg))
+            : passThrough;
+
+        const exitCode = await runScript(scriptPath, scriptArgs);
 
         if (exitCode !== 0 && !passThrough.includes('--dry-run')) {
             console.error(`\nScript ${scriptName} failed with exit code ${exitCode}`);
