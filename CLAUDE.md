@@ -705,6 +705,12 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 3. Generate Technical Design documents using Claude
 4. Implement features and create PRs using Claude
 
+**Key Features:**
+- **Squash-merge ready PRs**: PRs are formatted with title and body that require no editing before squash merge
+- **Auto-completion**: When PR is merged, GitHub Action automatically marks issue as Done in both GitHub Projects and MongoDB
+- **Simplified MongoDB schema**: MongoDB tracks only 4 high-level statuses (`new`, `in_progress`, `done`, `rejected`), detailed workflow tracking happens in GitHub Projects
+- **Two-tier status tracking**: Eliminates duplication between MongoDB and GitHub Projects
+
 **Setup:**
 1. Create a GitHub Project with required statuses (see docs)
 2. Add `GITHUB_TOKEN` to `.env` with `repo` and `project` scopes
@@ -732,10 +738,10 @@ The project management system uses an adapter pattern for flexibility:
 
 **Workflow:**
 ```
-Feature Request → GitHub Issue → Product Design → Tech Design → PR → Merge
+Feature Request → GitHub Issue → Product Design → Tech Design → PR → Merge → Auto-marked Done
 ```
 
-Each phase has a review step where admin can approve or request changes.
+Each phase has a review step where admin can approve or request changes. PRs are formatted for immediate squash merge without editing.
 
 **Docs:** [docs/github-projects-integration.md](docs/github-projects-integration.md)
 
