@@ -186,7 +186,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                         ))}
                                     </DropdownMenuSubContent>
                                 </DropdownMenuSub>
-                                {request.githubProjectItemId && availableStatuses?.statuses && (
+                                {request.githubProjectItemId && availableStatuses?.statuses && availableStatuses.statuses.length > 0 && (
                                     <DropdownMenuSub>
                                         <DropdownMenuSubTrigger>GitHub Status</DropdownMenuSubTrigger>
                                         <DropdownMenuSubContent>
