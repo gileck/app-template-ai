@@ -269,6 +269,53 @@ ${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to compl
 }
 
 /**
+ * Notify admin that agent needs clarification
+ */
+export async function notifyAgentNeedsClarification(
+    phase: string,
+    title: string,
+    issueNumber: number,
+    question: string,
+    itemType: 'bug' | 'feature' = 'feature'
+): Promise<SendResult> {
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+    const issueUrl = getIssueUrl(issueNumber);
+
+    // Truncate question for Telegram (max 4000 chars total)
+    // Reserve ~1000 chars for header/footer
+    const maxQuestionLength = 2800;
+    const truncatedQuestion = question.length > maxQuestionLength
+        ? question.slice(0, maxQuestionLength) + '...\n\n<i>[See full question in GitHub issue]</i>'
+        : question;
+
+    const message = `🤔 <b>Agent Needs Clarification</b>
+
+<b>Phase:</b> ${phase}
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber}
+
+<b>Question:</b>
+
+${escapeHtml(truncatedQuestion)}`;
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: '📋 View Issue & Respond', url: issueUrl },
+            ],
+            [
+                { text: '✅ Clarification Received', callback_data: `clarified:${issueNumber}` },
+            ],
+        ],
+    };
+
+    return sendToAdmin(message, buttons);
+}
+
+/**
  * Notify admin of an agent error
  */
 export async function notifyAgentError(

@@ -166,7 +166,7 @@ async function editMessageWithResult(
 async function findItemByIssueNumber(
     adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
     issueNumber: number
-): Promise<{ itemId: string; title: string; status: string | null } | null> {
+): Promise<{ itemId: string; title: string; status: string | null; reviewStatus: string | null } | null> {
     const items = await adapter.listItems({});
 
     for (const item of items) {
@@ -175,6 +175,7 @@ async function findItemByIssueNumber(
                 itemId: item.id,
                 title: item.content.title,
                 status: item.status,
+                reviewStatus: item.reviewStatus || null,
             };
         }
     }
@@ -558,6 +559,76 @@ async function handleDesignReviewAction(
     return { success: true };
 }
 
+/**
+ * Handle "Clarification Received" button click
+ * Callback format: "clarified:issueNumber"
+ */
+async function handleClarificationReceived(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        // 1. Initialize adapter
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 2. Find project item by issue number
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+
+        if (!item) {
+            return { success: false, error: 'Item not found in GitHub Projects' };
+        }
+
+        // 3. Verify current status
+        if (item.reviewStatus !== REVIEW_STATUSES.waitingForClarification) {
+            return {
+                success: false,
+                error: `Item is not waiting for clarification (current: ${item.reviewStatus || 'none'})`
+            };
+        }
+
+        // 4. Update review status to "Clarification Received"
+        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.clarificationReceived);
+
+        // 5. Send toast notification
+        await answerCallbackQuery(
+            botToken,
+            callbackQuery.id,
+            '✅ Status updated. Agent will continue work.'
+        );
+
+        // 6. Edit message to show action taken
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const statusUpdate = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '✅ <b>Status Updated</b>',
+                '📊 Review Status: Clarification Received',
+                '🤖 Agent will continue work on next run',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                originalText + statusUpdate,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: clarification received for issue #${issueNumber} (item ${item.itemId})`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling clarification received:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -719,6 +790,32 @@ export default async function handler(
                 botToken,
                 callback_query,
                 action as ReviewAction,
+                issueNumber
+            );
+
+            if (!result.success) {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Clarification received: "clarified:123"
+        if (action === 'clarified' && parts.length === 2) {
+            const issueNumber = parseInt(parts[1], 10);
+
+            if (!issueNumber) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleClarificationReceived(
+                botToken,
+                callback_query,
                 issueNumber
             );
 

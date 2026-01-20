@@ -14,6 +14,63 @@ import type { BugDiagnostics } from './utils';
 import { formatSessionLogs } from './utils';
 
 // ============================================================
+// AMBIGUITY HANDLING INSTRUCTIONS
+// ============================================================
+
+const AMBIGUITY_INSTRUCTIONS = `
+CRITICAL - Handling Ambiguity:
+
+If you encounter ANY ambiguity, uncertainty, or missing information that prevents you from completing the task correctly:
+
+1. DO NOT make assumptions or pick an option arbitrarily
+2. DO NOT proceed with partial or uncertain information
+3. INSTEAD, output a clarification request in this EXACT format:
+
+\`\`\`clarification
+## Context
+[Describe what's ambiguous or unclear]
+
+## Question
+[Your specific question]
+
+## Options
+
+✅ Option 1: [Recommended option name]
+   - [Benefit/reason 1]
+   - [Benefit/reason 2]
+
+⚠️ Option 2: [Alternative option name]
+   - [Drawback/reason 1]
+   - [Drawback/reason 2]
+
+[Additional options if needed - use ⚠️ for non-recommended options]
+
+## Recommendation
+I recommend Option 1 because [clear reasoning].
+
+## How to Respond
+Please respond with one of:
+- "Option 1" (with optional modifications: "Option 1, but also add X")
+- "Option 2" (with optional modifications)
+- "New Option: [describe completely new approach]"
+\`\`\`
+
+When you output a clarification request:
+- The system will post it as a comment on the GitHub issue
+- Admin will be notified via Telegram
+- Your work will pause until admin responds
+- Admin will respond with "Option X" or "New Option: [details]"
+- You will be re-invoked with the admin's clear answer
+
+Examples of when to ask for clarification:
+- Technical design mentions creating new infrastructure that doesn't exist
+- Multiple valid implementation approaches with different tradeoffs
+- Requirements conflict or are unclear
+- Missing information about user expectations
+- Uncertainty about existing patterns to follow
+`;
+
+// ============================================================
 // PRODUCT DESIGN PROMPTS
 // ============================================================
 
@@ -121,6 +178,8 @@ Example for a MEDIUM/LARGE feature:
 [Only non-obvious cases that need design decisions]
 \`\`\`
 
+${AMBIGUITY_INSTRUCTIONS}
+
 Now explore the codebase and create the Product Design document.`;
 }
 
@@ -171,7 +230,67 @@ Your final output MUST be the COMPLETE revised Product Design document in markdo
 
 Do NOT output just the changes - output the entire revised document. Keep it concise.
 
+${AMBIGUITY_INSTRUCTIONS}
+
 Now revise the Product Design based on the feedback.`;
+}
+
+/**
+ * Build prompt for continuing product design after clarification
+ */
+export function buildProductDesignClarificationPrompt(
+    content: { title: string; number: number; body: string; labels?: string[] },
+    issueComments: Array<{ body: string; author: string; createdAt: string }>,
+    clarification: { body: string; author: string; createdAt: string }
+): string {
+    const commentsSection = issueComments.length > 0
+        ? `\n## All Issue Comments\n\n${issueComments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    return `You previously asked for clarification while working on the product design for this feature.
+
+## Issue
+**Title:** ${content.title}
+**Number:** ${content.number}
+**Labels:** ${content.labels?.join(', ') || 'None'}
+
+**Description:**
+${content.body}
+${commentsSection}
+## Your Question
+You asked for clarification because you encountered ambiguity. Review the GitHub issue comments above to see your question.
+
+## Admin's Clarification
+**From:** ${clarification.author}
+**Date:** ${clarification.createdAt}
+
+${clarification.body}
+
+## Task
+Continue your product design work using the admin's clarification as guidance. Complete the product design document.
+
+If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
+
+**Required sections:**
+1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
+2. **Overview** - Brief summary of what this feature does and why it's needed
+3. **UI/UX Design** - How the feature will look and behave
+   - Describe the interface elements
+   - User flow and interactions
+   - Include error handling and loading states naturally within the flow
+   - Consider mobile/responsive needs if relevant
+
+**Optional sections (include only when relevant):**
+- **User Stories** - Only for features where multiple user types or complex workflows need clarification
+- **Edge Cases** - Only for features with non-obvious edge cases that need explicit design decisions
+
+## Output Format
+
+Your final output MUST be a complete Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
+
+${AMBIGUITY_INSTRUCTIONS}
+
+Now complete the Product Design document using the clarification provided.`;
 }
 
 // ============================================================
@@ -291,6 +410,8 @@ interface FeatureDocument {
 [Only for complex logic]
 \`\`\`
 
+${AMBIGUITY_INSTRUCTIONS}
+
 Now explore the codebase and create the Technical Design document.`;
 }
 
@@ -347,7 +468,66 @@ Your final output MUST be the COMPLETE revised Technical Design document in mark
 
 Do NOT output just the changes - output the entire revised document. Keep it concise.
 
+${AMBIGUITY_INSTRUCTIONS}
+
 Now revise the Technical Design based on the feedback.`;
+}
+
+/**
+ * Build prompt for continuing technical design after clarification
+ */
+export function buildTechDesignClarificationPrompt(
+    content: { title: string; number: number; body: string },
+    productDesign: string | null,
+    issueComments: Array<{ body: string; author: string; createdAt: string }>,
+    clarification: { body: string; author: string; createdAt: string }
+): string {
+    const productDesignSection = productDesign
+        ? `## Product Design\n\n${productDesign}\n`
+        : '';
+
+    const commentsSection = issueComments.length > 0
+        ? `\n## All Issue Comments\n\n${issueComments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    return `You previously asked for clarification while working on the technical design for this feature.
+
+## Issue
+**Title:** ${content.title}
+**Number:** ${content.number}
+
+**Description:**
+${content.body}
+
+${productDesignSection}${commentsSection}
+## Your Question
+You asked for clarification because you encountered ambiguity. Review the GitHub issue comments above to see your question.
+
+## Admin's Clarification
+**From:** ${clarification.author}
+**Date:** ${clarification.createdAt}
+
+${clarification.body}
+
+## Task
+Continue your technical design work using the admin's clarification as guidance. Complete the technical design document.
+
+If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
+
+**Requirements:**
+- List all files to create/modify with specific paths
+- Provide clear implementation guidance
+- Include data models if database changes are needed
+- Specify API endpoints if backend work is needed
+- Keep the size proportional to the feature complexity
+
+## Output Format
+
+Your final output MUST be a complete Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+
+${AMBIGUITY_INSTRUCTIONS}
+
+Now complete the Technical Design document using the clarification provided.`;
 }
 
 // ============================================================
@@ -441,15 +621,15 @@ Implement the feature as specified in ${implementationSource}:
 - Use the exact file paths specified in the Technical Design
 - Ensure all imports are correct
 - Do not add features or improvements beyond what's specified
-- If something is unclear, make a reasonable assumption and note it
+
+${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
 
 After implementing, provide a brief summary of:
 1. Files created
 2. Files modified
-3. Any assumptions made
-4. Any issues encountered
+3. Any issues encountered
 
 Begin implementing the feature now.`;
 }
@@ -519,6 +699,8 @@ ${reviewComments || 'No PR review comments'}
 - Don't add extra features or refactoring
 - Test your changes make sense in context
 
+${AMBIGUITY_INSTRUCTIONS}
+
 ## Output
 
 After making changes, provide a brief summary of:
@@ -527,6 +709,72 @@ After making changes, provide a brief summary of:
 3. Any feedback that couldn't be addressed and why
 
 Begin addressing the feedback now.`;
+}
+
+/**
+ * Build prompt for continuing implementation after clarification
+ */
+export function buildImplementationClarificationPrompt(
+    content: { title: string; number: number; body: string },
+    productDesign: string | null,
+    techDesign: string | null,
+    branchName: string,
+    issueComments: Array<{ body: string; author: string; createdAt: string }>,
+    clarification: { body: string; author: string; createdAt: string }
+): string {
+    const productDesignSection = productDesign ? `## Product Design\n\n${productDesign}\n` : '';
+    const techDesignSection = techDesign ? `## Technical Design\n\n${techDesign}\n` : '';
+    const commentsSection = issueComments.length > 0
+        ? `\n## All Issue Comments\n\n${issueComments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    return `You previously asked for clarification while implementing this feature.
+
+## Issue
+**Title:** ${content.title}
+**Number:** ${content.number}
+
+**Description:**
+${content.body}
+
+${productDesignSection}${techDesignSection}${commentsSection}
+## Your Question
+You asked for clarification because you encountered ambiguity. Review the GitHub issue comments above to see your question.
+
+## Admin's Clarification
+**From:** ${clarification.author}
+**Date:** ${clarification.createdAt}
+
+${clarification.body}
+
+## Task
+Continue your implementation work using the admin's clarification as guidance. Complete the implementation.
+
+If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
+
+**Branch:** ${branchName}
+
+## Implementation Guidelines
+
+- Read existing similar code before implementing
+- Use the exact file paths specified in the Technical Design
+- Ensure all imports are correct
+- Do not add features or improvements beyond what's specified
+- Follow existing code patterns in the codebase
+- Use TypeScript with proper types
+- Use semantic color tokens (bg-background, not bg-white)
+- For state management, use React Query for server state and Zustand for client state
+
+${AMBIGUITY_INSTRUCTIONS}
+
+## Output
+
+After implementing, provide a brief summary of:
+1. Files created
+2. Files modified
+3. Any issues encountered
+
+Begin implementing the feature now.`;
 }
 
 // ============================================================
@@ -642,6 +890,8 @@ The error occurs in \`ComponentName.tsx\` when [specific condition]. The code as
 3. Test edge case: [edge case description]
 \`\`\`
 
+${AMBIGUITY_INSTRUCTIONS}
+
 Now explore the codebase and create the Technical Design for this bug fix.`;
 }
 
@@ -742,6 +992,8 @@ Implement the bug fix as specified in ${implementationSource}:
 - DO NOT refactor surrounding code unless necessary for the fix
 - DO NOT add features or improvements beyond the bug fix
 
+${AMBIGUITY_INSTRUCTIONS}
+
 ## Output
 
 After implementing, provide a brief summary of:
@@ -797,6 +1049,8 @@ ${feedbackSection}
 Your final output MUST be the COMPLETE revised Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
 
 Do NOT output just the changes - output the entire revised document.
+
+${AMBIGUITY_INSTRUCTIONS}
 
 Now revise the Bug Fix Technical Design based on the feedback.`;
 }

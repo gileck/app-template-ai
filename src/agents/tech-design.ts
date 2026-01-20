@@ -50,6 +50,7 @@ import {
     // Prompts
     buildTechDesignPrompt,
     buildTechDesignRevisionPrompt,
+    buildTechDesignClarificationPrompt,
     buildBugTechDesignPrompt,
     buildBugTechDesignRevisionPrompt,
     // Types
@@ -58,6 +59,8 @@ import {
     // Utils
     getIssueType,
     getBugDiagnostics,
+    extractClarification,
+    handleClarificationRequest,
 } from './shared';
 
 // ============================================================
@@ -66,7 +69,7 @@ import {
 
 interface ProcessableItem {
     item: ProjectItem;
-    mode: 'new' | 'feedback';
+    mode: 'new' | 'feedback' | 'clarification';
 }
 
 // ============================================================
@@ -133,7 +136,7 @@ async function processItem(
                 // Feature tech design
                 prompt = buildTechDesignPrompt(content, productDesign, issueComments);
             }
-        } else {
+        } else if (mode === 'feedback') {
             // Flow B: Address feedback
             const existingTechDesign = extractTechDesign(content.body);
             if (!existingTechDesign) {
@@ -151,16 +154,32 @@ async function processItem(
                 // Feature revision
                 prompt = buildTechDesignRevisionPrompt(content, productDesign, existingTechDesign, issueComments);
             }
+        } else {
+            // Flow C: Continue after clarification
+            const adminComments = issueComments.filter(c => !c.author.includes('bot'));
+            const clarification = adminComments[adminComments.length - 1];
+
+            if (!clarification) {
+                return { success: false, error: 'No clarification comment found' };
+            }
+
+            prompt = buildTechDesignClarificationPrompt(content, productDesign, issueComments, clarification);
         }
 
         // Run the agent
         console.log('');
+        const progressLabel = mode === 'new'
+            ? 'Generating technical design'
+            : mode === 'feedback'
+            ? 'Revising technical design'
+            : 'Continuing with clarification';
+
         const result = await runAgent({
             prompt,
             stream: options.stream,
             verbose: options.verbose,
             timeout: options.timeout,
-            progressLabel: mode === 'new' ? 'Generating technical design' : 'Revising technical design',
+            progressLabel,
         });
 
         if (!result.success || !result.content) {
@@ -169,6 +188,22 @@ async function processItem(
                 await notifyAgentError('Technical Design', content.title, issueNumber, error);
             }
             return { success: false, error };
+        }
+
+        // Check if agent needs clarification
+        const clarificationRequest = extractClarification(result.content);
+        if (clarificationRequest) {
+            console.log('  🤔 Agent needs clarification');
+            return await handleClarificationRequest(
+                adapter,
+                item,
+                issueNumber,
+                clarificationRequest,
+                'Technical Design',
+                content.title,
+                issueType,
+                options
+            );
         }
 
         // Extract markdown design from output
@@ -269,16 +304,22 @@ async function main(): Promise<void> {
         }
 
         // Determine mode based on current status and review status
-        let mode: 'new' | 'feedback';
+        let mode: 'new' | 'feedback' | 'clarification';
         if (item.status === STATUSES.techDesign && !item.reviewStatus) {
             mode = 'new';
         } else if (item.status === STATUSES.techDesign && item.reviewStatus === REVIEW_STATUSES.requestChanges) {
             mode = 'feedback';
+        } else if (item.status === STATUSES.techDesign && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
+            mode = 'clarification';
+        } else if (item.status === STATUSES.techDesign && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
+            console.log('  ⏳ Waiting for clarification from admin');
+            console.log('  Skipping this item (admin needs to respond and click "Clarification Received")');
+            process.exit(0);
         } else {
             console.error(`Item is not in a processable state.`);
             console.error(`  Status: ${item.status}`);
             console.error(`  Review Status: ${item.reviewStatus}`);
-            console.error(`  Expected: "${STATUSES.techDesign}" with empty Review Status or Review Status "${REVIEW_STATUSES.requestChanges}"`);
+            console.error(`  Expected: "${STATUSES.techDesign}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", or "${REVIEW_STATUSES.clarificationReceived}"`);
             process.exit(1);
         }
 
@@ -303,6 +344,16 @@ async function main(): Promise<void> {
                 itemsToProcess.push({ item, mode: 'feedback' });
             }
             console.log(`  Found ${feedbackItems.length} item(s) needing revision`);
+
+            // Flow C: Fetch items with clarification received
+            console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.clarificationReceived}"...`);
+            const clarificationItems = allTechDesignItems.filter(
+                (item) => item.reviewStatus === REVIEW_STATUSES.clarificationReceived
+            );
+            for (const item of clarificationItems) {
+                itemsToProcess.push({ item, mode: 'clarification' });
+            }
+            console.log(`  Found ${clarificationItems.length} item(s) with clarification received`);
         }
 
         // Apply limit

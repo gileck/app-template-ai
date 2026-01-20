@@ -699,6 +699,72 @@ Admins can approve/reject via Telegram buttons, GitHub Projects directly, or the
 | Backlog → Technical Design | Internal/technical work (skip product design) |
 | Backlog → Ready for development | Simple fixes (skip both designs) |
 
+### Agent Clarification Flow
+
+When agents encounter ambiguity or missing information, they can ask questions instead of making assumptions.
+
+**Flow:**
+1. Agent detects ambiguity while processing (design or implementation)
+2. Agent outputs a formatted clarification request with:
+   - Context explaining what's unclear
+   - Specific question
+   - Options with recommendations and tradeoffs
+3. System posts question as GitHub issue comment
+4. System sets Review Status to "Waiting for Clarification"
+5. Admin receives Telegram notification with question preview
+6. Admin reads full question on GitHub issue
+7. Admin adds comment with answer
+8. Admin clicks "✅ Clarification Received" button in Telegram
+9. System updates Review Status to "Clarification Received"
+10. Agent picks up item on next run, reads clarification, continues work
+
+**Review Status States:**
+- `null` → Ready for agent to start fresh
+- `Waiting for Clarification` → Agent blocked, needs admin input
+- `Clarification Received` → Admin answered, agent should resume
+- `Waiting for Review` → Agent done, admin reviews output
+- `Approved` → Admin approved, advance to next phase
+- `Request Changes` → Admin wants revisions
+- `Rejected` → Won't proceed
+
+**Example Clarification:**
+
+```
+## Context
+The technical design mentions creating a users API and fetching user data on the client side using `useUser(request.requestedBy)`. However, there is no existing users API infrastructure in the codebase, and the existing comment pattern stores `authorName` directly in the database.
+
+## Question
+Should I create a full users API infrastructure, or follow the existing comment pattern by storing `requestedByName` in the feature request document?
+
+## Options
+
+✅ Option 1: Add `requestedByName` field (follows existing pattern)
+   - Stores username at creation (like comments do)
+   - No extra API calls, simpler
+   - Follows established codebase patterns
+   - More performant (no runtime lookups)
+
+⚠️ Option 2: Create Users API (follows tech design literally)
+   - Requires new API infrastructure (`apis/users/`)
+   - Adds extra API calls on every render
+   - More complex but allows fetching full user data
+   - Username changes would auto-update
+
+## Recommendation
+I recommend Option 1 because it's simpler, more performant, and follows the established pattern already used for comments. The username is unlikely to change frequently enough to warrant the added complexity of a users API.
+
+## How to Respond
+Please respond with one of:
+- "Option 1" (with optional modifications: "Option 1, but also add X")
+- "Option 2" (with optional modifications)
+- "New Option: [describe completely new approach]"
+```
+
+**Admin Response Examples:**
+- "Option 1" → Agent proceeds with Option 1 as described
+- "Option 1, but fetch user from database on backend instead of frontend" → Agent uses Option 1 approach with specified modification
+- "New Option: Store both requestedBy ID and requestedByName, fetch user details on hover" → Agent implements the completely new approach
+
 ### Alternative Workflows (Non-Product Features)
 
 Not all work requires a product design phase. For internal implementations, architecture changes, refactoring, or bug fixes, you can skip phases:

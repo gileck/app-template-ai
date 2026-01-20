@@ -49,6 +49,7 @@ import {
     // Prompts
     buildImplementationPrompt,
     buildPRRevisionPrompt,
+    buildImplementationClarificationPrompt,
     buildBugImplementationPrompt,
     // Types
     type CommonCLIOptions,
@@ -56,6 +57,8 @@ import {
     // Utils
     getIssueType,
     getBugDiagnostics,
+    extractClarification,
+    handleClarificationRequest,
 } from './shared';
 
 // ============================================================
@@ -64,7 +67,7 @@ import {
 
 interface ProcessableItem {
     item: ProjectItem;
-    mode: 'new' | 'feedback';
+    mode: 'new' | 'feedback' | 'clarification';
     prNumber?: number;
 }
 
@@ -282,7 +285,7 @@ async function processItem(
                 // Feature implementation
                 prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName, issueComments);
             }
-        } else {
+        } else if (mode === 'feedback') {
             // Flow B: Address feedback
             if (!processable.prNumber) {
                 return { success: false, error: 'No PR number available for feedback mode' };
@@ -317,6 +320,16 @@ async function processItem(
             // Combine issue comments and PR comments for the prompt
             const allComments = [...issueComments, ...prComments];
             prompt = buildPRRevisionPrompt(content, productDesign, techDesign, allComments, prReviewComments);
+        } else {
+            // Flow C: Continue after clarification
+            const adminComments = issueComments.filter(c => !c.author.includes('bot'));
+            const clarification = adminComments[adminComments.length - 1];
+
+            if (!clarification) {
+                return { success: false, error: 'No clarification comment found' };
+            }
+
+            prompt = buildImplementationClarificationPrompt(content, productDesign, techDesign, branchName, issueComments, clarification);
         }
 
         // Checkout the feature branch
@@ -327,7 +340,7 @@ async function processItem(
             checkoutBranch(branchName, true);
         } else {
             checkoutBranch(branchName, false);
-            if (mode === 'feedback') {
+            if (mode === 'feedback' || mode === 'clarification') {
                 // Pull latest changes
                 try {
                     pullBranch(branchName);
@@ -350,12 +363,18 @@ async function processItem(
 
         // Run the agent (WRITE mode)
         console.log('');
+        const progressLabel = mode === 'new'
+            ? 'Implementing feature'
+            : mode === 'feedback'
+            ? 'Addressing feedback'
+            : 'Continuing with clarification';
+
         const result = await runAgent({
             prompt,
             stream: options.stream,
             verbose: options.verbose,
             timeout: options.timeout,
-            progressLabel: mode === 'new' ? 'Implementing feature' : 'Addressing feedback',
+            progressLabel,
             allowWrite: true, // Enable write mode
         });
 
@@ -367,6 +386,26 @@ async function processItem(
                 await notifyAgentError('Implementation', content.title, issueNumber, error);
             }
             return { success: false, error };
+        }
+
+        // Check if agent needs clarification
+        if (result.content) {
+            const clarificationRequest = extractClarification(result.content);
+            if (clarificationRequest) {
+                console.log('  🤔 Agent needs clarification');
+                // Checkout back to original branch before pausing
+                git(`checkout ${originalBranch}`);
+                return await handleClarificationRequest(
+                    adapter,
+                    item,
+                    issueNumber,
+                    clarificationRequest,
+                    'Implementation',
+                    content.title,
+                    issueType,
+                    options
+                );
+            }
         }
 
         console.log(`  Agent completed in ${result.durationSeconds}s`);
@@ -636,7 +675,7 @@ async function main(): Promise<void> {
         }
 
         // Determine mode based on current status and review status
-        let mode: 'new' | 'feedback';
+        let mode: 'new' | 'feedback' | 'clarification';
         let prNumber: number | undefined;
 
         if (item.status === STATUSES.implementation && !item.reviewStatus) {
@@ -647,11 +686,17 @@ async function main(): Promise<void> {
         ) {
             mode = 'feedback';
             prNumber = await extractPRNumber(item, adapter);
+        } else if (item.status === STATUSES.implementation && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
+            mode = 'clarification';
+        } else if (item.status === STATUSES.implementation && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
+            console.log('  ⏳ Waiting for clarification from admin');
+            console.log('  Skipping this item (admin needs to respond and click "Clarification Received")');
+            process.exit(0);
         } else {
             console.error(`Item is not in a processable state.`);
             console.error(`  Status: ${item.status}`);
             console.error(`  Review Status: ${item.reviewStatus}`);
-            console.error(`  Expected: "${STATUSES.implementation}" with empty Review Status, or "${STATUSES.implementation}"/"${STATUSES.prReview}" with "${REVIEW_STATUSES.requestChanges}"`);
+            console.error(`  Expected: "${STATUSES.implementation}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", or "${REVIEW_STATUSES.clarificationReceived}"`);
             process.exit(1);
         }
 
@@ -689,6 +734,16 @@ async function main(): Promise<void> {
                 itemsToProcess.push({ item, mode: 'feedback', prNumber });
             }
             console.log(`  Found ${prFeedbackItems.length} item(s) in "${STATUSES.prReview}" needing revision`);
+
+            // Flow C: Fetch items with clarification received
+            console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.clarificationReceived}"...`);
+            const clarificationItems = allImplementationItems.filter(
+                (item) => item.reviewStatus === REVIEW_STATUSES.clarificationReceived
+            );
+            for (const item of clarificationItems) {
+                itemsToProcess.push({ item, mode: 'clarification' });
+            }
+            console.log(`  Found ${clarificationItems.length} item(s) with clarification received`);
         }
 
         // Apply limit

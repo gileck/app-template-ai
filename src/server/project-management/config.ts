@@ -43,6 +43,8 @@ export const REVIEW_STATUSES = {
     approved: 'Approved',
     requestChanges: 'Request Changes',
     rejected: 'Rejected',
+    waitingForClarification: 'Waiting for Clarification',
+    clarificationReceived: 'Clarification Received',
 } as const;
 
 /**
