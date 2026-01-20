@@ -472,34 +472,36 @@ All endpoints require authentication. The update endpoint is admin-only.
 Feature Request Submitted
          │
          ▼
-    ┌─────────┐
-    │ MongoDB │  (status: 'new')
-    └────┬────┘
-         │
-         ├──────────────────────────────────┐
-         │                                  │
-         ▼                                  ▼
-    ┌────────────────────┐      ┌────────────────────────┐
-    │ Telegram           │      │ Admin Panel            │
-    │ Notification       │      │ "Approve" Button       │
-    │ + Approve Button   │      │                        │
-    └─────────┬──────────┘      └───────────┬────────────┘
-              │                             │
-              └──────────┬──────────────────┘
-                         │
-                         ▼ (Admin approves - creates GitHub issue)
     ┌─────────────────────────────────────┐
-    │ GitHub Issue Created                │
-    │ Status: Product Design              │
-    │ Review Status: (empty)              │
-    │ MongoDB: 'in_progress'              │
+    │ MongoDB: 'new'                      │
+    │ (Not yet synced to GitHub)          │
     └─────────────────┬───────────────────┘
                       │
-                      ▼ yarn agent:product-design
+         ├────────────┴──────────────────────┐
+         │                                   │
+         ▼                                   ▼
+    ┌────────────────────┐      ┌─────────────────────────┐
+    │ Telegram           │      │ Admin Panel             │
+    │ Notification       │      │ "Approve" Button        │
+    │ + Approve Button   │      │                         │
+    └─────────┬──────────┘      └───────────┬─────────────┘
+              │                              │
+              └──────────┬───────────────────┘
+                         │
+                         ▼ (Admin approves - creates GitHub issue)
+    ┌─────────────────────────────────────────────────────────┐
+    │ GitHub Issue Created                                    │
+    │ GitHub Status: Product Design                           │
+    │ GitHub Review Status: (empty)                           │
+    │ MongoDB: 'in_progress' ← stays here through all phases  │
+    └─────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼ yarn agent:product-design
     ┌─────────────────────────────────────┐
-    │ Status: Product Design              │
+    │ GitHub Status: Product Design       │
     │ Review Status: Waiting for Review   │
     │ (Issue body updated with design)    │
+    │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
               ┌───────┴───────┐
@@ -513,15 +515,17 @@ Feature Request Submitted
                       │
                       ▼ (Auto-advances to Technical Design)
     ┌─────────────────────────────────────┐
-    │ Status: Technical Design            │
+    │ GitHub Status: Technical Design     │
     │ Review Status: (empty)              │
+    │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:tech-design
     ┌─────────────────────────────────────┐
-    │ Status: Technical Design            │
+    │ GitHub Status: Technical Design     │
     │ Review Status: Waiting for Review   │
     │ (Issue body updated with design)    │
+    │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
               ┌───────┴───────┐
@@ -535,15 +539,17 @@ Feature Request Submitted
                       │
                       ▼ (Auto-advances to Ready for development)
     ┌─────────────────────────────────────┐
-    │ Status: Ready for development       │
+    │ GitHub Status: Ready for development│
     │ Review Status: (empty)              │
+    │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:implement
     ┌─────────────────────────────────────┐
-    │ Status: PR Review                   │  ← Agent moves here after creating PR
+    │ GitHub Status: PR Review            │  ← Agent moves here after creating PR
     │ Review Status: Waiting for Review   │
     │ (PR created, branch pushed)         │
+    │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
               ┌───────┴───────┐
@@ -556,16 +562,21 @@ Feature Request Submitted
               └───────┬───────┘
                       │
                       ▼ (Admin merges PR → GitHub Action automatically marks Done)
-    ┌─────────────────────────────────────┐
-    │ Status: Done                        │
-    │ (PR merged, auto-completed)         │
-    └─────────────────────────────────────┘
+    ┌─────────────────────────────────────────────────────────┐
+    │ GitHub Status: Done                                     │
+    │ MongoDB: 'done' ← auto-updated by GitHub Action         │
+    │ (PR merged, auto-completed in both systems)             │
+    └─────────────────────────────────────────────────────────┘
 ```
 
-**Note:** When you merge a PR, a GitHub Action automatically:
-- Extracts the issue number from the PR body (e.g., "Closes #123")
-- Updates the project item status to "Done"
-- Sends a Telegram notification confirming completion
+**Key Points:**
+- **MongoDB status** stays `'in_progress'` throughout the entire workflow (Product Design → Tech Design → Implementation → PR Review)
+- **Detailed workflow tracking** happens in GitHub Projects (Product Design, Technical Design, etc.)
+- **GitHub Action auto-completion**: When PR is merged, the action automatically:
+  - Extracts the issue number from the PR body (e.g., "Closes #123")
+  - Updates GitHub Project item status to "Done"
+  - Updates MongoDB feature request status to `'done'`
+  - Sends a Telegram notification confirming completion
 
 ### Admin Actions
 
@@ -578,15 +589,15 @@ Admins can approve/reject via Telegram buttons, GitHub Projects directly, or the
 
 | Phase | Admin Action | Effect |
 |-------|--------------|--------|
-| (New Request) | Tap "Approve" in Telegram | Creates issue, sets Status = "Product Design", Review Status = empty |
-| Product Design | Tap "Approve" in Telegram | Status → "Technical Design", Review Status → empty |
-| Product Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
-| Technical Design | Tap "Approve" in Telegram | Status → "Ready for development", Review Status → empty |
-| Technical Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
-| Ready for development | (Agent creates PR automatically) | Status → "PR Review", Review Status = "Waiting for Review" |
-| PR Review | Tap "Approve" in Telegram | Review Status = "Approved" (merge PR manually) |
-| PR Review | Tap "Request Changes" + review comments | Agent addresses feedback, stays in PR Review |
-| PR Review | Merge PR on GitHub | GitHub Action auto-marks Status = "Done" |
+| (New Request) | Tap "Approve" in Telegram | Creates issue, sets GitHub Status = "Product Design", Review Status = empty, MongoDB = 'in_progress' |
+| Product Design | Tap "Approve" in Telegram | GitHub Status → "Technical Design", Review Status → empty, MongoDB unchanged |
+| Product Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises, MongoDB unchanged |
+| Technical Design | Tap "Approve" in Telegram | GitHub Status → "Ready for development", Review Status → empty, MongoDB unchanged |
+| Technical Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises, MongoDB unchanged |
+| Ready for development | (Agent creates PR automatically) | GitHub Status → "PR Review", Review Status = "Waiting for Review", MongoDB unchanged |
+| PR Review | Tap "Approve" in Telegram | Review Status = "Approved" (merge PR manually), MongoDB unchanged |
+| PR Review | Tap "Request Changes" + review comments | Agent addresses feedback, stays in PR Review, MongoDB unchanged |
+| PR Review | Merge PR on GitHub | GitHub Action auto-marks GitHub Status = "Done" AND MongoDB = 'done' |
 
 **Skipping Phases** (via GitHub Projects or App UI):
 | Action | Use Case |
