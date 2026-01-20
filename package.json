@@ -32,7 +32,8 @@
     "setup-github-secrets": "tsx scripts/setup-github-secrets.ts",
     "sync-children": "tsx scripts/sync-child-projects.ts",
     "push-sync": "./scripts/push-and-sync.sh",
-    "setup-hooks": "./scripts/hooks/setup-hooks.sh"
+    "setup-hooks": "./scripts/hooks/setup-hooks.sh",
+    "audit-feature-status": "tsx scripts/audit-feature-request-status.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
