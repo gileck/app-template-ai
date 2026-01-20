@@ -10,6 +10,36 @@ Use this command to:
 - Identify projects that were skipped (uncommitted changes) or had errors
 - See validation errors (TypeScript/ESLint) if sync causes issues
 
+## ⚠️ CRITICAL: Run Yarn Checks First
+
+**ALWAYS run `yarn checks` in the template project BEFORE syncing to children.**
+
+```bash
+# In the template project root
+yarn checks
+```
+
+**Why this is critical:**
+1. **Prevents breaking changes** - If the template has TypeScript/ESLint errors, syncing will break all child projects
+2. **Saves time** - Fixing errors in the template is faster than fixing them in every child project
+3. **Maintains quality** - Ensures only validated, clean code is propagated
+4. **Avoids cascading failures** - One broken template = all children broken
+
+**If `yarn checks` fails:**
+1. Fix all TypeScript errors in the template
+2. Fix all ESLint errors in the template
+3. Re-run `yarn checks` until it passes
+4. Commit and push the fixes
+5. **THEN** run `yarn sync-children`
+
+**Expected output before syncing:**
+```
+✔ No TypeScript errors
+✔ No ESLint warnings or errors
+```
+
+**DO NOT proceed with sync if you see any errors.**
+
 ## Prerequisites
 
 Ensure `child-projects.json` exists in the project root with the list of child project paths:
@@ -24,6 +54,16 @@ Ensure `child-projects.json` exists in the project root with the list of child p
 ```
 
 ## Process
+
+### Step 0: Validate Template (REQUIRED)
+
+**Before syncing, verify the template is clean:**
+
+```bash
+yarn checks
+```
+
+**Only proceed if this passes with 0 errors.** If it fails, fix the template first.
 
 ### Step 1: Run the Sync Command
 
