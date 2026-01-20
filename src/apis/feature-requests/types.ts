@@ -208,6 +208,17 @@ export interface UpdateGitHubStatusResponse {
     error?: string;
 }
 
+// Update GitHub Project review status
+export interface UpdateGitHubReviewStatusRequest {
+    requestId: string;
+    reviewStatus: string;
+}
+
+export interface UpdateGitHubReviewStatusResponse {
+    success?: boolean;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type {
     FeatureRequestClient,

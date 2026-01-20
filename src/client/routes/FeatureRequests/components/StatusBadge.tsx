@@ -87,7 +87,7 @@ export function PriorityBadge({ priority }: PriorityBadgeProps) {
     const config = priorityConfig[priority];
 
     return (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.className}`}>
             {config.label}
         </span>
     );
