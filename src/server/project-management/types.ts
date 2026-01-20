@@ -203,6 +203,11 @@ export interface ProjectManagementAdapter {
      */
     updateItemReviewStatus(itemId: string, reviewStatus: string): Promise<void>;
 
+    /**
+     * Clear the review status of a project item
+     */
+    clearItemReviewStatus(itemId: string): Promise<void>;
+
     // --------------------------------------------------------
     // Issues
     // --------------------------------------------------------

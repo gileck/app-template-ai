@@ -377,7 +377,7 @@ async function handleFeatureRouting(
 
     // Clear review status if moving to a phase that agents process
     if (destination !== 'backlog' && adapter.hasReviewStatusField()) {
-        await adapter.updateItemReviewStatus(request.githubProjectItemId, '');
+        await adapter.clearItemReviewStatus(request.githubProjectItemId);
     }
 
     // Acknowledge callback
@@ -445,7 +445,7 @@ async function handleBugRouting(
 
     // Clear review status if moving to a phase that agents process
     if (destination !== 'backlog' && adapter.hasReviewStatusField()) {
-        await adapter.updateItemReviewStatus(report.githubProjectItemId, '');
+        await adapter.clearItemReviewStatus(report.githubProjectItemId);
     }
 
     // Acknowledge callback

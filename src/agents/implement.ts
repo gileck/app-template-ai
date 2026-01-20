@@ -70,6 +70,7 @@ interface ProcessableItem {
 
 interface ImplementOptions extends CommonCLIOptions {
     skipPush?: boolean;
+    skipPull?: boolean;
 }
 
 // ============================================================
@@ -569,6 +570,7 @@ async function main(): Promise<void> {
         .option('--stream', "Stream Claude's output in real-time", false)
         .option('--verbose', 'Show additional debug output', false)
         .option('--skip-push', 'Skip pushing to remote (for testing)', false)
+        .option('--skip-pull', 'Skip pulling latest changes from master', false)
         .parse(process.argv);
 
     const opts = program.opts();

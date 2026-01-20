@@ -557,6 +557,34 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         });
     }
 
+    async clearItemReviewStatus(itemId: string): Promise<void> {
+        const oc = this.getOctokit();
+
+        if (!this.reviewStatusFieldId) {
+            throw new Error(`Review Status field "${REVIEW_STATUS_FIELD}" not found in project`);
+        }
+
+        const mutation = `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+            clearProjectV2ItemFieldValue(
+                input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                }
+            ) {
+                projectV2Item {
+                    id
+                }
+            }
+        }`;
+
+        await oc.graphql(mutation, {
+            projectId: this.projectId,
+            itemId,
+            fieldId: this.reviewStatusFieldId,
+        });
+    }
+
     // ============================================================
     // ISSUES
     // ============================================================
