@@ -49,22 +49,6 @@ async function getOwnerChatId(): Promise<string | null> {
 }
 
 /**
- * Build review action buttons for a GitHub issue
- * Callback data format: action:issueNumber (e.g., "approve:123")
- */
-function buildReviewButtons(issueNumber: number): InlineKeyboardMarkup {
-    return {
-        inline_keyboard: [
-            [
-                { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
-                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
-                { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
-            ],
-        ],
-    };
-}
-
-/**
  * Build review action buttons for a PR (includes Open PR button)
  */
 function buildPRReviewButtons(issueNumber: number, prUrl: string): InlineKeyboardMarkup {
@@ -78,6 +62,46 @@ function buildPRReviewButtons(issueNumber: number, prUrl: string): InlineKeyboar
                 { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
                 { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
             ],
+        ],
+    };
+}
+
+/**
+ * Build buttons with View Issue + review actions
+ */
+function buildIssueReviewButtons(issueNumber: number, issueUrl: string): InlineKeyboardMarkup {
+    return {
+        inline_keyboard: [
+            [
+                { text: '📋 View Issue', url: issueUrl },
+            ],
+            [
+                { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
+                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+                { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
+            ],
+        ],
+    };
+}
+
+/**
+ * Build simple View Issue button
+ */
+function buildViewIssueButton(issueUrl: string): InlineKeyboardMarkup {
+    return {
+        inline_keyboard: [
+            [{ text: '📋 View Issue', url: issueUrl }],
+        ],
+    };
+}
+
+/**
+ * Build View Project button
+ */
+function buildViewProjectButton(projectUrl: string): InlineKeyboardMarkup {
+    return {
+        inline_keyboard: [
+            [{ text: '🗂 View Project', url: projectUrl }],
         ],
     };
 }
@@ -150,18 +174,16 @@ export async function notifyIssueSynced(
     status: string
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
-    const projectUrl = getProjectUrl();
 
-    const message = `✅ <b>Feature request synced to GitHub!</b>
+    const message = `<b>Agent (Sync):</b> ✅ Feature request synced to GitHub
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
+🔗 Issue #${issueNumber}
 📊 Status: ${status}
-🗂 <a href="${projectUrl}">View Project</a>
 
 Waiting for product design generation.`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
 
 /**
@@ -174,17 +196,17 @@ export async function notifyProductDesignReady(
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const emoji = isRevision ? '🔄' : '📝';
+    const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
 
-    const message = `${emoji} <b>Product Design ${isRevision ? 'Revised' : 'Ready for Review'}!</b>
+    const message = `<b>Agent (Product Design):</b> ${status}
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
+🔗 Issue #${issueNumber}
 📊 Status: Product Design (Waiting for Review)
 
-${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Technical Design.`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Technical Design.`;
 
-    return sendToAdmin(message, buildReviewButtons(issueNumber));
+    return sendToAdmin(message, buildIssueReviewButtons(issueNumber, issueUrl));
 }
 
 /**
@@ -197,17 +219,17 @@ export async function notifyTechDesignReady(
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const emoji = isRevision ? '🔄' : '🔧';
+    const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
 
-    const message = `${emoji} <b>Technical Design ${isRevision ? 'Revised' : 'Ready for Review'}!</b>
+    const message = `<b>Agent (Tech Design):</b> ${status}
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
+🔗 Issue #${issueNumber}
 📊 Status: Technical Design (Waiting for Review)
 
-${isRevision ? 'Design has been updated based on your feedback.\n' : ''}Review and approve to proceed to Implementation.`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Implementation.`;
 
-    return sendToAdmin(message, buildReviewButtons(issueNumber));
+    return sendToAdmin(message, buildIssueReviewButtons(issueNumber, issueUrl));
 }
 
 /**
@@ -219,19 +241,17 @@ export async function notifyPRReady(
     prNumber: number,
     isRevision: boolean = false
 ): Promise<SendResult> {
-    const issueUrl = getIssueUrl(issueNumber);
     const prUrl = getPrUrl(prNumber);
 
-    const emoji = isRevision ? '🔄' : '🚀';
+    const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
 
-    const message = `${emoji} <b>${isRevision ? 'PR Updated' : 'Implementation Complete - PR Ready'}!</b>
+    const message = `<b>Agent (Implementation):</b> ${status}
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
-🔀 <a href="${prUrl}">Pull Request #${prNumber}</a>
+🔗 Issue #${issueNumber} → PR #${prNumber}
 📊 Status: PR Review (Waiting for Review)
 
-${isRevision ? 'Changes have been made based on your review feedback.\n' : ''}Review and merge to complete.`;
+${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to complete.`;
 
     return sendToAdmin(message, buildPRReviewButtons(issueNumber, prUrl));
 }
@@ -245,16 +265,18 @@ export async function notifyAgentError(
     issueNumber: number | null,
     error: string
 ): Promise<SendResult> {
-    const issueLink = issueNumber ? `\n🔗 <a href="${getIssueUrl(issueNumber)}">Issue #${issueNumber}</a>` : '';
+    const issueUrl = issueNumber ? getIssueUrl(issueNumber) : null;
+    const issueInfo = issueNumber ? `\n🔗 Issue #${issueNumber}` : '';
 
-    const message = `❌ <b>Agent Error: ${phase}</b>
+    const message = `<b>Agent (${phase}):</b> ❌ Error
 
-📋 ${escapeHtml(title)}${issueLink}
-⚠️ Error: ${escapeHtml(error.slice(0, 200))}
+📋 ${escapeHtml(title)}${issueInfo}
+⚠️ ${escapeHtml(error.slice(0, 200))}
 
-Please check the logs for more details.`;
+Check logs for details.`;
 
-    return sendToAdmin(message);
+    const buttons = issueUrl ? buildViewIssueButton(issueUrl) : undefined;
+    return sendToAdmin(message, buttons);
 }
 
 /**
@@ -266,17 +288,16 @@ export async function notifyBatchComplete(
     succeeded: number,
     failed: number
 ): Promise<SendResult> {
-    const emoji = failed === 0 ? '✅' : '⚠️';
+    const status = failed === 0 ? '✅ Batch Complete' : '⚠️ Batch Complete (with errors)';
+    const projectUrl = getProjectUrl();
 
-    const message = `${emoji} <b>${phase} Batch Complete</b>
+    const message = `<b>Agent (${phase}):</b> ${status}
 
-📊 Processed: ${processed}
-✅ Succeeded: ${succeeded}
-${failed > 0 ? `❌ Failed: ${failed}` : ''}
+📊 Processed: ${processed} | ✅ ${succeeded}${failed > 0 ? ` | ❌ ${failed}` : ''}
 
 ${failed > 0 ? 'Check logs for failed items.' : 'All items processed successfully.'}`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildViewProjectButton(projectUrl));
 }
 
 // ============================================================
@@ -304,16 +325,15 @@ export async function notifyAutoAdvance(
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const message = `⏭️ <b>Auto-Advanced!</b>
+    const message = `<b>Agent (Auto-Advance):</b> ⏭️ Status Updated
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
+🔗 Issue #${issueNumber}
+📊 ${escapeHtml(fromStatus)} → ${escapeHtml(toStatus)}
 
-${escapeHtml(fromStatus)} → ${escapeHtml(toStatus)}
+Ready for next phase.`;
 
-Item is ready for the next phase.`;
-
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
 
 /**
@@ -332,14 +352,13 @@ export async function notifyAgentStarted(
     issueNumber: number,
     mode: 'new' | 'feedback'
 ): Promise<SendResult> {
-    const modeLabel = mode === 'new' ? 'Starting' : 'Addressing feedback for';
-    const emoji = mode === 'new' ? '🚀' : '🔄';
+    const status = mode === 'new' ? '🚀 Started' : '🔄 Addressing Feedback';
     const issueUrl = getIssueUrl(issueNumber);
 
-    const message = `${emoji} <b>${modeLabel}: ${phase}</b>
+    const message = `<b>Agent (${phase}):</b> ${status}
 
 📋 ${escapeHtml(title)}
-🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>`;
+🔗 Issue #${issueNumber}`;
 
-    return sendToAdmin(message);
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
