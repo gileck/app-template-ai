@@ -52,6 +52,7 @@ export function toFeatureRequestClient(doc: FeatureRequestDocument): FeatureRequ
         techDesign: toDesignPhaseClient(doc.techDesign),
         needsUserInput: doc.needsUserInput,
         requestedBy: toStringId(doc.requestedBy),
+        requestedByName: doc.requestedByName || toStringId(doc.requestedBy), // Fallback to ID for backward compatibility
         comments: (doc.comments || []).map(toCommentClient),
         adminNotes: doc.adminNotes,
         priority: doc.priority,

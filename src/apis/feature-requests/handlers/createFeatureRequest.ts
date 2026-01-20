@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { API_CREATE_FEATURE_REQUEST } from '../index';
 import { CreateFeatureRequestRequest, CreateFeatureRequestResponse } from '../types';
-import { featureRequests } from '@/server/database';
+import { featureRequests, users } from '@/server/database';
 import { ApiHandlerContext } from '@/apis/types';
 import { toFeatureRequestClientForUser } from './utils';
 import { toDocumentId } from '@/server/utils';
@@ -49,6 +49,10 @@ export const createFeatureRequest = async (
         const now = new Date();
         const approvalToken = generateApprovalToken();
 
+        // Get user info for the request
+        const user = await users.findUserById(context.userId);
+        const requestedByName = user?.username || user?.email || 'User';
+
         const requestData = {
             title: request.title.trim(),
             description: request.description.trim(),
@@ -56,6 +60,7 @@ export const createFeatureRequest = async (
             status: 'new' as const,
             needsUserInput: false,
             requestedBy: toDocumentId(context.userId) as ObjectId,
+            requestedByName,
             comments: [],
             approvalToken,
             createdAt: now,
