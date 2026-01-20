@@ -29,7 +29,8 @@ import { approveFeatureRequest } from '@/server/github-sync';
 const STATUS_TRANSITIONS: Record<string, string> = {
     [STATUSES.productDesign]: STATUSES.techDesign,
     [STATUSES.techDesign]: STATUSES.implementation,
-    // Implementation doesn't auto-advance - PR needs manual merge
+    // Implementation → PR Review happens automatically when agent creates PR
+    // PR Review doesn't auto-advance - PR needs manual merge → Done
 };
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';

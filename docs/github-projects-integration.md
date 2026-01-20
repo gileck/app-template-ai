@@ -4,20 +4,21 @@ This document describes the GitHub Projects integration that automates the featu
 
 ## Overview
 
-The integration creates a complete pipeline using a simplified 5-column workflow:
+The integration creates a complete pipeline using a 6-column workflow:
 
 1. **User submits** feature request via app UI → stored in MongoDB
 2. **Admin gets Telegram notification** with one-click "Approve" button
 3. **Admin approves** (via Telegram button or app UI) → server creates GitHub Issue + sets to "Product Design" status
 4. **AI agent generates design** → sets Review Status = "Waiting for Review"
 5. **Admin approves** (via Telegram button) → auto-advances to Technical Design → AI generates tech design
-6. **Admin approves** → auto-advances to Implementation → AI implements and creates PR
+6. **Admin approves** → auto-advances to "Ready for development" → AI implements and creates PR → moves to "PR Review"
 7. **Admin merges PR** → moves to Done
 
 **Key concepts:**
-- **5 board columns**: Backlog → Product Design → Technical Design → Implementation → Done
+- **6 board columns**: Backlog → Product Design → Technical Design → Ready for development → PR Review → Done
 - **Review Status field** tracks sub-states within each phase (empty → Waiting for Review → Approved/Request Changes)
-- **Auto-advance on approval**: When approved via Telegram or when Review Status = "Approved", the item automatically moves to the next phase
+- **Auto-advance on approval**: When approved via Telegram, the item automatically moves to the next phase
+- **Implement agent auto-moves to PR Review**: After creating a PR, the item moves from "Ready for development" to "PR Review"
 - **Single webhook**: All Telegram approval buttons use `/api/telegram-webhook` for instant in-app feedback
 
 ## Architecture
@@ -75,17 +76,18 @@ The integration creates a complete pipeline using a simplified 5-column workflow
 
 ### Step 2: Configure Status Column
 
-The project uses a simplified 5-column workflow. Create a Status field with these exact values:
+The project uses a 6-column workflow. Create a Status field with these exact values:
 
 | Status | Description |
 |--------|-------------|
 | `Backlog` | New items, not yet started |
 | `Product Design` | AI generates product design, human reviews |
 | `Technical Design` | AI generates tech design, human reviews |
-| `Implementation` | AI implements and creates PR, human reviews/merges |
+| `Ready for development` | AI implements feature (picked up by implement agent) |
+| `PR Review` | PR created, waiting for human review/merge |
 | `Done` | Completed and merged |
 
-**How it works**: Each phase uses the Review Status field to track sub-states within that phase (see below).
+**How it works**: Each phase uses the Review Status field to track sub-states within that phase (see below). The implement agent automatically moves items from "Ready for development" to "PR Review" after creating a PR.
 
 ### Step 3: Create Review Status Custom Field
 
@@ -499,15 +501,15 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Auto-advances to Implementation)
+                      ▼ (Auto-advances to Ready for development)
     ┌─────────────────────────────────────┐
-    │ Status: Implementation              │
+    │ Status: Ready for development       │
     │ Review Status: (empty)              │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:implement
     ┌─────────────────────────────────────┐
-    │ Status: Implementation              │
+    │ Status: PR Review                   │  ← Agent moves here after creating PR
     │ Review Status: Waiting for Review   │
     │ (PR created, branch pushed)         │
     └─────────────────┬───────────────────┘
@@ -517,7 +519,7 @@ Feature Request Submitted
          Approved        Request Changes
          (Merge PR)           │
               │               ▼ yarn agent:implement
-              │           (Addresses feedback)
+              │           (Addresses feedback, stays in PR Review)
               │               │
               └───────┬───────┘
                       │
@@ -542,29 +544,30 @@ Admins can approve/reject via Telegram buttons, GitHub Projects directly, or the
 | (New Request) | Tap "Approve" in Telegram | Creates issue, sets Status = "Product Design", Review Status = empty |
 | Product Design | Tap "Approve" in Telegram | Status → "Technical Design", Review Status → empty |
 | Product Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
-| Technical Design | Tap "Approve" in Telegram | Status → "Implementation", Review Status → empty |
+| Technical Design | Tap "Approve" in Telegram | Status → "Ready for development", Review Status → empty |
 | Technical Design | Tap "Request Changes" + add comment | Review Status = "Request Changes", agent revises |
-| Implementation | Tap "Approve" in Telegram | Review Status = "Approved" (PR needs manual merge) |
-| Implementation | Tap "Request Changes" + review comments | Agent addresses feedback |
+| Ready for development | (Agent creates PR automatically) | Status → "PR Review", Review Status = "Waiting for Review" |
+| PR Review | Tap "Approve" in Telegram | Review Status = "Approved" (merge PR manually) |
+| PR Review | Tap "Request Changes" + review comments | Agent addresses feedback, stays in PR Review |
 
 **Skipping Phases** (via GitHub Projects or App UI):
 | Action | Use Case |
 |--------|----------|
 | Backlog → Technical Design | Internal/technical work (skip product design) |
-| Backlog → Implementation | Simple fixes (skip both designs) |
+| Backlog → Ready for development | Simple fixes (skip both designs) |
 
 ### Alternative Workflows (Non-Product Features)
 
 Not all work requires a product design phase. For internal implementations, architecture changes, refactoring, or bug fixes, you can skip phases:
 
-**Skip Product Design (Backlog → Technical Design → Implementation):**
+**Skip Product Design (Backlog → Technical Design → Ready for development):**
 - Architecture changes
 - Internal refactoring
 - Performance improvements
 - Technical debt cleanup
 - Infrastructure work
 
-**Skip Both Designs (Backlog → Implementation):**
+**Skip Both Designs (Backlog → Ready for development):**
 - Simple bug fixes
 - Config changes
 - Dependency updates

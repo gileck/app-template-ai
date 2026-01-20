@@ -30,7 +30,8 @@ export const STATUSES = {
     backlog: 'Backlog',
     productDesign: 'Product Design',
     techDesign: 'Technical Design',
-    implementation: 'Implementation',
+    implementation: 'Ready for development',
+    prReview: 'PR Review',
     done: 'Done',
 } as const;
 
