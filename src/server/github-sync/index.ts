@@ -134,7 +134,7 @@ export async function syncFeatureRequestToGitHub(
 
 /**
  * Approve a feature request and sync to GitHub
- * Updates status to product_design and creates GitHub issue
+ * Updates MongoDB status to 'in_progress' and creates GitHub issue
  */
 export async function approveFeatureRequest(
     requestId: string
@@ -145,10 +145,10 @@ export async function approveFeatureRequest(
     error?: string;
 }> {
     try {
-        // First update the status to product_design
+        // First update the MongoDB status to in_progress
         const updated = await featureRequests.updateFeatureRequestStatus(
             requestId,
-            'product_design'
+            'in_progress'
         );
 
         if (!updated) {
@@ -160,7 +160,7 @@ export async function approveFeatureRequest(
 
         if (!githubResult.success) {
             // Revert status if GitHub sync failed
-            await featureRequests.updateFeatureRequestStatus(requestId, 'in_review');
+            await featureRequests.updateFeatureRequestStatus(requestId, 'new');
             return {
                 success: false,
                 error: `GitHub sync failed: ${githubResult.error}`,

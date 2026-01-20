@@ -80,27 +80,20 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
         approveMutation.mutate(request._id);
     };
 
-    // Show approve button for new or in_review requests that don't have a GitHub issue yet
-    const canApprove = (request.status === 'new' || request.status === 'in_review') && !request.githubIssueUrl;
+    // Show approve button for new requests that don't have a GitHub issue yet
+    const canApprove = request.status === 'new' && !request.githubIssueUrl;
 
-    const currentDesignPhase =
-        request.status === 'product_design'
-            ? request.productDesign
-            : request.status === 'tech_design'
-              ? request.techDesign
-              : null;
+    // Design phase info is kept for requests that have it, but won't be used for new ones
+    // This is for backwards compatibility with existing data
+    const currentDesignPhase = request.productDesign || request.techDesign || null;
 
-    const currentPhaseType: DesignPhaseType | null =
-        request.status === 'product_design'
-            ? 'product'
-            : request.status === 'tech_design'
-              ? 'tech'
-              : null;
+    const currentPhaseType: DesignPhaseType | null = request.productDesign
+        ? 'product'
+        : request.techDesign
+          ? 'tech'
+          : null;
 
-    const canReviewDesign =
-        currentDesignPhase &&
-        currentDesignPhase.content &&
-        currentPhaseType;
+    const canReviewDesign = currentDesignPhase && currentDesignPhase.content && currentPhaseType;
 
     return (
         <Card className={`border-l-4 ${priorityBorderColor} transition-shadow hover:shadow-md`}>
@@ -127,13 +120,11 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                 ) : (
                                     <StatusBadge
                                         status={request.status}
-                                        reviewStatus={currentDesignPhase?.reviewStatus}
                                     />
                                 )
                             ) : (
                                 <StatusBadge
                                     status={request.status}
-                                    reviewStatus={currentDesignPhase?.reviewStatus}
                                 />
                             )}
                             <PriorityBadge priority={request.priority} />
@@ -303,7 +294,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     {currentDesignPhase?.content && (
                         <div className="space-y-2 rounded-lg border border-info/30 bg-info/5 p-3">
                             <h4 className="text-sm font-medium">
-                                {request.status === 'product_design' ? 'Product Design' : 'Technical Design'}
+                                {currentPhaseType === 'product' ? 'Product Design' : 'Technical Design'}
                             </h4>
                             <div className="prose prose-sm max-w-none text-muted-foreground">
                                 <pre className="whitespace-pre-wrap text-sm">

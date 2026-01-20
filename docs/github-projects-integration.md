@@ -20,6 +20,35 @@ The integration creates a complete pipeline using a 6-column workflow:
 - **Auto-advance on approval**: When approved via Telegram, the item automatically moves to the next phase
 - **Implement agent auto-moves to PR Review**: After creating a PR, the item moves from "Ready for development" to "PR Review"
 - **Single webhook**: All Telegram approval buttons use `/api/telegram-webhook` for instant in-app feedback
+- **Simplified MongoDB schema**: MongoDB stores only high-level status (4 values), GitHub Projects tracks detailed workflow
+
+## MongoDB Status vs GitHub Project Status
+
+The system uses a **two-tier status tracking** approach to eliminate duplication:
+
+### MongoDB Statuses (4 values)
+| Status | Meaning |
+|--------|---------|
+| `new` | Feature request submitted, not yet synced to GitHub |
+| `in_progress` | Synced to GitHub (detailed status tracked in GitHub Projects) |
+| `done` | Completed and merged |
+| `rejected` | Not going to implement |
+
+### GitHub Project Statuses (6 values)
+| Status | Meaning |
+|--------|---------|
+| `Backlog` | New items, not yet started |
+| `Product Design` | AI generates product design, human reviews |
+| `Technical Design` | AI generates tech design, human reviews |
+| `Ready for development` | AI implements feature |
+| `PR Review` | PR created, waiting for human review/merge |
+| `Done` | Completed and merged |
+
+**Why this split?**
+- **MongoDB**: Tracks approval state and lifecycle (new → in progress → done)
+- **GitHub Projects**: Tracks detailed workflow steps (Product Design → Tech Design → Implementation → etc.)
+- **No duplication**: When a request is "in_progress" in MongoDB, you check GitHub Projects for the detailed status
+- **UI displays GitHub status**: The app UI shows GitHub Project status for `in_progress` items, MongoDB status for `new`/`done`/`rejected`
 
 ## Architecture
 
@@ -258,10 +287,12 @@ The approval uses a secure token that:
 4. The request is approved and a GitHub issue is created
 
 Both methods:
-- Update the feature request status to `product_design`
+- Update the feature request status in MongoDB to `in_progress`
 - Create a GitHub issue with the request details
 - Add the issue to the GitHub Project with "Product Design" status (ready for AI agent)
 - Review Status is empty (ready for agent to pick up)
+
+**Note:** MongoDB only tracks high-level status (`new`, `in_progress`, `done`, `rejected`). Detailed workflow tracking happens in GitHub Projects (Product Design, Technical Design, etc.).
 
 ## GitHub Notifications (Telegram)
 
@@ -461,7 +492,7 @@ Feature Request Submitted
     │ GitHub Issue Created                │
     │ Status: Product Design              │
     │ Review Status: (empty)              │
-    │ MongoDB: 'product_design'           │
+    │ MongoDB: 'in_progress'              │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:product-design

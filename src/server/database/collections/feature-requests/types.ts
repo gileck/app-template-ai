@@ -2,18 +2,19 @@ import { ObjectId } from 'mongodb';
 
 /**
  * Main workflow status for a feature request
+ *
+ * Simplified schema - detailed workflow tracking happens in GitHub Projects.
+ * MongoDB only tracks high-level state:
+ * - new: Not yet synced to GitHub
+ * - in_progress: Synced to GitHub, check GitHub Project for detailed status
+ * - done: Completed and merged
+ * - rejected: Not going to implement
  */
 export type FeatureRequestStatus =
-    | 'new'              // Just submitted, not yet reviewed
-    | 'in_review'        // Admin is reviewing the request
-    | 'product_design'   // In product design phase
-    | 'tech_design'      // In technical design phase
-    | 'ready_for_dev'    // Design complete, ready for development
-    | 'in_development'   // Being built
-    | 'ready_for_qa'     // Development complete, testing needed
-    | 'done'             // Shipped
-    | 'rejected'         // Not going to do
-    | 'on_hold';         // Paused for later
+    | 'new'              // Not yet synced to GitHub
+    | 'in_progress'      // Exists in GitHub (detailed status tracked in GitHub Projects)
+    | 'done'             // Completed
+    | 'rejected';        // Not going to implement
 
 /**
  * Review status within a design phase
