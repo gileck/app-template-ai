@@ -87,4 +87,15 @@ export {
     buildTechDesignRevisionPrompt,
     buildImplementationPrompt,
     buildPRRevisionPrompt,
+    buildBugTechDesignPrompt,
+    buildBugImplementationPrompt,
+    buildBugTechDesignRevisionPrompt,
 } from './prompts';
+
+// Utilities
+export {
+    getIssueType,
+    getBugDiagnostics,
+    formatSessionLogs,
+    type BugDiagnostics,
+} from './utils';

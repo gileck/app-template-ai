@@ -52,6 +52,7 @@ import {
     type CommonCLIOptions,
     type UsageStats,
 } from './shared';
+import { getIssueType } from './shared/utils';
 
 // ============================================================
 // TYPES
@@ -82,9 +83,17 @@ async function processItem(
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
 
+    // Check if this is a bug - skip by default
+    const issueType = getIssueType(content.labels);
+    if (issueType === 'bug') {
+        console.log('  ⚠️  Skipping bug report (bugs typically skip Product Design)');
+        console.log('  💡 If this bug needs product design, admin should move it here manually');
+        return { success: false, error: 'Bug reports skip Product Design by default' };
+    }
+
     // Send "work started" notification
     if (!options.dryRun) {
-        await notifyAgentStarted('Product Design', content.title, issueNumber, mode);
+        await notifyAgentStarted('Product Design', content.title, issueNumber, mode, issueType);
     }
 
     try {
@@ -172,7 +181,7 @@ async function processItem(
         }
 
         // Send notification
-        await notifyProductDesignReady(content.title, issueNumber, mode === 'feedback');
+        await notifyProductDesignReady(content.title, issueNumber, mode === 'feedback', issueType);
         console.log('  Notification sent');
 
         return { success: true };

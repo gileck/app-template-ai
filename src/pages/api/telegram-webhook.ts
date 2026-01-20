@@ -20,8 +20,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
-import { featureRequests } from '@/server/database';
-import { approveFeatureRequest } from '@/server/github-sync';
+import { featureRequests, reports } from '@/server/database';
+import { approveFeatureRequest, approveBugReport } from '@/server/github-sync';
 
 /**
  * Status transitions when approved - move to next phase
@@ -249,6 +249,235 @@ async function handleFeatureRequestApproval(
 }
 
 /**
+ * Handle bug report approval
+ * Callback format: "approve_bug:reportId:token"
+ */
+async function handleBugReportApproval(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    reportId: string,
+    token: string
+): Promise<{ success: boolean; error?: string }> {
+    // Fetch the bug report
+    const report = await reports.findReportById(reportId);
+
+    if (!report) {
+        return { success: false, error: 'Bug report not found' };
+    }
+
+    // Verify the token
+    if (!report.approvalToken || report.approvalToken !== token) {
+        return { success: false, error: 'Invalid or expired approval token' };
+    }
+
+    // Check if already approved
+    if (report.githubIssueUrl) {
+        // Already approved - still success, show the existing issue
+        if (callbackQuery.message) {
+            await editMessageWithResult(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                callbackQuery.message.text || '',
+                true,
+                'Already approved!',
+                report.githubIssueUrl
+            );
+        }
+        return { success: true };
+    }
+
+    // Approve the bug report (updates status + creates GitHub issue)
+    const result = await approveBugReport(reportId);
+
+    if (!result.success) {
+        return { success: false, error: result.error || 'Failed to approve' };
+    }
+
+    // Clear the approval token (one-time use)
+    await reports.updateApprovalToken(reportId, null);
+
+    // Update the message with success
+    if (callbackQuery.message) {
+        const description = report.description?.slice(0, 50) || 'Bug Report';
+        await editMessageWithResult(
+            botToken,
+            callbackQuery.message.chat.id,
+            callbackQuery.message.message_id,
+            callbackQuery.message.text || '',
+            true,
+            `GitHub issue created for "${description}"`,
+            result.githubResult?.issueUrl
+        );
+    }
+
+    console.log(`Telegram webhook: approved bug report ${reportId}`);
+    return { success: true };
+}
+
+/**
+ * Helper to edit message with routing action
+ */
+async function editMessageWithRouting(
+    botToken: string,
+    chatId: number,
+    messageId: number,
+    originalText: string,
+    destination: string
+): Promise<void> {
+    const newText = `${originalText}\n\n✅ <b>Routed to: ${destination}</b>`;
+
+    await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text: newText,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            reply_markup: { inline_keyboard: [] },
+        }),
+    });
+}
+
+/**
+ * Handle feature routing
+ * Callback format: "route_feature:requestId:destination"
+ */
+async function handleFeatureRouting(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    requestId: string,
+    destination: string
+): Promise<{ success: boolean; error?: string }> {
+    // Get feature request from MongoDB
+    const request = await featureRequests.findFeatureRequestById(requestId);
+    if (!request || !request.githubProjectItemId) {
+        return { success: false, error: 'Feature request not found or not synced' };
+    }
+
+    // Map destination to GitHub Project status
+    const statusMap: Record<string, string> = {
+        'product-design': STATUSES.productDesign,
+        'tech-design': STATUSES.techDesign,
+        'implementation': STATUSES.implementation,
+        'backlog': STATUSES.backlog,
+    };
+
+    const targetStatus = statusMap[destination];
+    if (!targetStatus) {
+        return { success: false, error: 'Invalid destination' };
+    }
+
+    // Update GitHub Project status
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+    await adapter.updateItemStatus(request.githubProjectItemId, targetStatus);
+
+    // Clear review status if moving to a phase that agents process
+    if (destination !== 'backlog' && adapter.hasReviewStatusField()) {
+        await adapter.updateItemReviewStatus(request.githubProjectItemId, '');
+    }
+
+    // Acknowledge callback
+    const destinationLabels: Record<string, string> = {
+        'product-design': 'Product Design',
+        'tech-design': 'Technical Design',
+        'implementation': 'Ready for Development',
+        'backlog': 'Backlog',
+    };
+
+    await answerCallbackQuery(
+        botToken,
+        callbackQuery.id,
+        `✅ Moved to ${destinationLabels[destination]}`
+    );
+
+    // Edit message to show action taken
+    if (callbackQuery.message) {
+        await editMessageWithRouting(
+            botToken,
+            callbackQuery.message.chat.id,
+            callbackQuery.message.message_id,
+            callbackQuery.message.text || '',
+            destinationLabels[destination]
+        );
+    }
+
+    console.log(`Telegram webhook: routed feature ${requestId} to ${destination}`);
+    return { success: true };
+}
+
+/**
+ * Handle bug routing
+ * Callback format: "route_bug:reportId:destination"
+ */
+async function handleBugRouting(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    reportId: string,
+    destination: string
+): Promise<{ success: boolean; error?: string }> {
+    // Get bug report from MongoDB
+    const report = await reports.findReportById(reportId);
+    if (!report || !report.githubProjectItemId) {
+        return { success: false, error: 'Bug report not found or not synced' };
+    }
+
+    // Map destination to GitHub Project status
+    const statusMap: Record<string, string> = {
+        'product-design': STATUSES.productDesign,
+        'tech-design': STATUSES.techDesign,
+        'implementation': STATUSES.implementation,
+        'backlog': STATUSES.backlog,
+    };
+
+    const targetStatus = statusMap[destination];
+    if (!targetStatus) {
+        return { success: false, error: 'Invalid destination' };
+    }
+
+    // Update GitHub Project status
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+    await adapter.updateItemStatus(report.githubProjectItemId, targetStatus);
+
+    // Clear review status if moving to a phase that agents process
+    if (destination !== 'backlog' && adapter.hasReviewStatusField()) {
+        await adapter.updateItemReviewStatus(report.githubProjectItemId, '');
+    }
+
+    // Acknowledge callback
+    const destinationLabels: Record<string, string> = {
+        'product-design': 'Product Design',
+        'tech-design': 'Technical Design',
+        'implementation': 'Ready for Development',
+        'backlog': 'Backlog',
+    };
+
+    await answerCallbackQuery(
+        botToken,
+        callbackQuery.id,
+        `✅ Moved to ${destinationLabels[destination]}`
+    );
+
+    // Edit message to show action taken
+    if (callbackQuery.message) {
+        await editMessageWithRouting(
+            botToken,
+            callbackQuery.message.chat.id,
+            callbackQuery.message.message_id,
+            callbackQuery.message.text || '',
+            destinationLabels[destination]
+        );
+    }
+
+    console.log(`Telegram webhook: routed bug ${reportId} to ${destination}`);
+    return { success: true };
+}
+
+/**
  * Handle design review actions (approve/changes/reject)
  * Callback format: "action:issueNumber"
  */
@@ -396,6 +625,82 @@ export default async function handler(
                         result.error || 'Unknown error'
                     );
                 }
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Bug report approval: "approve_bug:reportId:token"
+        if (action === 'approve_bug' && parts.length === 3) {
+            const [, reportId, token] = parts;
+            const result = await handleBugReportApproval(
+                botToken,
+                callback_query,
+                reportId,
+                token
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '✅ Approved!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+                // Edit message to show error
+                if (callback_query.message) {
+                    await editMessageWithResult(
+                        botToken,
+                        callback_query.message.chat.id,
+                        callback_query.message.message_id,
+                        callback_query.message.text || '',
+                        false,
+                        result.error || 'Unknown error'
+                    );
+                }
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Feature routing: "route_feature:requestId:destination"
+        if (action === 'route_feature' && parts.length === 3) {
+            const [, requestId, destination] = parts;
+            const result = await handleFeatureRouting(
+                botToken,
+                callback_query,
+                requestId,
+                destination
+            );
+
+            if (!result.success) {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Bug routing: "route_bug:reportId:destination"
+        if (action === 'route_bug' && parts.length === 3) {
+            const [, reportId, destination] = parts;
+            const result = await handleBugRouting(
+                botToken,
+                callback_query,
+                reportId,
+                destination
+            );
+
+            if (!result.success) {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
             }
 
             return res.status(200).json({ ok: true });

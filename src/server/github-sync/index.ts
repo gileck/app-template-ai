@@ -5,9 +5,13 @@
  * Used by both the API (approve action) and CLI (batch sync).
  */
 
-import { featureRequests } from '@/server/database';
+import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument } from '@/server/database/collections/feature-requests/types';
-import { sendNotificationToOwner } from '@/server/telegram';
+import type { ReportDocument } from '@/server/database/collections/reports/types';
+import {
+    sendFeatureRoutingNotification,
+    sendBugRoutingNotification,
+} from '@/server/telegram';
 import { getProjectManagementAdapter, STATUSES } from '@/server/project-management';
 
 // ============================================================
@@ -42,6 +46,66 @@ function getLabels(request: FeatureRequestDocument): string[] {
     const labels: string[] = ['feature-request'];
     if (request.priority) {
         labels.push(`priority:${request.priority}`);
+    }
+    return labels;
+}
+
+function buildBugIssueBody(report: ReportDocument): string {
+    const sections: string[] = [];
+
+    if (report.description) {
+        sections.push(`## Description\n\n${report.description}`);
+    }
+
+    // Add bug details
+    const details: string[] = [];
+
+    if (report.errorMessage) {
+        details.push(`**Error:** ${report.errorMessage}`);
+    }
+
+    if (report.route) {
+        details.push(`**Route:** ${report.route}`);
+    }
+
+    if (report.category) {
+        const categoryEmoji = report.category === 'performance' ? '⚡' : '🐛';
+        details.push(`**Category:** ${categoryEmoji} ${report.category}`);
+    }
+
+    if (report.networkStatus) {
+        details.push(`**Network:** ${report.networkStatus}`);
+    }
+
+    if (report.browserInfo) {
+        details.push(`**Browser:** ${report.browserInfo.userAgent}`);
+        details.push(`**Viewport:** ${report.browserInfo.viewport.width}x${report.browserInfo.viewport.height}`);
+    }
+
+    if (details.length > 0) {
+        sections.push(`## Bug Details\n\n${details.join('\n')}`);
+    }
+
+    // Add stack trace if available (truncated)
+    if (report.stackTrace) {
+        const truncatedTrace = report.stackTrace.length > 500
+            ? `${report.stackTrace.slice(0, 500)}...`
+            : report.stackTrace;
+        sections.push(`## Stack Trace\n\n\`\`\`\n${truncatedTrace}\n\`\`\``);
+    }
+
+    // NOTE: Session logs are NOT included in the GitHub issue body
+    // They will be added to agent prompts only
+
+    sections.push(`---\n\n_Synced from bug report \`${report._id}\`_`);
+
+    return sections.join('\n\n');
+}
+
+function getBugLabels(report: ReportDocument): string[] {
+    const labels: string[] = ['bug'];
+    if (report.category) {
+        labels.push(`category:${report.category}`);
     }
     return labels;
 }
@@ -106,17 +170,12 @@ export async function syncFeatureRequestToGitHub(
             githubProjectItemId: projectItemId,
         });
 
-        // Send notification
+        // Send routing notification
         try {
-            await sendNotificationToOwner(
-                `✅ Feature request synced to GitHub!\n\n` +
-                `📋 ${request.title}\n` +
-                `🔗 Issue #${issueNumber}: ${issueUrl}\n` +
-                `📊 Status: ${STATUSES.backlog}`
-            );
-        } catch {
+            await sendFeatureRoutingNotification(request, { number: issueNumber, url: issueUrl });
+        } catch (error) {
             // Don't fail if notification fails
-            console.warn('Failed to send notification');
+            console.warn('Failed to send routing notification:', error);
         }
 
         return {
@@ -167,17 +226,9 @@ export async function approveFeatureRequest(
             };
         }
 
-        // Update GitHub Project status to Product Design (ready for agent)
-        // This sets the item to the first phase with empty review status
-        if (githubResult.projectItemId) {
-            const adapter = getProjectManagementAdapter();
-            await adapter.init();
-            await adapter.updateItemStatus(githubResult.projectItemId, STATUSES.productDesign);
-            // Ensure review status is empty (ready for agent to process)
-            if (adapter.hasReviewStatusField()) {
-                await adapter.updateItemReviewStatus(githubResult.projectItemId, '');
-            }
-        }
+        // NOTE: Status stays in Backlog after approval
+        // Admin will route to appropriate phase via Telegram routing buttons
+        // This allows admin to choose: Product Design, Tech Design, Implementation, or keep in Backlog
 
         // Fetch the updated request with GitHub fields
         const finalRequest = await featureRequests.findFeatureRequestById(requestId);
@@ -190,6 +241,125 @@ export async function approveFeatureRequest(
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error('Approve feature request error:', errorMsg);
+        return { success: false, error: errorMsg };
+    }
+}
+
+/**
+ * Sync a bug report to GitHub
+ * Creates an issue and adds it to the project with Backlog status
+ */
+export async function syncBugReportToGitHub(
+    reportId: string
+): Promise<SyncToGitHubResult> {
+    try {
+        // Get the bug report
+        const report = await reports.findReportById(reportId);
+        if (!report) {
+            return { success: false, error: 'Bug report not found' };
+        }
+
+        // Check if already synced
+        if (report.githubIssueUrl) {
+            return {
+                success: true,
+                issueNumber: report.githubIssueNumber,
+                issueUrl: report.githubIssueUrl,
+                projectItemId: report.githubProjectItemId,
+            };
+        }
+
+        // Initialize project management adapter
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // Create the issue
+        const issueBody = buildBugIssueBody(report);
+        const labels = getBugLabels(report);
+        const title = report.description?.slice(0, 100) || 'Bug Report';
+
+        const issueResult = await adapter.createIssue(title, issueBody, labels);
+        const { number: issueNumber, url: issueUrl, nodeId: issueNodeId } = issueResult;
+
+        // Add issue to project
+        const projectItemId = await adapter.addIssueToProject(issueNodeId);
+
+        // Set status to Backlog
+        await adapter.updateItemStatus(projectItemId, STATUSES.backlog);
+
+        // Update MongoDB with GitHub fields
+        await reports.updateReport(reportId, {
+            githubIssueUrl: issueUrl,
+            githubIssueNumber: issueNumber,
+            githubProjectItemId: projectItemId,
+        });
+
+        // Send routing notification
+        try {
+            await sendBugRoutingNotification(report, { number: issueNumber, url: issueUrl });
+        } catch (error) {
+            // Don't fail if notification fails
+            console.warn('Failed to send routing notification:', error);
+        }
+
+        return {
+            success: true,
+            issueNumber,
+            issueUrl,
+            projectItemId,
+        };
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error('GitHub sync error:', errorMsg);
+        return { success: false, error: errorMsg };
+    }
+}
+
+/**
+ * Approve a bug report and sync to GitHub
+ * Updates MongoDB status to 'investigating' and creates GitHub issue
+ */
+export async function approveBugReport(
+    reportId: string
+): Promise<{
+    success: boolean;
+    bugReport?: ReportDocument;
+    githubResult?: SyncToGitHubResult;
+    error?: string;
+}> {
+    try {
+        // First update the MongoDB status to investigating
+        const updated = await reports.updateReport(reportId, {
+            status: 'investigating',
+        });
+
+        if (!updated) {
+            return { success: false, error: 'Bug report not found' };
+        }
+
+        // Then sync to GitHub (creates issue with Backlog status)
+        const githubResult = await syncBugReportToGitHub(reportId);
+
+        if (!githubResult.success) {
+            // Revert status if GitHub sync failed
+            await reports.updateReport(reportId, { status: 'new' });
+            return {
+                success: false,
+                error: `GitHub sync failed: ${githubResult.error}`,
+            };
+        }
+
+        // Fetch the updated report with GitHub fields
+        const finalReport = await reports.findReportById(reportId);
+
+        return {
+            success: true,
+            bugReport: finalReport || undefined,
+            githubResult,
+        };
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error('Approve bug report error:', errorMsg);
         return { success: false, error: errorMsg };
     }
 }

@@ -49,9 +49,13 @@ import {
     // Prompts
     buildImplementationPrompt,
     buildPRRevisionPrompt,
+    buildBugImplementationPrompt,
     // Types
     type CommonCLIOptions,
     type GitHubComment,
+    // Utils
+    getIssueType,
+    getBugDiagnostics,
 } from './shared';
 
 // ============================================================
@@ -121,13 +125,14 @@ function checkoutBranch(branchName: string, createFromDefault: boolean = false):
 /**
  * Generate a branch name from issue number and title
  */
-function generateBranchName(issueNumber: number, title: string): string {
+function generateBranchName(issueNumber: number, title: string, isBug: boolean = false): string {
     const slug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
         .slice(0, 40);
-    return `feature/issue-${issueNumber}-${slug}`;
+    const prefix = isBug ? 'fix' : 'feature';
+    return `${prefix}/issue-${issueNumber}-${slug}`;
 }
 
 /**
@@ -207,19 +212,31 @@ async function processItem(
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Implementation' : 'Address Feedback'}`);
 
+    // Detect issue type and load bug diagnostics if applicable
+    const issueType = getIssueType(content.labels);
+
     // Send "work started" notification
     if (!options.dryRun) {
-        await notifyAgentStarted('Implementation', content.title, issueNumber, mode);
+        await notifyAgentStarted('Implementation', content.title, issueNumber, mode, issueType);
     }
 
     const originalBranch = getCurrentBranch();
-    const branchName = generateBranchName(issueNumber, content.title);
 
     try {
         // Check for uncommitted changes
         if (hasUncommittedChanges()) {
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
         }
+
+        const diagnostics = issueType === 'bug'
+            ? await getBugDiagnostics(issueNumber)
+            : null;
+
+        if (issueType === 'bug') {
+            console.log(`  🐛 Bug fix implementation (diagnostics loaded: ${diagnostics ? 'yes' : 'no'})`);
+        }
+
+        const branchName = generateBranchName(issueNumber, content.title, issueType === 'bug');
 
         // Extract designs from issue body (optional - may be skipped for simple/internal work)
         const productDesign = extractProductDesign(content.body);
@@ -257,7 +274,13 @@ async function processItem(
                 console.log(`  Branch ${branchName} already exists, will use it`);
             }
 
-            prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName, issueComments);
+            if (diagnostics) {
+                // Bug fix implementation
+                prompt = buildBugImplementationPrompt(content, diagnostics, productDesign, techDesign, branchName, issueComments);
+            } else {
+                // Feature implementation
+                prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName, issueComments);
+            }
         } else {
             // Flow B: Address feedback
             if (!processable.prNumber) {
@@ -406,8 +429,9 @@ async function processItem(
         }
 
         // Commit changes
+        const commitPrefix = issueType === 'bug' ? 'fix' : 'feat';
         const commitMessage = mode === 'new'
-            ? `feat: ${content.title}\n\nCloses #${issueNumber}`
+            ? `${commitPrefix}: ${content.title}\n\nCloses #${issueNumber}`
             : `fix: address review feedback for #${issueNumber}`;
 
         console.log('  Committing changes...');
@@ -434,10 +458,14 @@ async function processItem(
 
             // Build commit-message-ready PR title and body
             // PR title will be the squash merge commit title
-            const prTitle = `feat: ${content.title}`;
+            const prPrefix = issueType === 'bug' ? 'fix' : 'feat';
+            const prTitle = `${prPrefix}: ${content.title}`;
 
             // Everything before the --- separator will be included in squash merge commit body
-            const prBody = `Implements the feature described in issue #${issueNumber}.
+            const prBodyIntro = issueType === 'bug'
+                ? `Fixes the bug described in issue #${issueNumber}.`
+                : `Implements the feature described in issue #${issueNumber}.`;
+            const prBody = `${prBodyIntro}
 
 ${techDesign ? 'Implementation follows the technical design specifications.' : ''}${productDesign ? ' User-facing changes align with product design requirements.' : ''}
 
@@ -479,7 +507,7 @@ See issue #${issueNumber} for full context, product design, and technical design
 
         // Send notification
         if (prNumber) {
-            await notifyPRReady(content.title, issueNumber, prNumber, mode === 'feedback');
+            await notifyPRReady(content.title, issueNumber, prNumber, mode === 'feedback', issueType);
             console.log('  Notification sent');
         }
 

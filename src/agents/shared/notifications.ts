@@ -192,13 +192,17 @@ Waiting for product design generation.`;
 export async function notifyProductDesignReady(
     title: string,
     issueNumber: number,
-    isRevision: boolean = false
+    isRevision: boolean = false,
+    itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
     const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
     const message = `<b>Agent (Product Design):</b> ${status}
+${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}
@@ -215,13 +219,17 @@ ${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to p
 export async function notifyTechDesignReady(
     title: string,
     issueNumber: number,
-    isRevision: boolean = false
+    isRevision: boolean = false,
+    itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
     const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
     const message = `<b>Agent (Tech Design):</b> ${status}
+${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}
@@ -239,13 +247,17 @@ export async function notifyPRReady(
     title: string,
     issueNumber: number,
     prNumber: number,
-    isRevision: boolean = false
+    isRevision: boolean = false,
+    itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const prUrl = getPrUrl(prNumber);
 
     const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
     const message = `<b>Agent (Implementation):</b> ${status}
+${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber} → PR #${prNumber}
@@ -350,12 +362,16 @@ export async function notifyAgentStarted(
     phase: string,
     title: string,
     issueNumber: number,
-    mode: 'new' | 'feedback'
+    mode: 'new' | 'feedback',
+    itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const status = mode === 'new' ? '🚀 Started' : '🔄 Addressing Feedback';
     const issueUrl = getIssueUrl(issueNumber);
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
     const message = `<b>Agent (${phase}):</b> ${status}
+${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}`;

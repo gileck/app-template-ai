@@ -50,9 +50,14 @@ import {
     // Prompts
     buildTechDesignPrompt,
     buildTechDesignRevisionPrompt,
+    buildBugTechDesignPrompt,
+    buildBugTechDesignRevisionPrompt,
     // Types
     type CommonCLIOptions,
     type UsageStats,
+    // Utils
+    getIssueType,
+    getBugDiagnostics,
 } from './shared';
 
 // ============================================================
@@ -84,13 +89,24 @@ async function processItem(
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
 
+    // Detect issue type and load bug diagnostics if applicable
+    const issueType = getIssueType(content.labels);
+
     // Send "work started" notification
     if (!options.dryRun) {
-        await notifyAgentStarted('Technical Design', content.title, issueNumber, mode);
+        await notifyAgentStarted('Technical Design', content.title, issueNumber, mode, issueType);
     }
 
     try {
-        // Extract product design (optional - may be skipped for internal/technical work)
+        const diagnostics = issueType === 'bug'
+            ? await getBugDiagnostics(issueNumber)
+            : null;
+
+        if (issueType === 'bug') {
+            console.log(`  🐛 Bug fix design (diagnostics loaded: ${diagnostics ? 'yes' : 'no'})`);
+        }
+
+        // Extract product design (optional - may be skipped for internal/technical work or bugs)
         const productDesign = extractProductDesign(content.body);
 
         // Always fetch comments - they provide context for any phase
@@ -110,7 +126,13 @@ async function processItem(
 
         if (mode === 'new') {
             // Flow A: New design
-            prompt = buildTechDesignPrompt(content, productDesign, issueComments);
+            if (diagnostics) {
+                // Bug fix tech design
+                prompt = buildBugTechDesignPrompt(content, diagnostics, productDesign, issueComments);
+            } else {
+                // Feature tech design
+                prompt = buildTechDesignPrompt(content, productDesign, issueComments);
+            }
         } else {
             // Flow B: Address feedback
             const existingTechDesign = extractTechDesign(content.body);
@@ -122,7 +144,13 @@ async function processItem(
                 return { success: false, error: 'No feedback comments found' };
             }
 
-            prompt = buildTechDesignRevisionPrompt(content, productDesign, existingTechDesign, issueComments);
+            if (diagnostics) {
+                // Bug fix revision
+                prompt = buildBugTechDesignRevisionPrompt(content, diagnostics, existingTechDesign, issueComments);
+            } else {
+                // Feature revision
+                prompt = buildTechDesignRevisionPrompt(content, productDesign, existingTechDesign, issueComments);
+            }
         }
 
         // Run the agent
@@ -176,7 +204,7 @@ async function processItem(
         }
 
         // Send notification
-        await notifyTechDesignReady(content.title, issueNumber, mode === 'feedback');
+        await notifyTechDesignReady(content.title, issueNumber, mode === 'feedback', issueType);
         console.log('  Notification sent');
 
         return { success: true };

@@ -1,38 +1,58 @@
 # GitHub Projects Integration
 
-This document describes the GitHub Projects integration that automates the feature request workflow from initial submission to merged PRs.
+This document describes the GitHub Projects integration that automates the **feature request AND bug report workflow** from initial submission to merged PRs.
 
 ## Overview
 
-The integration creates a complete pipeline using a 6-column workflow:
+The integration creates a complete pipeline using a 6-column workflow for **both feature requests and bug reports**:
 
-1. **User submits** feature request via app UI → stored in MongoDB
+1. **User submits** feature request or bug report via app UI → stored in MongoDB
 2. **Admin gets Telegram notification** with one-click "Approve" button
-3. **Admin approves** (via Telegram button or app UI) → server creates GitHub Issue + sets to "Product Design" status
-4. **AI agent generates design** → sets Review Status = "Waiting for Review"
-5. **Admin approves** (via Telegram button) → auto-advances to Technical Design → AI generates tech design
-6. **Admin approves** → auto-advances to "Ready for development" → AI implements and creates PR → moves to "PR Review"
-7. **Admin merges PR** → moves to Done
+3. **Admin approves** (via Telegram button) → server creates GitHub Issue + adds to "Backlog"
+4. **Admin receives routing message** → chooses where item should start:
+   - 🎨 **Product Design** - Needs UX/UI design
+   - 🔧 **Tech Design** - Needs architecture planning
+   - ⚡ **Implementation** - Simple item, go straight to coding
+   - 📋 **Backlog** - Keep in backlog for now
+5. **Item moves to selected phase** → AI agent processes accordingly
+6. **AI agent generates design/implementation** → sets Review Status = "Waiting for Review"
+7. **Admin approves** (via Telegram button) → auto-advances to next phase
+8. **Admin merges PR** → GitHub Action marks item as Done
 
 **Key concepts:**
 - **6 board columns**: Backlog → Product Design → Technical Design → Ready for development → PR Review → Done
+- **Unified workflow**: Both bugs and features use the same GitHub Projects board and workflow
+- **Flexible routing**: Admin chooses starting phase for each item (simple fixes can skip design phases)
+- **Type-aware agents**: Agents detect bugs vs features and use specialized prompts
+- **Bug diagnostics**: Session logs, stack traces, and error messages included in bug fix prompts (NOT in GitHub issues)
 - **Review Status field** tracks sub-states within each phase (empty → Waiting for Review → Approved/Request Changes)
 - **Auto-advance on approval**: When approved via Telegram, the item automatically moves to the next phase
 - **Implement agent auto-moves to PR Review**: After creating a PR, the item moves from "Ready for development" to "PR Review"
-- **Single webhook**: All Telegram approval buttons use `/api/telegram-webhook` for instant in-app feedback
+- **Single webhook**: All Telegram approval and routing buttons use `/api/telegram-webhook` for instant in-app feedback
 - **Simplified MongoDB schema**: MongoDB stores only high-level status (4 values), GitHub Projects tracks detailed workflow
+- **Separate MongoDB collections**: `feature-requests` and `reports` collections (bugs need session logs, screenshots, diagnostics)
 
 ## MongoDB Status vs GitHub Project Status
 
 The system uses a **two-tier status tracking** approach to eliminate duplication:
 
 ### MongoDB Statuses (4 values)
+
+**Feature Requests:**
 | Status | Meaning |
 |--------|---------|
 | `new` | Feature request submitted, not yet synced to GitHub |
 | `in_progress` | Synced to GitHub (detailed status tracked in GitHub Projects) |
 | `done` | Completed and merged |
 | `rejected` | Not going to implement |
+
+**Bug Reports:**
+| Status | Meaning |
+|--------|---------|
+| `new` | Bug report submitted, not yet synced to GitHub |
+| `investigating` | Synced to GitHub (detailed status tracked in GitHub Projects) |
+| `resolved` | Fixed and merged |
+| `closed` | Won't fix, duplicate, or not a bug |
 
 ### GitHub Project Statuses (6 values)
 | Status | Meaning |
@@ -45,10 +65,11 @@ The system uses a **two-tier status tracking** approach to eliminate duplication
 | `Done` | Completed and merged |
 
 **Why this split?**
-- **MongoDB**: Tracks approval state and lifecycle (new → in progress → done)
+- **MongoDB**: Tracks approval state and lifecycle (new → in progress → done) + stores rich diagnostics for bugs
 - **GitHub Projects**: Tracks detailed workflow steps (Product Design → Tech Design → Implementation → etc.)
-- **No duplication**: When a request is "in_progress" in MongoDB, you check GitHub Projects for the detailed status
-- **UI displays GitHub status**: The app UI shows GitHub Project status for `in_progress` items, MongoDB status for `new`/`done`/`rejected`
+- **No duplication**: When an item is "in_progress"/"investigating" in MongoDB, you check GitHub Projects for the detailed status
+- **UI displays GitHub status**: The app UI shows GitHub Project status for synced items, MongoDB status for `new`/`done`/`rejected`
+- **Separate collections**: Bug reports need session logs, screenshots, performance data - features don't
 
 ## Architecture
 
@@ -242,57 +263,130 @@ The adapter uses a singleton pattern and caches project metadata (field IDs, sta
 | `addIssueToProject()` | Add an issue to the project |
 | `createPullRequest()` | Create a PR |
 
-## Feature Request Approval Flow
+## Unified Approval & Routing Flow
 
-When a user submits a feature request, the system provides two ways for admins to approve it:
+The system handles both **feature requests** and **bug reports** through the same approval and routing workflow:
 
-### Option 1: Telegram Quick-Approve (Recommended)
+### Step 1: User Submission
 
-When a feature request is submitted:
-1. Admin receives a Telegram notification with the request details
-2. The notification includes an inline "Approve" button (callback button, not URL)
-3. Tapping the button triggers the webhook, which approves the request instantly
-4. The Telegram message is updated to show success with a link to the GitHub issue
+**Feature Request:**
+- User submits via FeatureRequestDialog
+- Stored in `feature-requests` collection with status=`new`
 
-**Telegram Notification Example:**
+**Bug Report:**
+- User submits via BugReportDialog (includes screenshot, session logs)
+- Stored in `reports` collection with status=`new`
+- Rich diagnostics captured: session logs, stack traces, browser info, performance data
+
+### Step 2: Admin Approval (Telegram Quick-Approve)
+
+When a submission arrives:
+1. Admin receives a Telegram notification with details
+2. The notification includes an inline "Approve & Create GitHub Issue" button
+3. Tapping the button:
+   - Creates GitHub issue (labeled `feature-request` or `bug`)
+   - Adds to GitHub Project in "Backlog" status
+   - Updates MongoDB status to `in_progress`/`investigating`
+   - Sends **routing notification** (see Step 3)
+
+**Telegram Notification Examples:**
+
+*Feature Request:*
 ```
-📝 New Feature Request!
+✨ New Feature Request!
 
 📋 Add dark mode toggle
+🟡 Priority: medium
 
-Users have requested a dark mode option for the app to reduce eye strain...
-
-📍 Page: Settings
+Users have requested a dark mode option...
 
 [✅ Approve & Create GitHub Issue]  ← inline callback button
 ```
 
-When you tap the button:
-- Request is approved via webhook (stays in Telegram)
-- Message updates to show success with GitHub issue link
-- No browser required
+*Bug Report:*
+```
+🐛 New Bug Report!
+
+📋 Login form crashes on submit
+
+📍 Route: /login
+👤 Reported by: john_doe
+
+[✅ Approve & Create GitHub Issue]  ← inline callback button
+```
 
 The approval uses a secure token that:
-- Is unique to each feature request
+- Is unique to each submission
 - Can only be used once
 - Is cleared after approval
 
 **Note:** For localhost development (HTTP), a text link is shown instead since Telegram callback buttons require HTTPS.
 
-### Option 2: App UI Approval
+### Step 3: Admin Routing (Choose Starting Phase)
 
-1. Go to the Feature Requests page in the admin panel
-2. Find requests with status "new" or "in_review"
-3. Click the **Approve** button on the card
-4. The request is approved and a GitHub issue is created
+After approval, admin receives a **routing notification** asking where the item should start:
 
-Both methods:
-- Update the feature request status in MongoDB to `in_progress`
-- Create a GitHub issue with the request details
-- Add the issue to the GitHub Project with "Product Design" status (ready for AI agent)
-- Review Status is empty (ready for agent to pick up)
+```
+✨ Feature Request Synced to GitHub!
+  (or: 🐛 Bug Synced to GitHub!)
 
-**Note:** MongoDB only tracks high-level status (`new`, `in_progress`, `done`, `rejected`). Detailed workflow tracking happens in GitHub Projects (Product Design, Technical Design, etc.).
+📋 Add dark mode toggle
+🟡 Priority: medium
+🔗 Issue #123
+
+Where should this feature start?
+
+• Product Design - Needs UX/UI design
+• Tech Design - Needs architecture planning
+• Implementation - Simple feature, go straight to coding
+• Backlog - Keep in backlog for now
+
+[🎨 Product Design] [🔧 Tech Design]
+[⚡ Implementation] [📋 Keep in Backlog]
+[🔗 View Issue]
+```
+
+Admin taps a routing button to select the starting phase. The item is moved to that column in GitHub Projects.
+
+**Routing Guidelines:**
+
+| Item Type | Recommended Route |
+|-----------|-------------------|
+| Complex feature needing UX | Product Design |
+| Complex bug needing redesign | Product Design |
+| Feature needing architecture | Tech Design |
+| Bug needing root cause analysis | Tech Design |
+| Simple feature | Implementation |
+| Simple bug fix | Implementation |
+| Not ready to start | Backlog |
+
+### Step 4: AI Agent Processing
+
+Once routed, the appropriate AI agent picks up the item:
+
+**Product Design Agent:**
+- Generates UX/UI design document
+- **Note:** Bugs are skipped by default (most bugs don't need product design)
+- If a bug needs product design, admin manually routes it there
+
+**Tech Design Agent:**
+- **For features:** Generates technical architecture
+- **For bugs:** Loads diagnostics (session logs, stack traces) and generates root cause analysis + fix approach
+- Bug prompts include full diagnostic data (NOT shown in GitHub issue)
+
+**Implementation Agent:**
+- **For features:** Creates `feature/issue-#-title` branch, PR title: `feat: ...`
+- **For bugs:** Creates `fix/issue-#-title` branch, PR title: `fix: ...`
+- Bug implementation prompts include session logs and diagnostics
+
+### Alternative: App UI Approval
+
+Admins can also approve via the admin panel UI:
+1. Go to `/admin/reports` (bugs) or `/admin/feature-requests` (features)
+2. Click **Approve** button
+3. Same workflow as Telegram approval (creates issue, sends routing notification)
+
+**Note:** MongoDB only tracks high-level status (`new`, `in_progress`, `done`, `rejected` for features; `new`, `investigating`, `resolved`, `closed` for bugs). Detailed workflow tracking happens in GitHub Projects.
 
 ## GitHub Notifications (Telegram)
 
@@ -645,15 +739,98 @@ The agents only process items in their specific status column, so skipping phase
 
 **Tip:** Add a label like `internal` or `no-product-design` to make it clear why product design was skipped.
 
+### Bug Handling (Type-Aware Agents)
+
+The agents automatically detect whether an issue is a bug or feature based on GitHub labels and adapt their behavior:
+
+**Type Detection:**
+```typescript
+// In all agents
+const issueType = getIssueType(content.labels); // 'bug' or 'feature'
+const diagnostics = issueType === 'bug'
+    ? await getBugDiagnostics(issueNumber)
+    : null;
+```
+
+**Product Design Agent:**
+- **Skips bugs by default** (most bugs don't need product design)
+- Shows: `⚠️ Skipping bug report (bugs typically skip Product Design)`
+- If a bug needs UX redesign, admin can manually move it to Product Design
+
+**Tech Design Agent:**
+- **For bugs:** Uses bug-specific prompts with diagnostics
+  ```
+  ## Bug Diagnostics
+  Error: Cannot read property 'user' of undefined
+  Route: /profile
+  Stack Trace: [full trace]
+  Session Logs (last 20): [formatted logs]
+  Browser: Chrome 120.0 on Windows
+  ```
+- Generates root cause analysis + fix approach
+- **For features:** Uses standard tech design prompts
+
+**Implementation Agent:**
+- **For bugs:**
+  - Creates `fix/issue-#-title` branch (not `feature/`)
+  - PR title: `fix: description` (not `feat:`)
+  - Commit message: `fix: description`
+  - Prompts include bug diagnostics for context
+- **For features:**
+  - Creates `feature/issue-#-title` branch
+  - PR title: `feat: description`
+  - Commit message: `feat: description`
+
+**Bug Diagnostics (NOT in GitHub Issues):**
+
+Bug reports in MongoDB store rich diagnostic data:
+- Session logs (last 500 entries)
+- Stack traces
+- Error messages
+- Browser info (user agent, viewport)
+- Performance entries
+- Screenshot (Vercel Blob URL)
+
+This data is:
+- ✅ **Included in agent prompts** (tech design, implementation)
+- ❌ **NOT included in GitHub issues** (too verbose)
+- ✅ **Stored in MongoDB** `reports` collection
+
+**Example Bug Fix Workflow:**
+
+```
+User submits bug → MongoDB: session logs + screenshot
+         ↓
+Admin approves → GitHub issue created (labeled 'bug')
+         ↓
+Admin routes → Tech Design
+         ↓
+Tech Design Agent:
+- Loads diagnostics from MongoDB
+- Analyzes session logs + stack trace
+- Generates root cause analysis + fix approach
+         ↓
+Admin approves → Ready for development
+         ↓
+Implementation Agent:
+- Loads diagnostics + tech design
+- Creates fix/issue-#-description branch
+- Implements fix
+- Creates PR with title: "fix: description"
+         ↓
+Admin merges → Done
+```
+
 ### Pull Request Format (Squash-Merge Ready)
 
 The implement agent creates PRs that are **immediately ready for squash merge** without any editing needed.
 
 **PR Title:**
 ```
-feat: add dark mode toggle
+feat: add dark mode toggle    (for features)
+fix: resolve login crash      (for bugs)
 ```
-Uses conventional commit format (`feat:`, `fix:`, `refactor:`, etc.)
+Uses conventional commit format. The agent automatically uses `fix:` for bugs and `feat:` for features.
 
 **PR Body Structure:**
 

@@ -10,6 +10,8 @@
 
 import type { ProjectItemContent } from '@/server/project-management';
 import type { GitHubComment } from './types';
+import type { BugDiagnostics } from './utils';
+import { formatSessionLogs } from './utils';
 
 // ============================================================
 // PRODUCT DESIGN PROMPTS
@@ -525,4 +527,276 @@ After making changes, provide a brief summary of:
 3. Any feedback that couldn't be addressed and why
 
 Begin addressing the feedback now.`;
+}
+
+// ============================================================
+// BUG-SPECIFIC PROMPTS
+// ============================================================
+
+/**
+ * Build prompt for generating technical design for a bug fix
+ */
+export function buildBugTechDesignPrompt(
+    issue: ProjectItemContent,
+    diagnostics: BugDiagnostics,
+    productDesign: string | null,
+    comments?: GitHubComment[]
+): string {
+    const productDesignSection = productDesign
+        ? `## Approved Product Design
+
+${productDesign}
+
+`
+        : '';
+
+    const commentsSection = comments && comments.length > 0
+        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    // Format diagnostics
+    const categoryLabel = diagnostics.category === 'performance' ? '⚡ Performance' : '🐛 Bug';
+    const sessionLogsSection = diagnostics.sessionLogs?.length
+        ? `\n**Session Logs (last 20):**\n\`\`\`\n${formatSessionLogs(diagnostics.sessionLogs.slice(-20))}\n\`\`\``
+        : '';
+
+    const stackTraceSection = diagnostics.stackTrace
+        ? `\n**Stack Trace:**\n\`\`\`\n${diagnostics.stackTrace}\n\`\`\``
+        : '';
+
+    return `You are analyzing a BUG REPORT and creating a Technical Design for the fix.${productDesign ? ' A Product Design has been approved that addresses the UX/UI aspects of this bug.' : ''}
+
+IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
+
+## Issue Details
+
+**Title:** ${issue.title}
+**Number:** #${issue.number || 'Draft'}
+**Category:** ${categoryLabel}
+
+**Description:**
+${issue.body || 'No description provided'}
+${commentsSection}
+${productDesignSection}## Bug Diagnostics
+
+${diagnostics.errorMessage ? `**Error Message:** ${diagnostics.errorMessage}\n` : ''}${diagnostics.route ? `**Route:** ${diagnostics.route}\n` : ''}${diagnostics.networkStatus ? `**Network Status:** ${diagnostics.networkStatus}\n` : ''}${diagnostics.browserInfo ? `**Browser:** ${diagnostics.browserInfo.userAgent}
+**Viewport:** ${diagnostics.browserInfo.viewport.width}x${diagnostics.browserInfo.viewport.height}\n` : ''}${stackTraceSection}${sessionLogsSection}
+
+## Your Task
+
+Analyze this bug and create a Technical Design for the fix:
+
+**Required sections:**
+1. **Root Cause Analysis** - What's causing this bug? Be specific.
+2. **Affected Components** - Which files/modules are involved?
+3. **Fix Approach** - How should this be fixed? Provide clear steps.
+4. **Files to Create/Modify** - List files with specific changes needed
+
+**Optional sections (include when relevant):**
+- **Testing Strategy** - How to verify the fix and prevent regression
+- **Risk Assessment** - Any side effects or edge cases to consider
+- **Implementation Notes** - Complex logic that needs explanation
+
+## Research Strategy
+
+1. Use the stack trace and session logs to identify where the error occurs
+2. Read the affected files to understand the current implementation
+3. Look for similar patterns in the codebase
+4. Consider edge cases that might trigger this bug
+
+## Output Format
+
+Your final output MUST be a Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+
+Example:
+
+\`\`\`markdown
+# Bug Fix: [Issue Title]
+
+## Root Cause Analysis
+
+The error occurs in \`ComponentName.tsx\` when [specific condition]. The code assumes [incorrect assumption], but [actual situation].
+
+## Affected Components
+
+- \`src/client/routes/RouteName/ComponentName.tsx\` - Contains the buggy logic
+- \`src/client/hooks/useHook.ts\` - Needs null check added
+
+## Fix Approach
+
+1. Add null/undefined check in ComponentName before accessing property
+2. Add loading state handling in useHook
+3. Update error boundary to catch this specific error
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| \`src/client/routes/RouteName/ComponentName.tsx\` | Add null check: \`if (!data?.property) return <LoadingState />\` |
+| \`src/client/hooks/useHook.ts\` | Add early return if data is null |
+
+## Testing Strategy
+
+1. Reproduce the bug by [specific steps]
+2. Verify fix by [verification steps]
+3. Test edge case: [edge case description]
+\`\`\`
+
+Now explore the codebase and create the Technical Design for this bug fix.`;
+}
+
+/**
+ * Build prompt for implementing a bug fix
+ */
+export function buildBugImplementationPrompt(
+    issue: ProjectItemContent,
+    diagnostics: BugDiagnostics,
+    productDesign: string | null,
+    techDesign: string | null,
+    branchName: string,
+    comments?: GitHubComment[]
+): string {
+    const categoryLabel = diagnostics.category === 'performance' ? '⚡ Performance Bug' : '🐛 Bug';
+
+    let designContext = '';
+    let implementationSource = '';
+
+    if (techDesign && productDesign) {
+        designContext = `## Approved Product Design
+
+${productDesign}
+
+## Approved Technical Design
+
+${techDesign}`;
+        implementationSource = 'the Technical Design document';
+    } else if (techDesign) {
+        designContext = `## Approved Technical Design
+
+${techDesign}`;
+        implementationSource = 'the Technical Design document';
+    } else if (productDesign) {
+        designContext = `## Approved Product Design
+
+${productDesign}
+
+Note: No technical design phase. Implement the fix based on the product design and diagnostics.`;
+        implementationSource = 'the Product Design and bug diagnostics';
+    } else {
+        designContext = `Note: No design documents (simple fix). Implement based on the issue description and diagnostics.`;
+        implementationSource = 'the bug diagnostics and issue description';
+    }
+
+    const commentsSection = comments && comments.length > 0
+        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        : '';
+
+    // Include limited diagnostics in implementation prompt (full diagnostics are in tech design)
+    const quickDiagnostics = `
+**Error:** ${diagnostics.errorMessage || 'See issue description'}
+**Route:** ${diagnostics.route || 'Unknown'}
+${diagnostics.stackTrace ? `**Stack Trace:** ${diagnostics.stackTrace.slice(0, 300)}...` : ''}`;
+
+    return `You are implementing a ${categoryLabel} FIX.
+
+IMPORTANT: You are in WRITE mode. You CAN and SHOULD create and modify files to fix this bug.
+
+## Issue Details
+
+**Title:** ${issue.title}
+**Number:** #${issue.number || 'Draft'}
+**Branch:** ${branchName}
+**Category:** ${categoryLabel}
+
+**Description:**
+${issue.body || 'No description provided'}
+${commentsSection}
+## Quick Diagnostics
+${quickDiagnostics}
+
+${designContext}
+
+## Your Task
+
+Implement the bug fix as specified in ${implementationSource}:
+
+1. Fix the root cause identified in the design
+2. Add necessary error handling or loading states
+3. Ensure the fix doesn't break existing functionality
+4. Be surgical - bug fixes should be minimal and focused
+
+## Implementation Guidelines
+
+- **Be minimal**: Bug fixes should change as little code as possible
+- Focus on the root cause, not symptoms
+- Add defensive programming where appropriate (null checks, error boundaries)
+- Follow existing code patterns in the codebase
+- Use TypeScript with proper types
+- For state management, use React Query for server state and Zustand for client state
+
+## Important Notes
+
+- Read the affected files before modifying them
+- Test your assumptions by checking existing code
+- Add comments explaining non-obvious fixes
+- DO NOT refactor surrounding code unless necessary for the fix
+- DO NOT add features or improvements beyond the bug fix
+
+## Output
+
+After implementing, provide a brief summary of:
+1. Root cause that was fixed
+2. Files modified and changes made
+3. How to verify the fix works
+4. Any edge cases addressed
+
+Begin implementing the bug fix now.`;
+}
+
+/**
+ * Build prompt for revising bug fix design based on feedback
+ */
+export function buildBugTechDesignRevisionPrompt(
+    issue: ProjectItemContent,
+    diagnostics: BugDiagnostics,
+    existingTechDesign: string,
+    feedbackComments: GitHubComment[]
+): string {
+    const feedbackSection = feedbackComments
+        .map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`)
+        .join('\n\n---\n\n');
+
+    return `You are revising a Bug Fix Technical Design based on admin feedback.
+
+IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
+
+## Issue Details
+
+**Title:** ${issue.title}
+**Number:** #${issue.number || 'Draft'}
+
+## Existing Technical Design
+
+${existingTechDesign}
+
+## Admin Feedback
+
+The admin has requested changes. Please address ALL of the following feedback:
+
+${feedbackSection}
+
+## Your Task
+
+1. Carefully read and understand all feedback comments
+2. Re-analyze the bug if needed (diagnostics are still available)
+3. Research any areas mentioned in the feedback
+4. Revise the Technical Design to address ALL feedback points
+
+## Output Format
+
+Your final output MUST be the COMPLETE revised Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+
+Do NOT output just the changes - output the entire revised document.
+
+Now revise the Bug Fix Technical Design based on the feedback.`;
 }
