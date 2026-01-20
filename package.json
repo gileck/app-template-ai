@@ -24,7 +24,6 @@
     "agent:tech-design": "tsx src/agents/tech-design.ts",
     "agent:implement": "tsx src/agents/implement.ts",
     "agent:auto-advance": "tsx src/agents/auto-advance.ts",
-    "debug-github-items": "tsx scripts/debug-github-items.ts",
     "github-pr": "tsx scripts/github-pr.ts",
     "vercel-cli": "tsx scripts/vercel-cli.ts",
     "telegram-setup": "tsx scripts/telegram-setup.ts",

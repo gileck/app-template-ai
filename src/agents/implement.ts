@@ -582,6 +582,7 @@ async function main(): Promise<void> {
         verbose: Boolean(opts.verbose),
         stream: Boolean(opts.stream),
         skipPush: Boolean(opts.skipPush),
+        skipPull: Boolean(opts.skipPull),
     };
 
     console.log('\n========================================');
@@ -593,24 +594,28 @@ async function main(): Promise<void> {
     }
     console.log('');
 
-    // Check for uncommitted changes before starting
-    if (hasUncommittedChanges()) {
-        console.error('Error: Uncommitted changes in working directory.');
-        console.error('Please commit or stash your changes before running this agent.');
-        process.exit(1);
-    }
+    // Pull latest from master (unless --skip-pull is specified)
+    if (!options.skipPull) {
+        // Check for uncommitted changes before starting
+        if (hasUncommittedChanges()) {
+            console.error('Error: Uncommitted changes in working directory.');
+            console.error('Please commit or stash your changes before running this agent.');
+            process.exit(1);
+        }
 
-    // Pull latest from master
-    console.log('Pulling latest from master...');
-    try {
-        const defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
-        git(`checkout ${defaultBranch}`, { silent: true });
-        git(`pull origin ${defaultBranch}`, { silent: true });
-        console.log(`  ✅ On latest ${defaultBranch}`);
-    } catch (error) {
-        console.error('Error: Failed to pull latest from master.');
-        console.error(error instanceof Error ? error.message : String(error));
-        process.exit(1);
+        console.log('Pulling latest from master...');
+        try {
+            const defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
+            git(`checkout ${defaultBranch}`, { silent: true });
+            git(`pull origin ${defaultBranch}`, { silent: true });
+            console.log(`  ✅ On latest ${defaultBranch}`);
+        } catch (error) {
+            console.error('Error: Failed to pull latest from master.');
+            console.error(error instanceof Error ? error.message : String(error));
+            process.exit(1);
+        }
+    } else {
+        console.log('⚠️  Skipping git pull (--skip-pull specified)');
     }
 
     // Initialize project management adapter
