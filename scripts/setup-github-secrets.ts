@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
 /**
- * Setup GitHub Secrets and Variables from .env
+ * Setup GitHub Secrets and Variables from .env.local (or .env)
  *
  * Configures GitHub repository secrets and variables needed for workflows:
  *
  * Secrets:
  * - TELEGRAM_BOT_TOKEN: For Telegram notifications
- * - TELEGRAM_CHAT_ID: Chat ID to receive notifications (from LOCAL_TELEGRAM_CHAT_ID in .env)
- * - PROJECT_TOKEN: For GitHub Projects V2 access (from GITHUB_TOKEN in .env)
+ * - TELEGRAM_CHAT_ID: Chat ID to receive notifications (from LOCAL_TELEGRAM_CHAT_ID in env)
+ * - PROJECT_TOKEN: For GitHub Projects V2 access (from GITHUB_TOKEN in env)
  *
  * Variables:
  * - TELEGRAM_NOTIFICATIONS_ENABLED: Set to 'true' to enable GitHub Actions notifications
@@ -17,14 +17,17 @@
  *
  * Prerequisites:
  *   - GitHub CLI (gh) installed and authenticated
- *   - .env file with TELEGRAM_BOT_TOKEN, LOCAL_TELEGRAM_CHAT_ID, and GITHUB_TOKEN
+ *   - .env.local (or .env) file with TELEGRAM_BOT_TOKEN, LOCAL_TELEGRAM_CHAT_ID, and GITHUB_TOKEN
  */
 
 import { execSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-const ENV_FILE = resolve(process.cwd(), '.env');
+// Check for .env.local first (Next.js convention), then fall back to .env
+const ENV_FILE = existsSync(resolve(process.cwd(), '.env.local'))
+    ? resolve(process.cwd(), '.env.local')
+    : resolve(process.cwd(), '.env');
 
 // Secrets (sensitive values)
 const REQUIRED_SECRETS = [
@@ -40,7 +43,9 @@ const REQUIRED_VARIABLES = [
 
 function parseEnvFile(filePath: string): Record<string, string> {
     if (!existsSync(filePath)) {
-        console.error(`❌ .env file not found at ${filePath}`);
+        console.error(`❌ Environment file not found at ${filePath}`);
+        console.error('   Expected .env.local or .env file.');
+        console.error('   Copy .env.example to .env.local and fill in your values.');
         process.exit(1);
     }
 
@@ -149,11 +154,12 @@ async function main() {
     }
 
     if (missing.length > 0) {
-        console.error('❌ Missing required environment variables in .env:');
+        const envFileName = ENV_FILE.endsWith('.env.local') ? '.env.local' : '.env';
+        console.error(`❌ Missing required environment variables in ${envFileName}:`);
         for (const m of missing) {
             console.error(`   - ${m}`);
         }
-        console.error('\nAdd these to your .env file and try again.');
+        console.error(`\nAdd these to your ${envFileName} file and try again.`);
         process.exit(1);
     }
 

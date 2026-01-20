@@ -74,14 +74,31 @@ export interface ProjectConfig {
 }
 
 /**
+ * Throws an error when a required environment variable is missing
+ */
+function throwMissingEnvError(envVar: string): never {
+    throw new Error(
+        `Missing required environment variable: ${envVar}\n\n` +
+        `The GitHub Projects workflow requires the following environment variables:\n` +
+        `  - GITHUB_OWNER: Your GitHub username or organization\n` +
+        `  - GITHUB_REPO: Your repository name\n` +
+        `  - GITHUB_PROJECT_NUMBER: Your GitHub Project number\n\n` +
+        `See docs/init-github-projects-workflow.md for setup instructions.`
+    );
+}
+
+/**
  * Get project configuration from environment or defaults
  */
 export function getProjectConfig(): ProjectConfig {
     return {
         github: {
-            owner: process.env.GITHUB_OWNER || 'gileck',
-            repo: process.env.GITHUB_REPO || 'app-template-ai',
-            projectNumber: parseInt(process.env.GITHUB_PROJECT_NUMBER || '3', 10),
+            owner: process.env.GITHUB_OWNER || throwMissingEnvError('GITHUB_OWNER'),
+            repo: process.env.GITHUB_REPO || throwMissingEnvError('GITHUB_REPO'),
+            projectNumber: parseInt(
+                process.env.GITHUB_PROJECT_NUMBER || throwMissingEnvError('GITHUB_PROJECT_NUMBER'),
+                10
+            ),
             ownerType: (process.env.GITHUB_OWNER_TYPE || 'user') as 'user' | 'org',
         },
     };

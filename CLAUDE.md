@@ -711,10 +711,24 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 - **Simplified MongoDB schema**: MongoDB tracks only 4 high-level statuses (`new`, `in_progress`, `done`, `rejected`), detailed workflow tracking happens in GitHub Projects
 - **Two-tier status tracking**: Eliminates duplication between MongoDB and GitHub Projects
 
-**Setup:**
+**Getting Started (Child Projects):**
+
+If you're setting up this workflow in a child project for the first time, follow the comprehensive getting started guide:
+
+📚 **[docs/init-github-projects-workflow.md](docs/init-github-projects-workflow.md)** - Complete setup guide with step-by-step instructions for:
+- GitHub Project V2 creation and configuration
+- Environment variables (.env)
+- Telegram bot setup (IMPORTANT: each project needs its own bot)
+- GitHub repository secrets and variables
+- Vercel environment variables
+- Verification and testing
+
+**Quick Setup (For Reference):**
 1. Create a GitHub Project with required statuses (see docs)
 2. Add `GITHUB_TOKEN` to `.env` with `repo` and `project` scopes
 3. Set environment variables: `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_PROJECT_NUMBER`, `GITHUB_OWNER_TYPE`
+4. Create a Telegram bot (each project needs its own bot due to webhook limitations)
+5. Configure GitHub repository secrets via `yarn setup-github-secrets`
 
 **CLI Commands:**
 
