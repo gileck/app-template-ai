@@ -12,37 +12,24 @@ import {
     DropdownMenuSubTrigger,
 } from '@/client/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
-import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye, ExternalLink, GitPullRequest, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye, ExternalLink, GitPullRequest, CheckCircle, Loader2 } from 'lucide-react';
 import { StatusBadge, PriorityBadge } from './StatusBadge';
 import { DesignReviewPanel } from './DesignReviewPanel';
-import type { FeatureRequestClient, FeatureRequestStatus, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
-import { useUpdateFeatureRequestStatus, useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus, useGitHubStatuses, useUpdateGitHubStatus, useUpdateGitHubReviewStatus } from '../hooks';
+import type { FeatureRequestClient, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
+import { useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus, useGitHubStatuses, useUpdateGitHubStatus, useUpdateGitHubReviewStatus } from '../hooks';
 
 interface FeatureRequestCardProps {
     request: FeatureRequestClient;
 }
 
-const allStatuses: FeatureRequestStatus[] = [
-    'new',
-    'in_review',
-    'product_design',
-    'tech_design',
-    'ready_for_dev',
-    'in_development',
-    'ready_for_qa',
-    'done',
-    'rejected',
-    'on_hold',
-];
-
 const allPriorities: FeatureRequestPriority[] = ['low', 'medium', 'high', 'critical'];
 
-// Priority color mapping for left border accent
+// Priority color mapping for left border accent using semantic tokens
 const priorityBorderColors: Record<FeatureRequestPriority, string> = {
-    critical: 'border-l-red-500',
-    high: 'border-l-orange-500',
-    medium: 'border-l-blue-500',
-    low: 'border-l-gray-400',
+    critical: 'border-l-destructive',
+    high: 'border-l-warning',
+    medium: 'border-l-info',
+    low: 'border-l-muted-foreground',
 };
 
 export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
@@ -53,10 +40,12 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog state
     const [showDesignReview, setShowDesignReview] = useState(false);
 
-    const updateStatusMutation = useUpdateFeatureRequestStatus();
     const updatePriorityMutation = useUpdatePriority();
     const deleteMutation = useDeleteFeatureRequest();
     const approveMutation = useApproveFeatureRequest();
+
+    // Get priority border color with fallback
+    const priorityBorderColor = request.priority ? priorityBorderColors[request.priority] : 'border-l-muted-foreground';
 
     // Fetch GitHub Project status only if there's a GitHub project item
     const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useGitHubStatus(
@@ -68,10 +57,6 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     const { data: availableStatuses } = useGitHubStatuses();
     const updateGitHubStatusMutation = useUpdateGitHubStatus();
     const updateGitHubReviewStatusMutation = useUpdateGitHubReviewStatus();
-
-    const handleStatusChange = (status: FeatureRequestStatus) => {
-        updateStatusMutation.mutate({ requestId: request._id, status });
-    };
 
     const handlePriorityChange = (priority: FeatureRequestPriority) => {
         updatePriorityMutation.mutate({ requestId: request._id, priority });
@@ -118,7 +103,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
         currentPhaseType;
 
     return (
-        <Card className={`border-l-4 ${priorityBorderColors[request.priority]} transition-shadow hover:shadow-md`}>
+        <Card className={`border-l-4 ${priorityBorderColor} transition-shadow hover:shadow-md`}>
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-2">
@@ -228,7 +213,12 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                 )}
                                 {request.githubProjectItemId && availableStatuses?.reviewStatuses && availableStatuses.reviewStatuses.length > 0 && (
                                     <DropdownMenuSub>
-                                        <DropdownMenuSubTrigger>GitHub Review Status</DropdownMenuSubTrigger>
+                                        <DropdownMenuSubTrigger>
+                                            {updateGitHubReviewStatusMutation.isPending && (
+                                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                            )}
+                                            GitHub Review Status
+                                        </DropdownMenuSubTrigger>
                                         <DropdownMenuSubContent>
                                             {availableStatuses.reviewStatuses.map((reviewStatus) => (
                                                 <DropdownMenuItem
@@ -311,7 +301,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     )}
 
                     {currentDesignPhase?.content && (
-                        <div className="space-y-2 rounded-lg border bg-blue-50/50 p-3 dark:bg-blue-950/20">
+                        <div className="space-y-2 rounded-lg border border-info/30 bg-info/5 p-3">
                             <h4 className="text-sm font-medium">
                                 {request.status === 'product_design' ? 'Product Design' : 'Technical Design'}
                             </h4>
@@ -364,7 +354,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     )}
 
                     {request.adminNotes && (
-                        <div className="space-y-2 rounded-lg border border-dashed bg-amber-50/50 p-3 dark:bg-amber-950/20">
+                        <div className="space-y-2 rounded-lg border border-dashed border-warning/30 bg-warning/5 p-3">
                             <h4 className="text-sm font-medium text-muted-foreground">
                                 Admin Notes (private)
                             </h4>

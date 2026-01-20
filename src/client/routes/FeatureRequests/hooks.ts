@@ -404,13 +404,31 @@ export function useUpdateGitHubReviewStatus() {
             }
             return result.data;
         },
-        onSuccess: (_data, { requestId }) => {
-            // Invalidate the GitHub status query to refetch
-            queryClient.invalidateQueries({ queryKey: ['github-status', requestId] });
-            toast.success('GitHub review status updated');
+        onMutate: async ({ requestId, reviewStatus }) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ['github-status', requestId] });
+
+            // Snapshot previous value
+            const previous = queryClient.getQueryData(['github-status', requestId]);
+
+            // Optimistically update UI
+            queryClient.setQueryData(['github-status', requestId], (old: unknown) => ({
+                ...(old as Record<string, unknown>),
+                reviewStatus
+            }));
+
+            return { previous };
         },
-        onError: () => {
+        onError: (_err, { requestId }, context) => {
+            // Rollback on error
+            if (context?.previous) {
+                queryClient.setQueryData(['github-status', requestId], context.previous);
+            }
             toast.error('Failed to update GitHub review status');
+        },
+        onSuccess: () => {
+            toast.success('GitHub review status updated');
+            // No invalidateQueries needed - UI already updated optimistically
         },
     });
 }

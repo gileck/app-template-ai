@@ -46,22 +46,22 @@ const reviewStatusConfig: Record<
     in_progress: {
         label: 'Agent Working',
         icon: <Hammer className="h-4 w-4" />,
-        className: 'text-blue-500',
+        className: 'text-info',
     },
     pending_review: {
         label: 'Pending Your Review',
         icon: <AlertCircle className="h-4 w-4" />,
-        className: 'text-yellow-500',
+        className: 'text-warning',
     },
     approved: {
         label: 'Approved',
         icon: <CheckCircle className="h-4 w-4" />,
-        className: 'text-green-500',
+        className: 'text-success',
     },
     rejected: {
         label: 'Rejected - Needs Rework',
         icon: <XCircle className="h-4 w-4" />,
-        className: 'text-red-500',
+        className: 'text-destructive',
     },
 };
 
@@ -146,9 +146,9 @@ export function DesignReviewPanel({
                             </div>
                         )}
                         {design.approvedAt && (
-                            <div className="inline-flex items-center gap-1.5 rounded-md bg-green-100 px-2.5 py-1 dark:bg-green-950/30">
-                                <span className="font-medium text-green-700 dark:text-green-400">Approved:</span>
-                                <span className="text-green-600 dark:text-green-500">{new Date(design.approvedAt).toLocaleString()}</span>
+                            <div className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1">
+                                <span className="font-medium text-success">Approved:</span>
+                                <span className="text-success">{new Date(design.approvedAt).toLocaleString()}</span>
                             </div>
                         )}
                     </div>
@@ -175,14 +175,14 @@ export function DesignReviewPanel({
 
                     {/* Previous Feedback (if rejected before) */}
                     {design.adminComments && design.reviewStatus !== 'pending_review' && (
-                        <Card className="border-2 border-dashed border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-950/20">
+                        <Card className="border-2 border-dashed border-warning/30 bg-warning/5">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-sm text-amber-900 dark:text-amber-100">
+                                <CardTitle className="text-sm text-warning-foreground">
                                     Previous Feedback
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="whitespace-pre-wrap text-sm text-amber-800 dark:text-amber-200">
+                                <p className="whitespace-pre-wrap text-sm text-warning-foreground">
                                     {design.adminComments}
                                 </p>
                             </CardContent>
