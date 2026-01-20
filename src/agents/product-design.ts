@@ -44,6 +44,7 @@ import {
     notifyProductDesignReady,
     notifyAgentError,
     notifyBatchComplete,
+    notifyAgentStarted,
     // Prompts
     buildProductDesignPrompt,
     buildProductDesignRevisionPrompt,
@@ -80,6 +81,11 @@ async function processItem(
     const issueNumber = content.number!;
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
+
+    // Send "work started" notification
+    if (!options.dryRun) {
+        await notifyAgentStarted('Product Design', content.title, issueNumber, mode);
+    }
 
     try {
         // Always fetch comments - they provide context for any phase

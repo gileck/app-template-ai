@@ -76,6 +76,7 @@ export {
     notifyBatchComplete,
     notifyAutoAdvance,
     notifyAdmin,
+    notifyAgentStarted,
 } from './notifications';
 
 // Prompts

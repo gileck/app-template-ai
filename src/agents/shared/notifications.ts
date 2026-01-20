@@ -20,10 +20,12 @@ interface SendResult {
 
 /**
  * Inline keyboard button for Telegram
+ * Supports both callback buttons and URL buttons
  */
 interface InlineButton {
     text: string;
-    callback_data: string;
+    callback_data?: string;
+    url?: string;
 }
 
 /**
@@ -53,6 +55,24 @@ async function getOwnerChatId(): Promise<string | null> {
 function buildReviewButtons(issueNumber: number): InlineKeyboardMarkup {
     return {
         inline_keyboard: [
+            [
+                { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
+                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+                { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
+            ],
+        ],
+    };
+}
+
+/**
+ * Build review action buttons for a PR (includes Open PR button)
+ */
+function buildPRReviewButtons(issueNumber: number, prUrl: string): InlineKeyboardMarkup {
+    return {
+        inline_keyboard: [
+            [
+                { text: '🔀 Open PR', url: prUrl },
+            ],
             [
                 { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
                 { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
@@ -209,11 +229,11 @@ export async function notifyPRReady(
 📋 ${escapeHtml(title)}
 🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>
 🔀 <a href="${prUrl}">Pull Request #${prNumber}</a>
-📊 Status: Implementation (Waiting for Review)
+📊 Status: PR Review (Waiting for Review)
 
 ${isRevision ? 'Changes have been made based on your review feedback.\n' : ''}Review and merge to complete.`;
 
-    return sendToAdmin(message, buildReviewButtons(issueNumber));
+    return sendToAdmin(message, buildPRReviewButtons(issueNumber, prUrl));
 }
 
 /**
@@ -300,5 +320,26 @@ Item is ready for the next phase.`;
  * Send a custom notification message
  */
 export async function notifyAdmin(message: string): Promise<SendResult> {
+    return sendToAdmin(message);
+}
+
+/**
+ * Notify admin that an agent has started working on an item
+ */
+export async function notifyAgentStarted(
+    phase: string,
+    title: string,
+    issueNumber: number,
+    mode: 'new' | 'feedback'
+): Promise<SendResult> {
+    const modeLabel = mode === 'new' ? 'Starting' : 'Addressing feedback for';
+    const emoji = mode === 'new' ? '🚀' : '🔄';
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const message = `${emoji} <b>${modeLabel}: ${phase}</b>
+
+📋 ${escapeHtml(title)}
+🔗 <a href="${issueUrl}">Issue #${issueNumber}</a>`;
+
     return sendToAdmin(message);
 }

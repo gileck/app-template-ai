@@ -701,6 +701,27 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }));
     }
 
+    async getPRComments(prNumber: number): Promise<ProjectItemComment[]> {
+        const oc = this.getOctokit();
+        const { owner, repo } = this.config.github;
+
+        // PRs are issues in GitHub, so we use the issues API
+        const { data } = await oc.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+        });
+
+        return data.map((comment) => ({
+            id: comment.id,
+            body: comment.body || '',
+            author: comment.user?.login || 'unknown',
+            createdAt: comment.created_at,
+            updatedAt: comment.updated_at,
+        }));
+    }
+
     async addPRComment(prNumber: number, body: string): Promise<number> {
         const oc = this.getOctokit();
         const { owner, repo } = this.config.github;

@@ -247,9 +247,14 @@ export interface ProjectManagementAdapter {
     ): Promise<CreatePRResult>;
 
     /**
-     * Get review comments on a PR
+     * Get review comments on a PR (inline code comments)
      */
     getPRReviewComments(prNumber: number): Promise<PRReviewComment[]>;
+
+    /**
+     * Get conversation comments on a PR (general comments, not inline)
+     */
+    getPRComments(prNumber: number): Promise<ProjectItemComment[]>;
 
     /**
      * Add a comment to a PR

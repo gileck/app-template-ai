@@ -45,6 +45,7 @@ import {
     notifyPRReady,
     notifyAgentError,
     notifyBatchComplete,
+    notifyAgentStarted,
     // Prompts
     buildImplementationPrompt,
     buildPRRevisionPrompt,
@@ -154,6 +155,38 @@ function pullBranch(branchName: string): void {
     git(`pull origin ${branchName} --rebase`);
 }
 
+/**
+ * Run yarn checks and return results
+ */
+function runYarnChecks(): { success: boolean; output: string } {
+    try {
+        const output = execSync('yarn checks', {
+            encoding: 'utf-8',
+            stdio: 'pipe',
+            timeout: 120000,
+        });
+        return { success: true, output };
+    } catch (error) {
+        const err = error as { stdout?: string; stderr?: string; message?: string };
+        return {
+            success: false,
+            output: (err.stdout || '') + (err.stderr || '') || err.message || String(error),
+        };
+    }
+}
+
+/**
+ * Get list of changed files (staged or unstaged)
+ */
+function getChangedFiles(): string[] {
+    try {
+        const output = git('diff --name-only HEAD', { silent: true });
+        return output.split('\n').filter((f) => f.trim());
+    } catch {
+        return [];
+    }
+}
+
 // ============================================================
 // MAIN LOGIC
 // ============================================================
@@ -173,6 +206,11 @@ async function processItem(
     const issueNumber = content.number!;
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Implementation' : 'Address Feedback'}`);
+
+    // Send "work started" notification
+    if (!options.dryRun) {
+        await notifyAgentStarted('Implementation', content.title, issueNumber, mode);
+    }
 
     const originalBranch = getCurrentBranch();
     const branchName = generateBranchName(issueNumber, content.title);
@@ -226,22 +264,35 @@ async function processItem(
                 return { success: false, error: 'No PR number available for feedback mode' };
             }
 
-            // Fetch PR review comments
-            const prComments = await adapter.getPRReviewComments(processable.prNumber);
-            prReviewComments = prComments.map((c) => ({
+            // Fetch PR review comments (inline code comments)
+            const prReviewCommentsRaw = await adapter.getPRReviewComments(processable.prNumber);
+            prReviewComments = prReviewCommentsRaw.map((c) => ({
                 path: c.path,
                 line: c.line,
                 body: c.body,
                 author: c.author,
             }));
 
-            if (issueComments.length === 0 && prReviewComments.length === 0) {
+            // Fetch PR conversation comments (general comments on the PR)
+            const prConversationComments = await adapter.getPRComments(processable.prNumber);
+            const prComments: GitHubComment[] = prConversationComments.map((c) => ({
+                id: c.id,
+                body: c.body,
+                author: c.author,
+                createdAt: c.createdAt,
+                updatedAt: c.updatedAt,
+            }));
+
+            const totalFeedback = issueComments.length + prReviewComments.length + prComments.length;
+            if (totalFeedback === 0) {
                 return { success: false, error: 'No feedback comments found' };
             }
 
-            console.log(`  Found ${issueComments.length} issue comments, ${prReviewComments.length} PR review comments`);
+            console.log(`  Found ${issueComments.length} issue comments, ${prComments.length} PR comments, ${prReviewComments.length} PR review comments`);
 
-            prompt = buildPRRevisionPrompt(content, productDesign, techDesign, issueComments, prReviewComments);
+            // Combine issue comments and PR comments for the prompt
+            const allComments = [...issueComments, ...prComments];
+            prompt = buildPRRevisionPrompt(content, productDesign, techDesign, allComments, prReviewComments);
         }
 
         // Checkout the feature branch
@@ -259,6 +310,17 @@ async function processItem(
                 } catch {
                     console.log('  Note: Could not pull from remote (branch may not exist remotely yet)');
                 }
+            }
+        }
+
+        // Run pre-work yarn checks (informational only)
+        if (!options.dryRun) {
+            console.log('  Running pre-work yarn checks...');
+            const preChecks = runYarnChecks();
+            if (!preChecks.success) {
+                console.log('  ⚠️ Pre-existing issues found (continuing anyway)');
+            } else {
+                console.log('  ✅ Codebase is clean');
             }
         }
 
@@ -290,6 +352,39 @@ async function processItem(
             console.log('  No changes to commit');
             git(`checkout ${originalBranch}`);
             return { success: false, error: 'Agent did not make any changes' };
+        }
+
+        // Run post-work yarn checks - fix any new issues
+        if (!options.dryRun) {
+            console.log('  Running post-work yarn checks...');
+            const postChecks = runYarnChecks();
+            if (!postChecks.success) {
+                console.log('  ⚠️ Issues found - asking Claude to fix...');
+
+                // Run Claude to fix the issues
+                const fixResult = await runAgent({
+                    prompt: `The following yarn checks errors need to be fixed:\n\n${postChecks.output}\n\nFix these issues in the codebase. Only fix the issues shown above, do not make any other changes.`,
+                    stream: options.stream,
+                    verbose: options.verbose,
+                    timeout: options.timeout,
+                    progressLabel: 'Fixing yarn checks issues',
+                    allowWrite: true,
+                });
+
+                if (!fixResult.success) {
+                    console.error('  ⚠️ Could not auto-fix issues - continuing anyway');
+                } else {
+                    // Re-run checks to verify
+                    const recheck = runYarnChecks();
+                    if (recheck.success) {
+                        console.log('  ✅ Issues fixed');
+                    } else {
+                        console.log('  ⚠️ Some issues may remain - continuing anyway');
+                    }
+                }
+            } else {
+                console.log('  ✅ No new issues introduced');
+            }
         }
 
         if (options.dryRun) {
@@ -331,9 +426,17 @@ async function processItem(
             console.log('  Creating pull request...');
             const defaultBranch = await adapter.getDefaultBranch();
 
+            // Get list of changed files for PR description
+            const changedFiles = getChangedFiles();
+            const filesSection = changedFiles.length > 0
+                ? `## Files Changed\n\n${changedFiles.map((f) => `- \`${f}\``).join('\n')}\n\n`
+                : '';
+
             const prBody = `## Summary
 
 Implements the feature described in #${issueNumber}.
+
+${filesSection}## Reference
 
 See the issue for:
 - Product Design
@@ -341,8 +444,8 @@ See the issue for:
 
 ## Test Plan
 
+- [ ] \`yarn checks\` passes
 - [ ] Manual testing completed
-- [ ] Existing tests pass
 
 ---
 _Generated by Implementation Agent_`;
@@ -461,8 +564,21 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
+    // Pull latest from master
+    console.log('Pulling latest from master...');
+    try {
+        const defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
+        git(`checkout ${defaultBranch}`, { silent: true });
+        git(`pull origin ${defaultBranch}`, { silent: true });
+        console.log(`  ✅ On latest ${defaultBranch}`);
+    } catch (error) {
+        console.error('Error: Failed to pull latest from master.');
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+    }
+
     // Initialize project management adapter
-    console.log('Connecting to GitHub...');
+    console.log('\nConnecting to GitHub...');
     const adapter = getProjectManagementAdapter();
     await adapter.init();
 

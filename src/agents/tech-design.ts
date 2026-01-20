@@ -46,6 +46,7 @@ import {
     notifyTechDesignReady,
     notifyAgentError,
     notifyBatchComplete,
+    notifyAgentStarted,
     // Prompts
     buildTechDesignPrompt,
     buildTechDesignRevisionPrompt,
@@ -82,6 +83,11 @@ async function processItem(
     const issueNumber = content.number!;
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
     console.log(`  Mode: ${mode === 'new' ? 'New Design' : 'Address Feedback'}`);
+
+    // Send "work started" notification
+    if (!options.dryRun) {
+        await notifyAgentStarted('Technical Design', content.title, issueNumber, mode);
+    }
 
     try {
         // Extract product design (optional - may be skipped for internal/technical work)
