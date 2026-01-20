@@ -40,6 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# pwa service worker files (auto-generated)
+/public/sw.js
+/public/workbox-*.js
+
 # playwright mcp
 .playwright-mcp/
 

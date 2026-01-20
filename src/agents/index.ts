@@ -220,8 +220,9 @@ async function main() {
             ? passThrough.filter(arg => !claudeOnlyOptions.includes(arg))
             : passThrough;
 
-        // If we already pulled in index.ts, tell agents to skip their pull
-        if (!skipPull) {
+        // If we already pulled in index.ts, tell implement agent to skip its pull
+        // (other scripts don't have git pull logic, so they don't need this flag)
+        if (!skipPull && scriptName === 'implement') {
             scriptArgs = ['--skip-pull', ...scriptArgs];
         }
 
