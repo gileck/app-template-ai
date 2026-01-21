@@ -17,6 +17,7 @@ import {
     getGitHubStatuses,
     updateGitHubStatus,
     updateGitHubReviewStatus,
+    clearGitHubReviewStatus,
     createFeatureRequest,
 } from '@/apis/feature-requests/client';
 import type {
@@ -430,6 +431,49 @@ export function useUpdateGitHubReviewStatus() {
         },
         onSuccess: () => {
             toast.success('GitHub review status updated');
+            // No invalidateQueries needed - UI already updated optimistically
+        },
+    });
+}
+
+/**
+ * Hook to clear GitHub Project review status
+ */
+export function useClearGitHubReviewStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ requestId }: { requestId: string }) => {
+            const result = await clearGitHubReviewStatus({ requestId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onMutate: async ({ requestId }) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ['github-status', requestId] });
+
+            // Snapshot previous value
+            const previous = queryClient.getQueryData(['github-status', requestId]);
+
+            // Optimistically update UI - set reviewStatus to null
+            queryClient.setQueryData(['github-status', requestId], (old: unknown) => ({
+                ...(old as Record<string, unknown>),
+                reviewStatus: null
+            }));
+
+            return { previous };
+        },
+        onError: (_err, { requestId }, context) => {
+            // Rollback on error
+            if (context?.previous) {
+                queryClient.setQueryData(['github-status', requestId], context.previous);
+            }
+            toast.error('Failed to clear GitHub review status');
+        },
+        onSuccess: () => {
+            toast.success('GitHub review status cleared');
             // No invalidateQueries needed - UI already updated optimistically
         },
     });
