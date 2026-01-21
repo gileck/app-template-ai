@@ -6,6 +6,7 @@
  */
 
 import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
+import { appConfig } from '../../app.config';
 
 // ============================================================
 // TELEGRAM API
@@ -38,14 +39,8 @@ interface InlineKeyboardMarkup {
 /**
  * Get the owner's Telegram chat ID from app.config.js
  */
-async function getOwnerChatId(): Promise<string | null> {
-    try {
-        // Dynamic import to avoid bundling issues
-        const { appConfig } = await import('@/app.config');
-        return appConfig.ownerTelegramChatId || null;
-    } catch {
-        return null;
-    }
+function getOwnerChatId(): string | null {
+    return appConfig.ownerTelegramChatId || null;
 }
 
 /**
@@ -123,7 +118,7 @@ async function sendToAdmin(
         return { success: false, error: 'Missing bot token' };
     }
 
-    const chatId = await getOwnerChatId();
+    const chatId = getOwnerChatId();
     if (!chatId) {
         console.warn('  Telegram notification skipped: ownerTelegramChatId not configured');
         return { success: false, error: 'Owner chat ID not configured' };
