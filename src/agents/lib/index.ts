@@ -8,6 +8,11 @@
 import type { AgentLibraryAdapter, WorkflowName, AgentRunOptions, AgentRunResult } from './types';
 import { getLibraryForWorkflow } from './config';
 
+// Import adapters directly
+import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
+import geminiAdapter from './adapters/gemini';
+import cursorAdapter from './adapters/cursor';
+
 // Forward declarations for adapters (will be imported dynamically)
 type AdapterConstructor = new () => AgentLibraryAdapter;
 
@@ -21,9 +26,13 @@ type AdapterConstructor = new () => AgentLibraryAdapter;
 const adapterRegistry = new Map<string, AdapterConstructor>();
 
 /**
- * Singleton adapter instances
+ * Singleton adapter instances (pre-populated with imported adapters)
  */
-const adapterInstances = new Map<string, AgentLibraryAdapter>();
+const adapterInstances = new Map<string, AgentLibraryAdapter>([
+    [claudeCodeSDKAdapter.name, claudeCodeSDKAdapter],
+    [geminiAdapter.name, geminiAdapter],
+    [cursorAdapter.name, cursorAdapter],
+]);
 
 /**
  * Register an adapter constructor
@@ -36,44 +45,39 @@ export function registerAdapter(name: string, constructor: AdapterConstructor): 
  * Get or create an adapter instance
  */
 async function getAdapterInstance(libraryName: string): Promise<AgentLibraryAdapter> {
-    // Check if already instantiated
+    // Check if adapter exists in pre-populated instances
     if (adapterInstances.has(libraryName)) {
-        return adapterInstances.get(libraryName)!;
-    }
+        const adapter = adapterInstances.get(libraryName)!;
 
-    // Get constructor from registry
-    const Constructor = adapterRegistry.get(libraryName);
-    if (!Constructor) {
-        // Try to load adapter dynamically
-        try {
-            const adapterModule = await import(`./adapters/${libraryName}`);
-            const adapter = adapterModule.default as AgentLibraryAdapter;
-
-            // Initialize if needed
-            if (!adapter.isInitialized()) {
-                await adapter.init();
-            }
-
-            adapterInstances.set(libraryName, adapter);
-            return adapter;
-        } catch {
-            throw new Error(
-                `Unknown agent library: ${libraryName}. ` +
-                `Available: ${Array.from(adapterRegistry.keys()).join(', ')}`
-            );
+        // Initialize if needed
+        if (!adapter.isInitialized()) {
+            await adapter.init();
         }
+
+        return adapter;
     }
 
-    // Create new instance
-    const adapter = new Constructor();
+    // Check if constructor exists in registry
+    const Constructor = adapterRegistry.get(libraryName);
+    if (Constructor) {
+        // Create new instance
+        const adapter = new Constructor();
 
-    // Initialize if needed
-    if (!adapter.isInitialized()) {
-        await adapter.init();
+        // Initialize if needed
+        if (!adapter.isInitialized()) {
+            await adapter.init();
+        }
+
+        adapterInstances.set(libraryName, adapter);
+        return adapter;
     }
 
-    adapterInstances.set(libraryName, adapter);
-    return adapter;
+    // Adapter not found
+    const available = Array.from(adapterInstances.keys()).concat(Array.from(adapterRegistry.keys()));
+    throw new Error(
+        `Unknown agent library: ${libraryName}. ` +
+        `Available: ${available.join(', ')}`
+    );
 }
 
 // ============================================================
