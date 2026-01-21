@@ -449,13 +449,46 @@ export function useCreateFeatureRequest() {
             }
             return result.data.featureRequest;
         },
-        onSuccess: () => {
-            // Invalidate all feature requests queries to refetch with new data
-            queryClient.invalidateQueries({ queryKey: featureRequestsBaseQueryKey });
+        onMutate: async (params) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: featureRequestsBaseQueryKey });
+
+            // Get current data for rollback
+            const previous = queryClient.getQueriesData({ queryKey: featureRequestsBaseQueryKey });
+
+            // Optimistically update - add new request to cache
+            queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
+                if (!Array.isArray(old)) return old;
+
+                const newRequest = {
+                    _id: `temp-${Date.now()}`, // Temporary ID
+                    ...params,
+                    status: 'new',
+                    priority: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    likes: 0,
+                    githubIssueNumber: null,
+                    githubStatus: null,
+                    comments: [],
+                };
+
+                return [newRequest, ...old];
+            });
+
+            // Show success toast immediately
             toast.success('Feature request created successfully');
+            return { previous };
         },
-        onError: () => {
+        onError: (_err, _variables, context) => {
+            // Rollback on error
+            if (!context?.previous) return;
+            for (const [key, data] of context.previous) {
+                queryClient.setQueryData(key, data);
+            }
             toast.error('Failed to create feature request');
         },
+        onSuccess: () => {}, // EMPTY - never update from server response
+        onSettled: () => {}, // EMPTY - never invalidateQueries
     });
 }

@@ -11,7 +11,7 @@
     "init-project": "node scripts/init-project.js",
     "push": "git add .;git commit -am 'commit' && git push",
     "ts": "tsc --noEmit",
-    "checks": "yarn ts; yarn lint",
+    "checks": "npm run ts && npm run lint",
     "watch-checks": "node scripts/watch-checks.js",
     "init-template": "tsx scripts/template-scripts/init-template.ts",
     "sync-template": "tsx scripts/template-scripts/sync-template/index.ts",

@@ -126,8 +126,9 @@ export function FeatureRequests() {
 
             handleDialogClose();
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            toast.error(`Failed to create: ${errorMessage}`);
+            // Error toast already shown by mutation onError
+            // Just log for debugging if needed
+            console.error('Create feature request failed:', error);
         }
     };
 
@@ -226,7 +227,14 @@ export function FeatureRequests() {
             )}
 
             {/* Create Feature Request Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleDialogClose()}>
+            <Dialog
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                    if (!open && !createMutation.isPending) {
+                        handleDialogClose();
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
