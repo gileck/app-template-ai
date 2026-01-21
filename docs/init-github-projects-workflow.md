@@ -381,10 +381,18 @@ Missing even one variable will cause GitHub statuses to show as empty in the fea
    📝 GITHUB_OWNER_TYPE              = [hidden]
    ```
 
-4. **Set production URL (CRITICAL for Telegram webhooks):**
+4. **Production URL (Optional - Vercel provides this automatically):**
+
+   ✅ **Good news:** Vercel automatically sets `VERCEL_PROJECT_PRODUCTION_URL` with your stable production domain.
+
+   You only need to manually set `NEXT_PUBLIC_APP_URL` if:
+   - You're using a custom domain (not `*.vercel.app`)
+   - You want to override the automatic URL for testing
+
+   If needed:
    ```bash
    # Create temporary file with production URL
-   echo "NEXT_PUBLIC_APP_URL=https://your-app.vercel.app" > .env.prod-url
+   echo "NEXT_PUBLIC_APP_URL=https://your-custom-domain.com" > .env.prod-url
 
    # Push to production
    yarn vercel-cli env:push --file .env.prod-url --target production
@@ -393,10 +401,11 @@ Missing even one variable will cause GitHub statuses to show as empty in the fea
    rm .env.prod-url
    ```
 
-   **Why this matters:**
-   - Telegram approval buttons need the stable production URL
-   - Without this, approval links use deployment-specific URLs (VERCEL_URL) which change
-   - Replace `https://your-app.vercel.app` with your actual production URL
+   **How URL resolution works:**
+   1. `VERCEL_PROJECT_PRODUCTION_URL` - Stable production domain (automatic) ✅
+   2. `VERCEL_URL` - Deployment-specific URL (automatic)
+   3. `NEXT_PUBLIC_APP_URL` - Manual override (optional)
+   4. Falls back to `localhost:3000` for local dev
 
 5. To push to all environments (development, preview, production):
    ```bash
@@ -414,7 +423,7 @@ Missing even one variable will cause GitHub statuses to show as empty in the fea
    - `GITHUB_PROJECT_NUMBER`
    - `GITHUB_OWNER_TYPE`
    - `TELEGRAM_BOT_TOKEN`
-   - `NEXT_PUBLIC_APP_URL` (https://your-app.vercel.app) **⚠️ IMPORTANT**
+   - `NEXT_PUBLIC_APP_URL` (optional - only for custom domains)
    - `MONGO_URI` (your MongoDB connection string)
    - `JWT_SECRET` (generate a random string)
    - Any other app-specific variables
