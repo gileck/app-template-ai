@@ -61,6 +61,7 @@ import {
     handleClarificationRequest,
     extractFeedbackResolution,
     formatFeedbackResolution,
+    extractPRSummary,
     // Agent Identity
     addAgentPrefix,
 } from './shared';
@@ -443,6 +444,12 @@ async function processItem(
 
         console.log(`  Agent completed in ${result.durationSeconds}s`);
 
+        // Extract PR summary from agent output (for use in PR description)
+        const prSummary = result.content ? extractPRSummary(result.content) : null;
+        if (prSummary) {
+            console.log('  PR summary extracted');
+        }
+
         // Check if there are changes to commit
         if (!hasUncommittedChanges()) {
             console.log('  No changes to commit');
@@ -544,14 +551,23 @@ async function processItem(
             const prTitle = `${prPrefix}: ${content.title}`;
 
             // Everything before the --- separator will be included in squash merge commit body
-            const prBodyIntro = issueType === 'bug'
-                ? `Fixes the bug described in issue #${issueNumber}.`
-                : `Implements the feature described in issue #${issueNumber}.`;
-            const prBody = `${prBodyIntro}
+            // Use the agent's PR summary if available, otherwise fall back to generic text
+            let prBodyAboveSeparator: string;
+            if (prSummary) {
+                prBodyAboveSeparator = `${prSummary}
 
-${techDesign ? 'Implementation follows the technical design specifications.' : ''}${productDesign ? ' User-facing changes align with product design requirements.' : ''}
+Closes #${issueNumber}`;
+            } else {
+                // Fallback to generic text if agent didn't provide a summary
+                const prBodyIntro = issueType === 'bug'
+                    ? `Fixes the bug described in issue #${issueNumber}.`
+                    : `Implements the feature described in issue #${issueNumber}.`;
+                prBodyAboveSeparator = `${prBodyIntro}
 
-Closes #${issueNumber}
+Closes #${issueNumber}`;
+            }
+
+            const prBody = `${prBodyAboveSeparator}
 
 ---
 
