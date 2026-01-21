@@ -2,13 +2,14 @@
 /**
  * PR Review Agent
  *
- * Reviews Pull Requests for GitHub Project items using Claude Code slash commands.
+ * Reviews Pull Requests for GitHub Project items using Claude Code native /review command.
  *
  * Flow:
  *   - Fetches items in "PR Review" status with Review Status = "Waiting for Review"
  *   - Extracts PR number from issue comments
  *   - Checks out the feature branch locally
- *   - Runs /pr-review slash command via Claude agent
+ *   - Fetches all PR comments (conversation + inline review comments)
+ *   - Runs native /review slash command with PR comments as context
  *   - Posts structured review comment on PR
  *   - Updates Review Status accordingly
  *   - Checks out back to main branch
@@ -196,10 +197,51 @@ async function processItem(
         }
 
         try {
-            // Run the /pr-review slash command
+            // Fetch all PR comments
+            console.log('  Fetching PR comments...');
+            const prConversationComments = await adapter.getPRComments(prNumber);
+            const prReviewComments = await adapter.getPRReviewComments(prNumber);
+
+            const totalComments = prConversationComments.length + prReviewComments.length;
+            if (totalComments > 0) {
+                console.log(`  Found ${prConversationComments.length} conversation comments, ${prReviewComments.length} review comments`);
+            }
+
+            // Build context with PR comments
+            let contextPrompt = '';
+
+            if (prConversationComments.length > 0) {
+                contextPrompt += '## PR Conversation Comments\n\n';
+                contextPrompt += 'The following comments have been posted on the PR:\n\n';
+                for (const comment of prConversationComments) {
+                    contextPrompt += `**${comment.author}** (${new Date(comment.createdAt).toLocaleDateString()}):\n`;
+                    contextPrompt += `${comment.body}\n\n`;
+                }
+                contextPrompt += '---\n\n';
+            }
+
+            if (prReviewComments.length > 0) {
+                contextPrompt += '## PR Review Comments (Inline Code Comments)\n\n';
+                contextPrompt += 'The following inline comments have been posted on specific code:\n\n';
+                for (const comment of prReviewComments) {
+                    contextPrompt += `**${comment.author}** on \`${comment.path}:${comment.line}\`:\n`;
+                    contextPrompt += `${comment.body}\n\n`;
+                }
+                contextPrompt += '---\n\n';
+            }
+
+            if (contextPrompt) {
+                contextPrompt += '## Instructions\n\n';
+                contextPrompt += 'Please review this PR and consider the comments above. ';
+                contextPrompt += 'Provide your review decision (APPROVED or REQUEST_CHANGES) and detailed feedback.\n\n';
+            }
+
+            // Run the /review slash command with context
             console.log(`\n  Running PR review...`);
+            const prompt = contextPrompt ? `${contextPrompt}/review` : '/review';
+
             const result = await runAgent({
-                prompt: '/pr-review',
+                prompt,
                 useSlashCommands: true,
                 allowedTools: ['Read', 'Glob', 'Grep', 'Bash'],
                 stream: options.stream,
