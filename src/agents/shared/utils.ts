@@ -206,22 +206,20 @@ export function extractFeedbackResolution(text: string): FeedbackResolution[] | 
 }
 
 /**
- * Format feedback resolution as a markdown table for PR comment
+ * Format feedback resolution as a markdown list for PR comment
  */
 export function formatFeedbackResolution(resolutions: FeedbackResolution[]): string {
     if (resolutions.length === 0) {
         return 'Addressed review feedback. Ready for re-review.';
     }
 
-    const rows = resolutions.map((r) => {
-        return `| ${r.number} | ${r.original} | ${r.resolution} |`;
+    const items = resolutions.map((r) => {
+        return `${r.number}. **${r.original}**\n   - ${r.resolution}`;
     });
 
     return `## Feedback Addressed
 
-| # | Original Feedback | Resolution |
-|---|------------------|------------|
-${rows.join('\n')}
+${items.join('\n')}
 
 Ready for re-review.`;
 }

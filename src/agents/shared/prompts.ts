@@ -14,6 +14,35 @@ import type { BugDiagnostics } from './utils';
 import { formatSessionLogs } from './utils';
 
 // ============================================================
+// MARKDOWN FORMATTING INSTRUCTIONS
+// ============================================================
+
+const MARKDOWN_FORMATTING_INSTRUCTIONS = `
+IMPORTANT - Markdown Formatting Rules:
+
+When writing markdown for GitHub issues, PR descriptions, or comments:
+- **NEVER use tables** - Tables do not render well in all markdown contexts
+- **ALWAYS use lists and nested lists** instead of tables
+
+Example - Instead of a table like this:
+| File | Changes |
+|------|---------|
+| file1.ts | Change A |
+| file2.ts | Change B |
+
+Use a list like this:
+- **file1.ts**: Change A
+- **file2.ts**: Change B
+
+Or for more detail:
+- **file1.ts**
+  - Change A
+  - Another change
+- **file2.ts**
+  - Change B
+`;
+
+// ============================================================
 // AMBIGUITY HANDLING INSTRUCTIONS
 // ============================================================
 
@@ -366,10 +395,8 @@ Example for a SMALL feature (S):
 Add logout menu item that calls existing auth API and redirects.
 
 ## Files to Modify
-| File | Changes |
-|------|---------|
-| \`src/client/components/UserMenu.tsx\` | Add logout menu item with onClick handler |
-| \`src/client/features/auth/hooks.ts\` | Add useLogout hook (calls auth/logout API) |
+- **\`src/client/components/UserMenu.tsx\`**: Add logout menu item with onClick handler
+- **\`src/client/features/auth/hooks.ts\`**: Add useLogout hook (calls auth/logout API)
 \`\`\`
 
 Example for a MEDIUM/LARGE feature:
@@ -383,16 +410,12 @@ Example for a MEDIUM/LARGE feature:
 [Brief technical approach]
 
 ## Files to Create
-| File | Purpose |
-|------|---------|
-| \`src/apis/feature-name/types.ts\` | Types |
-| \`src/apis/feature-name/handlers/create.ts\` | Create handler |
-| \`src/client/routes/FeatureName/index.tsx\` | Main component |
+- **\`src/apis/feature-name/types.ts\`**: Types
+- **\`src/apis/feature-name/handlers/create.ts\`**: Create handler
+- **\`src/client/routes/FeatureName/index.tsx\`**: Main component
 
 ## Files to Modify
-| File | Changes |
-|------|---------|
-| \`src/client/routes/index.ts\` | Add route |
+- **\`src/client/routes/index.ts\`**: Add route
 
 ## Data Model (if needed)
 \`\`\`typescript
@@ -410,6 +433,7 @@ interface FeatureDocument {
 [Only for complex logic]
 \`\`\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now explore the codebase and create the Technical Design document.`;
@@ -923,10 +947,8 @@ The error occurs in \`ComponentName.tsx\` when [specific condition]. The code as
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| \`src/client/routes/RouteName/ComponentName.tsx\` | Add null check: \`if (!data?.property) return <LoadingState />\` |
-| \`src/client/hooks/useHook.ts\` | Add early return if data is null |
+- **\`src/client/routes/RouteName/ComponentName.tsx\`**: Add null check: \`if (!data?.property) return <LoadingState />\`
+- **\`src/client/hooks/useHook.ts\`**: Add early return if data is null
 
 ## Testing Strategy
 
@@ -935,6 +957,7 @@ The error occurs in \`ComponentName.tsx\` when [specific condition]. The code as
 3. Test edge case: [edge case description]
 \`\`\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now explore the codebase and create the Technical Design for this bug fix.`;
