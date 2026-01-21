@@ -17,6 +17,7 @@ import {
     getGitHubStatuses,
     updateGitHubStatus,
     updateGitHubReviewStatus,
+    createFeatureRequest,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -24,6 +25,7 @@ import type {
     FeatureRequestPriority,
     DesignPhaseType,
     DesignReviewStatus,
+    CreateFeatureRequestRequest,
 } from '@/apis/feature-requests/types';
 import { useQueryDefaults } from '@/client/query';
 import { toast } from '@/client/components/ui/toast';
@@ -429,6 +431,31 @@ export function useUpdateGitHubReviewStatus() {
         onSuccess: () => {
             toast.success('GitHub review status updated');
             // No invalidateQueries needed - UI already updated optimistically
+        },
+    });
+}
+
+/**
+ * Hook to create a new feature request (admin only)
+ */
+export function useCreateFeatureRequest() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (params: CreateFeatureRequestRequest) => {
+            const result = await createFeatureRequest(params);
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data.featureRequest;
+        },
+        onSuccess: () => {
+            // Invalidate all feature requests queries to refetch with new data
+            queryClient.invalidateQueries({ queryKey: featureRequestsBaseQueryKey });
+            toast.success('Feature request created successfully');
+        },
+        onError: () => {
+            toast.error('Failed to create feature request');
         },
     });
 }
