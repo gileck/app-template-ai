@@ -537,7 +537,7 @@ async function handleDesignReviewAction(
         if (nextStatus) {
             await adapter.updateItemStatus(item.itemId, nextStatus);
             // Clear review status for next phase
-            await adapter.updateItemReviewStatus(item.itemId, '');
+            await adapter.clearItemReviewStatus(item.itemId);
             advancedTo = nextStatus;
             finalStatus = nextStatus;
             finalReviewStatus = '';

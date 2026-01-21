@@ -219,6 +219,16 @@ export interface UpdateGitHubReviewStatusResponse {
     error?: string;
 }
 
+// Clear GitHub Project review status
+export interface ClearGitHubReviewStatusRequest {
+    requestId: string;
+}
+
+export interface ClearGitHubReviewStatusResponse {
+    success?: boolean;
+    error?: string;
+}
+
 // Re-export types for convenience
 export type {
     FeatureRequestClient,
