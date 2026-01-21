@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getFeatureRequests,
+    getFeatureRequest,
     updateFeatureRequestStatus,
     updateDesignReviewStatus,
     updatePriority,
@@ -45,6 +46,27 @@ export function useFeatureRequests(filters?: GetFeatureRequestsRequest) {
             }
             return result.data.featureRequests || [];
         },
+        ...queryDefaults,
+    });
+}
+
+/**
+ * Hook to fetch a single feature request by ID (admin only)
+ */
+export function useFeatureRequestDetail(requestId: string | undefined) {
+    const queryDefaults = useQueryDefaults();
+
+    return useQuery({
+        queryKey: ['feature-request', requestId],
+        queryFn: async () => {
+            if (!requestId) throw new Error('Request ID required');
+            const result = await getFeatureRequest({ requestId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data.featureRequest;
+        },
+        enabled: !!requestId,
         ...queryDefaults,
     });
 }
