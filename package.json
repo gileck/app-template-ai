@@ -23,6 +23,7 @@
     "agent:product-design": "tsx src/agents/product-design.ts",
     "agent:tech-design": "tsx src/agents/tech-design.ts",
     "agent:implement": "tsx src/agents/implement.ts",
+    "agent:pr-review": "tsx src/agents/pr-review.ts",
     "agent:auto-advance": "tsx src/agents/auto-advance.ts",
     "github-pr": "tsx scripts/github-pr.ts",
     "vercel-cli": "tsx scripts/vercel-cli.ts",

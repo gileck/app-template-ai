@@ -264,6 +264,46 @@ ${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to compl
 }
 
 /**
+ * Notify admin that PR review is complete
+ */
+export async function notifyPRReviewComplete(
+    title: string,
+    issueNumber: number,
+    prNumber: number,
+    decision: 'approved' | 'request_changes',
+    itemType: 'bug' | 'feature' = 'feature'
+): Promise<SendResult> {
+    const prUrl = getPrUrl(prNumber);
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const status = decision === 'approved' ? '✅ PR Approved' : '📝 Changes Requested';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const message = `<b>Agent (PR Review):</b> ${status}
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber} → PR #${prNumber}
+📊 Status: ${decision === 'approved' ? 'Approved - Ready to Merge' : 'Changes Requested - Implementation'}
+
+${decision === 'approved'
+    ? 'Review completed successfully. Ready to merge.'
+    : 'Review feedback posted. Implementor will address the changes.'}`;
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🔀 View PR', url: prUrl },
+                { text: '📋 View Issue', url: issueUrl },
+            ],
+        ],
+    };
+
+    return sendToAdmin(message, buttons);
+}
+
+/**
  * Notify admin that agent needs clarification
  */
 export async function notifyAgentNeedsClarification(

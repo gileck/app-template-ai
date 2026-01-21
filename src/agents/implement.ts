@@ -59,6 +59,8 @@ import {
     getBugDiagnostics,
     extractClarification,
     handleClarificationRequest,
+    extractFeedbackResolution,
+    formatFeedbackResolution,
 } from './shared';
 
 // ============================================================
@@ -567,8 +569,13 @@ See issue #${issueNumber} for full context, product design, and technical design
             await adapter.addIssueComment(issueNumber, `Implementation PR: #${prNumber}`);
         } else {
             // Add comment on PR about addressed feedback
-            if (prNumber) {
-                await adapter.addPRComment(prNumber, 'Addressed review feedback. Ready for re-review.');
+            if (prNumber && result.content) {
+                // Try to extract structured feedback resolution
+                const feedbackResolution = extractFeedbackResolution(result.content);
+                const comment = feedbackResolution
+                    ? formatFeedbackResolution(feedbackResolution)
+                    : 'Addressed review feedback. Ready for re-review.';
+                await adapter.addPRComment(prNumber, comment);
             }
         }
 
