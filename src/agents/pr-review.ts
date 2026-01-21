@@ -45,6 +45,8 @@ import {
     type CommonCLIOptions,
     // Utils
     getIssueType,
+    // Agent Identity
+    addAgentPrefix,
 } from './shared';
 
 // ============================================================
@@ -303,7 +305,8 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? 'Approved' : 'Request Changes'}`);
             } else {
                 // Post review comment on PR
-                await adapter.addPRComment(prNumber, reviewContent);
+                const prefixedReview = addAgentPrefix('pr-review', reviewContent);
+                await adapter.addPRComment(prNumber, prefixedReview);
                 console.log('  Posted review comment on PR');
 
                 // Update review status

@@ -118,3 +118,12 @@ export {
     type BugDiagnostics,
     type FeedbackResolution,
 } from './utils';
+
+// Agent Identity
+export {
+    addAgentPrefix,
+    getAgentPrefix,
+    hasAgentPrefix,
+    extractAgentName,
+    type AgentName,
+} from './agent-identity';

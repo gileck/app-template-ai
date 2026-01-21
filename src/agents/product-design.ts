@@ -184,7 +184,8 @@ async function processItem(
                 'Product Design',
                 content.title,
                 issueType,
-                options
+                options,
+                'product-design'
             );
         }
 

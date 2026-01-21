@@ -208,7 +208,8 @@ async function processItem(
                 'Technical Design',
                 content.title,
                 issueType,
-                options
+                options,
+                'tech-design'
             );
         }
 
