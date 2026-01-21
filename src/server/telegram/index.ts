@@ -57,8 +57,16 @@ async function sendToChat(
 ): Promise<SendMessageResult> {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
+    console.log('[Telegram] sendToChat called:', {
+        hasBotToken: !!botToken,
+        botTokenPrefix: botToken ? botToken.substring(0, 10) + '...' : 'none',
+        chatId,
+        messageLength: message.length,
+        hasInlineKeyboard: !!options?.inlineKeyboard,
+    });
+
     if (!botToken) {
-        console.warn('Telegram notification skipped: missing TELEGRAM_BOT_TOKEN');
+        console.warn('[Telegram] Notification skipped: missing TELEGRAM_BOT_TOKEN');
         return { success: false, error: 'Missing bot token' };
     }
 
@@ -77,21 +85,42 @@ async function sendToChat(
             };
         }
 
+        console.log('[Telegram] Sending request to Telegram API...', {
+            url: `${TELEGRAM_API_URL}${botToken.substring(0, 10)}...`,
+            chatId,
+            keyboardButtons: options?.inlineKeyboard?.length || 0,
+        });
+
         const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
 
+        console.log('[Telegram] API response:', {
+            ok: response.ok,
+            status: response.status,
+            statusText: response.statusText,
+        });
+
         if (!response.ok) {
             const error = await response.text();
-            console.error('Telegram API error:', error);
+            console.error('[Telegram] API error response:', error);
             return { success: false, error };
         }
 
+        const result = await response.json();
+        console.log('[Telegram] Successfully sent message:', {
+            messageId: result.result?.message_id,
+        });
+
         return { success: true };
     } catch (error) {
-        console.error('Failed to send Telegram notification:', error);
+        console.error('[Telegram] Exception while sending:', error);
+        console.error('[Telegram] Exception details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        });
         return { success: false, error: String(error) };
     }
 }
@@ -164,8 +193,15 @@ export async function sendNotificationToOwner(
 ): Promise<SendMessageResult> {
     const ownerChatId = appConfig.ownerTelegramChatId;
 
+    console.log('[Telegram] sendNotificationToOwner called:', {
+        hasOwnerChatId: !!ownerChatId,
+        ownerChatId,
+        messageLength: message.length,
+        hasInlineKeyboard: !!options?.inlineKeyboard,
+    });
+
     if (!ownerChatId) {
-        console.warn('Owner notification skipped: ownerTelegramChatId not configured');
+        console.warn('[Telegram] Owner notification skipped: ownerTelegramChatId not configured');
         return { success: false, error: 'Owner chat ID not configured' };
     }
 

@@ -74,6 +74,13 @@ export const createFeatureRequest = async (
             const baseUrl = getBaseUrl();
             const isHttps = baseUrl.startsWith('https://');
 
+            console.log('[Telegram] Attempting to send notification:', {
+                baseUrl,
+                isHttps,
+                hasToken: !!process.env.TELEGRAM_BOT_TOKEN,
+                ownerChatId: process.env.OWNER_TELEGRAM_CHAT_ID || 'from app.config.js',
+            });
+
             const message = [
                 `📝 New Feature Request!`,
                 ``,
@@ -88,20 +95,26 @@ export const createFeatureRequest = async (
             if (isHttps) {
                 // Callback data format: "approve_request:requestId:token"
                 const callbackData = `approve_request:${newRequest._id}:${approvalToken}`;
-                await sendNotificationToOwner(message, {
+                const result = await sendNotificationToOwner(message, {
                     inlineKeyboard: [[
                         { text: '✅ Approve & Create GitHub Issue', callback_data: callbackData }
                     ]]
                 });
+                console.log('[Telegram] Notification result:', result);
             } else {
                 // Localhost fallback - use URL button
                 const approveUrl = `${baseUrl}/api/feature-requests/approve/${newRequest._id}?token=${approvalToken}`;
                 const localMessage = `${message}\n\n🔗 Approve: ${approveUrl}`;
-                await sendNotificationToOwner(localMessage);
+                const result = await sendNotificationToOwner(localMessage);
+                console.log('[Telegram] Notification result:', result);
             }
         } catch (notifyError) {
             // Don't fail the request if notification fails
-            console.error('Failed to send Telegram notification:', notifyError);
+            console.error('[Telegram] Failed to send notification:', notifyError);
+            console.error('[Telegram] Error details:', {
+                message: notifyError instanceof Error ? notifyError.message : String(notifyError),
+                stack: notifyError instanceof Error ? notifyError.stack : undefined,
+            });
         }
 
         return { featureRequest: toFeatureRequestClientForUser(newRequest) };
