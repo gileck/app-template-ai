@@ -917,6 +917,133 @@ Use `--cloud-proxy` when running in Claude Code cloud environment.
 
 ---
 
+## Critical Deployment Issues & Best Practices
+
+Common pitfalls and solutions when deploying to production.
+
+### ⚠️ CRITICAL: `pages/` vs `src/pages/` Directory Structure
+
+**Problem:** Next.js prioritizes `pages/` over `src/pages/`. If you accidentally create `pages/` directory when the project uses `src/pages/`, Next.js will ignore `src/pages/` entirely, causing **all routes to return 404**.
+
+**Symptom:**
+- Home page returns 404 in production
+- Build output only shows routes from `pages/` directory
+- Example build output showing the problem:
+  ```
+  Route (pages)                                Size  First Load JS
+  ┌ ○ /404                                    190 B         102 kB
+  └ ƒ /api/test-endpoint                        0 B         102 kB
+  ```
+  Notice: NO home page (`/`) route!
+
+**This project uses:** `src/pages/` (NOT `pages/`)
+
+**Rule:**
+- ✅ **ALWAYS** place new pages/API routes in `src/pages/`
+- ❌ **NEVER** create `pages/` directory at project root
+- ❌ **NEVER** add files to `pages/` if it exists (delete it instead)
+
+**Correct structure:**
+```
+src/
+  pages/
+    index.tsx          ✅ Home page
+    [...slug].tsx      ✅ Catch-all route
+    _app.tsx           ✅ App wrapper
+    _document.tsx      ✅ Document wrapper
+    api/
+      process/         ✅ API routes
+      telegram-webhook.ts  ✅ API endpoints
+```
+
+**Incorrect structure that breaks everything:**
+```
+pages/                 ❌ WRONG! Delete this directory
+  api/
+    new-endpoint.ts    ❌ This will break all routes in src/pages/
+
+src/
+  pages/               ⚠️  Will be ignored if pages/ exists
+    index.tsx          ⚠️  Won't be built
+    [...slug].tsx      ⚠️  Won't be built
+```
+
+**How to fix if you accidentally create `pages/`:**
+```bash
+# Move any new files to correct location
+mv pages/api/new-endpoint.ts src/pages/api/new-endpoint.ts
+
+# Remove the incorrect directory
+rmdir pages/api
+rmdir pages
+
+# Verify structure is correct
+ls -la src/pages/
+```
+
+**Prevention:** Before adding new pages/API routes, always check project structure:
+```bash
+# This project uses src/pages/ - add files here
+ls -la src/pages/
+
+# This directory should NOT exist
+ls -la pages/  # Should show "No such file or directory"
+```
+
+---
+
+### ✅ Vercel Environment Variables - Automatic URLs
+
+**Good news:** Vercel automatically provides stable production URLs - no manual configuration needed!
+
+**Automatic System Variables:**
+
+| Variable | Description | Stability | Example | Protocol |
+|----------|-------------|-----------|---------|----------|
+| `VERCEL_PROJECT_PRODUCTION_URL` | **Stable production domain** | ✅ Never changes | `app-template-ai.vercel.app` | No `https://` |
+| `VERCEL_URL` | Current deployment URL | ❌ Changes per deployment | `app-template-xyz123.vercel.app` | No `https://` |
+| `VERCEL_BRANCH_URL` | Git branch URL | ⚠️  Stable per branch | `app-template-git-main.vercel.app` | No `https://` |
+| `VERCEL_ENV` | Environment | ✅ Never changes | `production`, `preview`, `development` | N/A |
+
+**Important:** Vercel URLs don't include the protocol - always prepend `https://`
+
+**Usage in code:**
+
+```typescript
+function getBaseUrl(): string {
+    // 1. Stable production domain (automatic) ✅ BEST
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+        return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+    }
+    // 2. Deployment-specific URL (automatic)
+    if (process.env.VERCEL_URL) {
+        return `https://${process.env.VERCEL_URL}`;
+    }
+    // 3. Manual override (optional)
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+        return process.env.NEXT_PUBLIC_APP_URL;
+    }
+    // 4. Local development
+    return 'http://localhost:3000';
+}
+```
+
+**When to manually set `NEXT_PUBLIC_APP_URL`:**
+- ✅ Using a custom domain (e.g., `myapp.com` instead of `*.vercel.app`)
+- ✅ Want to override for testing purposes
+- ❌ NOT needed for standard `*.vercel.app` domains (automatic)
+
+**Why `VERCEL_PROJECT_PRODUCTION_URL` is better than `VERCEL_URL`:**
+- `VERCEL_URL` changes with each deployment (`app-template-xyz123.vercel.app`)
+- `VERCEL_PROJECT_PRODUCTION_URL` is stable (`app-template-ai.vercel.app`)
+- Telegram approval buttons need stable URLs that don't break after new deployments
+
+**References:**
+- [Vercel System Environment Variables](https://vercel.com/docs/environment-variables/system-environment-variables)
+- [Next.js URL Discussion](https://github.com/vercel/next.js/discussions/16429)
+
+---
+
 ## Additional Rules Reference
 
 | Topic | Rule File |

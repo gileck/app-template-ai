@@ -1,3 +1,4 @@
+/* eslint-disable restrict-api-routes/no-direct-api-routes */
 /**
  * Test Telegram Notification Endpoint
  *
@@ -10,6 +11,9 @@
  *   - success: true if notification was sent
  *   - error: error message if failed
  *   - config: configuration details (for debugging)
+ *
+ * This is a direct API route for testing purposes only.
+ * It doesn't use the centralized API architecture to keep it simple for debugging.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
