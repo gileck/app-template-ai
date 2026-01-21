@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/client/components/ui/card';
 import { useRouter } from '@/client/router';
 import { StatusBadge, PriorityBadge } from './components/StatusBadge';
 import { CollapsibleSection } from './components/CollapsibleSection';
-import { useFeatureRequestDetail, useGitHubStatus } from './hooks';
+import { GitHubIssueSection } from './components/GitHubIssueSection';
+import { useFeatureRequestDetail, useGitHubStatus, useGitHubIssueDetails } from './hooks';
 
 /**
  * Feature Request Detail Page (Admin Only)
@@ -26,6 +27,12 @@ export function FeatureRequestDetail() {
     const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useGitHubStatus(
         request?.githubProjectItemId ? request._id : null,
         !!request?.githubProjectItemId
+    );
+
+    // Fetch GitHub issue details if available
+    const { data: githubIssueDetails, isLoading: isLoadingIssueDetails, error: issueDetailsError } = useGitHubIssueDetails(
+        request?.githubIssueNumber ? request._id : null,
+        !!request?.githubIssueNumber
     );
 
     const handleBack = () => {
@@ -254,6 +261,17 @@ export function FeatureRequestDetail() {
                                 )}
                             </div>
                         </div>
+                    </CollapsibleSection>
+                )}
+
+                {/* GitHub Issue Description & Linked PRs - Expanded by default when data exists */}
+                {hasGitHubIssue && (
+                    <CollapsibleSection title="GitHub Issue Description & Linked PRs" defaultExpanded={true}>
+                        <GitHubIssueSection
+                            issueDetails={githubIssueDetails}
+                            isLoading={isLoadingIssueDetails}
+                            error={issueDetailsError}
+                        />
                     </CollapsibleSection>
                 )}
 

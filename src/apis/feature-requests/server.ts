@@ -22,6 +22,7 @@ import {
     API_UPDATE_GITHUB_STATUS,
     API_UPDATE_GITHUB_REVIEW_STATUS,
     API_CLEAR_GITHUB_REVIEW_STATUS,
+    API_GET_GITHUB_ISSUE_DETAILS,
 } from './index';
 
 // Import handlers
@@ -44,6 +45,7 @@ import { getGitHubStatuses } from './handlers/getGitHubStatuses';
 import { updateGitHubStatus } from './handlers/updateGitHubStatus';
 import { updateGitHubReviewStatusHandler } from './handlers/updateGitHubReviewStatus';
 import { clearGitHubReviewStatusHandler } from './handlers/clearGitHubReviewStatus';
+import { getGitHubIssueDetails } from './handlers/getGitHubIssueDetails';
 
 // Export consolidated handlers object
 export const featureRequestsApiHandlers = {
@@ -66,4 +68,5 @@ export const featureRequestsApiHandlers = {
     [API_UPDATE_GITHUB_STATUS]: { process: updateGitHubStatus },
     [API_UPDATE_GITHUB_REVIEW_STATUS]: { process: updateGitHubReviewStatusHandler },
     [API_CLEAR_GITHUB_REVIEW_STATUS]: { process: clearGitHubReviewStatusHandler },
+    [API_GET_GITHUB_ISSUE_DETAILS]: { process: getGitHubIssueDetails },
 };

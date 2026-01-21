@@ -20,6 +20,7 @@ import {
     API_UPDATE_GITHUB_STATUS,
     API_UPDATE_GITHUB_REVIEW_STATUS,
     API_CLEAR_GITHUB_REVIEW_STATUS,
+    API_GET_GITHUB_ISSUE_DETAILS,
 } from './index';
 import {
     CreateFeatureRequestRequest,
@@ -60,6 +61,8 @@ import {
     UpdateGitHubReviewStatusResponse,
     ClearGitHubReviewStatusRequest,
     ClearGitHubReviewStatusResponse,
+    GetGitHubIssueDetailsRequest,
+    GetGitHubIssueDetailsResponse,
 } from './types';
 
 // ============================================================
@@ -245,4 +248,14 @@ export const clearGitHubReviewStatus = async (
     params: ClearGitHubReviewStatusRequest
 ): Promise<CacheResult<ClearGitHubReviewStatusResponse>> => {
     return apiClient.post(API_CLEAR_GITHUB_REVIEW_STATUS, params);
+};
+
+/**
+ * Get GitHub issue details including full description and linked PRs
+ * Users can view their own requests, admins can view any
+ */
+export const getGitHubIssueDetails = async (
+    params: GetGitHubIssueDetailsRequest
+): Promise<CacheResult<GetGitHubIssueDetailsResponse>> => {
+    return apiClient.call(API_GET_GITHUB_ISSUE_DETAILS, params);
 };
