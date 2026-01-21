@@ -1044,6 +1044,81 @@ function getBaseUrl(): string {
 
 ---
 
+### ⚠️ CRITICAL: Markdown Extraction with Nested Code Blocks
+
+**Problem:** Agent-generated design documents that include code examples (with nested ``` code blocks) were being **truncated mid-sentence**, losing all content after the first code example.
+
+**Symptom:**
+- Design content cuts off after text like: "Place the form between the header and filters section:"
+- Everything after the first code block is missing
+- GitHub issue body is incomplete
+- Example: [Issue #15](https://github.com/gileck/app-template-ai/issues/15)
+
+**Root Cause:** `extractMarkdown()` function in `src/agents/shared/claude.ts` used a **non-greedy regex** that stopped at the FIRST ``` closing fence, even if it was inside a nested code block.
+
+**Example of the bug:**
+
+Agent returns:
+````markdown
+```markdown
+# UI Placement
+
+Place the form between the header and filters section:
+
+```jsx          <-- OLD REGEX STOPPED HERE!
+<Header />
+<NewFeatureRequestForm />
+<Filters />
+```
+
+This ensures proper placement.
+
+## Component Structure
+
+The form has these fields...
+```
+````
+
+**Buggy regex:** `/```markdown\s*([\s\S]*?)\s*```/`
+- The `([\s\S]*?)` is non-greedy (stops at first match)
+- Matched everything up to the first ``` (inside the JSX block)
+- Lost all content after the first nested code block
+
+**The Fix:**
+
+Proper fence marker parsing that:
+1. Finds opening ```` ```markdown ````
+2. Counts depth of nested code blocks
+3. Distinguishes opening fences (with language) from closing fences
+4. Only closes when depth returns to 0
+5. Handles edge case of missing closing fence
+
+**File:** `src/agents/shared/claude.ts:253-317`
+
+**Testing:**
+```javascript
+// Before fix: extracted 70 chars (cut after "section:")
+// After fix: extracted 348 chars (complete content)
+
+const input = `...design with nested code blocks...`;
+const extracted = extractMarkdown(input);
+// Now includes JSX example, all sections, and validation
+```
+
+**Prevention:**
+- The fix handles arbitrary nesting depth
+- Properly distinguishes opening/closing fences
+- Works with any code block language (jsx, typescript, bash, etc.)
+- Falls back gracefully if closing fence is missing
+
+**If you encounter this again:**
+1. Check if the design includes code examples
+2. Verify the full design was extracted by inspecting the GitHub issue body
+3. Look for truncation after colons followed by code blocks
+4. The fix is in `extractMarkdown()` - it should handle nested fences properly
+
+---
+
 ## Additional Rules Reference
 
 | Topic | Rule File |
