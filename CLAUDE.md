@@ -840,6 +840,57 @@ The project management system uses an adapter pattern for flexibility:
 - `src/server/project-management/` - Abstraction layer with types, config, and adapters
 - `src/agents/` - CLI agents that use the project management adapter
 
+**Agent Library Abstraction:**
+
+The agent system uses an abstraction layer to support multiple AI providers (Claude Code SDK, Cursor, Gemini, etc.) with per-workflow configuration.
+
+**Key Points:**
+- Default library: Claude Code SDK (via `AGENT_DEFAULT_LIBRARY`)
+- Per-workflow overrides: Configure different AI providers for each workflow
+- Adapter interface: `AgentLibraryAdapter` provides consistent API
+- Dynamic loading: Adapters loaded on-demand based on configuration
+- Parsing layer: Library-agnostic output parsing (markdown, JSON, reviews)
+
+**Configuration via Environment:**
+```bash
+# .env.local
+AGENT_DEFAULT_LIBRARY=claude-code-sdk                 # Default for all workflows
+AGENT_PRODUCT_DESIGN_LIBRARY=gemini                   # Optional: override for product design
+AGENT_TECH_DESIGN_LIBRARY=claude-code-sdk             # Optional: override for tech design
+AGENT_IMPLEMENTATION_LIBRARY=cursor                   # Optional: override for implementation
+AGENT_PR_REVIEW_LIBRARY=claude-code-sdk               # Optional: override for PR review
+```
+
+**Available Adapters:**
+- `claude-code-sdk` (default) - Full implementation with all capabilities
+- `gemini` (stub) - Placeholder for future Google Gemini integration
+- `cursor` (stub) - Placeholder for future Cursor AI integration
+
+**Abstraction Structure:**
+```
+src/agents/lib/
+├── types.ts                  # AgentLibraryAdapter interface
+├── config.ts                 # Configuration loader (env vars)
+├── parsing.ts                # Library-agnostic output parsing
+├── index.ts                  # Factory function: getAgentLibrary()
+└── adapters/
+    ├── claude-code-sdk.ts    # Current implementation
+    ├── gemini.ts             # Stub for future
+    └── cursor.ts             # Stub for future
+```
+
+**Usage in Workflows:**
+```typescript
+// Automatic library selection based on workflow
+const result = await runAgent({
+    prompt: '...',
+    workflow: 'product-design',  // Auto-selects library from config
+    stream: true,
+});
+```
+
+**Docs:** [docs/agent-library-abstraction.md](docs/agent-library-abstraction.md)
+
 **Common Options:**
 - `--id <id>` - Process specific item
 - `--dry-run` - Preview without changes

@@ -405,6 +405,7 @@ async function processItem(
             timeout: options.timeout,
             progressLabel,
             allowWrite: true, // Enable write mode
+            workflow: 'implementation',
         });
 
         if (!result.success) {
@@ -461,6 +462,7 @@ async function processItem(
                     timeout: options.timeout,
                     progressLabel: 'Fixing yarn checks issues',
                     allowWrite: true,
+                    workflow: 'implementation',
                 });
 
                 if (!fixResult.success) {

@@ -161,6 +161,7 @@ async function processItem(
             verbose: options.verbose,
             timeout: options.timeout,
             progressLabel,
+            workflow: 'product-design',
         });
 
         if (!result.success || !result.content) {

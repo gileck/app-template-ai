@@ -206,6 +206,7 @@ async function processItem(
                 verbose: options.verbose,
                 timeout: agentConfig.claude.timeoutSeconds,
                 progressLabel: 'Reviewing PR',
+                workflow: 'pr-review',
             });
 
             if (!result.success) {
