@@ -234,11 +234,36 @@ async function processItem(
                 contextPrompt += '## Instructions\n\n';
                 contextPrompt += 'Please review this PR and consider the comments above. ';
                 contextPrompt += 'Provide your review decision (APPROVED or REQUEST_CHANGES) and detailed feedback.\n\n';
+                contextPrompt += '**IMPORTANT**: Check compliance with project guidelines in `.cursor/rules/`:\n';
+                contextPrompt += '- TypeScript guidelines (`.cursor/rules/typescript-guidelines.mdc`)\n';
+                contextPrompt += '- React patterns (`.cursor/rules/react-component-organization.mdc`, `.cursor/rules/react-hook-organization.mdc`)\n';
+                contextPrompt += '- State management (`.cursor/rules/state-management-guidelines.mdc`)\n';
+                contextPrompt += '- UI/UX patterns (`.cursor/rules/ui-design-guidelines.mdc`, `.cursor/rules/shadcn-usage.mdc`)\n';
+                contextPrompt += '- File organization (`.cursor/rules/feature-based-structure.mdc`)\n';
+                contextPrompt += '- API patterns (`.cursor/rules/client-server-communications.mdc`)\n';
+                contextPrompt += '- Comprehensive checklist (`.cursor/rules/app-guidelines-checklist.mdc`)\n\n';
             }
 
             // Run the /review slash command with context
             console.log(`\n  Running PR review...`);
-            const prompt = contextPrompt ? `${contextPrompt}/review` : '/review';
+            let prompt: string;
+            if (contextPrompt) {
+                prompt = `${contextPrompt}/review`;
+            } else {
+                // No PR comments, but still provide guidelines
+                prompt = `## Instructions
+
+Review this PR and check compliance with project guidelines in \`.cursor/rules/\`:
+- TypeScript guidelines (\`.cursor/rules/typescript-guidelines.mdc\`)
+- React patterns (\`.cursor/rules/react-component-organization.mdc\`, \`.cursor/rules/react-hook-organization.mdc\`)
+- State management (\`.cursor/rules/state-management-guidelines.mdc\`)
+- UI/UX patterns (\`.cursor/rules/ui-design-guidelines.mdc\`, \`.cursor/rules/shadcn-usage.mdc\`)
+- File organization (\`.cursor/rules/feature-based-structure.mdc\`)
+- API patterns (\`.cursor/rules/client-server-communications.mdc\`)
+- Comprehensive checklist (\`.cursor/rules/app-guidelines-checklist.mdc\`)
+
+/review`;
+            }
 
             const result = await runAgent({
                 prompt,
