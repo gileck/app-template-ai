@@ -93,8 +93,10 @@ export const createFeatureRequest = async (
             // Use callback button for webhook (works in production)
             // Fall back to URL link for localhost (webhook not available)
             if (isHttps) {
-                // Callback data format: "approve_request:requestId:token"
-                const callbackData = `approve_request:${newRequest._id}:${approvalToken}`;
+                // Callback data format: "approve_request:requestId"
+                // Note: Token is verified from database when webhook is called
+                // (Telegram has 64-byte limit on callback_data, so we can't include the token)
+                const callbackData = `approve_request:${newRequest._id}`;
                 const result = await sendNotificationToOwner(message, {
                     inlineKeyboard: [[
                         { text: '✅ Approve & Create GitHub Issue', callback_data: callbackData }

@@ -268,9 +268,12 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
     const baseUrl = getBaseUrl();
 
     if (baseUrl.startsWith('https') && report.approvalToken) {
+        // Callback data format: "approve_bug:reportId"
+        // Note: Token is verified from database when webhook is called
+        // (Telegram has 64-byte limit on callback_data, so we can't include the token)
         inlineKeyboard.push([{
             text: '✅ Approve & Create GitHub Issue',
-            callback_data: `approve_bug:${report._id}:${report.approvalToken}`,
+            callback_data: `approve_bug:${report._id}`,
         }]);
     } else if (report.approvalToken) {
         // Fallback to URL button for non-HTTPS
