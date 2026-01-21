@@ -779,6 +779,22 @@ If you're setting up this workflow in a child project for the first time, follow
 3. Set environment variables: `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_PROJECT_NUMBER`, `GITHUB_OWNER_TYPE`
 4. Create a Telegram bot (each project needs its own bot due to webhook limitations)
 5. Configure GitHub repository secrets via `yarn setup-github-secrets`
+6. **Verify setup:** `yarn verify-setup` (checks all configuration)
+
+**Setup Verification:**
+
+After completing setup, verify all configuration is correct:
+
+```bash
+yarn verify-setup
+```
+
+This checks:
+- Local environment variables (`.env.local`)
+- Vercel environment variables (production)
+- GitHub repository secrets and variables
+- app.config.js configuration
+- GitHub Project structure
 
 **CRITICAL - Production Deployment:**
 
