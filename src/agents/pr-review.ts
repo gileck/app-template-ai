@@ -283,7 +283,9 @@ async function run(options: PRReviewOptions): Promise<void> {
         console.log('🔍 DRY RUN MODE - No changes will be made\n');
     }
 
-    const adapter = await getProjectManagementAdapter();
+    console.log('Connecting to GitHub...');
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
 
     // Get default branch
     const defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
