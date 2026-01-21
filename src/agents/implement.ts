@@ -100,13 +100,6 @@ function git(command: string, options: { cwd?: string; silent?: boolean } = {}):
 }
 
 /**
- * Get the current branch name
- */
-function getCurrentBranch(): string {
-    return git('rev-parse --abbrev-ref HEAD', { silent: true });
-}
-
-/**
  * Check if there are uncommitted changes
  */
 function hasUncommittedChanges(): boolean {
@@ -158,6 +151,21 @@ function pushBranch(branchName: string, force: boolean = false): void {
 }
 
 /**
+ * Verify all commits are pushed to remote
+ */
+function verifyAllPushed(branchName: string): boolean {
+    try {
+        // Check if there are any commits that exist locally but not on remote
+        const unpushedCommits = git(`rev-list origin/${branchName}..HEAD`, { silent: true });
+        return unpushedCommits.trim().length === 0;
+    } catch {
+        // If the remote branch doesn't exist yet, that's expected for new branches
+        // The push command would have failed if there was an issue
+        return true;
+    }
+}
+
+/**
  * Pull latest from a branch
  */
 function pullBranch(branchName: string): void {
@@ -174,12 +182,24 @@ function runYarnChecks(): { success: boolean; output: string } {
             stdio: 'pipe',
             timeout: 120000,
         });
-        return { success: true, output };
+        // Check if output indicates success
+        const hasErrors = output.includes('Error:') || output.includes('error ') || output.includes('✗');
+        const hasSuccess = output.includes('✔ No ESLint warnings or errors');
+
+        return {
+            success: hasSuccess && !hasErrors,
+            output
+        };
     } catch (error) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
+        // When execSync throws, the command exited with non-zero code
+        const err = error as { status?: number; stdout?: string | Buffer; stderr?: string | Buffer; message?: string };
+        const stdout = typeof err.stdout === 'string' ? err.stdout : err.stdout?.toString() || '';
+        const stderr = typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString() || '';
+        const output = stdout + stderr || err.message || String(error);
+
         return {
             success: false,
-            output: (err.stdout || '') + (err.stderr || '') || err.message || String(error),
+            output,
         };
     }
 }
@@ -203,7 +223,8 @@ function getChangedFiles(): string[] {
 async function processItem(
     processable: ProcessableItem,
     options: ImplementOptions,
-    adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>
+    adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
+    defaultBranch: string
 ): Promise<{ success: boolean; prNumber?: number; error?: string }> {
     const { item, mode } = processable;
     const content = item.content;
@@ -223,8 +244,6 @@ async function processItem(
     if (!options.dryRun) {
         await notifyAgentStarted('Implementation', content.title, issueNumber, mode, issueType);
     }
-
-    const originalBranch = getCurrentBranch();
 
     try {
         // Check for uncommitted changes
@@ -363,6 +382,7 @@ async function processItem(
             const preChecks = runYarnChecks();
             if (!preChecks.success) {
                 console.log('  ⚠️ Pre-existing issues found (continuing anyway)');
+                console.log('  Output:', preChecks.output.slice(0, 500)); // Show first 500 chars
             } else {
                 console.log('  ✅ Codebase is clean');
             }
@@ -387,8 +407,8 @@ async function processItem(
 
         if (!result.success) {
             const error = result.error || 'Implementation failed';
-            // Checkout back to original branch before failing
-            git(`checkout ${originalBranch}`);
+            // Checkout back to default branch before failing
+            git(`checkout ${defaultBranch}`);
             if (!options.dryRun) {
                 await notifyAgentError('Implementation', content.title, issueNumber, error);
             }
@@ -400,8 +420,8 @@ async function processItem(
             const clarificationRequest = extractClarification(result.content);
             if (clarificationRequest) {
                 console.log('  🤔 Agent needs clarification');
-                // Checkout back to original branch before pausing
-                git(`checkout ${originalBranch}`);
+                // Checkout back to default branch before pausing
+                git(`checkout ${defaultBranch}`);
                 return await handleClarificationRequest(
                     adapter,
                     { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },
@@ -420,7 +440,7 @@ async function processItem(
         // Check if there are changes to commit
         if (!hasUncommittedChanges()) {
             console.log('  No changes to commit');
-            git(`checkout ${originalBranch}`);
+            git(`checkout ${defaultBranch}`);
             return { success: false, error: 'Agent did not make any changes' };
         }
 
@@ -460,15 +480,16 @@ async function processItem(
         if (options.dryRun) {
             console.log('  [DRY RUN] Would commit changes');
             console.log('  [DRY RUN] Would push to remote');
+            console.log('  [DRY RUN] Would verify all commits are pushed');
             if (mode === 'new') {
                 console.log('  [DRY RUN] Would create PR');
             }
             console.log('  [DRY RUN] Would set Review Status to Waiting for Review');
             console.log('  [DRY RUN] Would send notification');
-            // Discard changes and checkout back
+            // Discard changes and checkout back to default branch
             try {
                 git('checkout -- .');
-                git(`checkout ${originalBranch}`);
+                git(`checkout ${defaultBranch}`);
             } catch (cleanupError) {
                 console.error('  Warning: Failed to clean up after dry run:', cleanupError);
             }
@@ -488,6 +509,13 @@ async function processItem(
         if (!options.skipPush) {
             console.log('  Pushing to remote...');
             pushBranch(branchName, mode === 'feedback');
+
+            // Verify all commits are pushed
+            console.log('  Verifying all commits are pushed...');
+            if (!verifyAllPushed(branchName)) {
+                return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
+            }
+            console.log('  ✅ All commits pushed successfully');
         }
 
         let prNumber = processable.prNumber;
@@ -558,19 +586,20 @@ See issue #${issueNumber} for full context, product design, and technical design
             console.log('  Notification sent');
         }
 
-        // Checkout back to original branch
-        git(`checkout ${originalBranch}`);
+        // Checkout back to default branch
+        git(`checkout ${defaultBranch}`);
+        console.log(`  ✅ Switched back to ${defaultBranch}`);
 
         return { success: true, prNumber };
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(`  Error: ${errorMsg}`);
 
-        // Try to checkout back to original branch
+        // Try to checkout back to default branch
         try {
-            git(`checkout ${originalBranch}`);
+            git(`checkout ${defaultBranch}`);
         } catch {
-            console.error('  Warning: Could not checkout back to original branch');
+            console.error('  Warning: Could not checkout back to default branch');
         }
 
         if (!options.dryRun) {
@@ -640,23 +669,34 @@ async function main(): Promise<void> {
     }
     console.log('');
 
-    // Pull latest from master (unless --skip-pull is specified)
-    if (!options.skipPull) {
-        // Check for uncommitted changes before starting
-        if (hasUncommittedChanges()) {
-            console.error('Error: Uncommitted changes in working directory.');
-            console.error('Please commit or stash your changes before running this agent.');
-            process.exit(1);
-        }
+    // Check for uncommitted changes before starting
+    if (hasUncommittedChanges()) {
+        console.error('Error: Uncommitted changes in working directory.');
+        console.error('Please commit or stash your changes before running this agent.');
+        process.exit(1);
+    }
 
-        console.log('Pulling latest from master...');
+    // Get default branch and ensure we're on it
+    let defaultBranch: string;
+    try {
+        defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
+        console.log(`Switching to ${defaultBranch}...`);
+        git(`checkout ${defaultBranch}`, { silent: true });
+        console.log(`  ✅ On ${defaultBranch}`);
+    } catch (error) {
+        console.error('Error: Failed to checkout default branch.');
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+    }
+
+    // Pull latest (unless --skip-pull is specified)
+    if (!options.skipPull) {
+        console.log(`Pulling latest from ${defaultBranch}...`);
         try {
-            const defaultBranch = git('symbolic-ref refs/remotes/origin/HEAD --short', { silent: true }).replace('origin/', '');
-            git(`checkout ${defaultBranch}`, { silent: true });
             git(`pull origin ${defaultBranch}`, { silent: true });
             console.log(`  ✅ On latest ${defaultBranch}`);
         } catch (error) {
-            console.error('Error: Failed to pull latest from master.');
+            console.error('Error: Failed to pull latest.');
             console.error(error instanceof Error ? error.message : String(error));
             process.exit(1);
         }
@@ -787,7 +827,7 @@ async function main(): Promise<void> {
             console.log(`  Review Status: ${item.reviewStatus}`);
         }
 
-        const result = await processItem(processable, options, adapter);
+        const result = await processItem(processable, options, adapter, defaultBranch);
 
         if (result.success) {
             results.succeeded++;
