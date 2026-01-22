@@ -363,10 +363,15 @@ If you prefer to set these manually:
 | Variable Name | Value | Description |
 |---------------|-------|-------------|
 | `TELEGRAM_NOTIFICATIONS_ENABLED` | `true` | Enables GitHub Actions notifications |
-| `GITHUB_OWNER` | `your-username` | Your GitHub username or org |
-| `GITHUB_REPO` | `your-repo-name` | Your repository name |
-| `GITHUB_PROJECT_NUMBER` | `1` | Your project number |
-| `GITHUB_OWNER_TYPE` | `user` | `user` or `org` |
+| `PROJECT_OWNER` | `your-username` | Your GitHub username or org |
+| `PROJECT_REPO` | `your-repo-name` | Your repository name |
+| `PROJECT_NUMBER` | `1` | Your project number |
+| `PROJECT_OWNER_TYPE` | `user` | `user` or `org` |
+
+> **📝 Note on Naming Convention:**
+> GitHub Actions variables use `PROJECT_*` prefix for consistency and clarity. This is intentional and different from your local `.env` file which uses `GITHUB_*` names. The values should match - just the names differ between contexts:
+> - **Local `.env`**: `GITHUB_OWNER=your-username`
+> - **GitHub Actions**: `PROJECT_OWNER=your-username`
 
 ### Enable Workflow Permissions
 
@@ -383,12 +388,9 @@ For auto-completion to work when PRs are merged:
 
 Push your environment variables to Vercel so the deployed app can access them.
 
-**⚠️ CRITICAL:** GitHub status integration in production requires ALL 5 GitHub environment variables to be set in Vercel:
-- `GITHUB_TOKEN`
-- `GITHUB_OWNER`
-- `GITHUB_REPO`
-- `GITHUB_PROJECT_NUMBER`
-- `GITHUB_OWNER_TYPE`
+**⚠️ CRITICAL:** GitHub status integration in production requires ALL 5 GitHub environment variables to be set in Vercel.
+
+**Note on naming:** Your local `.env` uses `GITHUB_*` prefix, but these variables in Vercel must match the names exactly as shown in your `.env` file.
 
 Missing even one variable will cause GitHub statuses to show as empty in the feature-request page.
 
@@ -562,10 +564,10 @@ yarn verify-setup
 ✓ Secret: TELEGRAM_CHAT_ID ✓
 ✓ Secret: PROJECT_TOKEN ✓
 ✓ Variable: TELEGRAM_NOTIFICATIONS_ENABLED ✓
-✓ Variable: GITHUB_OWNER ✓
-✓ Variable: GITHUB_REPO ✓
-✓ Variable: GITHUB_PROJECT_NUMBER ✓
-✓ Variable: GITHUB_OWNER_TYPE ✓
+✓ Variable: PROJECT_OWNER ✓
+✓ Variable: PROJECT_REPO ✓
+✓ Variable: PROJECT_NUMBER ✓
+✓ Variable: PROJECT_OWNER_TYPE ✓
 ✓ Workflow permissions: read-write ✓
 
   11 passed, 0 failed
