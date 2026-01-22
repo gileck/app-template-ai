@@ -164,10 +164,14 @@ export function useSubmitErrorReport() {
                 email: user.email,
             } : undefined;
 
+            // Generate error key for deduplication
+            const errorKey = generateRuntimeErrorKey(errorMessage, stackTrace);
+
             const reportData: CreateReportRequest = {
                 type: 'error',
                 errorMessage,
                 stackTrace,
+                errorKey,
                 sessionLogs,
                 userInfo,
                 browserInfo,
@@ -176,7 +180,7 @@ export function useSubmitErrorReport() {
             };
 
             const result = await createReport(reportData);
-            
+
             if (result.data.error) {
                 throw new Error(result.data.error);
             }
@@ -202,6 +206,14 @@ function isProductionEnvironment(): boolean {
 }
 
 /**
+ * Generate error key for runtime error deduplication
+ */
+function generateRuntimeErrorKey(errorMessage: string, stackTrace?: string): string {
+    const stackPrefix = stackTrace?.slice(0, 200) || '';
+    return `runtime:${errorMessage}:${stackPrefix}`;
+}
+
+/**
  * Standalone function to submit error report (for global error handler)
  * Only reports errors in production environment
  */
@@ -214,7 +226,7 @@ export async function submitErrorReport(errorMessage: string, stackTrace?: strin
 
     // Import dynamically to avoid circular dependencies
     const { useAuthStore } = await import('../auth');
-    
+
     const sessionLogs = getSessionLogs();
     const browserInfo = getBrowserInfo();
     const networkStatus = getNetworkStatus();
@@ -227,10 +239,14 @@ export async function submitErrorReport(errorMessage: string, stackTrace?: strin
         email: user.email,
     } : undefined;
 
+    // Generate error key for deduplication
+    const errorKey = generateRuntimeErrorKey(errorMessage, stackTrace);
+
     const reportData: CreateReportRequest = {
         type: 'error',
         errorMessage,
         stackTrace,
+        errorKey,
         sessionLogs,
         userInfo,
         browserInfo,
