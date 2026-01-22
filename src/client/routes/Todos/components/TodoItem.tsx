@@ -133,16 +133,16 @@ export function TodoItem({
 
     return (
         <li
-            className={`mb-1 flex items-center gap-2 rounded p-2 ${todo.completed ? 'opacity-70 bg-accent' : ''}`}
+            className={`mb-1 flex items-center gap-2 rounded p-2 transition-all duration-300 ease-out ${todo.completed ? 'opacity-70 bg-accent' : ''}`}
         >
             <button
-                className="h-5 w-5 rounded border"
+                className="h-5 w-5 rounded border transition-all duration-200"
                 aria-checked={todo.completed}
                 role="checkbox"
                 onClick={handleToggleComplete}
                 disabled={mutatingTodoId === todo._id}
             >
-                {todo.completed ? <CheckSquare className="h-4 w-4" /> : null}
+                {todo.completed ? <CheckSquare className="h-4 w-4 transition-opacity duration-200" /> : null}
             </button>
 
             {isEditing ? (
@@ -155,7 +155,7 @@ export function TodoItem({
                     autoFocus
                 />
             ) : (
-                <span className={`flex-1 ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
+                <span className={`flex-1 transition-all duration-200 ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
                     {todo.title}
                 </span>
             )}
