@@ -400,13 +400,28 @@ export function extractReview(text: string): string | null {
 
 /**
  * Parse review decision from review content
+ *
+ * Handles various output formats:
+ * - DECISION: APPROVED, DECISION: APPROVE
+ * - DECISION: REQUEST_CHANGES, DECISION: REQUEST CHANGES
+ * - With or without markdown bold formatting (**DECISION:** APPROVED)
  */
 export function parseReviewDecision(reviewContent: string): 'approved' | 'request_changes' | null {
     if (!reviewContent) return null;
 
-    const decisionMatch = reviewContent.match(/DECISION:\s*(APPROVED|REQUEST_CHANGES)/i);
-    if (decisionMatch) {
-        return decisionMatch[1].toUpperCase() === 'APPROVED' ? 'approved' : 'request_changes';
+    // Remove markdown bold/italic formatting for easier matching
+    const cleanedContent = reviewContent.replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1');
+
+    // Match DECISION: followed by approval (APPROVED, APPROVE)
+    const approvedMatch = cleanedContent.match(/DECISION:\s*APPROVED?/i);
+    if (approvedMatch) {
+        return 'approved';
+    }
+
+    // Match DECISION: followed by request changes (REQUEST_CHANGES, REQUEST CHANGES, REQUESTCHANGES)
+    const requestChangesMatch = cleanedContent.match(/DECISION:\s*REQUEST[\s_]?CHANGES?/i);
+    if (requestChangesMatch) {
+        return 'request_changes';
     }
 
     return null;

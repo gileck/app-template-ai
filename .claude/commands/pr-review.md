@@ -31,11 +31,13 @@ Review the code changes in this branch for:
 
 ## Output Format
 
-You MUST output your review in this exact format:
+You MUST output your review in this exact format. Use EXACTLY one of these decision values:
+- `DECISION: APPROVED` - if the code is ready to merge
+- `DECISION: REQUEST_CHANGES` - if changes are needed before merging
 
 ```review
 ## Review Decision
-DECISION: APPROVED | REQUEST_CHANGES
+DECISION: APPROVED
 
 ## Summary
 [1-2 sentence summary of the changes]
@@ -48,6 +50,8 @@ DECISION: APPROVED | REQUEST_CHANGES
 ## What Looks Good
 [Positive feedback on the implementation - what was done well]
 ```
+
+**CRITICAL**: The `DECISION:` line must be exactly `DECISION: APPROVED` or `DECISION: REQUEST_CHANGES` (no markdown formatting, no variations).
 
 ## Important Notes
 - Be thorough but constructive
