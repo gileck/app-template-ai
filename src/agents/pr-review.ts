@@ -35,7 +35,7 @@ import {
     // Claude
     runAgent,
     extractReview,
-    parseReviewDecision,
+    extractReviewDecisionStructured,
     // Notifications
     notifyPRReviewComplete,
     notifyAgentError,
@@ -288,12 +288,14 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 return { success: false, error: 'Could not extract review content from agent output' };
             }
 
-            // Parse decision
-            const decision = parseReviewDecision(reviewContent);
-            if (!decision) {
-                return { success: false, error: 'Could not parse review decision (expected APPROVED or REQUEST_CHANGES)' };
+            // Extract decision using structured extraction (with fallback to text parsing)
+            console.log('  Extracting review decision...');
+            const structuredResult = await extractReviewDecisionStructured(reviewContent);
+            if (!structuredResult) {
+                return { success: false, error: 'Could not extract review decision from agent output' };
             }
 
+            const { decision } = structuredResult;
             console.log(`  Review decision: ${decision === 'approved' ? 'APPROVED ✓' : 'REQUEST CHANGES'}`);
 
             // Preview mode: show what would be posted

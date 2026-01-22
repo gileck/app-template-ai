@@ -150,9 +150,12 @@ export {
     extractJSON,
     extractReview,
     parseReviewDecision,
+    extractReviewDecisionStructured,
     extractOriginalDescription,
     extractProductDesign,
     extractTechDesign,
     buildUpdatedIssueBody,
     DESIGN_MARKERS,
+    type ReviewDecision,
+    type StructuredReviewDecision,
 } from './parsing';

@@ -401,6 +401,9 @@ export function extractReview(text: string): string | null {
 /**
  * Parse review decision from review content
  *
+ * @deprecated Use extractReviewDecisionStructured from '@/agents/lib' instead.
+ * This function is kept for backwards compatibility but will be removed in a future version.
+ *
  * Handles various output formats:
  * - DECISION: APPROVED, DECISION: APPROVE
  * - DECISION: REQUEST_CHANGES, DECISION: REQUEST CHANGES

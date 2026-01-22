@@ -64,6 +64,7 @@ export {
     extractJSON,
     extractReview,
     parseReviewDecision,
+    extractReviewDecisionStructured,
     extractOriginalDescription,
     extractProductDesign,
     extractTechDesign,
@@ -73,6 +74,8 @@ export {
     type AgentRunResult,
     type AgentLibraryAdapter,
     type WorkflowName,
+    type ReviewDecision,
+    type StructuredReviewDecision,
 } from '../lib';
 
 // Notifications

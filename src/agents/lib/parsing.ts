@@ -186,6 +186,109 @@ export function parseReviewDecision(reviewContent: string): 'approved' | 'reques
 }
 
 // ============================================================
+// STRUCTURED DECISION EXTRACTION
+// ============================================================
+
+/**
+ * Review decision type
+ */
+export type ReviewDecision = 'approved' | 'request_changes';
+
+/**
+ * Structured review decision result
+ */
+export interface StructuredReviewDecision {
+    decision: ReviewDecision;
+    summary: string;
+}
+
+/**
+ * Extract review decision using Anthropic SDK with tool use
+ *
+ * This is more reliable than text parsing as it uses structured output.
+ * Falls back to text parsing if the API call fails.
+ *
+ * @param reviewContent - The review text content to analyze
+ * @returns The extracted decision or null if extraction fails
+ */
+export async function extractReviewDecisionStructured(
+    reviewContent: string
+): Promise<StructuredReviewDecision | null> {
+    if (!reviewContent) return null;
+
+    // First try the fast text parsing approach
+    const parsedDecision = parseReviewDecision(reviewContent);
+    if (parsedDecision) {
+        // Extract a summary from the review content
+        const summaryMatch = reviewContent.match(/##\s*Summary\s*\n+([\s\S]*?)(?=\n##|\n```|$)/i);
+        const summary = summaryMatch?.[1]?.trim() || 'Review completed';
+        return { decision: parsedDecision, summary };
+    }
+
+    // If text parsing fails, use Anthropic SDK for structured extraction
+    try {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const client = new Anthropic();
+
+        const response = await client.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 256,
+            tools: [
+                {
+                    name: 'submit_review_decision',
+                    description: 'Submit the review decision extracted from the review content',
+                    input_schema: {
+                        type: 'object' as const,
+                        properties: {
+                            decision: {
+                                type: 'string',
+                                enum: ['approved', 'request_changes'],
+                                description: 'The review decision: approved if the code is ready to merge, request_changes if changes are needed',
+                            },
+                            summary: {
+                                type: 'string',
+                                description: 'A brief 1-2 sentence summary of the review',
+                            },
+                        },
+                        required: ['decision', 'summary'],
+                    },
+                },
+            ],
+            tool_choice: { type: 'tool', name: 'submit_review_decision' },
+            messages: [
+                {
+                    role: 'user',
+                    content: `Extract the review decision from this code review. Determine if the reviewer approved the changes or requested changes.
+
+Review content:
+${reviewContent}
+
+Call the submit_review_decision tool with the extracted decision.`,
+                },
+            ],
+        });
+
+        // Extract the tool use response
+        for (const block of response.content) {
+            if (block.type === 'tool_use' && block.name === 'submit_review_decision') {
+                const input = block.input as { decision: string; summary: string };
+                if (input.decision === 'approved' || input.decision === 'request_changes') {
+                    return {
+                        decision: input.decision,
+                        summary: input.summary || 'Review completed',
+                    };
+                }
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('  Structured extraction failed, falling back to text parsing:', error);
+        return null;
+    }
+}
+
+// ============================================================
 // DESIGN DOCUMENT HELPERS
 // ============================================================
 
