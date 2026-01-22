@@ -142,6 +142,10 @@ https://github.com/users/your-username/projects/3
 
 ## Step 2: Environment Variables (.env.local)
 
+> **⚠️ CRITICAL: Use .env.local (NOT .env)**
+>
+> All scripts prioritize `.env.local` over `.env`. This is Next.js convention for local secrets. If you use `.env`, some scripts may not find your variables.
+
 Add these variables to your `.env.local` file in the project root:
 
 **First time setup:**
@@ -168,7 +172,11 @@ LOCAL_TELEGRAM_CHAT_ID=your_chat_id    # From yarn telegram-setup (see Step 3)
 
 ### Getting a GitHub Token
 
-Your GitHub token needs **two critical scopes**: `repo` and `project`.
+> **❗ BOTH scopes are REQUIRED:**
+> - ✅ **repo** (for issues/PRs)
+> - ✅ **project** (for GitHub Projects V2)
+>
+> Missing either scope will cause errors later.
 
 #### Option 1: Fine-grained Personal Access Token (Recommended)
 
@@ -342,9 +350,21 @@ You should see:
 - Enables instant in-app feedback when you tap Telegram buttons
 - Required for the one-click approval workflow
 
+> **💡 Note on 405 Errors:**
+>
+> If you test the webhook URL directly in your browser, you'll see "405 Method Not Allowed". This is **NORMAL** - the endpoint expects specific Telegram callback data via POST requests. Buttons will work correctly when you test with real notifications (see Step 6.5 below).
+
 ---
 
 ## Step 4: GitHub Repository Secrets & Variables
+
+> **📝 Why PROJECT_* prefix in GitHub Actions?**
+>
+> GitHub Actions reserves `GITHUB_*` prefix for its own built-in variables. We use `PROJECT_*` prefix in GitHub Actions but `GITHUB_*` locally in `.env.local`.
+>
+> **The VALUES are the same - only the NAMES differ:**
+> - Local `.env.local`: `GITHUB_OWNER=myusername`
+> - GitHub Actions: `PROJECT_OWNER=myusername`
 
 Your GitHub Actions workflows need access to Telegram credentials to send notifications.
 
@@ -375,7 +395,9 @@ If you prefer to set these manually:
 |-------------|-------|--------|
 | `TELEGRAM_BOT_TOKEN` | Your bot token | From BotFather (Step 3.1) |
 | `TELEGRAM_CHAT_ID` | Your chat ID | From `yarn telegram-setup` (Step 3.2) |
-| `PROJECT_TOKEN` | Your GitHub token | Same as `GITHUB_TOKEN` in `.env` |
+| `PROJECT_TOKEN` | Your GitHub token | Use the value from `GITHUB_TOKEN` in your `.env.local` |
+
+> **Note:** `PROJECT_TOKEN` is ONLY used as a GitHub Actions secret name. You do NOT need to add it to your `.env.local` file.
 
 **Repository Variables** (Settings → Secrets and variables → Actions → Variables):
 
@@ -722,6 +744,31 @@ Test the complete workflow end-to-end:
    - MongoDB status should update to `done`
 
 **If any step fails**, see the [Troubleshooting](#troubleshooting) section.
+
+### 6.5: Quick Button Test
+
+Before the full workflow test, verify Telegram buttons work correctly:
+
+1. **Create a test GitHub issue**:
+   ```bash
+   gh issue create --title "test: workflow verification" --body "Testing webhook buttons"
+   ```
+
+2. **Manually send a test notification** (simulates what the workflow does):
+   - Go to your app's `/admin/reports` page (or similar admin interface)
+   - Or use the Telegram bot directly to send a message with buttons
+
+3. **Expected result**:
+   - Message appears in Telegram WITH buttons (not just text)
+   - Tapping a button updates the message or triggers an action
+   - No "webhook not set" or "405 error" messages appear
+
+4. **If buttons don't appear**:
+   - Verify webhook is set: `yarn telegram-webhook info`
+   - Should show your production URL (not localhost)
+   - Re-set webhook if needed: `yarn telegram-webhook set https://your-app.vercel.app/api/telegram-webhook`
+
+> **💡 Tip:** Buttons only work with your production deployment (Vercel URL). They won't work with localhost during development.
 
 ---
 
