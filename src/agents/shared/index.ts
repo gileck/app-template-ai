@@ -73,6 +73,7 @@ export {
     type AgentRunOptions,
     type AgentRunResult,
     type AgentLibraryAdapter,
+    type OutputSchema,
     type WorkflowName,
     type ReviewDecision,
     type StructuredReviewDecision,

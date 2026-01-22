@@ -133,6 +133,7 @@ export type {
     AgentLibraryConfig,
     AgentRunOptions,
     AgentRunResult,
+    OutputSchema,
     WorkflowName,
 } from './types';
 

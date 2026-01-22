@@ -51,6 +51,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
             timeout = agentConfig.claude.timeoutSeconds,
             progressLabel = 'Processing',
             useSlashCommands = false,
+            outputFormat,
         } = options;
 
         // Determine allowed tools
@@ -65,6 +66,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
         let toolCallCount = 0;
         const filesExamined: string[] = [];
         let usage: AgentRunResult['usage'] = null;
+        let structuredOutput: unknown = undefined;
 
         let spinnerInterval: NodeJS.Timeout | null = null;
         let spinnerFrame = 0;
@@ -99,6 +101,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     allowDangerouslySkipPermissions: true,
                     abortController,
                     ...(useSlashCommands ? { settingSources: ['project'] as const } : {}),
+                    ...(outputFormat ? { outputFormat } : {}),
                 },
             })) {
                 const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -176,6 +179,10 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     if (resultMsg.subtype === 'success' && resultMsg.result) {
                         lastResult = resultMsg.result;
                     }
+                    // Extract structured output if outputFormat was specified
+                    if (outputFormat && (resultMsg as unknown as { structured_output?: unknown }).structured_output) {
+                        structuredOutput = (resultMsg as unknown as { structured_output: unknown }).structured_output;
+                    }
                     // Extract usage stats
                     if (resultMsg.usage) {
                         usage = {
@@ -206,6 +213,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
             return {
                 success: true,
                 content: lastResult,
+                structuredOutput,
                 filesExamined,
                 usage,
                 durationSeconds,
