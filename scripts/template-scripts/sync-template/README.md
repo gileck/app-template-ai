@@ -101,6 +101,7 @@ Specialized run modes (non-sync operations).
 | `show-drift.ts` | `--show-drift` | Display total project drift from template |
 | `changelog.ts` | `--changelog` | Show template commits since last sync |
 | `diff-summary.ts` | `--diff-summary` | Generate full diff report file |
+| `merge-package-json.ts` | `--merge-package-json` | Only merge package.json from template |
 | `validation.ts` | (internal) | Run TypeScript and ESLint checks |
 
 ## Architecture
@@ -144,6 +145,9 @@ yarn sync-template --changelog
 
 # Show total drift from template
 yarn sync-template --show-drift
+
+# Only merge package.json (no full sync)
+yarn sync-template --merge-package-json
 
 # Auto modes (non-interactive)
 yarn sync-template --auto-safe-only
