@@ -934,6 +934,20 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         });
     }
 
+    async requestPRReviewers(prNumber: number, reviewers: string[]): Promise<void> {
+        return withRetry(async () => {
+            const oc = this.getBotOctokit(); // Use bot token for requesting reviewers
+            const { owner, repo } = this.config.github;
+
+            await oc.pulls.requestReviewers({
+                owner,
+                repo,
+                pull_number: prNumber,
+                reviewers,
+            });
+        });
+    }
+
     // ============================================================
     // BRANCHES
     // ============================================================

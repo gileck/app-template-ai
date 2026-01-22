@@ -586,6 +586,16 @@ See issue #${issueNumber} for full context, product design, and technical design
             prNumber = pr.number;
             console.log(`  Created PR #${prNumber}: ${pr.url}`);
 
+            // Trigger Claude Code review
+            try {
+                console.log('  Triggering Claude Code review...');
+                await adapter.addPRComment(prNumber, '@claude please review this PR');
+                console.log('  ✅ Claude Code review triggered');
+            } catch (error) {
+                // Non-fatal error - PR is still created successfully
+                console.warn('  Warning: Failed to trigger Claude Code review:', error instanceof Error ? error.message : String(error));
+            }
+
             // Add comment on issue linking to PR
             const prLinkComment = addAgentPrefix('implementor', `Implementation PR: #${prNumber}`);
             await adapter.addIssueComment(issueNumber, prLinkComment);

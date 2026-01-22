@@ -278,6 +278,11 @@ export interface ProjectManagementAdapter {
      */
     addPRComment(prNumber: number, body: string): Promise<number>;
 
+    /**
+     * Request reviewers for a PR
+     */
+    requestPRReviewers(prNumber: number, reviewers: string[]): Promise<void>;
+
     // --------------------------------------------------------
     // Branches
     // --------------------------------------------------------

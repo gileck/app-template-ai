@@ -2,13 +2,31 @@ import { getSessionLogs } from '@/client/features/session-logs';
 
 /**
  * Check if we're in production environment
+ * Returns false for development, test, localhost, private IPs, and Vercel previews
  */
 function isProduction(): boolean {
+    // Check NODE_ENV first (most reliable)
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        return false;
+    }
+
     if (typeof window === 'undefined') return false;
 
-    // Check if running on localhost or development
     const hostname = window.location.hostname;
+
+    // Local development
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
+        return false;
+    }
+
+    // Private IP ranges
+    if (hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+        return false;
+    }
+
+    // Vercel preview deployments (not production)
+    // Production Vercel URLs typically include the project name without git branch info
+    if (hostname.includes('.vercel.app') && hostname.includes('-git-')) {
         return false;
     }
 
