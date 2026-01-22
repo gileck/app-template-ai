@@ -43,10 +43,23 @@ This workflow automates the complete feature request and bug report pipeline:
 
 ## Prerequisites
 
+> **🚨 CRITICAL: package.json Must Be Synced From Template**
+>
+> This workflow requires the template's `package.json` with all the required scripts (`yarn telegram-setup`, `yarn verify-setup`, `yarn agent:*`, etc.).
+>
+> **If you're using template sync:**
+> - Do NOT add `package.json` to `ignoredFiles` or `projectSpecificFiles` in `.template-sync.json`
+> - Keep `package.json` synced from the template to get workflow updates
+>
+> **If you've customized package.json:**
+> - You can add custom scripts, but DO NOT remove template scripts
+> - Check that these scripts exist: `telegram-setup`, `verify-setup`, `agent:product-design`, `agent:tech-design`, `agent:implement`, `setup-github-secrets`, `vercel-cli`, `github-pr`
+
 Before starting, ensure you have:
 
 - [ ] A GitHub account
 - [ ] A repository (forked/cloned from this template)
+- [ ] **`package.json` synced from template** (see warning above)
 - [ ] Node.js and yarn installed
 - [ ] GitHub CLI (`gh`) installed and authenticated (`gh auth login`)
 - [ ] A Telegram account (for notifications)
