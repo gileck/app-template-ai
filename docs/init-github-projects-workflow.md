@@ -770,6 +770,61 @@ Before the full workflow test, verify Telegram buttons work correctly:
 
 > **💡 Tip:** Buttons only work with your production deployment (Vercel URL). They won't work with localhost during development.
 
+### 6.6: Production Validation (After Deployment)
+
+Once deployed to Vercel, verify everything works in production:
+
+```bash
+yarn verify-production
+```
+
+**This script tests:**
+- ✅ **Environment Variables** - All required vars present in production
+- ✅ **GitHub API** - Repository access, issues, GitHub Projects V2
+- ✅ **Telegram API** - Bot token valid, webhook configured correctly
+- ✅ **End-to-end** - Sends a test Telegram message
+
+**Expected output:**
+```
+🔍 Verifying Production Environment
+══════════════════════════════════════════════════════════════════════
+
+📋 Environment Variables
+──────────────────────────────────────────────────────────────────────
+✓ GITHUB_TOKEN ✓
+✓ GITHUB_OWNER ✓
+✓ GITHUB_REPO ✓
+...
+  10 passed, 0 failed
+
+🐙 GitHub API
+──────────────────────────────────────────────────────────────────────
+✓ GITHUB_TOKEN is set
+✓ Repository access works
+✓ Issues API works
+✓ GitHub Project access works (Your Project Name)
+  4 passed, 0 failed
+
+📱 Telegram API
+──────────────────────────────────────────────────────────────────────
+✓ TELEGRAM_BOT_TOKEN is set
+✓ Bot token valid (@your_bot)
+✓ Webhook is configured
+✓ Webhook has no errors
+✓ Test message sent successfully
+  5 passed, 0 failed
+
+📊 Overall Summary
+══════════════════════════════════════════════════════════════════════
+Total: 19 checks
+✓ Passed: 19
+✗ Failed: 0
+
+✅ All checks passed! Production environment is properly configured.
+```
+
+**If any checks fail**, see the [Troubleshooting](#troubleshooting) section for specific fixes.
+
 ---
 
 ## Troubleshooting
