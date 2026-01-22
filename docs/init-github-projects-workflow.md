@@ -232,6 +232,12 @@ For detailed instructions, see the [Bot Account Setup](./github-projects-integra
 
 ## Step 3: Telegram Bot Setup
 
+> **⚠️ IMPORTANT: Create a NEW Bot for This Project**
+>
+> **Do NOT reuse an existing bot from another project!** Each project needs its own dedicated Telegram bot because a bot can only have ONE webhook URL at a time. Sharing a bot across projects will break button callbacks (Approve, Route, etc.).
+>
+> Creating a new bot takes ~2 minutes and is completely free.
+
 ### Why Each Project Needs Its Own Bot
 
 **CRITICAL:** Each child project must create its own Telegram bot.
