@@ -39,6 +39,19 @@ export interface AgentLibraryCapabilities {
 }
 
 /**
+ * JSON Schema for structured output
+ */
+export interface OutputSchema {
+    type: 'object';
+    properties: Record<string, {
+        type?: string;
+        enum?: string[];
+        description?: string;
+    }>;
+    required?: string[];
+}
+
+/**
  * Options for running an agent
  */
 export interface AgentRunOptions {
@@ -60,16 +73,20 @@ export interface AgentRunOptions {
     workflow?: WorkflowName;
     /** Enable Claude Code slash commands (requires settingSources: ['project']) */
     useSlashCommands?: boolean;
+    /** JSON Schema for structured output - agent returns typed object instead of text */
+    outputFormat?: OutputSchema;
 }
 
 /**
  * Result from running an agent
  */
-export interface AgentRunResult {
+export interface AgentRunResult<T = unknown> {
     /** Whether the agent completed successfully */
     success: boolean;
-    /** Generated content */
+    /** Generated content (text output) */
     content: string | null;
+    /** Structured output (when outputFormat is specified) */
+    structuredOutput?: T;
     /** Error message if failed */
     error?: string;
     /** Files examined during execution */

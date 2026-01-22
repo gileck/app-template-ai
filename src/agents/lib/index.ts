@@ -133,6 +133,7 @@ export type {
     AgentLibraryConfig,
     AgentRunOptions,
     AgentRunResult,
+    OutputSchema,
     WorkflowName,
 } from './types';
 
@@ -150,9 +151,12 @@ export {
     extractJSON,
     extractReview,
     parseReviewDecision,
+    extractReviewDecisionStructured,
     extractOriginalDescription,
     extractProductDesign,
     extractTechDesign,
     buildUpdatedIssueBody,
     DESIGN_MARKERS,
+    type ReviewDecision,
+    type StructuredReviewDecision,
 } from './parsing';

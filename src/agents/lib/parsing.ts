@@ -158,16 +158,124 @@ export function extractReview(text: string): string | null {
 
 /**
  * Parse review decision from review content
+ *
+ * Handles various output formats:
+ * - DECISION: APPROVED, DECISION: APPROVE
+ * - DECISION: REQUEST_CHANGES, DECISION: REQUEST CHANGES
+ * - With or without markdown bold formatting (**DECISION:** APPROVED)
  */
 export function parseReviewDecision(reviewContent: string): 'approved' | 'request_changes' | null {
     if (!reviewContent) return null;
 
-    const decisionMatch = reviewContent.match(/DECISION:\s*(APPROVED|REQUEST_CHANGES)/i);
-    if (decisionMatch) {
-        return decisionMatch[1].toUpperCase() === 'APPROVED' ? 'approved' : 'request_changes';
+    // Remove markdown bold/italic formatting for easier matching
+    const cleanedContent = reviewContent.replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1');
+
+    // Match DECISION: followed by approval (APPROVED, APPROVE)
+    const approvedMatch = cleanedContent.match(/DECISION:\s*APPROVED?/i);
+    if (approvedMatch) {
+        return 'approved';
+    }
+
+    // Match DECISION: followed by request changes (REQUEST_CHANGES, REQUEST CHANGES, REQUESTCHANGES)
+    const requestChangesMatch = cleanedContent.match(/DECISION:\s*REQUEST[\s_]?CHANGES?/i);
+    if (requestChangesMatch) {
+        return 'request_changes';
     }
 
     return null;
+}
+
+// ============================================================
+// STRUCTURED DECISION EXTRACTION
+// ============================================================
+
+/**
+ * Review decision type
+ */
+export type ReviewDecision = 'approved' | 'request_changes';
+
+/**
+ * Structured review decision result
+ */
+export interface StructuredReviewDecision {
+    decision: ReviewDecision;
+    summary: string;
+}
+
+/**
+ * Extract review decision using Anthropic SDK with tool use
+ *
+ * Uses structured output via tool_choice to guarantee a typed response.
+ * This is more reliable than text parsing.
+ *
+ * @param reviewContent - The review text content to analyze
+ * @returns The extracted decision or null if extraction fails
+ */
+export async function extractReviewDecisionStructured(
+    reviewContent: string
+): Promise<StructuredReviewDecision | null> {
+    if (!reviewContent) return null;
+
+    try {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const client = new Anthropic();
+
+        const response = await client.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 256,
+            tools: [
+                {
+                    name: 'submit_review_decision',
+                    description: 'Submit the review decision extracted from the review content',
+                    input_schema: {
+                        type: 'object' as const,
+                        properties: {
+                            decision: {
+                                type: 'string',
+                                enum: ['approved', 'request_changes'],
+                                description: 'The review decision: approved if the code is ready to merge, request_changes if changes are needed',
+                            },
+                            summary: {
+                                type: 'string',
+                                description: 'A brief 1-2 sentence summary of the review',
+                            },
+                        },
+                        required: ['decision', 'summary'],
+                    },
+                },
+            ],
+            tool_choice: { type: 'tool', name: 'submit_review_decision' },
+            messages: [
+                {
+                    role: 'user',
+                    content: `Extract the review decision from this code review. Determine if the reviewer approved the changes or requested changes.
+
+Review content:
+${reviewContent}
+
+Call the submit_review_decision tool with the extracted decision.`,
+                },
+            ],
+        });
+
+        // Extract the tool use response
+        for (const block of response.content) {
+            if (block.type === 'tool_use' && block.name === 'submit_review_decision') {
+                const input = block.input as { decision: string; summary: string };
+                if (input.decision === 'approved' || input.decision === 'request_changes') {
+                    return {
+                        decision: input.decision,
+                        summary: input.summary || 'Review completed',
+                    };
+                }
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('  Structured extraction failed, falling back to text parsing:', error);
+        return null;
+    }
 }
 
 // ============================================================

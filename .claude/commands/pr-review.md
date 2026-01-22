@@ -29,29 +29,21 @@ Review the code changes in this branch for:
    - Adherence to project patterns and guidelines
 4. **Make a decision** - Decide whether to approve or request changes
 
-## Output Format
+## Output Requirements
 
-You MUST output your review in this exact format:
+Your response must include these three parts:
 
-```review
-## Review Decision
-DECISION: APPROVED | REQUEST_CHANGES
+1. **decision**: Either `approved` (code is ready to merge) or `request_changes` (changes needed)
 
-## Summary
-[1-2 sentence summary of the changes]
+2. **summary**: A 1-2 sentence summary of the review
 
-## Feedback Items
-[If REQUEST_CHANGES, list numbered items with file:line references:]
-1. **[file.ts:line]** Description of issue and how to fix it
-2. **[General]** Description of broader issue
-
-## What Looks Good
-[Positive feedback on the implementation - what was done well]
-```
+3. **reviewText**: The full review with:
+   - If requesting changes: numbered feedback items with file:line references
+   - What looks good about the implementation
+   - Any minor suggestions for future improvements
 
 ## Important Notes
 - Be thorough but constructive
 - Provide specific file:line references when possible
 - Explain WHY something is an issue, not just WHAT the issue is
 - Include positive feedback on what was done well
-- If approving, still mention any minor suggestions for future improvements

@@ -34,8 +34,7 @@ import {
     type ProjectItem,
     // Claude
     runAgent,
-    extractReview,
-    parseReviewDecision,
+    type OutputSchema,
     // Notifications
     notifyPRReviewComplete,
     notifyAgentError,
@@ -48,6 +47,42 @@ import {
     // Agent Identity
     addAgentPrefix,
 } from './shared';
+
+// ============================================================
+// STRUCTURED OUTPUT SCHEMA
+// ============================================================
+
+/**
+ * Schema for PR review structured output
+ */
+const PR_REVIEW_OUTPUT_SCHEMA: OutputSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: ['approved', 'request_changes'],
+            description: 'The review decision: approved if code is ready to merge, request_changes if changes needed',
+        },
+        summary: {
+            type: 'string',
+            description: 'A 1-2 sentence summary of the review',
+        },
+        reviewText: {
+            type: 'string',
+            description: 'The full review text with feedback items and what looks good',
+        },
+    },
+    required: ['decision', 'summary', 'reviewText'],
+};
+
+/**
+ * Type for the structured review output
+ */
+interface PRReviewOutput {
+    decision: 'approved' | 'request_changes';
+    summary: string;
+    reviewText: string;
+}
 
 // ============================================================
 // TYPES
@@ -276,36 +311,32 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 timeout: agentConfig.claude.timeoutSeconds,
                 progressLabel: 'Reviewing PR',
                 workflow: 'pr-review',
+                outputFormat: PR_REVIEW_OUTPUT_SCHEMA,
             });
 
             if (!result.success) {
                 return { success: false, error: result.error || 'Review failed' };
             }
 
-            // Extract review content
-            const reviewContent = extractReview(result.content || '');
-            if (!reviewContent) {
-                return { success: false, error: 'Could not extract review content from agent output' };
+            // Get structured output directly - no parsing needed
+            const reviewOutput = result.structuredOutput as PRReviewOutput | undefined;
+            if (!reviewOutput || !reviewOutput.decision) {
+                return { success: false, error: 'Could not get structured review output from agent' };
             }
 
-            // Parse decision
-            const decision = parseReviewDecision(reviewContent);
-            if (!decision) {
-                return { success: false, error: 'Could not parse review decision (expected APPROVED or REQUEST_CHANGES)' };
-            }
-
+            const { decision, reviewText } = reviewOutput;
             console.log(`  Review decision: ${decision === 'approved' ? 'APPROVED ✓' : 'REQUEST CHANGES'}`);
 
             // Preview mode: show what would be posted
             if (options.dryRun) {
                 console.log('\n  [DRY RUN] Would post review comment:');
                 console.log('  ' + '='.repeat(60));
-                console.log(reviewContent.split('\n').map(l => '  ' + l).join('\n'));
+                console.log(reviewText.split('\n').map(l => '  ' + l).join('\n'));
                 console.log('  ' + '='.repeat(60));
                 console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? 'Approved' : 'Request Changes'}`);
             } else {
                 // Post review comment on PR
-                const prefixedReview = addAgentPrefix('pr-review', reviewContent);
+                const prefixedReview = addAgentPrefix('pr-review', reviewText);
                 await adapter.addPRComment(prNumber, prefixedReview);
                 console.log('  Posted review comment on PR');
 
