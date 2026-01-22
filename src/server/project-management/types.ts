@@ -6,6 +6,13 @@
  */
 
 import type { Status, ReviewStatus } from './config';
+import type {
+    LinkedPullRequest,
+    GitHubIssueDetails,
+} from '@/apis/feature-requests/types';
+
+// Re-export types from API to avoid duplication
+export type { LinkedPullRequest, GitHubIssueDetails };
 
 // ============================================================
 // DOMAIN TYPES
@@ -231,6 +238,11 @@ export interface ProjectManagementAdapter {
      * Get comments on an issue
      */
     getIssueComments(issueNumber: number): Promise<ProjectItemComment[]>;
+
+    /**
+     * Get full issue details including body and linked PRs
+     */
+    getIssueDetails(issueNumber: number): Promise<GitHubIssueDetails | null>;
 
     /**
      * Add an issue to the project board

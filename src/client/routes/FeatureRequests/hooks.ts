@@ -20,6 +20,7 @@ import {
     updateGitHubReviewStatus,
     clearGitHubReviewStatus,
     createFeatureRequest,
+    getGitHubIssueDetails,
 } from '@/apis/feature-requests/client';
 import type {
     GetFeatureRequestsRequest,
@@ -556,5 +557,26 @@ export function useCreateFeatureRequest() {
         },
         onSuccess: () => {}, // EMPTY - never update from server response
         onSettled: () => {}, // EMPTY - never invalidateQueries
+    });
+}
+
+/**
+ * Hook to fetch GitHub issue details including full description and linked PRs
+ */
+export function useGitHubIssueDetails(requestId: string | null, enabled: boolean = true) {
+    const queryDefaults = useQueryDefaults();
+
+    return useQuery({
+        queryKey: ['github-issue-details', requestId],
+        queryFn: async () => {
+            if (!requestId) return null;
+            const result = await getGitHubIssueDetails({ requestId });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data.issueDetails;
+        },
+        enabled: enabled && !!requestId,
+        ...queryDefaults,
     });
 }
