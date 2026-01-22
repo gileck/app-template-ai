@@ -36,6 +36,7 @@
     "setup-hooks": "./scripts/hooks/setup-hooks.sh",
     "audit-feature-status": "tsx scripts/audit-feature-request-status.ts",
     "verify-setup": "tsx scripts/verify-github-projects-setup.ts",
+    "verify-credentials": "tsx scripts/verify-credentials.ts",
     "verify-production": "tsx scripts/verify-production.ts"
   },
   "dependencies": {

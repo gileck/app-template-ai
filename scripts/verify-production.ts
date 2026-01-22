@@ -1,22 +1,23 @@
 #!/usr/bin/env tsx
 /**
- * Production Environment Verification Script
+ * Production Deployment Verification Script
  *
- * Validates that the production deployment on Vercel has everything configured correctly:
- * - GitHub API access (repo, project, issues)
- * - Telegram API and webhook
- * - All environment variables present
- * - MongoDB connection
- * - End-to-end button callback flow
+ * Tests the actual production deployment on Vercel:
+ * - Vercel environment variables are set
+ * - Production webhook endpoint is accessible
+ * - Production app responds correctly
+ *
+ * This tests the DEPLOYED app, not local credentials.
+ * For credential testing, use `yarn verify-credentials` instead.
  *
  * Usage:
  *   yarn verify-production
- *   yarn verify-production --url https://your-app.vercel.app
+ *   yarn verify-production --url https://your-custom-domain.com
  */
 
 import '../src/agents/shared/loadEnv';
 import { Command } from 'commander';
-import { Octokit } from '@octokit/rest';
+import { execSync } from 'child_process';
 
 // ============================================================================
 // Types
@@ -39,11 +40,6 @@ interface CategoryResults {
 // Utility Functions
 // ============================================================================
 
-function printHeader(text: string) {
-    console.log(`\n${text}`);
-    console.log('═'.repeat(70));
-}
-
 function printSubheader(text: string) {
     console.log(`\n${text}`);
     console.log('─'.repeat(70));
@@ -60,287 +56,93 @@ function printSummary(results: CategoryResults) {
     console.log(`\n  ${results.passed} passed, ${results.failed} failed`);
 }
 
+function runCommand(command: string): string | null {
+    try {
+        return execSync(command, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    } catch {
+        return null;
+    }
+}
+
 // ============================================================================
 // Check Functions
 // ============================================================================
 
-async function checkGitHubAPI(): Promise<CategoryResults> {
+async function checkVercelProject(): Promise<CategoryResults> {
     const results: CategoryResults = {
-        category: 'GitHub API',
+        category: 'Vercel Project',
         checks: [],
         passed: 0,
         failed: 0
     };
 
-    const token = process.env.GITHUB_TOKEN;
-    const owner = process.env.GITHUB_OWNER;
-    const repo = process.env.GITHUB_REPO;
-    const projectNumber = process.env.GITHUB_PROJECT_NUMBER;
-
-    // Check token exists
-    if (!token) {
+    // Check if project is linked
+    const projectJson = runCommand('cat .vercel/project.json 2>/dev/null');
+    if (!projectJson) {
         results.checks.push({
             passed: false,
-            message: 'GITHUB_TOKEN is set',
-            details: ['Missing from environment']
+            message: 'Vercel project linked',
+            details: ['Run: vercel link']
         });
         results.failed++;
         return results;
     }
 
-    results.checks.push({ passed: true, message: 'GITHUB_TOKEN is set' });
+    results.checks.push({
+        passed: true,
+        message: 'Vercel project linked'
+    });
     results.passed++;
-
-    const octokit = new Octokit({ auth: token });
-
-    // Test repository access
-    try {
-        await octokit.repos.get({ owner: owner!, repo: repo! });
-        results.checks.push({ passed: true, message: 'Repository access works' });
-        results.passed++;
-    } catch (error: any) {
-        results.checks.push({
-            passed: false,
-            message: 'Repository access failed',
-            details: [error.message]
-        });
-        results.failed++;
-    }
-
-    // Test issue creation (dry-run - we won't actually create it)
-    try {
-        // Just test the API endpoint is accessible
-        await octokit.issues.listForRepo({ owner: owner!, repo: repo!, per_page: 1 });
-        results.checks.push({ passed: true, message: 'Issues API works' });
-        results.passed++;
-    } catch (error: any) {
-        results.checks.push({
-            passed: false,
-            message: 'Issues API failed',
-            details: [error.message]
-        });
-        results.failed++;
-    }
-
-    // Test GitHub Projects V2 access
-    if (projectNumber) {
-        try {
-            const ownerType = process.env.GITHUB_OWNER_TYPE;
-            const query = `
-                query($owner: String!, $number: Int!) {
-                    ${ownerType === 'org' ? 'organization' : 'user'}(login: $owner) {
-                        projectV2(number: $number) {
-                            id
-                            title
-                        }
-                    }
-                }
-            `;
-
-            const response: any = await octokit.graphql(query, {
-                owner: owner!,
-                number: parseInt(projectNumber)
-            });
-
-            const project = ownerType === 'org'
-                ? response.organization?.projectV2
-                : response.user?.projectV2;
-
-            if (project) {
-                results.checks.push({
-                    passed: true,
-                    message: `GitHub Project access works (${project.title})`
-                });
-                results.passed++;
-            } else {
-                results.checks.push({
-                    passed: false,
-                    message: 'GitHub Project not found',
-                    details: [`Project #${projectNumber} not accessible`]
-                });
-                results.failed++;
-            }
-        } catch (error: any) {
-            results.checks.push({
-                passed: false,
-                message: 'GitHub Project access failed',
-                details: [error.message]
-            });
-            results.failed++;
-        }
-    }
 
     return results;
 }
 
-async function checkTelegramAPI(): Promise<CategoryResults> {
+async function checkVercelEnvironmentVariables(): Promise<CategoryResults> {
     const results: CategoryResults = {
-        category: 'Telegram API',
+        category: 'Vercel Environment Variables',
         checks: [],
         passed: 0,
         failed: 0
     };
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.LOCAL_TELEGRAM_CHAT_ID;
-
-    if (!botToken) {
-        results.checks.push({
-            passed: false,
-            message: 'TELEGRAM_BOT_TOKEN is set',
-            details: ['Missing from environment']
-        });
-        results.failed++;
-        return results;
-    }
-
-    results.checks.push({ passed: true, message: 'TELEGRAM_BOT_TOKEN is set' });
-    results.passed++;
-
-    // Test bot token validity by calling getMe
-    try {
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
-        const data: any = await response.json();
-
-        if (data.ok) {
-            results.checks.push({
-                passed: true,
-                message: `Bot token valid (@${data.result.username})`
-            });
-            results.passed++;
-        } else {
-            results.checks.push({
-                passed: false,
-                message: 'Bot token invalid',
-                details: [data.description]
-            });
-            results.failed++;
-        }
-    } catch (error: any) {
-        results.checks.push({
-            passed: false,
-            message: 'Bot API unreachable',
-            details: [error.message]
-        });
-        results.failed++;
-    }
-
-    // Check webhook info
-    try {
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
-        const data: any = await response.json();
-
-        if (data.ok) {
-            const webhookUrl = data.result.url;
-            if (webhookUrl) {
-                results.checks.push({
-                    passed: true,
-                    message: 'Webhook is configured',
-                    details: [`URL: ${webhookUrl}`]
-                });
-                results.passed++;
-
-                // Check for pending updates or errors
-                if (data.result.last_error_message) {
-                    results.checks.push({
-                        passed: false,
-                        message: 'Webhook has errors',
-                        details: [data.result.last_error_message]
-                    });
-                    results.failed++;
-                } else {
-                    results.checks.push({
-                        passed: true,
-                        message: 'Webhook has no errors'
-                    });
-                    results.passed++;
-                }
-            } else {
-                results.checks.push({
-                    passed: false,
-                    message: 'Webhook not set',
-                    details: ['Run: yarn telegram-webhook set <url>']
-                });
-                results.failed++;
-            }
-        }
-    } catch (error: any) {
-        results.checks.push({
-            passed: false,
-            message: 'Webhook info check failed',
-            details: [error.message]
-        });
-        results.failed++;
-    }
-
-    // Send test message (optional - only if chat ID is set)
-    if (chatId) {
-        try {
-            const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: '✅ Production verification test - Telegram API works!',
-                    disable_notification: true
-                })
-            });
-
-            const data: any = await response.json();
-
-            if (data.ok) {
-                results.checks.push({
-                    passed: true,
-                    message: 'Test message sent successfully'
-                });
-                results.passed++;
-            } else {
-                results.checks.push({
-                    passed: false,
-                    message: 'Test message failed',
-                    details: [data.description]
-                });
-                results.failed++;
-            }
-        } catch (error: any) {
-            results.checks.push({
-                passed: false,
-                message: 'Test message send error',
-                details: [error.message]
-            });
-            results.failed++;
-        }
-    }
-
-    return results;
-}
-
-async function checkEnvironmentVariables(): Promise<CategoryResults> {
-    const results: CategoryResults = {
-        category: 'Environment Variables',
-        checks: [],
-        passed: 0,
-        failed: 0
-    };
-
-    const required = [
+    const requiredVars = [
         'GITHUB_TOKEN',
         'GITHUB_OWNER',
         'GITHUB_REPO',
         'GITHUB_PROJECT_NUMBER',
         'GITHUB_OWNER_TYPE',
         'TELEGRAM_BOT_TOKEN',
-        'LOCAL_TELEGRAM_CHAT_ID',
         'MONGO_URI',
         'JWT_SECRET',
         'ADMIN_USER_ID'
     ];
 
-    for (const varName of required) {
-        const isSet = !!process.env[varName] && process.env[varName]!.length > 0;
+    // Get production environment variables
+    const envOutput = runCommand('vercel env ls production 2>/dev/null');
+
+    if (!envOutput) {
+        results.checks.push({
+            passed: false,
+            message: 'Vercel CLI accessible',
+            details: ['Install: npm i -g vercel', 'Or skip with: --skip-vercel']
+        });
+        results.failed++;
+        return results;
+    }
+
+    results.checks.push({
+        passed: true,
+        message: 'Vercel CLI accessible'
+    });
+    results.passed++;
+
+    // Check each required variable
+    for (const varName of requiredVars) {
+        const isSet = envOutput.includes(varName);
         results.checks.push({
             passed: isSet,
-            message: `${varName} ${isSet ? '✓' : '✗'}`
+            message: `${varName} in Vercel ${isSet ? '✓' : '✗'}`,
+            details: isSet ? undefined : ['Push to Vercel: yarn vercel-cli env:push']
         });
 
         if (isSet) {
@@ -353,6 +155,108 @@ async function checkEnvironmentVariables(): Promise<CategoryResults> {
     return results;
 }
 
+async function checkProductionDeployment(productionUrl: string): Promise<CategoryResults> {
+    const results: CategoryResults = {
+        category: 'Production Deployment',
+        checks: [],
+        passed: 0,
+        failed: 0
+    };
+
+    // Test main app is accessible
+    try {
+        const response = await fetch(productionUrl, { method: 'HEAD' });
+        if (response.ok || response.status === 405) {
+            results.checks.push({
+                passed: true,
+                message: 'Production app accessible',
+                details: [`URL: ${productionUrl}`]
+            });
+            results.passed++;
+        } else {
+            results.checks.push({
+                passed: false,
+                message: 'Production app not accessible',
+                details: [`Status: ${response.status}`, `URL: ${productionUrl}`]
+            });
+            results.failed++;
+        }
+    } catch (error: any) {
+        results.checks.push({
+            passed: false,
+            message: 'Production app unreachable',
+            details: [error.message, `URL: ${productionUrl}`]
+        });
+        results.failed++;
+        return results;
+    }
+
+    // Test webhook endpoint exists
+    const webhookUrl = `${productionUrl}/api/telegram-webhook`;
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+
+        // 405 or 400 is expected (we're not sending valid Telegram data)
+        // 404 means the endpoint doesn't exist
+        if (response.status === 404) {
+            results.checks.push({
+                passed: false,
+                message: 'Webhook endpoint exists',
+                details: ['Endpoint not found (404)', 'Deploy your app to Vercel']
+            });
+            results.failed++;
+        } else {
+            results.checks.push({
+                passed: true,
+                message: 'Webhook endpoint exists',
+                details: [`Status: ${response.status} (expected - not valid Telegram request)`]
+            });
+            results.passed++;
+        }
+    } catch (error: any) {
+        results.checks.push({
+            passed: false,
+            message: 'Webhook endpoint check failed',
+            details: [error.message]
+        });
+        results.failed++;
+    }
+
+    return results;
+}
+
+async function getProductionUrl(): Promise<string | null> {
+    // Try to get from VERCEL_PROJECT_PRODUCTION_URL env var
+    const envUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    if (envUrl) {
+        return `https://${envUrl}`;
+    }
+
+    // Try to get from vercel CLI
+    const projectJson = runCommand('cat .vercel/project.json 2>/dev/null');
+    if (projectJson) {
+        try {
+            const project = JSON.parse(projectJson);
+            const projectId = project.projectId;
+
+            // Get production URL from vercel
+            const deployment = runCommand(`vercel ls --prod --json 2>/dev/null | head -1`);
+            if (deployment) {
+                const data = JSON.parse(deployment);
+                return data.url ? `https://${data.url}` : null;
+            }
+        } catch {
+            // Fall through
+        }
+    }
+
+    return null;
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -362,45 +266,68 @@ async function main() {
 
     program
         .name('verify-production')
-        .description('Verify production deployment configuration')
-        .option('--url <url>', 'Production URL to test (optional)')
+        .description('Verify production deployment on Vercel')
+        .option('--url <url>', 'Production URL (auto-detected if not provided)')
+        .option('--skip-vercel', 'Skip Vercel environment variable checks')
         .parse(process.argv);
 
     const options = program.opts();
 
-    console.log('🔍 Verifying Production Environment');
+    console.log('🔍 Verifying Production Deployment');
     console.log('═'.repeat(70));
 
-    // Check environment variables
-    printSubheader('📋 Environment Variables');
-    const envResults = await checkEnvironmentVariables();
-    envResults.checks.forEach(printCheck);
-    printSummary(envResults);
+    // Get production URL
+    let productionUrl = options.url;
+    if (!productionUrl) {
+        productionUrl = await getProductionUrl();
+        if (!productionUrl) {
+            console.error('\n❌ Could not auto-detect production URL.');
+            console.error('   Provide URL manually: yarn verify-production --url https://your-app.vercel.app');
+            process.exit(1);
+        }
+    }
 
-    // Check GitHub API
-    printSubheader('🐙 GitHub API');
-    const githubResults = await checkGitHubAPI();
-    githubResults.checks.forEach(printCheck);
-    printSummary(githubResults);
+    console.log(`\n📍 Testing: ${productionUrl}`);
 
-    // Check Telegram API
-    printSubheader('📱 Telegram API');
-    const telegramResults = await checkTelegramAPI();
-    telegramResults.checks.forEach(printCheck);
-    printSummary(telegramResults);
+    // Check Vercel project
+    printSubheader('📦 Vercel Project');
+    const projectResults = await checkVercelProject();
+    projectResults.checks.forEach(printCheck);
+    printSummary(projectResults);
+
+    // Check Vercel environment variables
+    if (!options.skipVercel) {
+        printSubheader('🔐 Vercel Environment Variables (Production)');
+        const envResults = await checkVercelEnvironmentVariables();
+        envResults.checks.forEach(printCheck);
+        printSummary(envResults);
+    }
+
+    // Check production deployment
+    printSubheader('🌐 Production Deployment');
+    const deploymentResults = await checkProductionDeployment(productionUrl);
+    deploymentResults.checks.forEach(printCheck);
+    printSummary(deploymentResults);
 
     // Overall summary
-    const totalPassed = envResults.passed + githubResults.passed + telegramResults.passed;
-    const totalFailed = envResults.failed + githubResults.failed + telegramResults.failed;
+    const allResults = [projectResults, deploymentResults];
+    if (!options.skipVercel) {
+        const envResults = await checkVercelEnvironmentVariables();
+        allResults.splice(1, 0, envResults);
+    }
+
+    const totalPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
+    const totalFailed = allResults.reduce((sum, r) => sum + r.failed, 0);
     const totalChecks = totalPassed + totalFailed;
 
-    printHeader('📊 Overall Summary');
+    printSubheader('📊 Overall Summary');
     console.log(`Total: ${totalChecks} checks`);
     console.log(`✓ Passed: ${totalPassed}`);
     console.log(`✗ Failed: ${totalFailed}`);
 
     if (totalFailed === 0) {
-        console.log('\n✅ All checks passed! Production environment is properly configured.');
+        console.log('\n✅ All checks passed! Production deployment is properly configured.');
+        console.log('\n💡 Next: Test credentials with `yarn verify-credentials`');
         process.exit(0);
     } else {
         console.log('\n❌ Some checks failed. Please review the errors above.');

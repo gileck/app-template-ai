@@ -770,36 +770,39 @@ Before the full workflow test, verify Telegram buttons work correctly:
 
 > **💡 Tip:** Buttons only work with your production deployment (Vercel URL). They won't work with localhost during development.
 
-### 6.6: Production Validation (After Deployment)
+### 6.6: Verification Scripts
 
-Once deployed to Vercel, verify everything works in production:
+After deployment, use these two scripts to verify your setup:
+
+#### Test 1: Verify Credentials (Local)
+
+Test that your local credentials work correctly:
 
 ```bash
-yarn verify-production
+yarn verify-credentials
 ```
 
-**This script tests:**
-- ✅ **Environment Variables** - All required vars present in production
-- ✅ **GitHub API** - Repository access, issues, GitHub Projects V2
-- ✅ **Telegram API** - Bot token valid, webhook configured correctly
-- ✅ **End-to-end** - Sends a test Telegram message
+**What it tests:**
+- ✅ Environment variables in `.env.local`
+- ✅ GitHub API access (repo, issues, projects)
+- ✅ Telegram bot token validity
+- ✅ Webhook configuration
+- ✅ Sends test Telegram message
 
 **Expected output:**
 ```
-🔍 Verifying Production Environment
+🔍 Verifying Local Credentials
 ══════════════════════════════════════════════════════════════════════
 
 📋 Environment Variables
 ──────────────────────────────────────────────────────────────────────
 ✓ GITHUB_TOKEN ✓
 ✓ GITHUB_OWNER ✓
-✓ GITHUB_REPO ✓
 ...
   10 passed, 0 failed
 
 🐙 GitHub API
 ──────────────────────────────────────────────────────────────────────
-✓ GITHUB_TOKEN is set
 ✓ Repository access works
 ✓ Issues API works
 ✓ GitHub Project access works (Your Project Name)
@@ -807,20 +810,55 @@ yarn verify-production
 
 📱 Telegram API
 ──────────────────────────────────────────────────────────────────────
-✓ TELEGRAM_BOT_TOKEN is set
 ✓ Bot token valid (@your_bot)
 ✓ Webhook is configured
-✓ Webhook has no errors
 ✓ Test message sent successfully
   5 passed, 0 failed
 
-📊 Overall Summary
-══════════════════════════════════════════════════════════════════════
-Total: 19 checks
-✓ Passed: 19
-✗ Failed: 0
+✅ All checks passed! 19/19
+```
 
-✅ All checks passed! Production environment is properly configured.
+#### Test 2: Verify Production Deployment
+
+Test the actual deployed app on Vercel:
+
+```bash
+yarn verify-production --url https://your-app.vercel.app
+```
+
+**What it tests:**
+- ✅ Vercel project is linked
+- ✅ All environment variables set in Vercel production
+- ✅ Production app is accessible
+- ✅ Webhook endpoint exists and responds
+
+**Expected output:**
+```
+🔍 Verifying Production Deployment
+══════════════════════════════════════════════════════════════════════
+
+📍 Testing: https://your-app.vercel.app
+
+📦 Vercel Project
+──────────────────────────────────────────────────────────────────────
+✓ Vercel project linked
+  1 passed, 0 failed
+
+🔐 Vercel Environment Variables (Production)
+──────────────────────────────────────────────────────────────────────
+✓ Vercel CLI accessible
+✓ GITHUB_TOKEN in Vercel ✓
+✓ GITHUB_OWNER in Vercel ✓
+...
+  10 passed, 0 failed
+
+🌐 Production Deployment
+──────────────────────────────────────────────────────────────────────
+✓ Production app accessible
+✓ Webhook endpoint exists
+  2 passed, 0 failed
+
+✅ All checks passed! 13/13
 ```
 
 **If any checks fail**, see the [Troubleshooting](#troubleshooting) section for specific fixes.
