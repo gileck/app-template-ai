@@ -205,8 +205,8 @@ export interface StructuredReviewDecision {
 /**
  * Extract review decision using Anthropic SDK with tool use
  *
- * This is more reliable than text parsing as it uses structured output.
- * Falls back to text parsing if the API call fails.
+ * Uses structured output via tool_choice to guarantee a typed response.
+ * This is more reliable than text parsing.
  *
  * @param reviewContent - The review text content to analyze
  * @returns The extracted decision or null if extraction fails
@@ -216,16 +216,6 @@ export async function extractReviewDecisionStructured(
 ): Promise<StructuredReviewDecision | null> {
     if (!reviewContent) return null;
 
-    // First try the fast text parsing approach
-    const parsedDecision = parseReviewDecision(reviewContent);
-    if (parsedDecision) {
-        // Extract a summary from the review content
-        const summaryMatch = reviewContent.match(/##\s*Summary\s*\n+([\s\S]*?)(?=\n##|\n```|$)/i);
-        const summary = summaryMatch?.[1]?.trim() || 'Review completed';
-        return { decision: parsedDecision, summary };
-    }
-
-    // If text parsing fails, use Anthropic SDK for structured extraction
     try {
         const Anthropic = (await import('@anthropic-ai/sdk')).default;
         const client = new Anthropic();
