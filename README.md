@@ -2,6 +2,8 @@
 
 A modern, production-ready Next.js template with AI capabilities, MongoDB, React Query, Zustand state management, and shadcn/ui components.
 
+> **Test Note:** Testing Claude Code GitHub Actions integration.
+
 ## Features
 
 - ⚡️ **Next.js 15** with Turbopack
