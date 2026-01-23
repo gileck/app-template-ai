@@ -56,7 +56,7 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
     };
 
     return (
-        <Card className="mb-4 p-4 todo-card-gradient">
+        <Card className="mb-5 p-4 todo-card-gradient">
             <div className="flex items-center gap-3">
                 <Input
                     value={newTodoTitle}

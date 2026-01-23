@@ -185,9 +185,10 @@ export function TodoItem({
                         />
                     ) : (
                         <span
-                            className={`flex-1 text-base ${
+                            className={`todo-item-title text-base ${
                                 todo.completed ? 'todo-completed-text' : ''
                             }`}
+                            title={todo.title}
                         >
                             {todo.title}
                         </span>
@@ -211,12 +212,13 @@ export function TodoItem({
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex gap-1">
+                        <div className="flex gap-2">
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleViewTodo}
                                 title="View details"
+                                className="todo-action-button"
                             >
                                 <Eye className="h-4 w-4" />
                             </Button>
@@ -226,6 +228,7 @@ export function TodoItem({
                                 onClick={handleStartEdit}
                                 disabled={isDisabled}
                                 title="Edit"
+                                className="todo-action-button"
                             >
                                 <Pencil className="h-4 w-4" />
                             </Button>
@@ -235,6 +238,7 @@ export function TodoItem({
                                 onClick={() => onDelete(todo)}
                                 disabled={isDisabled}
                                 title="Delete"
+                                className="todo-action-button"
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
