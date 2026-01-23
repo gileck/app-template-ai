@@ -288,6 +288,166 @@ async function testErrorHandling(options: CLIOptions): Promise<TestResult> {
 }
 
 /**
+ * Test: Review latest commit with streaming (shows thinking process)
+ */
+async function testReviewCommit(options: CLIOptions): Promise<TestResult> {
+    const testName = 'Review latest commit';
+    const startTime = Date.now();
+
+    try {
+        console.log(`\n  Running: ${testName}`);
+        console.log('  (Streaming output with thinking process)\n');
+
+        // Get latest commit info
+        const { execSync } = await import('child_process');
+        const commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+        const commitMessage = execSync('git log -1 --pretty=%s', { encoding: 'utf-8' }).trim();
+        const commitDiff = execSync('git show --stat HEAD', { encoding: 'utf-8' }).trim();
+
+        console.log(`  Commit: ${commitHash} - ${commitMessage}\n`);
+        console.log('  --- Streaming Output ---\n');
+
+        // Run cursor-agent directly to show streaming output
+        const { spawn } = await import('child_process');
+        
+        const prompt = `Review the following git commit and provide brief feedback:
+
+Commit: ${commitHash}
+Message: ${commitMessage}
+
+Changes:
+${commitDiff}
+
+Provide a brief code review (2-3 sentences) focusing on:
+1. Is the change clear and well-documented?
+2. Any potential issues?`;
+
+        const args = [
+            prompt,
+            '-p',
+            '--model', 'opus-4.5',
+            '--output-format', 'stream-json',
+        ];
+
+        return new Promise((resolve) => {
+            let buffer = '';
+            let fullContent = '';
+            let thinkingContent = '';
+            let timedOut = false;
+
+            const proc = spawn('cursor-agent', args, {
+                cwd: process.cwd(),
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+
+            // Close stdin immediately
+            proc.stdin?.end();
+
+            // Set timeout (2 minutes)
+            const timeoutId = setTimeout(() => {
+                timedOut = true;
+                proc.kill('SIGTERM');
+            }, 120000);
+
+            proc.stdout?.on('data', (data: Buffer) => {
+                buffer += data.toString();
+                
+                // Parse JSON lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    
+                    try {
+                        const event = JSON.parse(line);
+                        
+                        // Debug: show raw event type if verbose
+                        if (options.verbose && event.type !== 'result') {
+                            process.stdout.write(`\x1b[90m[${event.type}]\x1b[0m `);
+                        }
+
+                        // Handle different event types
+                        if (event.type === 'assistant' && event.message?.content) {
+                            for (const block of event.message.content) {
+                                if (block.type === 'thinking') {
+                                    // Show thinking in cyan
+                                    const thinking = block.thinking || block.text || '';
+                                    if (thinking) {
+                                        thinkingContent += thinking;
+                                        process.stdout.write(`\x1b[36m💭 ${thinking}\x1b[0m\n`);
+                                    }
+                                } else if (block.type === 'text') {
+                                    // Show text in normal color
+                                    const text = block.text || '';
+                                    if (text) {
+                                        fullContent += text;
+                                        process.stdout.write(text);
+                                    }
+                                } else if (options.verbose) {
+                                    // Show unknown block types in debug
+                                    process.stdout.write(`\x1b[33m[block:${block.type}]\x1b[0m `);
+                                }
+                            }
+                        } else if (event.type === 'result') {
+                            // Final result
+                            if (event.result && !fullContent) {
+                                fullContent = event.result;
+                                process.stdout.write(event.result);
+                            }
+                            process.stdout.write('\n');
+                        }
+                    } catch {
+                        // Not valid JSON, skip
+                    }
+                }
+            });
+
+            proc.stderr?.on('data', (data: Buffer) => {
+                process.stderr.write(data);
+            });
+
+            proc.on('close', (code) => {
+                clearTimeout(timeoutId);
+                
+                const duration = Math.floor((Date.now() - startTime) / 1000);
+
+                console.log('\n  --- End Streaming ---\n');
+
+                if (timedOut) {
+                    resolve({
+                        name: testName,
+                        passed: false,
+                        duration,
+                        error: 'Timed out after 2 minutes',
+                    });
+                    return;
+                }
+
+                if (options.verbose) {
+                    console.log(`  Thinking content length: ${thinkingContent.length}`);
+                    console.log(`  Response content length: ${fullContent.length}`);
+                }
+
+                resolve({
+                    name: testName,
+                    passed: code === 0 && fullContent.length > 0,
+                    duration,
+                    error: code !== 0 ? `Exit code: ${code}` : undefined,
+                });
+            });
+        });
+    } catch (error) {
+        return {
+            name: testName,
+            passed: false,
+            duration: Math.floor((Date.now() - startTime) / 1000),
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
+/**
  * Test: Write operation (optional)
  */
 async function testWriteOperation(options: CLIOptions): Promise<TestResult> {
@@ -376,7 +536,7 @@ async function main() {
     program
         .name('test-cursor-adapter')
         .description('Test the Cursor CLI adapter implementation')
-        .option('-t, --test <name>', 'Run specific test (init, read, stream, error, write)')
+        .option('-t, --test <name>', 'Run specific test (init, read, stream, error, write, review)')
         .option('-v, --verbose', 'Show detailed output', false)
         .option('-s, --stream', 'Use streaming mode for tests', false)
         .option('--skip-write', 'Skip write operation test', false)
@@ -399,6 +559,7 @@ async function main() {
         { name: 'Streaming output', key: 'stream', fn: testStreamingOutput },
         { name: 'Error handling', key: 'error', fn: testErrorHandling },
         { name: 'Write operation', key: 'write', fn: testWriteOperation },
+        { name: 'Review latest commit', key: 'review', fn: testReviewCommit },
     ];
 
     // Filter tests if specific test requested
@@ -408,7 +569,7 @@ async function main() {
 
     if (testsToRun.length === 0) {
         console.error(`\n  Unknown test: ${options.test}`);
-        console.error('  Available tests: init, read, stream, error, write');
+        console.error('  Available tests: init, read, stream, error, write, review');
         process.exit(1);
     }
 
