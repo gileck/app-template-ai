@@ -291,7 +291,7 @@ async function checkGitHubRepo(): Promise<CategoryResults> {
     }
 
     // Check workflow permissions
-    const workflowPermissions = runCommand('gh api repos/:owner/:repo/actions/permissions 2>/dev/null');
+    const workflowPermissions = runCommand('gh api repos/:owner/:repo/actions/permissions/workflow 2>/dev/null');
     if (workflowPermissions) {
         const hasWritePermission = workflowPermissions.includes('"default_workflow_permissions":"write"');
         checks.push({
