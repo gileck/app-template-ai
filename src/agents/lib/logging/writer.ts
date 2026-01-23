@@ -4,7 +4,7 @@ import path from 'path';
 /**
  * Base directory for agent logs
  */
-const LOGS_DIR = path.join(process.cwd(), 'src/agents/agent-logs');
+const LOGS_DIR = path.join(process.cwd(), 'agent-logs');
 
 /**
  * Ensure the logs directory exists

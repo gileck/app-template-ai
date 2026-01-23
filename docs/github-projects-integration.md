@@ -1243,7 +1243,7 @@ Each log file captures a complete narrative of what happened:
 **Log File Location:**
 
 ```
-src/agents/agent-logs/
+agent-logs/
 ├── issue-42.md    # All agents for issue #42
 ├── issue-43.md    # All agents for issue #43
 └── ...
@@ -1295,7 +1295,7 @@ yarn agent:logs --issue 42
 yarn agent:logs --recent
 
 # Or just open the Markdown file directly
-cat src/agents/agent-logs/issue-42.md
+cat agent-logs/issue-42.md
 ```
 
 **Key Features:**

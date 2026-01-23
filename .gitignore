@@ -57,7 +57,7 @@ template-diff-summary.md
 /audits/
 
 # agent logs
-/src/agents/agent-logs/
+/agent-logs/
 
 # child projects config (local only)
 child-projects.json

@@ -15,7 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { Command } from 'commander';
 
-const LOGS_DIR = path.join(process.cwd(), 'src/agents/agent-logs');
+const LOGS_DIR = path.join(process.cwd(), 'agent-logs');
 
 /**
  * Get all log files
