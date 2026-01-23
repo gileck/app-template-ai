@@ -1212,6 +1212,106 @@ on:
 
 **Note:** Without automation, items will remain in their current phase until you manually run the appropriate agent.
 
+### Agent Execution Logs
+
+Every agent execution is automatically logged to a human-readable Markdown file for debugging and auditing purposes.
+
+**What Gets Logged:**
+
+Each log file captures a complete narrative of what happened:
+- Full prompts sent to Claude (with all issue details, comments, designs)
+- Tool calls (file reads, searches, edits, bash commands)
+- Tool outputs (file contents, search results, command output)
+- Text responses and thinking blocks from Claude
+- GitHub actions taken (comments posted, PRs created, status updates)
+- Token usage and costs
+- Errors with full context
+- Timestamps and durations
+
+**Log File Location:**
+
+```
+src/agents/agent-logs/
+├── issue-42.md    # All agents for issue #42
+├── issue-43.md    # All agents for issue #43
+└── ...
+```
+
+**One Log Per Issue:**
+
+All agents working on the same issue append to the same log file, creating a complete chronological narrative:
+
+```markdown
+# Issue #42: Add dark mode toggle
+
+## Phase: Product Design
+**Agent:** product-design
+**Started:** 09:00:00
+
+### Prompt
+...full prompt with issue details...
+
+### Agent Execution
+**[09:00:05]** 🔧 Tool: Read → src/client/features/theme/store.ts
+**[09:00:10]** 📝 Response:
+# Product Design: Dark Mode Toggle
+...
+
+---
+
+## Phase: Technical Design
+**Agent:** tech-design
+**Started:** 14:30:00
+
+### Prompt
+...full prompt with product design...
+
+### Agent Execution
+...
+```
+
+**Viewing Logs:**
+
+```bash
+# List all logs
+yarn agent:logs --list
+
+# View specific issue log
+yarn agent:logs --issue 42
+
+# View most recent log
+yarn agent:logs --recent
+
+# Or just open the Markdown file directly
+cat src/agents/agent-logs/issue-42.md
+```
+
+**Key Features:**
+
+- ✅ Logs are **human-readable Markdown** (open in any editor)
+- ✅ **One file per issue** - complete story from Product Design → Implementation
+- ✅ **Automatic** - no configuration needed
+- ✅ **Gitignored** - logs stay local for privacy
+- ✅ Multiple agents on the same issue append chronologically
+- ✅ Console output unchanged - logs are additive
+
+**Example Timeline:**
+
+1. **Morning:** Product Design agent runs on issue #42 → creates `issue-42.md`
+2. **Evening:** Tech Design agent runs on issue #42 → appends to `issue-42.md`
+3. **Next Day:** Implementation agent runs on issue #42 → appends to `issue-42.md`
+
+Result: One complete log file showing the entire journey!
+
+**Use Cases:**
+
+- Debug why an agent made specific decisions
+- Review what files the agent examined
+- Understand token usage and costs
+- Audit agent actions for compliance
+- Reproduce agent behavior with same prompts
+- Share execution details with team members
+
 ## Handling Feedback Loops
 
 ### How "Request Changes" Works
