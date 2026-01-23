@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CLEANUP_DELAY } from '../animations';
 
 interface CelebrationEffectProps {
     active: boolean;
@@ -20,43 +21,34 @@ interface Particle {
     delay: string;
 }
 
-const CONFETTI_COLORS = [
-    'hsl(221, 83%, 53%)',    // primary
-    'hsl(262, 83%, 58%)',    // secondary
-    'hsl(142, 71%, 45%)',    // success
-    'hsl(48, 96%, 53%)',     // warning
-    'hsl(217, 91%, 60%)',    // info
-];
-
-const DARK_CONFETTI_COLORS = [
-    'hsl(217, 91%, 60%)',    // primary (dark)
-    'hsl(263, 89%, 67%)',    // secondary (dark)
-    'hsl(142, 71%, 45%)',    // success
-    'hsl(48, 96%, 53%)',     // warning
-    'hsl(217, 91%, 60%)',    // info
-];
-
 export function CelebrationEffect({ active, onComplete }: CelebrationEffectProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral animation particles
     const [particles, setParticles] = useState<Particle[]>([]);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral theme detection
-    const [isDark, setIsDark] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confetti colors from CSS variables
+    const [confettiColors, setConfettiColors] = useState<string[]>([]);
 
     useEffect(() => {
-        // Check if dark mode is active
-        setIsDark(document.documentElement.classList.contains('dark'));
+        // Read semantic color tokens from CSS variables
+        const styles = getComputedStyle(document.documentElement);
+        const colors = [
+            `hsl(${styles.getPropertyValue('--primary').trim()})`,
+            `hsl(${styles.getPropertyValue('--secondary').trim()})`,
+            `hsl(${styles.getPropertyValue('--success').trim()})`,
+            `hsl(${styles.getPropertyValue('--warning').trim()})`,
+            `hsl(${styles.getPropertyValue('--info').trim()})`,
+        ];
+        setConfettiColors(colors);
     }, []);
 
     useEffect(() => {
-        if (active) {
+        if (active && confettiColors.length > 0) {
             // Generate confetti particles
-            const colors = isDark ? DARK_CONFETTI_COLORS : CONFETTI_COLORS;
             const newParticles: Particle[] = [];
 
             for (let i = 0; i < 20; i++) {
                 newParticles.push({
                     id: i,
-                    color: colors[Math.floor(Math.random() * colors.length)],
+                    color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
                     left: `${Math.random() * 100}%`,
                     delay: `${Math.random() * 0.3}s`,
                 });
@@ -68,11 +60,11 @@ export function CelebrationEffect({ active, onComplete }: CelebrationEffectProps
             const timeout = setTimeout(() => {
                 setParticles([]);
                 onComplete();
-            }, 1800);
+            }, CLEANUP_DELAY);
 
             return () => clearTimeout(timeout);
         }
-    }, [active, isDark, onComplete]);
+    }, [active, confettiColors, onComplete]);
 
     if (!active || particles.length === 0) return null;
 

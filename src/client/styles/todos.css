@@ -177,7 +177,7 @@
 }
 
 .todo-checkbox svg {
-    color: white;
+    color: hsl(var(--primary-foreground));
     transform: scale(0);
     transition: transform 0.2s ease;
 }
