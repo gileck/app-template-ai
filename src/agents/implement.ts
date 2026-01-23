@@ -499,10 +499,34 @@ async function processItem(
         }
 
         // Check if there are changes to commit
-        if (!hasUncommittedChanges()) {
-            console.log('  No changes to commit');
-            git(`checkout ${defaultBranch}`);
-            return { success: false, error: 'Agent did not make any changes' };
+        const hasChanges = hasUncommittedChanges();
+        if (!hasChanges) {
+            // In feedback mode, agent might have already committed changes (via yarn checks auto-fix)
+            // or changes might have been pushed in a previous run
+            // Check if there are commits on this branch that aren't on the default branch
+            if (mode === 'feedback') {
+                console.log('  No uncommitted changes (feedback mode - checking for pushed commits)');
+                try {
+                    const diffOutput = git(`log ${defaultBranch}..HEAD --oneline`, { silent: true });
+                    if (diffOutput.trim()) {
+                        console.log('  Found existing commits on branch - proceeding to update Review Status');
+                        // Skip commit/push steps but continue to update Review Status
+                    } else {
+                        console.log('  No commits on branch either');
+                        git(`checkout ${defaultBranch}`);
+                        return { success: false, error: 'Agent did not make any changes' };
+                    }
+                } catch {
+                    console.log('  Could not check for branch commits');
+                    git(`checkout ${defaultBranch}`);
+                    return { success: false, error: 'Agent did not make any changes' };
+                }
+            } else {
+                // New implementation mode - must have changes
+                console.log('  No changes to commit');
+                git(`checkout ${defaultBranch}`);
+                return { success: false, error: 'Agent did not make any changes' };
+            }
         }
 
         // Run post-work yarn checks - fix any new issues
@@ -564,26 +588,37 @@ async function processItem(
             return { success: true };
         }
 
-        // Commit changes
-        const commitPrefix = issueType === 'bug' ? 'fix' : 'feat';
-        const commitMessage = mode === 'new'
-            ? `${commitPrefix}: ${content.title}\n\nCloses #${issueNumber}`
-            : `fix: address review feedback for #${issueNumber}`;
+        // Commit changes (only if there are uncommitted changes)
+        if (hasChanges) {
+            const commitPrefix = issueType === 'bug' ? 'fix' : 'feat';
+            const commitMessage = mode === 'new'
+                ? `${commitPrefix}: ${content.title}\n\nCloses #${issueNumber}`
+                : `fix: address review feedback for #${issueNumber}`;
 
-        console.log('  Committing changes...');
-        commitChanges(commitMessage);
+            console.log('  Committing changes...');
+            commitChanges(commitMessage);
 
-        // Push to remote
-        if (!options.skipPush) {
-            console.log('  Pushing to remote...');
-            pushBranch(branchName, mode === 'feedback');
+            // Push to remote
+            if (!options.skipPush) {
+                console.log('  Pushing to remote...');
+                pushBranch(branchName, mode === 'feedback');
 
-            // Verify all commits are pushed
-            console.log('  Verifying all commits are pushed...');
-            if (!verifyAllPushed(branchName)) {
-                return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
+                // Verify all commits are pushed
+                console.log('  Verifying all commits are pushed...');
+                if (!verifyAllPushed(branchName)) {
+                    return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
+                }
+                console.log('  ✅ All commits pushed successfully');
             }
-            console.log('  ✅ All commits pushed successfully');
+        } else {
+            console.log('  Skipping commit (no uncommitted changes - using existing commits)');
+            // Verify existing commits are already pushed
+            if (!options.skipPush) {
+                console.log('  Verifying existing commits are pushed...');
+                if (!verifyAllPushed(branchName)) {
+                    console.log('  ⚠️ Warning: Some commits may not be pushed to remote');
+                }
+            }
         }
 
         let prNumber = processable.prNumber;
