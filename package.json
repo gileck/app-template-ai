@@ -33,6 +33,7 @@
     "send-telegram": "tsx scripts/send-telegram.ts",
     "setup-github-secrets": "tsx scripts/setup-github-secrets.ts",
     "sync-children": "tsx scripts/sync-child-projects.ts",
+    "sync-agent-logs": "./scripts/sync-agent-logs.sh",
     "push-sync": "./scripts/push-and-sync.sh",
     "setup-hooks": "./scripts/hooks/setup-hooks.sh",
     "audit-feature-status": "tsx scripts/audit-feature-request-status.ts",
