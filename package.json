@@ -40,6 +40,7 @@
     "verify-setup": "tsx scripts/verify-github-projects-setup.ts",
     "verify-credentials": "tsx scripts/verify-credentials.ts",
     "verify-production": "tsx scripts/verify-production.ts",
+    "init-agents-copy": "tsx scripts/init-agents-copy-project.ts",
     "test-cursor-adapter": "tsx scripts/test-cursor-adapter.ts"
   },
   "dependencies": {
