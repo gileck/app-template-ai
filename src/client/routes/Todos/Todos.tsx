@@ -138,10 +138,15 @@ export function Todos() {
 
     const displayError = (error instanceof Error ? error.message : null) || actionError;
 
+    // Calculate uncompleted and completed todos for divider
+    const uncompletedTodos = displayTodos.filter(t => !t.completed);
+    const completedTodos = displayTodos.filter(t => t.completed);
+    const showDivider = uncompletedFirst && !hideCompleted && uncompletedTodos.length > 0 && completedTodos.length > 0;
+
     return (
         <div className="mx-auto max-w-3xl p-4 todo-gradient-bg min-h-screen">
             {/* Header with gradient text */}
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <h1 className="text-4xl font-bold todo-gradient-text">My Todos</h1>
                     {/* Background refresh indicator - shows when fetching with existing data */}
@@ -152,13 +157,13 @@ export function Todos() {
                         </div>
                     )}
                 </div>
-                <Button variant="outline" onClick={handleRefresh} disabled={isFetching} className="transition-transform hover:scale-105">
+                <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
                     <RefreshCcw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
             </div>
 
             {displayError && (
-                <Alert variant="destructive" className="mb-4 animate-shake">{displayError}</Alert>
+                <Alert variant="destructive" className="mb-5 animate-shake">{displayError}</Alert>
             )}
 
             {/* Statistics Panel - only show if there are todos */}
@@ -181,6 +186,41 @@ export function Todos() {
                 <div className="py-8 text-center">
                     <p className="text-2xl mb-2">🎉</p>
                     <p className="text-muted-foreground">No uncompleted todos. Great work!</p>
+                </div>
+            ) : showDivider ? (
+                <div className="todo-list-container">
+                    {/* Uncompleted todos */}
+                    {uncompletedTodos.map((todo) => (
+                        <div key={todo._id} className="todo-item-stagger">
+                            <TodoItem
+                                todo={todo}
+                                mutatingTodoId={mutatingTodoId}
+                                setMutatingTodoId={setMutatingTodoId}
+                                onError={setActionError}
+                                onDelete={handleDeleteTodo}
+                            />
+                        </div>
+                    ))}
+
+                    {/* Divider */}
+                    <div className="todo-completed-divider">
+                        <span className="todo-completed-divider-text">
+                            Completed – {completedTodos.length}
+                        </span>
+                    </div>
+
+                    {/* Completed todos */}
+                    {completedTodos.map((todo) => (
+                        <div key={todo._id} className="todo-item-stagger">
+                            <TodoItem
+                                todo={todo}
+                                mutatingTodoId={mutatingTodoId}
+                                setMutatingTodoId={setMutatingTodoId}
+                                onError={setActionError}
+                                onDelete={handleDeleteTodo}
+                            />
+                        </div>
+                    ))}
                 </div>
             ) : (
                 <div className="todo-list-container">
