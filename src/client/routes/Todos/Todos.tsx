@@ -11,8 +11,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { Card } from '@/client/components/ui/card';
-import { Separator } from '@/client/components/ui/separator';
 import { RefreshCcw, Loader2 } from 'lucide-react';
 import { useTodos, useDeleteTodo } from './hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
@@ -20,6 +18,8 @@ import { logger } from '@/client/features/session-logs';
 import { TodoItem } from './components/TodoItem';
 import { CreateTodoForm } from './components/CreateTodoForm';
 import { DeleteTodoDialog } from './components/DeleteTodoDialog';
+import { TodoStats } from './components/TodoStats';
+import { EmptyState } from './components/EmptyState';
 
 export function Todos() {
     // React Query hooks - cache is guaranteed to be restored at this point
@@ -113,10 +113,11 @@ export function Todos() {
     const displayError = (error instanceof Error ? error.message : null) || actionError;
 
     return (
-        <div className="mx-auto max-w-3xl p-3">
-            <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-semibold">My Todos</h1>
+        <div className="mx-auto max-w-3xl p-4 todo-gradient-bg min-h-screen">
+            {/* Header with gradient text */}
+            <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-4xl font-bold todo-gradient-text">My Todos</h1>
                     {/* Background refresh indicator - shows when fetching with existing data */}
                     {isFetching && !isLoading && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -125,43 +126,43 @@ export function Todos() {
                         </div>
                     )}
                 </div>
-                <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
-                    <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
+                <Button variant="outline" onClick={handleRefresh} disabled={isFetching} className="transition-transform hover:scale-105">
+                    <RefreshCcw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
             </div>
 
             {displayError && (
-                <Alert variant="destructive" className="mb-2">{displayError}</Alert>
+                <Alert variant="destructive" className="mb-4 animate-shake">{displayError}</Alert>
             )}
+
+            {/* Statistics Panel - only show if there are todos */}
+            {todos.length > 0 && <TodoStats todos={todos} />}
 
             {/* Add new todo */}
             <CreateTodoForm onError={setActionError} />
 
             {/* Todos list */}
-            <Card className="p-2">
-                {/* Note: Full-page loading for isLoading && !data is handled above (line 61) */}
-                {/* Here we only need to check !data for the edge case where query finished but data is undefined */}
-                {!data ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">Unable to load todos</p>
-                ) : todos.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">No todos yet. Add one above!</p>
-                ) : (
-                    <ul>
-                        {todos.map((todo, index) => (
-                            <React.Fragment key={todo._id}>
-                                <TodoItem
-                                    todo={todo}
-                                    mutatingTodoId={mutatingTodoId}
-                                    setMutatingTodoId={setMutatingTodoId}
-                                    onError={setActionError}
-                                    onDelete={handleDeleteTodo}
-                                />
-                                {index < todos.length - 1 && <Separator />}
-                            </React.Fragment>
-                        ))}
-                    </ul>
-                )}
-            </Card>
+            {!data ? (
+                <div className="py-8 text-center">
+                    <p className="text-muted-foreground">Unable to load todos</p>
+                </div>
+            ) : todos.length === 0 ? (
+                <EmptyState />
+            ) : (
+                <div className="todo-list-container">
+                    {todos.map((todo) => (
+                        <div key={todo._id} className="todo-item-stagger">
+                            <TodoItem
+                                todo={todo}
+                                mutatingTodoId={mutatingTodoId}
+                                setMutatingTodoId={setMutatingTodoId}
+                                onError={setActionError}
+                                onDelete={handleDeleteTodo}
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Delete confirmation dialog */}
             <DeleteTodoDialog

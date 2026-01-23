@@ -16,14 +16,31 @@ interface DeleteTodoDialogProps {
 export function DeleteTodoDialog({ open, todo, onConfirm, onCancel }: DeleteTodoDialogProps) {
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Delete Todo</DialogTitle>
+                    <DialogTitle className="text-2xl">Delete Todo?</DialogTitle>
                 </DialogHeader>
-                <p>Are you sure you want to delete &quot;{todo?.title}&quot;?</p>
-                <DialogFooter>
-                    <Button variant="outline" onClick={onCancel}>Cancel</Button>
-                    <Button variant="destructive" onClick={onConfirm} autoFocus>Delete</Button>
+                <div className="py-4">
+                    <p className="text-muted-foreground">
+                        Are you sure you want to delete{' '}
+                        <span className="font-semibold text-foreground">&quot;{todo?.title}&quot;</span>?
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        This action cannot be undone.
+                    </p>
+                </div>
+                <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={onCancel} className="transition-transform hover:scale-105">
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={onConfirm}
+                        autoFocus
+                        className="transition-transform hover:scale-105"
+                    >
+                        Delete
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

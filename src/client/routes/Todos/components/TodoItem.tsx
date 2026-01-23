@@ -2,14 +2,18 @@
  * Todo Item Component
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
-import { CheckSquare, Eye, Save, X, Pencil, Trash2 } from 'lucide-react';
+import { Card } from '@/client/components/ui/card';
+import { Eye, Save, X, Pencil, Trash2, Check } from 'lucide-react';
 import { useRouter } from '@/client/router';
 import { useUpdateTodo } from '../hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 import { logger } from '@/client/features/session-logs';
+import { toast } from '@/client/components/ui/toast';
+import { CelebrationEffect } from './CelebrationEffect';
+import { prefersReducedMotion } from '../animations';
 
 interface TodoItemProps {
     todo: TodoItemClient;
@@ -28,11 +32,14 @@ export function TodoItem({
 }: TodoItemProps) {
     const { navigate } = useRouter();
     const updateTodoMutation = useUpdateTodo();
+    const cardRef = useRef<HTMLDivElement>(null);
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral inline edit state
     const [isEditing, setIsEditing] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral inline edit state
     const [editTitle, setEditTitle] = useState('');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral celebration state
+    const [celebrating, setCelebrating] = useState(false);
 
     const handleToggleComplete = async () => {
         const newCompletedState = !todo.completed;
@@ -50,6 +57,20 @@ export function TodoItem({
                     logger.info('todos', `Todo marked as ${newCompletedState ? 'completed' : 'incomplete'}`, {
                         meta: { todoId: todo._id, title: todo.title }
                     });
+
+                    // Trigger celebration if completing (not uncompleting)
+                    if (newCompletedState && !prefersReducedMotion()) {
+                        setCelebrating(true);
+                        toast.success(`🎉 Great job completing "${todo.title}"!`);
+
+                        // Add bounce animation to card
+                        if (cardRef.current) {
+                            cardRef.current.classList.add('todo-celebration-bounce');
+                            setTimeout(() => {
+                                cardRef.current?.classList.remove('todo-celebration-bounce');
+                            }, 600);
+                        }
+                    }
                 },
                 onError: (err) => {
                     const errorMessage = err instanceof Error ? err.message : 'Failed to update todo';
@@ -131,57 +152,102 @@ export function TodoItem({
         }
     };
 
+    const isDisabled = mutatingTodoId === todo._id;
+
     return (
-        <li
-            className={`mb-1 flex items-center gap-2 rounded p-2 transition-all duration-300 ease-out ${todo.completed ? 'opacity-70 bg-accent' : ''}`}
-        >
-            <button
-                className="h-5 w-5 rounded border transition-all duration-200"
-                aria-checked={todo.completed}
-                role="checkbox"
-                onClick={handleToggleComplete}
-                disabled={mutatingTodoId === todo._id}
+        <>
+            <Card
+                ref={cardRef}
+                className={`todo-item-card ${todo.completed ? 'todo-success-gradient' : ''} ${isDisabled ? 'opacity-60' : ''}`}
             >
-                {todo.completed ? <CheckSquare className="h-4 w-4 transition-opacity duration-200" /> : null}
-            </button>
+                <div className="flex items-center gap-3">
+                    {/* Custom Checkbox */}
+                    <button
+                        className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
+                        aria-checked={todo.completed}
+                        role="checkbox"
+                        onClick={handleToggleComplete}
+                        disabled={isDisabled}
+                        aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                    >
+                        {todo.completed && <Check className="h-4 w-4" />}
+                    </button>
 
-            {isEditing ? (
-                <Input
-                    className="flex-1"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyPress={handleEditKeyPress}
-                    disabled={mutatingTodoId === todo._id}
-                    autoFocus
-                />
-            ) : (
-                <span className={`flex-1 transition-all duration-200 ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {todo.title}
-                </span>
-            )}
+                    {/* Title or Edit Input */}
+                    {isEditing ? (
+                        <Input
+                            className="flex-1"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onKeyDown={handleEditKeyPress}
+                            disabled={isDisabled}
+                            autoFocus
+                        />
+                    ) : (
+                        <span
+                            className={`flex-1 text-base ${
+                                todo.completed ? 'todo-completed-text' : ''
+                            }`}
+                        >
+                            {todo.title}
+                        </span>
+                    )}
 
-            {isEditing ? (
-                <div className="flex gap-1">
-                    <Button variant="secondary" size="sm" onClick={handleSaveEdit} disabled={mutatingTodoId === todo._id}>
-                        <Save className="mr-1 h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleCancelEdit}>
-                        <X className="mr-1 h-4 w-4" />
-                    </Button>
+                    {/* Action Buttons */}
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <Button
+                                variant="default"
+                                size="sm"
+                                onClick={handleSaveEdit}
+                                disabled={isDisabled}
+                            >
+                                <Save className="mr-1 h-4 w-4" />
+                                Save
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                                <X className="mr-1 h-4 w-4" />
+                                Cancel
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleViewTodo}
+                                title="View details"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleStartEdit}
+                                disabled={isDisabled}
+                                title="Edit"
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onDelete(todo)}
+                                disabled={isDisabled}
+                                title="Delete"
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
-            ) : (
-                <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={handleViewTodo}>
-                        <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleStartEdit} disabled={mutatingTodoId === todo._id}>
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDelete(todo)} disabled={mutatingTodoId === todo._id}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                </div>
-            )}
-        </li>
+            </Card>
+
+            {/* Celebration Effect */}
+            <CelebrationEffect
+                active={celebrating}
+                onComplete={() => setCelebrating(false)}
+            />
+        </>
     );
 }
