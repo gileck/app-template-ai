@@ -140,8 +140,8 @@ function generateBranchName(issueNumber: number, title: string, isBug: boolean =
     const slug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 40);
+        .slice(0, 40)
+        .replace(/^-|-$/g, ''); // Remove leading/trailing dashes AFTER truncating
     const prefix = isBug ? 'fix' : 'feature';
     return `${prefix}/issue-${issueNumber}-${slug}`;
 }
