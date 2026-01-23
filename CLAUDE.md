@@ -669,8 +669,8 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 
 **Agent Library Abstraction:**
 - Default: Claude Code SDK
-- Per-workflow overrides via environment variables
-- Configure via `AGENT_DEFAULT_LIBRARY`, `AGENT_PRODUCT_DESIGN_LIBRARY`, etc.
+- Per-workflow overrides configurable in `src/agents/agents.config.ts`
+- Available libraries: `claude-code-sdk`, `cursor`, `gemini` (stub)
 
 **Docs:** [docs/github-projects-integration.md](docs/github-projects-integration.md), [docs/agent-library-abstraction.md](docs/agent-library-abstraction.md)
 
