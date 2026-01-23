@@ -7,7 +7,7 @@
  * - Optimistic updates via mutations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { Alert } from '@/client/components/ui/alert';
 import { LinearProgress } from '@/client/components/ui/linear-progress';
@@ -20,6 +20,9 @@ import { CreateTodoForm } from './components/CreateTodoForm';
 import { DeleteTodoDialog } from './components/DeleteTodoDialog';
 import { TodoStats } from './components/TodoStats';
 import { EmptyState } from './components/EmptyState';
+import { TodoControls } from './components/TodoControls';
+import { useTodoPreferencesStore } from './store';
+import { sortTodos, filterTodos, groupUncompletedFirst } from './utils';
 
 export function Todos() {
     // React Query hooks - cache is guaranteed to be restored at this point
@@ -38,6 +41,29 @@ export function Todos() {
     const [mutatingTodoId, setMutatingTodoId] = useState<string | null>(null);
 
     const todos = data?.todos || [];
+
+    // Get preferences from store
+    const sortBy = useTodoPreferencesStore((state) => state.sortBy);
+    const uncompletedFirst = useTodoPreferencesStore((state) => state.uncompletedFirst);
+    const hideCompleted = useTodoPreferencesStore((state) => state.hideCompleted);
+
+    // Compute filtered/sorted list with useMemo
+    const displayTodos = useMemo(() => {
+        let result = todos;
+
+        // Apply hide completed filter
+        result = filterTodos(result, hideCompleted);
+
+        // Apply sort
+        result = sortTodos(result, sortBy);
+
+        // Apply uncompleted first grouping
+        if (uncompletedFirst) {
+            result = groupUncompletedFirst(result);
+        }
+
+        return result;
+    }, [todos, sortBy, uncompletedFirst, hideCompleted]);
 
     // Log page view on mount
     useEffect(() => {
@@ -141,6 +167,9 @@ export function Todos() {
             {/* Add new todo */}
             <CreateTodoForm onError={setActionError} />
 
+            {/* Todo Controls - sort and filter */}
+            {todos.length > 0 && <TodoControls />}
+
             {/* Todos list */}
             {!data ? (
                 <div className="py-8 text-center">
@@ -148,9 +177,14 @@ export function Todos() {
                 </div>
             ) : todos.length === 0 ? (
                 <EmptyState />
+            ) : displayTodos.length === 0 ? (
+                <div className="py-8 text-center">
+                    <p className="text-2xl mb-2">🎉</p>
+                    <p className="text-muted-foreground">No uncompleted todos. Great work!</p>
+                </div>
             ) : (
                 <div className="todo-list-container">
-                    {todos.map((todo) => (
+                    {displayTodos.map((todo) => (
                         <div key={todo._id} className="todo-item-stagger">
                             <TodoItem
                                 todo={todo}
