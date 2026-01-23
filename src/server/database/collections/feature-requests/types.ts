@@ -3,18 +3,33 @@ import { ObjectId } from 'mongodb';
 /**
  * Main workflow status for a feature request
  *
- * Simplified schema - detailed workflow tracking happens in GitHub Projects.
- * MongoDB only tracks high-level state:
+ * Supports both legacy statuses (for backward compatibility) and new workflow statuses.
+ *
+ * Legacy statuses (still supported):
  * - new: Not yet synced to GitHub
  * - in_progress: Synced to GitHub, check GitHub Project for detailed status
  * - done: Completed and merged
  * - rejected: Not going to implement
+ *
+ * New workflow statuses (for enhanced project management):
+ * - backlog: Not yet prioritized or scheduled
+ * - proposed: Submitted, awaiting approval
+ * - approved: Approved for development
+ * - waiting_for_review: Development complete, needs review
+ * - blocked: Cannot proceed due to dependencies or issues
  */
 export type FeatureRequestStatus =
-    | 'new'              // Not yet synced to GitHub
-    | 'in_progress'      // Exists in GitHub (detailed status tracked in GitHub Projects)
-    | 'done'             // Completed
-    | 'rejected';        // Not going to implement
+    // Legacy statuses (backward compatible)
+    | 'new'
+    | 'in_progress'
+    | 'done'
+    | 'rejected'
+    // New workflow statuses
+    | 'backlog'
+    | 'proposed'
+    | 'approved'
+    | 'waiting_for_review'
+    | 'blocked';
 
 /**
  * Review status within a design phase
@@ -119,6 +134,10 @@ export interface FeatureRequestDocument {
     // Approval token for Telegram quick-approve link
     approvalToken?: string;           // Secure token for one-click approval
 
+    // Health indicator tracking (optional - for new workflow features)
+    lastActivityAt?: Date;            // Auto-updated on any change (for stale detection)
+    statusChangedAt?: Date;           // Track time in current status (for review delay detection)
+
     // Timestamps
     createdAt: Date;
     updatedAt: Date;
@@ -154,6 +173,8 @@ export interface FeatureRequestClient {
     githubReviewStatus?: string;
     githubPrUrl?: string;
     githubPrNumber?: number;
+    lastActivityAt?: string;
+    statusChangedAt?: string;
     createdAt: string;
     updatedAt: string;
 }

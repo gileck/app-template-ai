@@ -28,6 +28,26 @@ const userStatusConfig: Record<
         label: 'Not Planned',
         className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     },
+    backlog: {
+        label: 'Backlog',
+        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+    },
+    proposed: {
+        label: 'Proposed',
+        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    },
+    approved: {
+        label: 'Approved',
+        className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    },
+    waiting_for_review: {
+        label: 'Waiting for Review',
+        className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    },
+    blocked: {
+        label: 'Blocked',
+        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    },
 };
 
 const unknownConfig = {
