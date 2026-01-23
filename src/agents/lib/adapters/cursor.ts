@@ -35,6 +35,12 @@ const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', 
 const PROJECT_ROOT = process.cwd();
 const DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes
 
+/**
+ * Default model for Cursor CLI
+ * Claude Opus 4.5 - Anthropic's flagship model for coding and agentic tasks
+ */
+const DEFAULT_MODEL = 'opus-4.5';
+
 // ============================================================
 // TYPES
 // ============================================================
@@ -396,6 +402,9 @@ class CursorAdapter implements AgentLibraryAdapter {
 
         // Use -p (print) for non-interactive mode
         args.push('-p');
+
+        // Specify model
+        args.push('--model', DEFAULT_MODEL);
 
         // Output format: stream-json for streaming, json for non-streaming
         args.push('--output-format', options.stream ? 'stream-json' : 'json');
