@@ -138,9 +138,11 @@ Before writing the design, explore the codebase:
 
 ## Output Format
 
-Your final output MUST be a Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: Complete Product Design document in markdown format (same structure as before)
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Format: "Here's the design overview: 1. ... 2. ... 3. ..."
 
-Keep it concise. A small feature might only need a few paragraphs. A large feature needs more detail.
+Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 
 Example for a SMALL feature (S):
 
@@ -252,9 +254,11 @@ Focus ONLY on:
 
 ## Output Format
 
-Your final output MUST be the COMPLETE revised Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: COMPLETE revised Product Design document in markdown format (entire document, not just changes)
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
-Do NOT output just the changes - output the entire revised document. Keep it concise.
+Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -325,7 +329,9 @@ Focus ONLY on:
 
 ## Output Format
 
-Your final output MUST be a complete Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: Complete Product Design document in markdown format
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Format: "Here's the design overview: 1. ... 2. ... 3. ..."
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -390,9 +396,11 @@ Explore the codebase:
 
 ## Output Format
 
-Your final output MUST be a Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: Complete Technical Design document in markdown format (same structure as before)
+- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
 
-Keep it concise. A small feature might only need a short list of files. A large feature needs more detail.
+Keep the design concise. A small feature might only need a short list of files. A large feature needs more detail.
 
 Example for a SMALL feature (S):
 
@@ -503,9 +511,11 @@ ${feedbackSection}
 
 ## Output Format
 
-Your final output MUST be the COMPLETE revised Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: COMPLETE revised Technical Design document in markdown format (entire document, not just changes)
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
-Do NOT output just the changes - output the entire revised document. Keep it concise.
+Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -562,7 +572,9 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 
 ## Output Format
 
-Your final output MUST be a complete Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: Complete Technical Design document in markdown format
+- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -678,9 +690,12 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
 
-After implementing, you MUST provide a PR summary in this exact format:
+After implementing, provide your response as structured JSON with these fields:
+- **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
 
-\`\`\`pr-summary
+Example prSummary format:
+\`\`\`markdown
 ## Summary
 [2-4 bullet points describing what was implemented and key decisions made]
 
@@ -689,8 +704,6 @@ After implementing, you MUST provide a PR summary in this exact format:
 - **[filename]**: [brief description of change]
 [List the most important files changed - max 5-7 files]
 \`\`\`
-
-This summary will be used in the PR description and squash merge commit message, so make it informative and concise.
 
 Begin implementing the feature now.`;
 }
@@ -796,19 +809,16 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
 
-After making changes, you MUST provide a feedback resolution mapping in this exact format:
+After making changes, provide your response as structured JSON with these fields:
+- **prSummary**: Updated PR summary in markdown format with "## Summary" and "## Changes" sections
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
-\`\`\`feedback-resolution
+Example comment format:
+\`\`\`
+Here's what I changed:
 1. [Original feedback summary] → [What you changed to address it]
 2. [Original feedback summary] → [What you changed to address it]
-...
-\`\`\`
-
-Example:
-\`\`\`feedback-resolution
-1. Missing null check in file.ts:42 → Added null check with early return
-2. Variable name unclear → Renamed 'x' to 'userCount'
-3. Missing error handling → Added try-catch with user-friendly message
+3. [Original feedback summary] → [What you changed to address it]
 \`\`\`
 
 Begin addressing the feedback now.`;
@@ -872,9 +882,12 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
 
-After implementing, you MUST provide a PR summary in this exact format:
+After implementing, provide your response as structured JSON with these fields:
+- **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
 
-\`\`\`pr-summary
+Example prSummary format:
+\`\`\`markdown
 ## Summary
 [2-4 bullet points describing what was implemented and key decisions made]
 
@@ -883,8 +896,6 @@ After implementing, you MUST provide a PR summary in this exact format:
 - **[filename]**: [brief description of change]
 [List the most important files changed - max 5-7 files]
 \`\`\`
-
-This summary will be used in the PR description and squash merge commit message, so make it informative and concise.
 
 Begin implementing the feature now.`;
 }
@@ -966,9 +977,11 @@ Analyze this bug and create a Technical Design for the fix:
 
 ## Output Format
 
-Your final output MUST be a Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: Complete Technical Design document in markdown format (same structure as shown in example below)
+- **comment**: High-level implementation plan for the fix to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
 
-Example:
+Example design structure:
 
 \`\`\`markdown
 # Bug Fix: [Issue Title]
@@ -1111,9 +1124,12 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
 
-After implementing, you MUST provide a PR summary in this exact format:
+After implementing, provide your response as structured JSON with these fields:
+- **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
 
-\`\`\`pr-summary
+Example prSummary format (for bug fixes, mention root cause, how it was fixed, and how to verify):
+\`\`\`markdown
 ## Summary
 [2-4 bullet points describing: the root cause, how it was fixed, and how to verify]
 
@@ -1122,8 +1138,6 @@ After implementing, you MUST provide a PR summary in this exact format:
 - **[filename]**: [brief description of change]
 [List the most important files changed - max 5-7 files]
 \`\`\`
-
-This summary will be used in the PR description and squash merge commit message, so make it informative and concise.
 
 Begin implementing the bug fix now.`;
 }
@@ -1169,9 +1183,11 @@ ${feedbackSection}
 
 ## Output Format
 
-Your final output MUST be the COMPLETE revised Technical Design document in markdown format, wrapped in a \`\`\`markdown code block.
+Provide your response as structured JSON with these fields:
+- **design**: COMPLETE revised Technical Design document in markdown format (entire document, not just changes)
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
-Do NOT output just the changes - output the entire revised document.
+Do NOT output just the changes in design - output the entire revised document.
 
 ${AMBIGUITY_INSTRUCTIONS}
 

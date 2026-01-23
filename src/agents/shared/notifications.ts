@@ -211,13 +211,16 @@ export async function notifyProductDesignReady(
     title: string,
     issueNumber: number,
     isRevision: boolean = false,
-    itemType: 'bug' | 'feature' = 'feature'
+    itemType: 'bug' | 'feature' = 'feature',
+    summary?: string
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
     const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const summarySection = summary ? `\n\n<b>${isRevision ? 'Changes:' : 'Overview:'}</b>\n${escapeHtml(summary)}` : '';
 
     const message = `<b>Agent (Product Design):</b> ${status}
 ${typeEmoji} ${typeLabel}
@@ -226,7 +229,7 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber}
 📊 Status: Product Design (Waiting for Review)
 
-${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Technical Design.`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Technical Design.${summarySection}`;
 
     return sendToAdmin(message, buildIssueReviewButtons(issueNumber, issueUrl));
 }
@@ -238,13 +241,16 @@ export async function notifyTechDesignReady(
     title: string,
     issueNumber: number,
     isRevision: boolean = false,
-    itemType: 'bug' | 'feature' = 'feature'
+    itemType: 'bug' | 'feature' = 'feature',
+    summary?: string
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
     const status = isRevision ? '🔄 Revised' : '✅ Ready for Review';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const summarySection = summary ? `\n\n<b>${isRevision ? 'Changes:' : 'Plan:'}</b>\n${escapeHtml(summary)}` : '';
 
     const message = `<b>Agent (Tech Design):</b> ${status}
 ${typeEmoji} ${typeLabel}
@@ -253,7 +259,7 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber}
 📊 Status: Technical Design (Waiting for Review)
 
-${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Implementation.`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed to Implementation.${summarySection}`;
 
     return sendToAdmin(message, buildIssueReviewButtons(issueNumber, issueUrl));
 }
@@ -266,13 +272,16 @@ export async function notifyPRReady(
     issueNumber: number,
     prNumber: number,
     isRevision: boolean = false,
-    itemType: 'bug' | 'feature' = 'feature'
+    itemType: 'bug' | 'feature' = 'feature',
+    summary?: string
 ): Promise<SendResult> {
     const prUrl = getPrUrl(prNumber);
 
     const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const summarySection = summary ? `\n\n<b>${isRevision ? 'Changes:' : 'Summary:'}</b>\n${escapeHtml(summary)}` : '';
 
     const message = `<b>Agent (Implementation):</b> ${status}
 ${typeEmoji} ${typeLabel}
@@ -281,7 +290,7 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber} → PR #${prNumber}
 📊 Status: PR Review (Waiting for Review)
 
-${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to complete.`;
+${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to complete.${summarySection}`;
 
     return sendToAdmin(message, buildPRReviewButtons(issueNumber, prUrl));
 }
