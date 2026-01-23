@@ -874,7 +874,8 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         head: string,
         base: string,
         title: string,
-        body: string
+        body: string,
+        reviewers?: string[]
     ): Promise<CreatePRResult> {
         const oc = this.getBotOctokit(); // Use bot token for creating PRs
         const { owner, repo } = this.config.github;
@@ -887,6 +888,16 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
             title,
             body,
         });
+
+        // Request reviewers if provided
+        if (reviewers && reviewers.length > 0) {
+            await oc.pulls.requestReviewers({
+                owner,
+                repo,
+                pull_number: data.number,
+                reviewers,
+            });
+        }
 
         return {
             number: data.number,

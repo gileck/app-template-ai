@@ -389,12 +389,8 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 console.log(`\n  [DRY RUN] Would submit official GitHub review: ${decision === 'approved' ? 'APPROVE' : 'REQUEST_CHANGES'}`);
                 console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? 'Approved' : 'Request Changes'}`);
             } else {
-                // Post review comment on PR
+                // Submit official GitHub PR review (this automatically posts as a comment)
                 const prefixedReview = addAgentPrefix('pr-review', reviewText);
-                await adapter.addPRComment(prNumber, prefixedReview);
-                console.log('  Posted review comment on PR');
-
-                // Submit official GitHub PR review
                 const reviewEvent = decision === 'approved' ? 'APPROVE' : 'REQUEST_CHANGES';
                 await adapter.submitPRReview(prNumber, reviewEvent, prefixedReview);
                 console.log(`  Submitted official GitHub review: ${reviewEvent}`);
