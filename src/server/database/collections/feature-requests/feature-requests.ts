@@ -502,6 +502,11 @@ export const getFeatureRequestCounts = async (): Promise<Record<FeatureRequestSt
         in_progress: 0,
         done: 0,
         rejected: 0,
+        backlog: 0,
+        proposed: 0,
+        approved: 0,
+        waiting_for_review: 0,
+        blocked: 0,
     };
 
     for (const result of results) {
