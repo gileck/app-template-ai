@@ -71,6 +71,47 @@ Examples of when to ask for clarification:
 `;
 
 // ============================================================
+// MARKDOWN FORMATTING INSTRUCTIONS
+// ============================================================
+
+const MARKDOWN_FORMATTING_INSTRUCTIONS = `
+CRITICAL - Markdown Formatting:
+
+**NEVER USE TABLES IN MARKDOWN OUTPUT**
+
+Instead of tables, ALWAYS use:
+- ✅ Bulleted lists with sub-bullets
+- ✅ Numbered lists with nested items
+- ✅ Definition lists (term: description)
+
+Examples:
+
+BAD (table):
+| File | Changes |
+|------|---------|
+| src/file.ts | Add function |
+
+GOOD (list):
+**Files to Modify:**
+- \`src/file.ts\`
+  - Add function
+  - Update imports
+
+BAD (table):
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| /api/users | GET | List users |
+
+GOOD (nested list):
+**API Endpoints:**
+- \`/api/users\` (GET)
+  - Purpose: List users
+  - Returns: User array
+
+This applies to ALL markdown output: designs, technical documents, PR summaries.
+`;
+
+// ============================================================
 // PRODUCT DESIGN PROMPTS
 // ============================================================
 
@@ -193,6 +234,8 @@ Example for a MEDIUM/LARGE feature:
 [Only non-obvious cases that need design decisions]
 \`\`\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now explore the codebase and create the Product Design document.`;
@@ -259,6 +302,8 @@ Provide your response as structured JSON with these fields:
 - **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -332,6 +377,8 @@ Focus ONLY on:
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format
 - **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Format: "Here's the design overview: 1. ... 2. ... 3. ..."
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -457,6 +504,8 @@ interface FeatureDocument {
 [Only for complex logic]
 \`\`\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now explore the codebase and create the Technical Design document.`;
@@ -517,6 +566,8 @@ Provide your response as structured JSON with these fields:
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now revise the Technical Design based on the feedback.`;
@@ -575,6 +626,8 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Technical Design document in markdown format
 - **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -685,6 +738,8 @@ Key principles:
 - Use the exact file paths specified in the Technical Design
 - Ensure all imports are correct
 - Do not add features or improvements beyond what's specified
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -805,6 +860,8 @@ Key principles:
 - Test your changes make sense in context
 - Follow TypeScript, React, and state management patterns from \`.cursor/rules/\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
@@ -877,6 +934,8 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 - Use TypeScript with proper types
 - Use semantic color tokens (bg-background, not bg-white)
 - For state management, use React Query for server state and Zustand for client state
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
@@ -1015,6 +1074,8 @@ The error occurs in \`ComponentName.tsx\` when [specific condition]. The code as
 3. Test edge case: [edge case description]
 \`\`\`
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 Now explore the codebase and create the Technical Design for this bug fix.`;
@@ -1120,6 +1181,10 @@ Key principles for bug fixes:
 - DO NOT refactor surrounding code unless necessary for the fix
 - DO NOT add features or improvements beyond the bug fix
 
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+
 ${AMBIGUITY_INSTRUCTIONS}
 
 ## Output
@@ -1188,6 +1253,8 @@ Provide your response as structured JSON with these fields:
 - **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
 
 Do NOT output just the changes in design - output the entire revised document.
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
