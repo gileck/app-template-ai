@@ -46,6 +46,14 @@ import {
     // Agent Identity
     addAgentPrefix,
 } from './shared';
+import {
+    createLogContext,
+    runWithLogContext,
+    logExecutionStart,
+    logExecutionEnd,
+    logGitHubAction,
+    logError,
+} from './lib/logging';
 
 // ============================================================
 // TYPES
@@ -197,12 +205,25 @@ async function processItem(
 
     const issueType = getIssueType(content.labels);
 
-    // Send "work started" notification
-    if (!options.dryRun) {
-        await notifyAgentStarted('PR Review', content.title, issueNumber, 'new', issueType);
-    }
+    // Create log context
+    const logCtx = createLogContext({
+        issueNumber,
+        workflow: 'pr-review',
+        phase: 'PR Review',
+        mode: 'Review',
+        issueTitle: content.title,
+        issueType,
+    });
 
-    try {
+    return runWithLogContext(logCtx, async () => {
+        logExecutionStart(logCtx);
+
+        // Send "work started" notification
+        if (!options.dryRun) {
+            await notifyAgentStarted('PR Review', content.title, issueNumber, 'new', issueType);
+        }
+
+        try {
         // Check for uncommitted changes
         if (hasUncommittedChanges()) {
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
@@ -383,12 +404,24 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                     ? REVIEW_STATUSES.approved
                     : REVIEW_STATUSES.requestChanges;
 
+                // Log GitHub actions
+                logGitHubAction(logCtx, 'comment', `Posted review comment on PR #${prNumber}`);
+                logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${newReviewStatus}`);
+
                 await adapter.updateItemReviewStatus(item.id, newReviewStatus);
                 console.log(`  Updated review status to: ${newReviewStatus}`);
 
                 // Send notification
                 await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
             }
+
+            // Log execution end
+            logExecutionEnd(logCtx, {
+                success: true,
+                toolCallsCount: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            });
 
             return { success: true, decision };
         } finally {
@@ -402,12 +435,22 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`  Error: ${errorMessage}`);
 
+        // Log error
+        logError(logCtx, error instanceof Error ? error : errorMessage, true);
+        logExecutionEnd(logCtx, {
+            success: false,
+            toolCallsCount: 0,
+            totalTokens: 0,
+            totalCost: 0,
+        });
+
         if (!options.dryRun) {
             await notifyAgentError('PR Review', content.title, issueNumber, errorMessage);
         }
 
         return { success: false, error: errorMessage };
     }
+    });
 }
 
 // ============================================================

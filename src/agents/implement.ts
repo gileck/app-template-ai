@@ -66,6 +66,14 @@ import {
     // Agent Identity
     addAgentPrefix,
 } from './shared';
+import {
+    createLogContext,
+    runWithLogContext,
+    logExecutionStart,
+    logExecutionEnd,
+    logGitHubAction,
+    logError,
+} from './lib/logging';
 
 // ============================================================
 // TYPES
@@ -246,12 +254,25 @@ async function processItem(
     // Detect issue type and load bug diagnostics if applicable
     const issueType = getIssueType(content.labels);
 
-    // Send "work started" notification
-    if (!options.dryRun) {
-        await notifyAgentStarted('Implementation', content.title, issueNumber, mode, issueType);
-    }
+    // Create log context
+    const logCtx = createLogContext({
+        issueNumber,
+        workflow: 'implement',
+        phase: 'Implementation',
+        mode: mode === 'new' ? 'New implementation' : mode === 'feedback' ? 'Address feedback' : 'Clarification',
+        issueTitle: content.title,
+        issueType,
+    });
 
-    try {
+    return runWithLogContext(logCtx, async () => {
+        logExecutionStart(logCtx);
+
+        // Send "work started" notification
+        if (!options.dryRun) {
+            await notifyAgentStarted('Implementation', content.title, issueNumber, mode, issueType);
+        }
+
+        try {
         // Check for uncommitted changes
         if (hasUncommittedChanges()) {
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
@@ -631,6 +652,14 @@ See issue #${issueNumber} for full context, product design, and technical design
             console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
         }
 
+        // Log GitHub actions
+        if (prNumber) {
+            logGitHubAction(logCtx, 'pr_created', `Created PR #${prNumber}`);
+        }
+        if (adapter.hasReviewStatusField()) {
+            logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${REVIEW_STATUSES.waitingForReview}`);
+        }
+
         // Send notification
         if (prNumber) {
             await notifyPRReady(content.title, issueNumber, prNumber, mode === 'feedback', issueType);
@@ -641,23 +670,43 @@ See issue #${issueNumber} for full context, product design, and technical design
         git(`checkout ${defaultBranch}`);
         console.log(`  ✅ Switched back to ${defaultBranch}`);
 
+        // Log execution end
+        logExecutionEnd(logCtx, {
+            success: true,
+            toolCallsCount: 0,
+            totalTokens: 0,
+            totalCost: 0,
+        });
+
         return { success: true, prNumber };
-    } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`  Error: ${errorMsg}`);
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.error(`  Error: ${errorMsg}`);
 
-        // Try to checkout back to default branch
-        try {
-            git(`checkout ${defaultBranch}`);
-        } catch {
-            console.error('  Warning: Could not checkout back to default branch');
-        }
+            // Log error
+            logError(logCtx, error instanceof Error ? error : errorMsg, true);
 
-        if (!options.dryRun) {
-            await notifyAgentError('Implementation', content.title, issueNumber, errorMsg);
+            // Try to checkout back to default branch
+            try {
+                git(`checkout ${defaultBranch}`);
+            } catch {
+                console.error('  Warning: Could not checkout back to default branch');
+            }
+
+            // Log execution end
+            logExecutionEnd(logCtx, {
+                success: false,
+                toolCallsCount: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            });
+
+            if (!options.dryRun) {
+                await notifyAgentError('Implementation', content.title, issueNumber, errorMsg);
+            }
+            return { success: false, error: errorMsg };
         }
-        return { success: false, error: errorMsg };
-    }
+    });
 }
 
 /**

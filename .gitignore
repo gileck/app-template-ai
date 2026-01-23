@@ -56,6 +56,9 @@ template-diff-summary.md
 # audit reports
 /audits/
 
+# agent logs
+/src/agents/agent-logs/
+
 # child projects config (local only)
 child-projects.json
 .env*.local
