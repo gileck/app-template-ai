@@ -102,6 +102,19 @@ ${commentsSection}
 
 Create a Product Design document. The size of your output should match the complexity of the feature - simple features get simple designs, complex features get detailed designs.
 
+**CRITICAL - PRODUCT DESIGN ONLY:**
+This is a PRODUCT design, NOT a technical design. Do NOT include:
+- Technical implementation details or code snippets
+- File paths or component names
+- API endpoints or database schemas
+- Technical architecture decisions
+- Implementation notes or instructions
+
+Focus ONLY on:
+- What the user sees and experiences
+- How the feature behaves from a user perspective
+- UI/UX design decisions
+
 **Required sections:**
 1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
 2. **Overview** - Brief summary of what this feature does and why it's needed
@@ -224,6 +237,19 @@ ${feedbackSection}
 3. Revise the Product Design to address ALL feedback points
 4. Keep the output size proportional to the feature complexity
 
+**CRITICAL - PRODUCT DESIGN ONLY:**
+This is a PRODUCT design, NOT a technical design. Do NOT include:
+- Technical implementation details or code snippets
+- File paths or component names
+- API endpoints or database schemas
+- Technical architecture decisions
+- Implementation notes or instructions
+
+Focus ONLY on:
+- What the user sees and experiences
+- How the feature behaves from a user perspective
+- UI/UX design decisions
+
 ## Output Format
 
 Your final output MUST be the COMPLETE revised Product Design document in markdown format, wrapped in a \`\`\`markdown code block.
@@ -270,6 +296,19 @@ ${clarification.body}
 Continue your product design work using the admin's clarification as guidance. Complete the product design document.
 
 If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
+
+**CRITICAL - PRODUCT DESIGN ONLY:**
+This is a PRODUCT design, NOT a technical design. Do NOT include:
+- Technical implementation details or code snippets
+- File paths or component names
+- API endpoints or database schemas
+- Technical architecture decisions
+- Implementation notes or instructions
+
+Focus ONLY on:
+- What the user sees and experiences
+- How the feature behaves from a user perspective
+- UI/UX design decisions
 
 **Required sections:**
 1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
