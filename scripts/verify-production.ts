@@ -4,12 +4,15 @@
  *
  * Tests the actual production deployment on Vercel:
  * - Vercel environment variables are set
- * - Local vs Vercel env vars match (existence check)
+ * - Local vs Vercel env vars match (actual value comparison)
  * - Production webhook endpoint is accessible
  * - Production app responds correctly
  *
  * This tests the DEPLOYED app, not local credentials.
  * For credential testing, use `yarn verify-credentials` instead.
+ *
+ * The script pulls production env vars and compares actual values
+ * without exposing secrets in the output.
  *
  * Usage:
  *   yarn verify-production
@@ -178,7 +181,7 @@ async function compareLocalAndVercelEnvVars(): Promise<CategoryResults> {
         'ADMIN_USER_ID'
     ];
 
-    // Get Vercel env vars
+    // Get Vercel env vars list
     const vercelEnvOutput = runCommand('vercel env ls production 2>/dev/null');
     if (!vercelEnvOutput) {
         results.checks.push({
@@ -190,13 +193,89 @@ async function compareLocalAndVercelEnvVars(): Promise<CategoryResults> {
         return results;
     }
 
-    // Check each variable
+    // Pull Vercel production env vars to temp file
+    const tempFile = '.env.vercel.temp';
+    const pullResult = runCommand(`vercel env pull ${tempFile} --environment production 2>/dev/null`);
+
+    if (!pullResult && pullResult !== '') {
+        results.checks.push({
+            passed: false,
+            message: 'Cannot pull Vercel env values',
+            details: ['vercel env pull failed - falling back to existence check only']
+        });
+        results.failed++;
+
+        // Fallback to existence check only
+        for (const varName of varsToCompare) {
+            const localValue = process.env[varName];
+            const isInVercel = vercelEnvOutput.includes(varName);
+
+            if (localValue && isInVercel) {
+                results.checks.push({
+                    passed: true,
+                    message: `${varName} - exists in both (${localValue.length} chars locally)`
+                });
+                results.passed++;
+            } else if (!localValue && !isInVercel) {
+                results.checks.push({
+                    passed: false,
+                    message: `${varName} - missing in both`
+                });
+                results.failed++;
+            } else if (!localValue) {
+                results.checks.push({
+                    passed: false,
+                    message: `${varName} - missing locally`
+                });
+                results.failed++;
+            } else {
+                results.checks.push({
+                    passed: false,
+                    message: `${varName} - missing in Vercel`
+                });
+                results.failed++;
+            }
+        }
+
+        return results;
+    }
+
+    // Read Vercel env vars from temp file
+    const vercelEnvContent = runCommand(`cat ${tempFile} 2>/dev/null`);
+    runCommand(`rm -f ${tempFile}`); // Clean up immediately
+
+    if (!vercelEnvContent) {
+        results.checks.push({
+            passed: false,
+            message: 'Cannot read pulled env vars',
+            details: ['Temp file read failed']
+        });
+        results.failed++;
+        return results;
+    }
+
+    // Parse Vercel env vars (strip surrounding quotes if present)
+    const vercelEnv: Record<string, string> = {};
+    vercelEnvContent.split('\n').forEach(line => {
+        const match = line.match(/^([^=]+)=(.*)$/);
+        if (match) {
+            let value = match[2];
+            // Strip surrounding quotes (Vercel adds them)
+            if ((value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.slice(1, -1);
+            }
+            vercelEnv[match[1]] = value;
+        }
+    });
+
+    // Compare each variable
     for (const varName of varsToCompare) {
         const localValue = process.env[varName];
-        const isInVercel = vercelEnvOutput.includes(varName);
+        const vercelValue = vercelEnv[varName];
 
         // Check if both have the variable
-        if (!localValue && !isInVercel) {
+        if (!localValue && !vercelValue) {
             results.checks.push({
                 passed: false,
                 message: `${varName} - missing in both`,
@@ -216,7 +295,7 @@ async function compareLocalAndVercelEnvVars(): Promise<CategoryResults> {
             continue;
         }
 
-        if (!isInVercel) {
+        if (!vercelValue) {
             results.checks.push({
                 passed: false,
                 message: `${varName} - missing in Vercel`,
@@ -226,21 +305,26 @@ async function compareLocalAndVercelEnvVars(): Promise<CategoryResults> {
             continue;
         }
 
-        // Both exist - confirm
-        results.checks.push({
-            passed: true,
-            message: `${varName} - exists in both (${localValue.length} chars locally)`
-        });
-        results.passed++;
-    }
-
-    // Add informational note
-    if (results.failed === 0 && results.passed > 0) {
-        results.checks.push({
-            passed: true,
-            message: '💡 Note: This check verifies variables exist in both places',
-            details: ['To verify values match, manually compare .env.local with Vercel dashboard']
-        });
+        // Both exist - compare actual values
+        if (localValue === vercelValue) {
+            results.checks.push({
+                passed: true,
+                message: `${varName} - values match ✓ (${localValue.length} chars)`
+            });
+            results.passed++;
+        } else {
+            // Values don't match - show length difference as hint
+            results.checks.push({
+                passed: false,
+                message: `${varName} - values DO NOT match`,
+                details: [
+                    `Local: ${localValue.length} chars`,
+                    `Vercel: ${vercelValue.length} chars`,
+                    'Update Vercel: yarn vercel-cli env:push'
+                ]
+            });
+            results.failed++;
+        }
     }
 
     return results;
