@@ -105,11 +105,19 @@ export const ACTIVE_STATUSES: FeatureRequestStatus[] = [
 
 /**
  * GitHub filter options
+ *
+ * Note: 'pr_merged' is not fully implemented yet as it requires GitHub details
+ * to be fetched and passed to the filtering logic. Currently only has_issue
+ * and has_pr are functional.
  */
 export type GitHubFilterOption = 'has_issue' | 'has_pr' | 'pr_merged';
 
 /**
  * Assignment filter options
+ *
+ * Note: These are not fully implemented yet as they require an assignedTo field
+ * to be added to the feature request schema. Currently the type only has
+ * requestedBy field.
  */
 export type AssignmentFilterOption = 'assigned_to_me' | 'no_owner';
 

@@ -56,11 +56,10 @@ export function filterByGitHub(
                     return !!r.githubIssueUrl;
                 case 'has_pr':
                     return !!r.githubPrUrl;
-                case 'pr_merged':
-                    // Note: We don't have PR state in the base request type
-                    // This would require GitHub details to be fetched
-                    // For now, just check if PR exists
-                    return !!r.githubPrUrl;
+                // Note: 'pr_merged' filter removed from implementation
+                // until PR state is available in base request type.
+                // This would require GitHub details to be fetched and
+                // passed to filtering logic.
                 default:
                     return true;
             }
@@ -70,29 +69,23 @@ export function filterByGitHub(
 
 /**
  * Filter feature requests by assignment criteria
+ *
+ * Note: Assignment filters are not fully implemented yet as they require
+ * an assignedTo field to be added to the feature request schema.
  */
 export function filterByAssignment(
     requests: FeatureRequestClient[],
     filters: AssignmentFilterOption[],
-    currentUserId?: string
+    _currentUserId?: string
 ): FeatureRequestClient[] {
     if (filters.length === 0) return requests;
 
-    return requests.filter((r) => {
-        return filters.every((filter) => {
-            switch (filter) {
-                case 'assigned_to_me':
-                    // Note: Current type doesn't have assignedTo field
-                    // This would need to be updated if an assignedTo field is added
-                    // For now, check if user is the requester
-                    return r.requestedBy === currentUserId;
-                case 'no_owner':
-                    // Note: This would need assignedTo field
-                    // For now, return true (no filtering)
-                    return true;
-                default:
-                    return true;
-            }
+    return requests.filter((_r) => {
+        return filters.every((_filter) => {
+            // TODO: Implement once assignedTo field is available:
+            // - 'assigned_to_me': filter by assignedTo === currentUserId
+            // - 'no_owner': filter by !assignedTo
+            return true;
         });
     });
 }
@@ -110,10 +103,10 @@ export function filterByTime(
         return filters.every((filter) => {
             switch (filter) {
                 case 'updated_recently':
-                    const lastUpdate = r.lastActivityAt || r.updatedAt;
+                    const lastUpdate = r.lastActivityAt ?? r.updatedAt;
                     return daysSince(lastUpdate) <= 1;
                 case 'stale':
-                    const lastActivity = r.lastActivityAt || r.updatedAt;
+                    const lastActivity = r.lastActivityAt ?? r.updatedAt;
                     return daysSince(lastActivity) >= HEALTH_THRESHOLDS.STALE_DAYS;
                 default:
                     return true;

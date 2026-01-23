@@ -9,6 +9,9 @@ import { sortFeatureRequests } from '../utils/sorting';
 import { useFeatureRequestsStore } from '../store';
 import { ACTIVE_STATUSES } from '../constants';
 
+// Stable reference for empty results to prevent unnecessary re-renders
+const EMPTY_RESULTS = { activeRequests: [], doneRequests: [] };
+
 /**
  * Apply filters and sorting to feature requests
  */
@@ -21,7 +24,7 @@ export function useFilteredAndSortedRequests(requests: FeatureRequestClient[] | 
     const sortMode = useFeatureRequestsStore((state) => state.sortMode);
 
     return useMemo(() => {
-        if (!requests) return { activeRequests: [], doneRequests: [] };
+        if (!requests) return EMPTY_RESULTS;
 
         // Apply filters
         let filtered = applyFilters(requests, {

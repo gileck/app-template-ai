@@ -39,7 +39,7 @@ export function computeFeatureRequestHealth(
     const reasons: string[] = [];
 
     // Check staleness (based on lastActivityAt or updatedAt)
-    const lastUpdate = request.lastActivityAt || request.updatedAt;
+    const lastUpdate = request.lastActivityAt ?? request.updatedAt;
     const daysSinceUpdate = daysBetween(lastUpdate);
     if (daysSinceUpdate >= HEALTH_THRESHOLDS.STALE_DAYS) {
         reasons.push(`No activity for ${daysSinceUpdate} days`);
