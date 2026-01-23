@@ -49,7 +49,8 @@ export function Reports() {
     // Determine if we should show loading state:
     // - isLoading is true when fetching without cached data
     // - reports is undefined when no data exists yet (before first fetch completes)
-    const showLoading = isLoading || reports === undefined;
+    // - Don't show loading if there's an error (show error state instead)
+    const showLoading = !error && (isLoading || reports === undefined);
 
     const deleteAllMutation = useDeleteAllReports();
 
