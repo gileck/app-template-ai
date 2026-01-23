@@ -9,11 +9,11 @@
  * - Active Cursor subscription
  *
  * CLI Reference:
- * - cursor-agent chat "prompt" - Run agent with prompt
+ * - cursor-agent "prompt" -p - Run agent with prompt in print mode
+ * - -p, --print - Print mode for non-interactive use
  * - --force - Allow write operations
- * - --output-format json - Output in JSON format
- * - --stream-partial-output - Stream JSON events
- * - -m model - Specify model
+ * - --output-format json|stream-json - Output format
+ * - --model <model> - Specify model (e.g., sonnet-4)
  */
 
 import { spawn } from 'child_process';
@@ -98,7 +98,6 @@ class CursorAdapter implements AgentLibraryAdapter {
             if (exitCode !== 0) {
                 throw new Error('cursor-agent command returned non-zero exit code');
             }
-            this.initialized = true;
         } catch (error) {
             throw new Error(
                 `Cursor CLI not available. Please install it:\n` +
@@ -106,6 +105,28 @@ class CursorAdapter implements AgentLibraryAdapter {
                 `Then login: cursor-agent login\n` +
                 `Error: ${error instanceof Error ? error.message : String(error)}`
             );
+        }
+
+        // Verify authentication status
+        try {
+            const { stdout } = await this.executeCommand(['status'], {
+                timeout: 5000,
+                suppressOutput: true,
+            });
+            if (stdout.toLowerCase().includes('not logged in')) {
+                throw new Error(
+                    `Cursor CLI not authenticated. Please login:\n` +
+                    `  cursor-agent login`
+                );
+            }
+            this.initialized = true;
+        } catch (error) {
+            // If status check fails with auth error, throw it
+            if (error instanceof Error && error.message.includes('not authenticated')) {
+                throw error;
+            }
+            // Otherwise, assume status command isn't available and proceed
+            this.initialized = true;
         }
     }
 
@@ -371,19 +392,17 @@ class CursorAdapter implements AgentLibraryAdapter {
         allowWrite?: boolean;
         stream?: boolean;
     }): string[] {
-        const args = ['chat', prompt];
+        const args = [prompt];
 
-        // Always use JSON output format for parsing
-        args.push('--output-format', 'json');
+        // Use -p (print) for non-interactive mode
+        args.push('-p');
+
+        // Output format: stream-json for streaming, json for non-streaming
+        args.push('--output-format', options.stream ? 'stream-json' : 'json');
 
         // Allow write operations
         if (options.allowWrite) {
             args.push('--force');
-        }
-
-        // Enable streaming
-        if (options.stream) {
-            args.push('--stream-partial-output');
         }
 
         return args;

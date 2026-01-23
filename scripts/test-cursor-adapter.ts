@@ -22,7 +22,20 @@
  */
 
 import { Command } from 'commander';
-import { getAgentLibrary, type AgentRunResult } from '../src/agents/lib';
+import type { AgentRunResult, AgentLibraryAdapter } from '../src/agents/lib';
+
+// Import cursor adapter directly for testing
+import cursorAdapter from '../src/agents/lib/adapters/cursor';
+
+/**
+ * Get the cursor adapter (initializing if needed)
+ */
+async function getCursorAdapter(): Promise<AgentLibraryAdapter> {
+    if (!cursorAdapter.isInitialized()) {
+        await cursorAdapter.init();
+    }
+    return cursorAdapter;
+}
 
 // ============================================================
 // CONFIGURATION
@@ -64,7 +77,7 @@ async function testReadOnlyQuery(options: CLIOptions): Promise<TestResult> {
     try {
         console.log(`\n  Running: ${testName}`);
 
-        const adapter = await getAgentLibrary();
+        const adapter = await getCursorAdapter();
 
         // Simple query that should read a file
         const result = await adapter.run({
@@ -130,7 +143,7 @@ async function testStreamingOutput(options: CLIOptions): Promise<TestResult> {
     try {
         console.log(`\n  Running: ${testName}`);
 
-        const adapter = await getAgentLibrary();
+        const adapter = await getCursorAdapter();
 
         // Query that should produce some output
         const result = await adapter.run({
@@ -184,16 +197,18 @@ async function testAdapterInit(options: CLIOptions): Promise<TestResult> {
     try {
         console.log(`\n  Running: ${testName}`);
 
-        const adapter = await getAgentLibrary();
+        const adapter = await getCursorAdapter();
 
         const duration = Math.floor((Date.now() - startTime) / 1000);
 
-        // Check adapter properties
+        // Verify it's the cursor adapter
         if (adapter.name !== 'cursor') {
-            // If not cursor, that's okay - we're testing the abstraction
-            if (options.verbose) {
-                console.log(`    Adapter: ${adapter.name} (not cursor)`);
-            }
+            return {
+                name: testName,
+                passed: false,
+                duration,
+                error: `Expected cursor adapter, got ${adapter.name}`,
+            };
         }
 
         if (!adapter.isInitialized()) {
@@ -235,7 +250,7 @@ async function testErrorHandling(options: CLIOptions): Promise<TestResult> {
     try {
         console.log(`\n  Running: ${testName}`);
 
-        const adapter = await getAgentLibrary();
+        const adapter = await getCursorAdapter();
 
         // Very short timeout to trigger timeout handling
         const result = await adapter.run({
@@ -292,7 +307,7 @@ async function testWriteOperation(options: CLIOptions): Promise<TestResult> {
     try {
         console.log(`\n  Running: ${testName}`);
 
-        const adapter = await getAgentLibrary();
+        const adapter = await getCursorAdapter();
 
         // Create a temporary test file
         const testFilePath = '.test-cursor-adapter-temp.txt';
