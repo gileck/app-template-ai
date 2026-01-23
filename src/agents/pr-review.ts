@@ -387,7 +387,7 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 console.log('  ' + '='.repeat(60));
                 console.log(`\n  [DRY RUN] Summary: ${summary}`);
                 console.log(`\n  [DRY RUN] Would submit official GitHub review: ${decision === 'approved' ? 'APPROVE' : 'REQUEST_CHANGES'}`);
-                console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? '(cleared)' : 'Request Changes'}`);
+                console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? 'Approved' : 'Request Changes'}`);
             } else {
                 // Post review comment on PR
                 const prefixedReview = addAgentPrefix('pr-review', reviewText);
@@ -400,17 +400,15 @@ Review this PR and check compliance with project guidelines in \`.cursor/rules/\
                 console.log(`  Submitted official GitHub review: ${reviewEvent}`);
 
                 // Update review status
-                // - If approved: clear Review Status so agent doesn't pick it up again
-                // - If requesting changes: set to "Request Changes" so implement agent can address it
-                if (decision === 'approved') {
-                    logGitHubAction(logCtx, 'issue_updated', 'Cleared Review Status (approved)');
-                    await adapter.clearItemReviewStatus(item.id);
-                    console.log('  Cleared review status (approved)');
-                } else {
-                    logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${REVIEW_STATUSES.requestChanges}`);
-                    await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.requestChanges);
-                    console.log(`  Updated review status to: ${REVIEW_STATUSES.requestChanges}`);
-                }
+                // - If approved: set to "Approved" (agent won't pick it up again, admin can merge)
+                // - If requesting changes: set to "Request Changes" (implement agent can address it)
+                const newReviewStatus = decision === 'approved'
+                    ? REVIEW_STATUSES.approved
+                    : REVIEW_STATUSES.requestChanges;
+
+                logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${newReviewStatus}`);
+                await adapter.updateItemReviewStatus(item.id, newReviewStatus);
+                console.log(`  Updated review status to: ${newReviewStatus}`);
 
                 // Send notification
                 await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
