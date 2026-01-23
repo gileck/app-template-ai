@@ -441,6 +441,9 @@ class CursorAdapter implements AgentLibraryAdapter {
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
 
+            // Close stdin immediately - CLI doesn't need input
+            proc.stdin?.end();
+
             // Set up timeout
             if (timeout > 0) {
                 timeoutId = setTimeout(() => {
@@ -516,6 +519,9 @@ class CursorAdapter implements AgentLibraryAdapter {
                 env: { ...process.env },
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
+
+            // Close stdin immediately - CLI doesn't need input
+            proc.stdin?.end();
 
             // Set up timeout
             if (timeout > 0) {
