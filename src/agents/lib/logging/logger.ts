@@ -3,7 +3,7 @@ import type {
     GitHubAction,
     ExecutionSummary,
 } from './types';
-import { appendToLog, writeLogHeader, logExists } from './writer';
+import { appendToLog, writeLogHeader, logExists, getLogPath } from './writer';
 
 /**
  * Format timestamp as HH:MM:SS
@@ -47,8 +47,14 @@ function escapeCodeBlock(content: string): string {
  * Log execution start
  */
 export function logExecutionStart(ctx: LogContext): void {
-    if (!logExists(ctx.issueNumber)) {
+    const logPath = getLogPath(ctx.issueNumber);
+    const fileExists = logExists(ctx.issueNumber);
+
+    if (!fileExists) {
         writeLogHeader(ctx.issueNumber, ctx.issueTitle, ctx.issueType);
+        console.log(`  📝 Agent log created: ${logPath}`);
+    } else {
+        console.log(`  📝 Agent log found: ${logPath}`);
     }
 
     const content = `## Phase: ${ctx.phase}
@@ -280,6 +286,10 @@ export function logExecutionEnd(
 `;
 
     appendToLog(ctx.issueNumber, content);
+
+    // Print log file location
+    const logPath = getLogPath(ctx.issueNumber);
+    console.log(`  📝 Agent log saved: ${logPath}`);
 }
 
 /**
