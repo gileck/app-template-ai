@@ -35,3 +35,5 @@
 /* === Project Component Styles === */
 /* Add project-specific component styles below */
 
+/* Import todo-specific styles */
+@import './todos.css';

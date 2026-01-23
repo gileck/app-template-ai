@@ -56,16 +56,22 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
     };
 
     return (
-        <Card className="mb-3 p-2">
-            <div className="flex items-center gap-2">
+        <Card className="mb-4 p-4 todo-card-gradient">
+            <div className="flex items-center gap-3">
                 <Input
                     value={newTodoTitle}
                     onChange={(e) => setNewTodoTitle(e.target.value)}
-                    placeholder="Enter a new todo..."
+                    placeholder="What awesome thing will you do today? ✨"
                     onKeyPress={handleKeyPress}
+                    className="h-12 text-base todo-input-focus"
                 />
-                <Button onClick={handleCreateTodo} disabled={!newTodoTitle.trim()}>
-                    <Plus className="mr-2 h-4 w-4" /> Add
+                <Button
+                    onClick={handleCreateTodo}
+                    disabled={!newTodoTitle.trim()}
+                    size="lg"
+                    className="todo-button-gradient h-12 px-6"
+                >
+                    <Plus className="mr-2 h-5 w-5" /> Add
                 </Button>
             </div>
         </Card>
