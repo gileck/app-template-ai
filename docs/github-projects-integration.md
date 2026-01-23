@@ -183,16 +183,28 @@ TELEGRAM_BOT_TOKEN=xxxxxxxxxxxxx
 
 | Token | Used For | Who It Appears As |
 |-------|----------|-------------------|
-| `GITHUB_TOKEN` (admin) | GitHub Projects queries, project status updates | Not visible to users |
+| `GITHUB_TOKEN` (admin) | GitHub Projects queries, project status updates, **PR reviews** | Your personal account (reviews), not visible (projects) |
 | `GITHUB_BOT_TOKEN` (bot) | Creating PRs, issues, comments | `dev-agent-bot` (or your bot account name) |
+
+**Token Usage Details:**
+
+| Operation | Token Used | Reason |
+|-----------|------------|--------|
+| Read/write GitHub Projects | `GITHUB_TOKEN` (admin) | Admin has project access |
+| Create issues | `GITHUB_BOT_TOKEN` (bot) | Issues appear from bot |
+| Update issue body | `GITHUB_BOT_TOKEN` (bot) | Updates appear from bot |
+| Post issue comments | `GITHUB_BOT_TOKEN` (bot) | Comments appear from bot |
+| Create PRs | `GITHUB_BOT_TOKEN` (bot) | PRs created by bot |
+| **Submit PR reviews (approve/request changes)** | `GITHUB_TOKEN` (admin) | **Admin reviews bot's PRs** |
+| Post PR comments | `GITHUB_BOT_TOKEN` (bot) | Comments appear from bot |
 
 **Benefits:**
 - ✅ No need to add bot account to GitHub Project (admin already has access)
 - ✅ Clear separation: visible actions = bot, data access = admin
-- ✅ You can approve PRs created by bot
+- ✅ **You can approve PRs created by bot** (GitHub doesn't allow self-approval)
 - ✅ Easy to identify bot vs human actions
 
-**Note:** If `GITHUB_BOT_TOKEN` is not provided, the system falls back to using `GITHUB_TOKEN` for everything (single-token mode).
+**Important:** If `GITHUB_BOT_TOKEN` is not set, the system falls back to using `GITHUB_TOKEN` with a warning. In this mode, **you cannot approve your own PRs** because they'll be created by your account.
 
 ### Getting GitHub Tokens
 
