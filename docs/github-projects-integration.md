@@ -1338,6 +1338,59 @@ Result: One complete log file showing the entire journey!
    - Sets Review Status back to "Waiting for Review"
 5. Admin receives notification that revisions are ready
 
+### PR Review State and Multiple Review Cycles
+
+**Understanding Two Status Systems:**
+
+The system tracks status in two places:
+1. **GitHub Projects "Review Status" field** - Tracks workflow state (empty → Waiting for Review → Approved/Request Changes)
+2. **GitHub PR review state** - Native GitHub status (Changes requested, Approved, etc.)
+
+**What Happens During Multiple Review Cycles:**
+
+**Round 1:**
+1. PR-reviewer submits `REQUEST_CHANGES` review → GitHub PR shows "Changes requested" 🔴
+2. Projects Review Status = "Request Changes"
+
+**After implementer addresses feedback:**
+3. Implement agent pushes new commits to PR
+4. **GitHub behavior**: Old review marked as "outdated" (gray badge), but PR state stays "Changes requested"
+5. **Implement agent**: Resets Projects Review Status to "Waiting for Review"
+
+**Round 2 (if changes still insufficient):**
+6. PR-reviewer picks up item (Review Status = "Waiting for Review")
+7. **PR-reviewer should submit `REQUEST_CHANGES` again** (not `COMMENT`)
+8. GitHub creates a **new review entry** applying to the new commits
+9. Old review remains in timeline as "outdated"
+
+**Why Always Use REQUEST_CHANGES:**
+
+✅ **Correct approach:**
+- Submit `REQUEST_CHANGES` for each review cycle
+- Each review formally evaluates the current state of the PR
+- Creates clear review timeline showing all iterations
+- Old reviews are marked "outdated" automatically
+- PR remains properly blocked until approved
+
+❌ **Don't use `COMMENT` event:**
+- Using `COMMENT` doesn't formally review the new commits
+- Looks like a discussion, not a review decision
+- The old "Changes requested" remains the active review
+- Doesn't clearly signal that new changes were reviewed and found insufficient
+
+**Example Timeline:**
+```
+Review 1: REQUEST_CHANGES - "Fix the logic in handleSubmit"
+  └─ [outdated] Applied to commit abc123
+
+Commit: "fix: update handleSubmit logic" - def456
+
+Review 2: REQUEST_CHANGES - "Still has XSS vulnerability"
+  └─ [current] Applies to commit def456
+```
+
+Both reviews use `REQUEST_CHANGES` - this is the correct GitHub PR workflow.
+
 ### Writing Effective Review Comments
 
 Good comments are:
