@@ -4,6 +4,7 @@
  *
  * Tests the actual production deployment on Vercel:
  * - Vercel environment variables are set
+ * - Local vs Vercel env vars match (existence check)
  * - Production webhook endpoint is accessible
  * - Production app responds correctly
  *
@@ -13,6 +14,7 @@
  * Usage:
  *   yarn verify-production
  *   yarn verify-production --url https://your-custom-domain.com
+ *   yarn verify-production --skip-vercel  # Skip env var checks
  */
 
 import '../src/agents/shared/loadEnv';
@@ -150,6 +152,95 @@ async function checkVercelEnvironmentVariables(): Promise<CategoryResults> {
         } else {
             results.failed++;
         }
+    }
+
+    return results;
+}
+
+async function compareLocalAndVercelEnvVars(): Promise<CategoryResults> {
+    const results: CategoryResults = {
+        category: 'Local vs Vercel Environment Variables',
+        checks: [],
+        passed: 0,
+        failed: 0
+    };
+
+    // Variables to compare (skip LOCAL_* which are intentionally different)
+    const varsToCompare = [
+        'GITHUB_TOKEN',
+        'GITHUB_OWNER',
+        'GITHUB_REPO',
+        'GITHUB_PROJECT_NUMBER',
+        'GITHUB_OWNER_TYPE',
+        'TELEGRAM_BOT_TOKEN',
+        'MONGO_URI',
+        'JWT_SECRET',
+        'ADMIN_USER_ID'
+    ];
+
+    // Get Vercel env vars
+    const vercelEnvOutput = runCommand('vercel env ls production 2>/dev/null');
+    if (!vercelEnvOutput) {
+        results.checks.push({
+            passed: false,
+            message: 'Cannot fetch Vercel env vars',
+            details: ['Vercel CLI not accessible']
+        });
+        results.failed++;
+        return results;
+    }
+
+    // Check each variable
+    for (const varName of varsToCompare) {
+        const localValue = process.env[varName];
+        const isInVercel = vercelEnvOutput.includes(varName);
+
+        // Check if both have the variable
+        if (!localValue && !isInVercel) {
+            results.checks.push({
+                passed: false,
+                message: `${varName} - missing in both`,
+                details: ['Not set locally or in Vercel']
+            });
+            results.failed++;
+            continue;
+        }
+
+        if (!localValue) {
+            results.checks.push({
+                passed: false,
+                message: `${varName} - missing locally`,
+                details: ['Set in Vercel but not in .env.local']
+            });
+            results.failed++;
+            continue;
+        }
+
+        if (!isInVercel) {
+            results.checks.push({
+                passed: false,
+                message: `${varName} - missing in Vercel`,
+                details: ['Set locally but not in Vercel production']
+            });
+            results.failed++;
+            continue;
+        }
+
+        // Both exist - confirm
+        results.checks.push({
+            passed: true,
+            message: `${varName} - exists in both (${localValue.length} chars locally)`
+        });
+        results.passed++;
+    }
+
+    // Add informational note
+    if (results.failed === 0 && results.passed > 0) {
+        results.checks.push({
+            passed: true,
+            message: '💡 Note: This check verifies variables exist in both places',
+            details: ['To verify values match, manually compare .env.local with Vercel dashboard']
+        });
     }
 
     return results;
@@ -301,6 +392,12 @@ async function main() {
         const envResults = await checkVercelEnvironmentVariables();
         envResults.checks.forEach(printCheck);
         printSummary(envResults);
+
+        // Compare local vs Vercel env vars
+        printSubheader('🔄 Local vs Vercel Environment Variables');
+        const comparisonResults = await compareLocalAndVercelEnvVars();
+        comparisonResults.checks.forEach(printCheck);
+        printSummary(comparisonResults);
     }
 
     // Check production deployment
@@ -313,7 +410,8 @@ async function main() {
     const allResults = [projectResults, deploymentResults];
     if (!options.skipVercel) {
         const envResults = await checkVercelEnvironmentVariables();
-        allResults.splice(1, 0, envResults);
+        const comparisonResults = await compareLocalAndVercelEnvVars();
+        allResults.splice(1, 0, envResults, comparisonResults);
     }
 
     const totalPassed = allResults.reduce((sum, r) => sum + r.passed, 0);
