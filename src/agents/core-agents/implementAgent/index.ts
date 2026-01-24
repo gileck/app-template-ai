@@ -897,9 +897,11 @@ See issue #${issueNumber} for full context, product design, and technical design
                     feedbackComment = 'Addressed review feedback. Ready for re-review.';
                 }
                 const prefixedComment = addAgentPrefix('implementor', feedbackComment);
-                await adapter.addPRComment(prNumber, prefixedComment);
-                console.log('  Feedback response comment posted on issue and PR');
-                logGitHubAction(logCtx, 'comment', 'Posted feedback response comment on issue and PR');
+                // Add @claude to trigger Claude GitHub App to re-review the fixes
+                const commentWithReviewRequest = `${prefixedComment}\n\n@claude please review the changes`;
+                await adapter.addPRComment(prNumber, commentWithReviewRequest);
+                console.log('  Feedback response comment posted on PR (with @claude review request)');
+                logGitHubAction(logCtx, 'comment', 'Posted feedback response on PR with @claude review request');
             }
         }
 
