@@ -7,8 +7,9 @@
  *
  * Transitions:
  *   - Product Design (Approved) → Technical Design
- *   - Technical Design (Approved) → Implementation
- *   - Implementation (Approved) → Done
+ *   - Technical Design (Approved) → Ready for development
+ *   - Ready for development (Approved) → Done
+ *   - PR Review (Approved) → Done
  *
  * Usage:
  *   yarn agent:auto-advance              # Process all approved items
@@ -37,6 +38,7 @@ const STATUS_TRANSITIONS: Record<string, string> = {
     [STATUSES.productDesign]: STATUSES.techDesign,
     [STATUSES.techDesign]: STATUSES.implementation,
     [STATUSES.implementation]: STATUSES.done,
+    [STATUSES.prReview]: STATUSES.done,
 };
 
 // ============================================================
