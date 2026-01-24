@@ -232,7 +232,7 @@ await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.waitingForClarific
 
 ### 2. PR Creation Idempotency (CRITICAL - P1)
 
-**Location:** `src/agents/implement.ts:628-715`
+**Location:** `src/agents/core-agents/implementAgent/index.ts` (PR creation logic)
 
 **Bug Prevented:** Duplicate PR creation on re-run.
 
@@ -302,8 +302,8 @@ This is rare (narrow failure window) and can be manually cleaned up. To fix prop
 ### 3. Design Agent Idempotency (P1)
 
 **Location:**
-- `src/agents/product-design.ts:148-154`
-- `src/agents/tech-design.ts:170-176`
+- `src/agents/core-agents/productDesignAgent/index.ts` (idempotency check)
+- `src/agents/core-agents/technicalDesignAgent/index.ts` (idempotency check)
 
 **How it works:**
 ```typescript
@@ -386,9 +386,9 @@ async function main(): Promise<void> {
 ```
 
 **Files to modify:**
-- `src/agents/product-design.ts`
-- `src/agents/tech-design.ts`
-- `src/agents/implement.ts`
+- `src/agents/core-agents/productDesignAgent/index.ts`
+- `src/agents/core-agents/technicalDesignAgent/index.ts`
+- `src/agents/core-agents/implementAgent/index.ts`
 
 **Recommendation:**
 - **If agents run manually:** Current state is acceptable (low risk)
@@ -553,7 +553,7 @@ yarn agent:product-design --id <item-id>
    - Added warning about common mistakes
    - Linked to `yarn verify-setup`
 
-3. **Bug skip logging** - Enhanced in `src/agents/product-design.ts`
+3. **Bug skip logging** - Enhanced in `src/agents/core-agents/productDesignAgent/index.ts`
    - Clear reason provided
    - Guidance for manual routing
 

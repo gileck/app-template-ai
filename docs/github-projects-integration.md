@@ -1860,10 +1860,24 @@ For projects based on this template:
 src/
 ├── agents/                          # CLI agent scripts
 │   ├── index.ts                     # Master CLI (yarn github-workflows-agent)
-│   ├── product-design.ts            # Generate product design
-│   ├── tech-design.ts               # Generate technical design
-│   ├── implement.ts                 # Implement + create PR
 │   ├── auto-advance.ts              # Auto-advance approved items
+│   ├── core-agents/                 # Agent workflows
+│   │   ├── productDesignAgent/      # Generate product design
+│   │   │   ├── index.ts
+│   │   │   └── AGENTS.md
+│   │   ├── technicalDesignAgent/    # Generate technical design
+│   │   │   ├── index.ts
+│   │   │   └── AGENTS.md
+│   │   ├── implementAgent/          # Implement + create PR
+│   │   │   ├── index.ts
+│   │   │   └── AGENTS.md
+│   │   └── prReviewAgent/           # Review PRs
+│   │       ├── index.ts
+│   │       └── AGENTS.md
+│   ├── lib/                         # Agent library abstraction
+│   │   ├── types.ts                 # Library adapter interface
+│   │   ├── config.ts                # Configuration loader
+│   │   └── adapters/                # Provider implementations
 │   └── shared/
 │       ├── config.ts                # Agent-specific config + re-exports
 │       ├── claude.ts                # Claude SDK runner
