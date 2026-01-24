@@ -216,6 +216,32 @@ export interface ProjectManagementAdapter {
     clearItemReviewStatus(itemId: string): Promise<void>;
 
     // --------------------------------------------------------
+    // Implementation Phase (Multi-PR Workflow)
+    // --------------------------------------------------------
+
+    /**
+     * Check if the implementation phase field exists
+     */
+    hasImplementationPhaseField(): boolean;
+
+    /**
+     * Get the current implementation phase for an item
+     * Returns format "X/N" (e.g., "1/3" for phase 1 of 3) or null if not set
+     */
+    getImplementationPhase(itemId: string): Promise<string | null>;
+
+    /**
+     * Set the implementation phase for an item
+     * @param value Format "X/N" (e.g., "1/3" for phase 1 of 3)
+     */
+    setImplementationPhase(itemId: string, value: string): Promise<void>;
+
+    /**
+     * Clear the implementation phase for an item
+     */
+    clearImplementationPhase(itemId: string): Promise<void>;
+
+    // --------------------------------------------------------
     // Issues
     // --------------------------------------------------------
 

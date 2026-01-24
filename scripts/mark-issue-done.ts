@@ -1,10 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * Mark Issue as Done on PR Merge
+ * Mark Issue as Done on PR Merge (Phase-Aware)
  *
  * This script is triggered by GitHub Actions when a PR is merged.
  * It extracts the issue number from the PR body, finds the corresponding
- * project item, and updates its status to "Done".
+ * project item, and updates its status.
+ *
+ * For multi-phase features (L/XL):
+ * - If more phases remain: increments phase counter, returns to Implementation
+ * - If all phases complete: marks as Done
+ *
+ * For single-phase features:
+ * - Marks as Done immediately
  */
 
 import '../src/agents/shared/loadEnv';
@@ -14,6 +21,7 @@ import { sendNotificationToOwner } from '@/server/telegram';
 import { appConfig } from '@/app.config';
 import { findByGitHubIssueNumber as findFeatureByIssue, updateFeatureRequestStatus } from '@/server/database/collections/feature-requests';
 import { findByGitHubIssueNumber as findReportByIssue, updateReport } from '@/server/database/collections/reports';
+import { parsePhaseString } from '../src/agents/lib/parsing';
 
 async function main() {
     const prNumber = process.env.PR_NUMBER;
@@ -31,17 +39,21 @@ async function main() {
     console.log(`Merged by: ${mergedBy}`);
 
     // Extract issue number from PR body
-    // Looks for patterns like "Closes #123", "Fixes #123", "Resolves #123"
-    const issueMatch = prBody.match(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/i);
+    // Looks for patterns like "Closes #123", "Fixes #123", "Resolves #123", "Part of #123"
+    const closesMatch = prBody.match(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/i);
+    const partOfMatch = prBody.match(/part\s+of\s+#(\d+)/i);
+
+    const issueMatch = closesMatch || partOfMatch;
+    const isPartialPhase = !closesMatch && !!partOfMatch;
 
     if (!issueMatch) {
-        console.log('No issue reference found in PR body (e.g., "Closes #123")');
+        console.log('No issue reference found in PR body (e.g., "Closes #123" or "Part of #123")');
         console.log('Skipping status update.');
         return;
     }
 
     const issueNumber = parseInt(issueMatch[1], 10);
-    console.log(`Found issue reference: #${issueNumber}`);
+    console.log(`Found issue reference: #${issueNumber}${isPartialPhase ? ' (partial - multi-phase)' : ''}`);
 
     try {
         // Initialize project management adapter
@@ -69,6 +81,72 @@ async function main() {
             return;
         }
 
+        // Check for multi-phase implementation
+        const phase = await adapter.getImplementationPhase(item.id);
+        const parsedPhase = parsePhaseString(phase);
+
+        if (parsedPhase) {
+            console.log(`📋 Multi-phase feature: Phase ${parsedPhase.current}/${parsedPhase.total}`);
+
+            if (parsedPhase.current < parsedPhase.total) {
+                // More phases to go - increment phase and return to Implementation
+                const nextPhase = parsedPhase.current + 1;
+                console.log(`\n🔄 Phase ${parsedPhase.current} complete, starting Phase ${nextPhase}...`);
+
+                // Update phase counter
+                await adapter.setImplementationPhase(item.id, `${nextPhase}/${parsedPhase.total}`);
+                console.log(`  Implementation Phase updated to: ${nextPhase}/${parsedPhase.total}`);
+
+                // Return to Implementation status
+                await adapter.updateItemStatus(item.id, STATUSES.implementation);
+                console.log(`  Status updated to: ${STATUSES.implementation}`);
+
+                // Clear review status for next phase
+                if (adapter.hasReviewStatusField() && item.reviewStatus) {
+                    await adapter.clearItemReviewStatus(item.id);
+                    console.log('  Cleared review status');
+                }
+
+                // Send notification for phase completion
+                if (appConfig.ownerTelegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
+                    const repoUrl = `https://github.com/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}`;
+                    const prUrl = `${repoUrl}/pull/${prNumber}`;
+                    const issueUrl = `${repoUrl}/issues/${issueNumber}`;
+
+                    const escapeHtml = (text: string) =>
+                        text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    const message = `<b>Agent (Multi-PR):</b> ✅ Phase ${parsedPhase.current}/${parsedPhase.total} merged
+
+📋 ${escapeHtml(prTitle.replace(/ \(Phase \d+\/\d+\)/, ''))}
+🔗 Issue #${issueNumber}
+🔀 PR #${prNumber} merged by ${mergedBy}
+
+Starting Phase ${nextPhase}/${parsedPhase.total}...
+Run <code>yarn agent:implement</code> to continue.`;
+
+                    await sendNotificationToOwner(message, {
+                        parseMode: 'HTML',
+                        inlineKeyboard: [
+                            [
+                                { text: '📋 View Issue', url: issueUrl },
+                                { text: '🔀 View PR', url: prUrl },
+                            ],
+                        ],
+                    });
+                    console.log('Telegram notification sent');
+                }
+
+                console.log(`\n✅ Ready for Phase ${nextPhase}\n`);
+                return;
+            }
+
+            // All phases complete - clear phase field and proceed to Done
+            console.log(`\n🎉 All ${parsedPhase.total} phases complete!`);
+            await adapter.clearImplementationPhase(item.id);
+            console.log('  Cleared Implementation Phase field');
+        }
+
         // Update GitHub Project status to Done
         console.log(`Updating GitHub Project status to: ${STATUSES.done}`);
         await adapter.updateItemStatus(item.id, STATUSES.done);
@@ -76,7 +154,7 @@ async function main() {
 
         // Clear review status
         if (adapter.hasReviewStatusField() && item.reviewStatus) {
-            await adapter.updateItemReviewStatus(item.id, '');
+            await adapter.clearItemReviewStatus(item.id);
             console.log('Cleared review status');
         }
 
@@ -107,13 +185,17 @@ async function main() {
             const escapeHtml = (text: string) =>
                 text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+            const allPhasesMessage = parsedPhase
+                ? `\n\n🎉 All ${parsedPhase.total} phases completed!`
+                : '';
+
             const message = `<b>Agent (Auto-Complete):</b> 🎉 Issue Completed
 
-📋 ${escapeHtml(prTitle)}
+📋 ${escapeHtml(prTitle.replace(/ \(Phase \d+\/\d+\)/, ''))}
 🔗 Issue #${issueNumber} → Done
 🔀 PR #${prNumber} merged by ${mergedBy}
 
-Status automatically updated on PR merge.`;
+Status automatically updated on PR merge.${allPhasesMessage}`;
 
             await sendNotificationToOwner(message, {
                 parseMode: 'HTML',

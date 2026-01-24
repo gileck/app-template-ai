@@ -1152,6 +1152,70 @@ Implementation Agent:
 Admin merges → Done
 ```
 
+### Multi-PR Workflow (L/XL Features)
+
+For large features (L/XL size), the system automatically splits implementation into multiple phases, each resulting in a separate PR.
+
+**How it works:**
+
+1. **Tech Design Agent** generates phases for L/XL features:
+   - Splits feature into 2-5 independently mergeable phases
+   - Each phase should be size S or M (not L/XL)
+   - Phases are ordered so dependencies flow forward
+
+2. **Implementation Agent** implements one phase at a time:
+   - Reads current phase from GitHub Project "Implementation Phase" field
+   - Creates phase-specific branch: `feature/issue-{N}-phase-{X}-{slug}`
+   - PR title includes phase: `feat: Feature Name (Phase 1/3)`
+   - PR body includes phase description
+
+3. **On PR Merge**:
+   - If more phases remain: Issue returns to "Implementation" status, phase counter increments
+   - If all phases complete: Issue moves to "Done"
+
+**Example Flow (L feature with 3 phases):**
+
+| Step | Action | GitHub Project State |
+|------|--------|---------------------|
+| 1 | Tech Design generates phases | Status: Ready for development |
+| 2 | Implementation agent runs | Status: PR Review, Phase: 1/3 |
+| 3 | Admin merges PR #101 | Status: Implementation, Phase: 2/3 |
+| 4 | Implementation agent runs | Status: PR Review, Phase: 2/3 |
+| 5 | Admin merges PR #102 | Status: Implementation, Phase: 3/3 |
+| 6 | Implementation agent runs | Status: PR Review, Phase: 3/3 |
+| 7 | Admin merges PR #103 | Status: Done, Phase: (cleared) |
+
+**Setup Required:**
+
+Add the "Implementation Phase" field to your GitHub Project:
+1. In your project, click the "+" button (add field)
+2. Select "Text" (not Single select)
+3. Name it exactly: `Implementation Phase`
+4. Click "Save"
+
+The field stores values like "1/3" (phase 1 of 3).
+
+**Telegram Notifications:**
+
+You'll receive notifications at each phase:
+- "✅ Phase 1/3 merged. Starting Phase 2..."
+- "🎉 All 3 phases complete!" (on final merge)
+
+**When to use:**
+
+| Feature Size | Phases | Behavior |
+|--------------|--------|----------|
+| S | None | Single PR |
+| M | None | Single PR |
+| L | 2-3 | Multiple PRs |
+| XL | 3-5 | Multiple PRs |
+
+**Fallback:**
+
+If the "Implementation Phase" field doesn't exist, the system falls back to single-phase behavior (one PR for the entire feature).
+
+---
+
 ### Pull Request Format (Squash-Merge Ready)
 
 The implement agent creates PRs that are **immediately ready for squash merge** without any editing needed.

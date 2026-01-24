@@ -155,4 +155,9 @@ export {
     extractTechDesign,
     buildUpdatedIssueBody,
     DESIGN_MARKERS,
+    // Phase extraction for multi-PR workflow
+    extractPhasesFromTechDesign,
+    parsePhaseString,
+    isLargeFeature,
+    type ParsedPhase,
 } from './parsing';

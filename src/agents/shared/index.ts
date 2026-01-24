@@ -61,6 +61,7 @@ export type {
     ProductDesignOutput,
     TechDesignOutput,
     ImplementationOutput,
+    ImplementationPhase,
 } from './output-schemas';
 export {
     PRODUCT_DESIGN_OUTPUT_FORMAT,
@@ -100,6 +101,7 @@ export {
     notifyAutoAdvance,
     notifyAdmin,
     notifyAgentStarted,
+    notifyPhaseComplete,
 } from './notifications';
 
 // Prompts

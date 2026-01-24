@@ -229,6 +229,28 @@ The Status field should already exist. Configure it with these **exact** values:
 | `Waiting for Clarification` | AI needs input from admin |
 | `Clarification Received` | Admin answered, AI should resume |
 
+### Create Implementation Phase Custom Field (Optional - for Multi-PR Workflow)
+
+This field enables splitting large features (L/XL) into multiple PRs. **Optional** - without it, all features are implemented in a single PR.
+
+1. In your project, click the **"+"** button (add field)
+2. Select **"Text"** (NOT Single select)
+3. Name it exactly: `Implementation Phase`
+4. Click **"Save"**
+
+**What this field tracks:**
+
+The field stores values like "1/3" (phase 1 of 3). It's automatically managed by the agents:
+- Set when implementation starts on an L/XL feature
+- Incremented when each phase's PR is merged
+- Cleared when all phases are complete
+
+**When to add this field:**
+- **Add it** if you want large features to be split into multiple PRs
+- **Skip it** if you prefer all features to be single-PR (simpler workflow)
+
+See [Multi-PR Workflow](./github-projects-integration.md#multi-pr-workflow-lxl-features) for details.
+
 ### Get Your Project Number
 
 Look at the project URL:

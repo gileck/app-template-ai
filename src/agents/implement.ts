@@ -57,6 +57,7 @@ import {
     type CommonCLIOptions,
     type GitHubComment,
     type ImplementationOutput,
+    type ImplementationPhase,
     // Utils
     getIssueType,
     getBugDiagnostics,
@@ -70,6 +71,10 @@ import {
     // Agent Identity
     addAgentPrefix,
 } from './shared';
+import {
+    extractPhasesFromTechDesign,
+    parsePhaseString,
+} from './lib/parsing';
 import {
     createLogContext,
     runWithLogContext,
@@ -87,6 +92,12 @@ interface ProcessableItem {
     item: ProjectItem;
     mode: 'new' | 'feedback' | 'clarification';
     prNumber?: number;
+    /** Phase info for multi-PR workflow */
+    phaseInfo?: {
+        current: number;
+        total: number;
+        phases: ImplementationPhase[];
+    };
 }
 
 interface ImplementOptions extends CommonCLIOptions {
@@ -139,14 +150,18 @@ function checkoutBranch(branchName: string, createFromDefault: boolean = false):
 
 /**
  * Generate a branch name from issue number and title
+ * For multi-phase features, includes the phase number
  */
-function generateBranchName(issueNumber: number, title: string, isBug: boolean = false): string {
+function generateBranchName(issueNumber: number, title: string, isBug: boolean = false, phaseNumber?: number): string {
     const slug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .slice(0, 40)
         .replace(/^-|-$/g, ''); // Remove leading/trailing dashes AFTER truncating
     const prefix = isBug ? 'fix' : 'feature';
+    if (phaseNumber) {
+        return `${prefix}/issue-${issueNumber}-phase-${phaseNumber}-${slug}`;
+    }
     return `${prefix}/issue-${issueNumber}-${slug}`;
 }
 
@@ -301,11 +316,72 @@ async function processItem(
             }
         }
 
-        const branchName = generateBranchName(issueNumber, content.title, issueType === 'bug');
-
         // Extract designs from issue body (optional - may be skipped for simple/internal work)
         const productDesign = extractProductDesign(content.body);
         const techDesign = extractTechDesign(content.body);
+
+        // Check for multi-phase implementation (L/XL features)
+        // Need to check phase for ALL modes to generate correct branch name
+        let phaseInfo = processable.phaseInfo;
+        let currentPhase: number | undefined;
+        let totalPhases: number | undefined;
+        let currentPhaseDetails: ImplementationPhase | undefined;
+
+        // First, check if phase tracking already exists in GitHub project
+        const existingPhase = await adapter.getImplementationPhase(item.id);
+        const parsed = parsePhaseString(existingPhase);
+
+        if (parsed) {
+            // Phase tracking exists - use it for all modes
+            currentPhase = parsed.current;
+            totalPhases = parsed.total;
+            console.log(`  📋 Multi-phase feature: Phase ${currentPhase}/${totalPhases}`);
+
+            // Try to get phase details from tech design
+            if (techDesign) {
+                const parsedPhases = extractPhasesFromTechDesign(techDesign);
+                if (parsedPhases) {
+                    currentPhaseDetails = parsedPhases.find(p => p.order === currentPhase);
+                    phaseInfo = {
+                        current: currentPhase,
+                        total: totalPhases,
+                        phases: parsedPhases,
+                    };
+                }
+            }
+        } else if (mode === 'new' && techDesign && !phaseInfo) {
+            // No existing phase - check if we should start multi-phase (only for new implementations)
+            const parsedPhases = extractPhasesFromTechDesign(techDesign);
+            if (parsedPhases && parsedPhases.length >= 2) {
+                // Start new multi-phase implementation
+                currentPhase = 1;
+                totalPhases = parsedPhases.length;
+                console.log(`  📋 Multi-phase feature detected: ${totalPhases} phases`);
+
+                // Set phase tracking in GitHub project
+                if (!options.dryRun && adapter.hasImplementationPhaseField()) {
+                    await adapter.setImplementationPhase(item.id, `${currentPhase}/${totalPhases}`);
+                    console.log(`  Set Implementation Phase to: ${currentPhase}/${totalPhases}`);
+                }
+
+                // Get current phase details
+                currentPhaseDetails = parsedPhases.find(p => p.order === currentPhase);
+                phaseInfo = {
+                    current: currentPhase,
+                    total: totalPhases,
+                    phases: parsedPhases,
+                };
+            }
+        } else if (phaseInfo) {
+            // Phase info passed in (from previous processing)
+            currentPhase = phaseInfo.current;
+            totalPhases = phaseInfo.total;
+            currentPhaseDetails = phaseInfo.phases.find(p => p.order === currentPhase);
+            console.log(`  📋 Continuing phase ${currentPhase}/${totalPhases}`);
+        }
+
+        // Generate branch name (with phase if multi-phase)
+        const branchName = generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
 
         if (!techDesign && !productDesign) {
             console.log('  Note: No design documents found - implementing from issue description only');
@@ -345,6 +421,31 @@ async function processItem(
             } else {
                 // Feature implementation
                 prompt = buildImplementationPrompt(content, productDesign, techDesign, branchName, issueComments);
+            }
+
+            // Add phase-specific context if this is a multi-phase implementation
+            if (currentPhase && totalPhases && currentPhaseDetails) {
+                const phaseContext = `
+
+## IMPORTANT: Multi-Phase Implementation
+
+This is **Phase ${currentPhase} of ${totalPhases}**: ${currentPhaseDetails.name}
+
+**Phase Description:** ${currentPhaseDetails.description}
+
+**Files for this phase:**
+${currentPhaseDetails.files.map(f => `- ${f}`).join('\n')}
+
+**CRITICAL Instructions:**
+1. ONLY implement what's described for Phase ${currentPhase}
+2. Do NOT implement features from later phases
+3. Each phase will be a separate PR that gets reviewed and merged
+4. Make sure this phase is independently mergeable and testable
+5. Future phases will build on top of this work
+
+${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have already been merged.` : ''}
+`;
+                prompt = prompt + phaseContext;
             }
         } else if (mode === 'feedback') {
             // Flow B: Address feedback
@@ -591,8 +692,14 @@ async function processItem(
         // Commit changes (only if there are uncommitted changes)
         if (hasChanges) {
             const commitPrefix = issueType === 'bug' ? 'fix' : 'feat';
+            const phaseLabel = currentPhase && totalPhases
+                ? ` (Phase ${currentPhase}/${totalPhases})`
+                : '';
+            const closesOrPartOf = currentPhase && totalPhases && currentPhase < totalPhases
+                ? `Part of #${issueNumber}`
+                : `Closes #${issueNumber}`;
             const commitMessage = mode === 'new'
-                ? `${commitPrefix}: ${content.title}\n\nCloses #${issueNumber}`
+                ? `${commitPrefix}: ${content.title}${phaseLabel}\n\n${closesOrPartOf}`
                 : `fix: address review feedback for #${issueNumber}`;
 
             console.log('  Committing changes...');
@@ -644,23 +751,38 @@ async function processItem(
                 // Build commit-message-ready PR title and body
                 // PR title will be the squash merge commit title
                 const prPrefix = issueType === 'bug' ? 'fix' : 'feat';
-                const prTitle = `${prPrefix}: ${content.title}`;
+                const phaseLabel = currentPhase && totalPhases
+                    ? ` (Phase ${currentPhase}/${totalPhases})`
+                    : '';
+                const prTitle = `${prPrefix}: ${content.title}${phaseLabel}`;
 
                 // Everything before the --- separator will be included in squash merge commit body
                 // Use the agent's PR summary if available, otherwise fall back to generic text
                 let prBodyAboveSeparator: string;
-                if (prSummary) {
-                    prBodyAboveSeparator = `${prSummary}
 
-Closes #${issueNumber}`;
+                // Phase info header for multi-phase features
+                const phaseHeader = currentPhase && totalPhases && currentPhaseDetails
+                    ? `## Phase ${currentPhase}/${totalPhases}: ${currentPhaseDetails.name}
+
+${currentPhaseDetails.description}
+
+`
+                    : '';
+
+                if (prSummary) {
+                    prBodyAboveSeparator = `${phaseHeader}${prSummary}
+
+${currentPhase && totalPhases && currentPhase === totalPhases ? `Closes #${issueNumber}` : `Part of #${issueNumber}`}`;
                 } else {
                     // Fallback to generic text if agent didn't provide a summary
                     const prBodyIntro = issueType === 'bug'
                         ? `Fixes the bug described in issue #${issueNumber}.`
-                        : `Implements the feature described in issue #${issueNumber}.`;
-                    prBodyAboveSeparator = `${prBodyIntro}
+                        : currentPhase && totalPhases
+                            ? `Implements Phase ${currentPhase}/${totalPhases} of the feature described in issue #${issueNumber}.`
+                            : `Implements the feature described in issue #${issueNumber}.`;
+                    prBodyAboveSeparator = `${phaseHeader}${prBodyIntro}
 
-Closes #${issueNumber}`;
+${currentPhase && totalPhases && currentPhase === totalPhases ? `Closes #${issueNumber}` : `Part of #${issueNumber}`}`;
                 }
 
                 const prBody = `${prBodyAboveSeparator}

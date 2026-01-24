@@ -21,7 +21,7 @@ import type {
     ProjectFieldOption,
     ListItemsOptions,
 } from '../types';
-import { getProjectConfig, REVIEW_STATUS_FIELD, type ProjectConfig } from '../config';
+import { getProjectConfig, REVIEW_STATUS_FIELD, IMPLEMENTATION_PHASE_FIELD, type ProjectConfig } from '../config';
 
 /**
  * Execute with exponential backoff retry on rate limit
@@ -62,6 +62,7 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
     private projectId: string | null = null;
     private statusFieldId: string | null = null;
     private reviewStatusFieldId: string | null = null;
+    private implementationPhaseFieldId: string | null = null;
     private statusOptions: Map<string, string> = new Map();
     private reviewStatusOptions: Map<string, string> = new Map();
     private _initialized = false;
@@ -260,6 +261,11 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
                 for (const option of field.options) {
                     this.reviewStatusOptions.set(option.name, option.id);
                 }
+            }
+
+            // Implementation Phase is a text field, not single select
+            if (field.name === IMPLEMENTATION_PHASE_FIELD) {
+                this.implementationPhaseFieldId = field.id;
             }
         }
 
@@ -673,6 +679,87 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
             projectId: this.projectId,
             itemId,
             fieldId: this.reviewStatusFieldId,
+        });
+    }
+
+    // ============================================================
+    // IMPLEMENTATION PHASE (MULTI-PR WORKFLOW)
+    // ============================================================
+
+    hasImplementationPhaseField(): boolean {
+        return this.implementationPhaseFieldId !== null;
+    }
+
+    async getImplementationPhase(itemId: string): Promise<string | null> {
+        const item = await this.getItem(itemId);
+        if (!item) return null;
+
+        const phaseField = item.fieldValues.find(
+            (fv) => fv.fieldName === IMPLEMENTATION_PHASE_FIELD
+        );
+
+        return phaseField?.value || null;
+    }
+
+    async setImplementationPhase(itemId: string, value: string): Promise<void> {
+        const oc = this.getOctokit();
+
+        if (!this.implementationPhaseFieldId) {
+            // Field doesn't exist, log warning and return (fallback to single-phase behavior)
+            console.warn(`  Implementation Phase field "${IMPLEMENTATION_PHASE_FIELD}" not found in project`);
+            console.warn('  Falling back to single-phase behavior');
+            return;
+        }
+
+        const mutation = `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+            updateProjectV2ItemFieldValue(
+                input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { text: $value }
+                }
+            ) {
+                projectV2Item {
+                    id
+                }
+            }
+        }`;
+
+        await oc.graphql(mutation, {
+            projectId: this.projectId,
+            itemId,
+            fieldId: this.implementationPhaseFieldId,
+            value,
+        });
+    }
+
+    async clearImplementationPhase(itemId: string): Promise<void> {
+        const oc = this.getOctokit();
+
+        if (!this.implementationPhaseFieldId) {
+            // Field doesn't exist, nothing to clear
+            return;
+        }
+
+        const mutation = `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+            clearProjectV2ItemFieldValue(
+                input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                }
+            ) {
+                projectV2Item {
+                    id
+                }
+            }
+        }`;
+
+        await oc.graphql(mutation, {
+            projectId: this.projectId,
+            itemId,
+            fieldId: this.implementationPhaseFieldId,
         });
     }
 
