@@ -59,3 +59,41 @@ export function PriorityBadge({ priority }: PriorityBadgeProps) {
         </Badge>
     );
 }
+
+interface GitHubStatusBadgeProps {
+    status: string;
+    reviewStatus?: string | null;
+}
+
+/**
+ * Badge for GitHub Project statuses
+ * Maps common GitHub statuses to appropriate badge variants
+ */
+export function GitHubStatusBadge({ status, reviewStatus }: GitHubStatusBadgeProps) {
+    // Map GitHub status to badge variant
+    const getVariant = (githubStatus: string): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' => {
+        const statusLower = githubStatus.toLowerCase();
+
+        if (statusLower === 'backlog') return 'secondary';
+        if (statusLower === 'todo' || statusLower === 'new') return 'default';
+        if (statusLower === 'in progress') return 'warning';
+        if (statusLower === 'waiting for review') return 'warning';
+        if (statusLower === 'blocked') return 'destructive';
+        if (statusLower === 'done') return 'success';
+
+        return 'outline'; // fallback
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <Badge variant={getVariant(status)}>
+                {status}
+            </Badge>
+            {reviewStatus && (
+                <span className="text-xs text-muted-foreground">
+                    ({reviewStatus})
+                </span>
+            )}
+        </div>
+    );
+}

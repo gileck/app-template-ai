@@ -13,7 +13,9 @@ import {
 } from '@/client/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
 import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye, ExternalLink, GitPullRequest, CheckCircle, Loader2, RotateCcw } from 'lucide-react';
-import { StatusBadge, PriorityBadge } from './StatusBadge';
+import { StatusBadge, PriorityBadge, GitHubStatusBadge } from './StatusBadge';
+import { StatusIndicatorStrip } from './StatusIndicatorStrip';
+import { MetadataIconRow } from './MetadataIconRow';
 import { DesignReviewPanel } from './DesignReviewPanel';
 import type { FeatureRequestClient, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
 import { useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus, useGitHubStatuses, useUpdateGitHubStatus, useUpdateGitHubReviewStatus, useClearGitHubReviewStatus } from '../hooks';
@@ -24,14 +26,6 @@ interface FeatureRequestCardProps {
 }
 
 const allPriorities: FeatureRequestPriority[] = ['low', 'medium', 'high', 'critical'];
-
-// Priority color mapping for left border accent using semantic tokens
-const priorityBorderColors: Record<FeatureRequestPriority, string> = {
-    critical: 'border-l-destructive',
-    high: 'border-l-warning',
-    medium: 'border-l-info',
-    low: 'border-l-muted-foreground',
-};
 
 export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     const { navigate } = useRouter();
@@ -45,9 +39,6 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     const updatePriorityMutation = useUpdatePriority();
     const deleteMutation = useDeleteFeatureRequest();
     const approveMutation = useApproveFeatureRequest();
-
-    // Get priority border color with fallback
-    const priorityBorderColor = request.priority ? priorityBorderColors[request.priority] : 'border-l-muted-foreground';
 
     // Fetch GitHub Project status only if there's a GitHub project item
     const { data: githubStatus, isLoading: isLoadingGitHubStatus } = useGitHubStatus(
@@ -107,11 +98,16 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     };
 
     return (
-        <Card className={`border-l-4 ${priorityBorderColor} transition-shadow hover:shadow-md`}>
-            <CardHeader className="pb-3">
+        <Card className="relative border border-border shadow-sm transition-all duration-200 ease-out hover:shadow-md">
+            {/* Left-edge status indicator strip (4px) */}
+            <StatusIndicatorStrip request={request} githubStatus={githubStatus?.status} />
+
+            <CardHeader className="pb-2">
+                {/* 3-zone layout: Left (handled by strip), Center (main content), Right (actions) */}
                 <div className="flex items-start justify-between gap-3">
+                    {/* Center Zone: Main Content */}
                     <div
-                        className="flex-1 space-y-2 cursor-pointer"
+                        className="flex-1 space-y-1.5 cursor-pointer pl-2"
                         onClick={handleCardClick}
                         role="button"
                         tabIndex={0}
@@ -122,39 +118,38 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                             }
                         }}
                     >
-                        <CardTitle className="text-base font-semibold leading-tight hover:text-primary transition-colors">
+                        {/* Title - max 2 lines */}
+                        <CardTitle className="text-base font-semibold leading-tight line-clamp-2 hover:text-primary transition-colors">
                             {request.title}
                         </CardTitle>
-                        <div className="flex flex-wrap items-center gap-3">
+
+                        {/* Status Row: Inline badges and metadata icons */}
+                        <div className="flex flex-wrap items-center gap-2">
                             {/* Show GitHub status as primary when linked, fallback to DB status */}
                             {request.githubProjectItemId ? (
                                 isLoadingGitHubStatus ? (
-                                    <span className="text-sm text-muted-foreground">Loading status...</span>
+                                    <span className="text-xs text-muted-foreground">Loading status...</span>
                                 ) : githubStatus?.status ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-md bg-primary px-2.5 py-0.5 text-sm font-medium text-primary-foreground">
-                                            {githubStatus.status}
-                                        </span>
-                                        {githubStatus.reviewStatus && (
-                                            <span className="text-xs text-muted-foreground">
-                                                ({githubStatus.reviewStatus})
-                                            </span>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <StatusBadge
-                                        status={request.status}
+                                    <GitHubStatusBadge
+                                        status={githubStatus.status}
+                                        reviewStatus={githubStatus.reviewStatus}
                                     />
+                                ) : (
+                                    <StatusBadge status={request.status} />
                                 )
                             ) : (
-                                <StatusBadge
-                                    status={request.status}
-                                />
+                                <StatusBadge status={request.status} />
                             )}
+
                             <PriorityBadge priority={request.priority} />
+
+                            {/* Metadata icon row */}
+                            <MetadataIconRow request={request} />
                         </div>
                     </div>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+
+                    {/* Right Zone: Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         {canApprove && (
                             <Button
                                 variant="default"
@@ -270,8 +265,8 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
             </CardHeader>
 
             {isExpanded && (
-                <CardContent className="space-y-5 pt-3 transition-all duration-200 ease-in-out">
-                    <div className="space-y-2 rounded-lg bg-muted/30 p-3">
+                <CardContent className="space-y-5 pt-3 transition-all duration-200 ease-out">
+                    <div className="space-y-2 rounded-lg bg-muted/20 p-3">
                         <h4 className="text-sm font-medium">Description</h4>
                         <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                             {request.description}
@@ -295,31 +290,34 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         )}
                     </div>
 
-                    {/* GitHub Links */}
+                    {/* GitHub Integration Section */}
                     {(request.githubIssueUrl || request.githubPrUrl) && (
-                        <div className="flex flex-wrap gap-3 text-sm">
-                            {request.githubIssueUrl && (
-                                <a
-                                    href={request.githubIssueUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 font-medium text-primary hover:bg-primary/20 transition-colors"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                    <span>Issue #{request.githubIssueNumber}</span>
-                                </a>
-                            )}
-                            {request.githubPrUrl && (
-                                <a
-                                    href={request.githubPrUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 font-medium text-primary hover:bg-primary/20 transition-colors"
-                                >
-                                    <GitPullRequest className="h-3.5 w-3.5" />
-                                    <span>PR #{request.githubPrNumber}</span>
-                                </a>
-                            )}
+                        <div className="space-y-2 rounded-lg border-l-2 border-l-primary/20 bg-primary/5 p-3">
+                            <h4 className="text-sm font-medium">GitHub Integration</h4>
+                            <div className="flex flex-wrap gap-3 text-sm">
+                                {request.githubIssueUrl && (
+                                    <a
+                                        href={request.githubIssueUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 font-medium text-primary hover:bg-primary/20 transition-colors"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <span>Issue #{request.githubIssueNumber}</span>
+                                    </a>
+                                )}
+                                {request.githubPrUrl && (
+                                    <a
+                                        href={request.githubPrUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 font-medium text-primary hover:bg-primary/20 transition-colors"
+                                    >
+                                        <GitPullRequest className="h-3.5 w-3.5" />
+                                        <span>PR #{request.githubPrNumber}</span>
+                                    </a>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -343,7 +341,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     )}
 
                     {request.comments && request.comments.length > 0 && (
-                        <div className="space-y-3 rounded-lg bg-muted/30 p-3">
+                        <div className="space-y-3 rounded-lg bg-muted/20 p-3">
                             <div className="flex items-center gap-2">
                                 <h4 className="text-sm font-medium">Comments</h4>
                                 <span className="inline-flex items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">

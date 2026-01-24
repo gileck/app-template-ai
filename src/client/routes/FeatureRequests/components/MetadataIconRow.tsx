@@ -1,0 +1,72 @@
+import { User, ExternalLink, GitPullRequest, Clock } from 'lucide-react';
+import type { FeatureRequestClient } from '@/apis/feature-requests/types';
+
+interface MetadataIconRowProps {
+    request: FeatureRequestClient;
+}
+
+/**
+ * Compact icon row for metadata display in collapsed card view
+ * Shows: Owner, GitHub issue link, GitHub PR link, Activity staleness indicator
+ * All icons are 16px, muted colors, and tappable
+ */
+export function MetadataIconRow({ request }: MetadataIconRowProps) {
+    // Calculate days since last update
+    const daysSinceUpdate = Math.floor(
+        (Date.now() - new Date(request.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const isStale = daysSinceUpdate > 7;
+
+    return (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {/* Owner indicator */}
+            {request.requestedByName && (
+                <div className="flex items-center gap-1" title={`Requested by ${request.requestedByName}`}>
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">{request.requestedByName}</span>
+                </div>
+            )}
+
+            {/* GitHub issue link */}
+            {request.githubIssueUrl && (
+                <a
+                    href={request.githubIssueUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                    title={`Issue #${request.githubIssueNumber}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <ExternalLink className="h-4 w-4" />
+                    <span className="hidden sm:inline">#{request.githubIssueNumber}</span>
+                </a>
+            )}
+
+            {/* GitHub PR link */}
+            {request.githubPrUrl && (
+                <a
+                    href={request.githubPrUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                    title={`PR #${request.githubPrNumber}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <GitPullRequest className="h-4 w-4" />
+                    <span className="hidden sm:inline">#{request.githubPrNumber}</span>
+                </a>
+            )}
+
+            {/* Activity staleness indicator - only show if >7 days */}
+            {isStale && (
+                <div
+                    className="flex items-center gap-1 text-warning"
+                    title={`Last updated ${daysSinceUpdate} days ago`}
+                >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">{daysSinceUpdate}d</span>
+                </div>
+            )}
+        </div>
+    );
+}
