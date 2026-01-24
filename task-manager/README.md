@@ -6,11 +6,13 @@ Centralized task management system for tracking and implementing project tasks.
 
 | File | Description |
 |------|-------------|
-| **tasks.md** | Main task list with all project tasks organized by priority |
+| **tasks.md** | Main task list (project-specific, never syncs to child projects) |
+| **TASK_FORMAT.md** | Task format specification - standardized structure |
 | **tasks-cli.ts** | CLI tool for manual task management |
 | **TASK_COMMANDS.md** | Quick reference for both slash commands and CLI |
 | **SLASH_COMMANDS_README.md** | Complete guide for Claude Code slash commands |
 | **task-management-cli.md** | Detailed documentation for CLI tools |
+| **.sync-info.md** | Template sync behavior (all files sync except tasks.md) |
 
 ## 🚀 Quick Start
 
