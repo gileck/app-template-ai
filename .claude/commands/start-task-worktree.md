@@ -290,13 +290,15 @@ EOF
 
 ---
 
-## Step 15: Clean Up Worktree
-- **Objective**: Remove worktree and branch
+## Step 15: Clean Up Worktree (MANDATORY)
+- **Objective**: Remove worktree and branch immediately after push
+- **CRITICAL**: Always clean up the worktree after changes are pushed to main. Never leave worktrees around.
 - **Actions**:
   - Remove worktree: `git worktree remove ../worktree-task-N`
-  - If needed: `git worktree remove ../worktree-task-N --force`
-  - Delete local branch: `git branch -d task/N-branch-name`
-  - If you pushed the branch: `git push origin --delete task/N-branch-name`
+  - If needed (uncommitted changes): `git worktree remove ../worktree-task-N --force`
+  - Delete local branch: `git branch -D task/N-branch-name`
+    - Note: Use `-D` (force) because squash merges don't register as "merged" to git
+  - Verify cleanup: `git worktree list` (should only show main worktree)
 
 ---
 
@@ -371,9 +373,10 @@ EOF
 
 git push origin main
 
-# === CLEANUP ===
+# === CLEANUP (MANDATORY - DO THIS IMMEDIATELY) ===
 git worktree remove ../worktree-task-N
-git branch -d task/N-branch-name
+git branch -D task/N-branch-name  # Use -D because squash merge doesn't register as merged
+git worktree list  # Verify only main worktree remains
 yarn task mark-done --task N
 ```
 
