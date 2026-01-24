@@ -301,6 +301,12 @@ export interface ProjectManagementAdapter {
     getPRComments(prNumber: number): Promise<ProjectItemComment[]>;
 
     /**
+     * Get the list of files changed in a PR (from GitHub API)
+     * This is the authoritative list of what's actually in the PR
+     */
+    getPRFiles(prNumber: number): Promise<string[]>;
+
+    /**
      * Add a comment to a PR
      */
     addPRComment(prNumber: number, body: string): Promise<number>;

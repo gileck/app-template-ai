@@ -1034,6 +1034,24 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }));
     }
 
+    /**
+     * Get the list of files changed in a PR (from GitHub API, not local git)
+     * This is the authoritative list of what's actually in the PR
+     */
+    async getPRFiles(prNumber: number): Promise<string[]> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        const { data } = await oc.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: prNumber,
+            per_page: 100,
+        });
+
+        return data.map((file) => file.filename);
+    }
+
     async addPRComment(prNumber: number, body: string): Promise<number> {
         return withRetry(async () => {
             const oc = this.getBotOctokit(); // Use bot token for creating PR comments

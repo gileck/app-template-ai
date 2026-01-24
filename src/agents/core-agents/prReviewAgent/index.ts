@@ -260,6 +260,11 @@ async function processItem(
         }
 
         try {
+            // Fetch PR files (authoritative list from GitHub API)
+            console.log('  Fetching PR files from GitHub...');
+            const prFiles = await adapter.getPRFiles(prNumber);
+            console.log(`  PR contains ${prFiles.length} file(s): ${prFiles.join(', ')}`);
+
             // Fetch all PR comments
             console.log('  Fetching PR comments...');
             const prConversationComments = await adapter.getPRComments(prNumber);
@@ -273,6 +278,7 @@ async function processItem(
             // Build prompt context - pass all comments together
             const promptContext: PromptContext = {
                 phaseInfo: processable.phaseInfo,
+                prFiles, // Authoritative list from GitHub API
                 prComments: prConversationComments.map(c => ({
                     author: c.author,
                     body: c.body,

@@ -34,6 +34,7 @@ export interface PRReviewComment {
 
 export interface PromptContext {
     phaseInfo?: PhaseInfo;
+    prFiles: string[]; // Authoritative list from GitHub API
     prComments: PRComment[];
     prReviewComments: PRReviewComment[];
 }
@@ -137,6 +138,19 @@ ${comment.body}
     return section;
 }
 
+function createPRFilesSection(prFiles: string[]): string {
+    return `## Files in this PR (from GitHub API)
+
+**IMPORTANT:** These are the ONLY files that are part of this PR. Review ONLY these files.
+Do NOT flag files that are not in this list - they are NOT part of this PR.
+
+${prFiles.map(f => `- \`${f}\``).join('\n')}
+
+---
+
+`;
+}
+
 function createInstructionsSection(): string {
     return `## Instructions
 
@@ -187,17 +201,19 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}
  *
  * The prompt is structured as:
  * 1. Phase context (if multi-phase workflow)
- * 2. PR comments (if any)
- * 3. Inline review comments (if any)
- * 4. Instructions
- * 5. /review slash command
- * 6. Output format instructions
+ * 2. PR files list (authoritative from GitHub API)
+ * 3. PR comments (if any)
+ * 4. Inline review comments (if any)
+ * 5. Instructions
+ * 6. /review slash command
+ * 7. Output format instructions
  */
 export function createPrReviewerAgentPrompt(context: PromptContext): string {
-    const { phaseInfo, prComments, prReviewComments } = context;
+    const { phaseInfo, prFiles, prComments, prReviewComments } = context;
 
     return `
 ${phaseInfo ? createPhaseContextSection(phaseInfo) : ''}
+${createPRFilesSection(prFiles)}
 ${prComments.length > 0 ? createPRCommentsSection(prComments) : ''}
 ${prReviewComments.length > 0 ? createReviewCommentsSection(prReviewComments) : ''}
 ${createInstructionsSection()}
