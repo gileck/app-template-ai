@@ -54,6 +54,16 @@ import {
     logGitHubAction,
     logError,
 } from './lib/logging';
+import {
+    parsePhaseString,
+    extractPhasesFromTechDesign,
+} from './lib/parsing';
+import {
+    parsePhasesFromComment,
+} from './lib/phases';
+import {
+    extractTechDesign,
+} from './lib';
 
 // ============================================================
 // TYPES
@@ -62,6 +72,14 @@ import {
 interface ProcessableItem {
     item: ProjectItem;
     prNumber: number;
+    /** Phase info for multi-PR workflow */
+    phaseInfo?: {
+        current: number;
+        total: number;
+        phaseName?: string;
+        phaseDescription?: string;
+        phaseFiles?: string[];
+    };
 }
 
 interface PRReviewOptions extends CommonCLIOptions {
@@ -171,14 +189,18 @@ async function extractPRNumber(
 
 /**
  * Generate a branch name from issue number and title (same as implement.ts)
+ * For multi-phase features, includes the phase number
  */
-function generateBranchName(issueNumber: number, title: string, isBug: boolean = false): string {
+function generateBranchName(issueNumber: number, title: string, isBug: boolean = false, phaseNumber?: number): string {
     const slug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .slice(0, 40)
         .replace(/^-|-$/g, ''); // Remove leading/trailing dashes AFTER truncating
     const prefix = isBug ? 'fix' : 'feature';
+    if (phaseNumber) {
+        return `${prefix}/issue-${issueNumber}-phase-${phaseNumber}-${slug}`;
+    }
     return `${prefix}/issue-${issueNumber}-${slug}`;
 }
 
@@ -229,9 +251,17 @@ async function processItem(
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
         }
 
-        // Generate branch name (same logic as implement.ts)
-        const branchName = generateBranchName(issueNumber, content.title, issueType === 'bug');
+        // Generate branch name (same logic as implement.ts, including phase for multi-PR)
+        const branchName = generateBranchName(
+            issueNumber,
+            content.title,
+            issueType === 'bug',
+            processable.phaseInfo?.current
+        );
         console.log(`  Branch: ${branchName}`);
+        if (processable.phaseInfo) {
+            console.log(`  📋 Phase ${processable.phaseInfo.current}/${processable.phaseInfo.total}: ${processable.phaseInfo.phaseName || 'Unknown'}`);
+        }
 
         // Remember current branch
         const originalBranch = getCurrentBranch();
@@ -263,6 +293,32 @@ async function processItem(
 
             // Build context with PR comments
             let contextPrompt = '';
+
+            // Add phase context for multi-PR workflow (CRITICAL for phase-aware review)
+            if (processable.phaseInfo) {
+                const { current, total, phaseName, phaseDescription, phaseFiles } = processable.phaseInfo;
+                contextPrompt += '## ⚠️ MULTI-PHASE IMPLEMENTATION - PHASE-SPECIFIC REVIEW REQUIRED\n\n';
+                contextPrompt += `**This PR implements Phase ${current} of ${total}**: ${phaseName || 'Unknown'}\n\n`;
+                if (phaseDescription) {
+                    contextPrompt += `**Phase Description:** ${phaseDescription}\n\n`;
+                }
+                if (phaseFiles && phaseFiles.length > 0) {
+                    contextPrompt += `**Expected Files for this Phase:**\n`;
+                    for (const file of phaseFiles) {
+                        contextPrompt += `- \`${file}\`\n`;
+                    }
+                    contextPrompt += '\n';
+                }
+                contextPrompt += '**CRITICAL REVIEW REQUIREMENTS:**\n';
+                contextPrompt += `1. ✅ Verify the PR ONLY implements Phase ${current} functionality\n`;
+                contextPrompt += `2. ❌ Flag if the PR implements features from later phases (Phase ${current + 1}+)\n`;
+                contextPrompt += '3. ✅ Verify the PR is independently mergeable and testable\n';
+                contextPrompt += '4. ✅ Check that the PR follows the phase description above\n';
+                if (phaseFiles && phaseFiles.length > 0) {
+                    contextPrompt += '5. ✅ Verify changes are primarily in the expected files listed above\n';
+                }
+                contextPrompt += '\n---\n\n';
+            }
 
             // Separate Claude Code comments from other comments
             const claudeComments = prConversationComments.filter(c => c.author.toLowerCase() === 'claude');
@@ -485,7 +541,7 @@ async function run(options: PRReviewOptions): Promise<void> {
 
     console.log(`Found ${items.length} item(s) to review\n`);
 
-    // Extract PR numbers from each item
+    // Extract PR numbers and phase info from each item
     const processableItems: ProcessableItem[] = [];
     for (const item of items) {
         if (!item.content || item.content.type !== 'Issue') {
@@ -499,7 +555,39 @@ async function run(options: PRReviewOptions): Promise<void> {
             continue;
         }
 
-        processableItems.push({ item, prNumber });
+        // Check for multi-phase workflow
+        let phaseInfo: ProcessableItem['phaseInfo'];
+        const existingPhase = await adapter.getImplementationPhase(item.id);
+        const parsed = parsePhaseString(existingPhase);
+
+        if (parsed) {
+            // Get phase details from comments or tech design
+            const issueComments = await adapter.getIssueComments(item.content.number!);
+            const commentsList = issueComments.map(c => ({
+                id: c.id,
+                body: c.body,
+                author: c.author,
+                createdAt: c.createdAt,
+                updatedAt: c.updatedAt,
+            }));
+
+            const phases = parsePhasesFromComment(commentsList) ||
+                          (item.content.body ? extractPhasesFromTechDesign(extractTechDesign(item.content.body) || '') : null);
+
+            const currentPhaseDetails = phases?.find(p => p.order === parsed.current);
+
+            phaseInfo = {
+                current: parsed.current,
+                total: parsed.total,
+                phaseName: currentPhaseDetails?.name,
+                phaseDescription: currentPhaseDetails?.description,
+                phaseFiles: currentPhaseDetails?.files,
+            };
+
+            console.log(`  📋 Phase ${parsed.current}/${parsed.total}: ${currentPhaseDetails?.name || 'Unknown'}`);
+        }
+
+        processableItems.push({ item, prNumber, phaseInfo });
     }
 
     if (processableItems.length === 0) {

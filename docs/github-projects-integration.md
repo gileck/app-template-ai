@@ -1170,7 +1170,14 @@ For large features (L/XL size), the system automatically splits implementation i
    - PR title includes phase: `feat: Feature Name (Phase 1/3)`
    - PR body includes phase description
 
-3. **On PR Merge**:
+3. **PR Review Agent** reviews each phase's PR:
+   - **Phase-aware review**: Knows which phase is being reviewed
+   - Verifies PR only implements the specified phase (not future phases)
+   - Checks that changes are in expected files for the phase
+   - Ensures phase is independently mergeable
+   - Run via: `yarn agent:pr-review` (or cron job)
+
+4. **On PR Merge**:
    - If more phases remain: Issue returns to "Implementation" status, phase counter increments
    - If all phases complete: Issue moves to "Done"
 
@@ -1220,13 +1227,24 @@ Implement login and register endpoints
 
 | Step | Action | GitHub Project State |
 |------|--------|---------------------|
-| 1 | Tech Design generates phases | Status: Ready for development |
-| 2 | Implementation agent runs | Status: PR Review, Phase: 1/3 |
-| 3 | Admin merges PR #101 | Status: Implementation, Phase: 2/3 |
-| 4 | Implementation agent runs | Status: PR Review, Phase: 2/3 |
-| 5 | Admin merges PR #102 | Status: Implementation, Phase: 3/3 |
-| 6 | Implementation agent runs | Status: PR Review, Phase: 3/3 |
-| 7 | Admin merges PR #103 | Status: Done, Phase: (cleared) |
+| 1 | Tech Design generates phases + posts comment | Status: Ready for development |
+| 2 | Implementation agent runs (Phase 1) | Status: PR Review, Phase: 1/3 |
+| 3 | **PR Review agent reviews** (phase-aware) | Review Status: Approved/Request Changes |
+| 4 | Admin merges PR #101 | Status: Implementation, Phase: 2/3 |
+| 5 | Implementation agent runs (Phase 2) | Status: PR Review, Phase: 2/3 |
+| 6 | **PR Review agent reviews** (phase-aware) | Review Status: Approved/Request Changes |
+| 7 | Admin merges PR #102 | Status: Implementation, Phase: 3/3 |
+| 8 | Implementation agent runs (Phase 3) | Status: PR Review, Phase: 3/3 |
+| 9 | **PR Review agent reviews** (phase-aware) | Review Status: Approved/Request Changes |
+| 10 | Admin merges PR #103 | Status: Done, Phase: (cleared) |
+
+**PR Review Agent Cron Setup:**
+
+The PR review agent should run on a schedule to automatically review pending PRs:
+```bash
+# Example cron entry (every 15 minutes)
+*/15 * * * * cd /path/to/project && yarn agent:pr-review >> /var/log/pr-review.log 2>&1
+```
 
 **Setup Required:**
 

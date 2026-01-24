@@ -706,6 +706,7 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 - Tech design agent generates 2-5 phases and posts them as a GitHub issue comment
 - Phase comment uses deterministic format with marker `<!-- AGENT_PHASES_V1 -->` (not LLM-generated)
 - Implementation agent reads phases from comment (reliable) or markdown (fallback)
+- **PR review agent is phase-aware** - verifies PR only implements the specified phase
 - Each phase is independently mergeable (S or M size)
 - Sequential PRs: Phase N+1 starts after Phase N merges
 
@@ -714,6 +715,7 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 - `yarn agent:product-design` - Generate product designs
 - `yarn agent:tech-design` - Generate technical designs
 - `yarn agent:implement` - Implement features and create PRs
+- `yarn agent:pr-review` - **Review PRs (phase-aware, run via cron)**
 
 **Setup:**
 📚 **[docs/init-github-projects-workflow.md](docs/init-github-projects-workflow.md)** - Complete setup guide
