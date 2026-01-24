@@ -854,6 +854,12 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 - Per-workflow overrides configurable in `src/agents/agents.config.ts`
 - Available libraries: `claude-code-sdk`, `cursor`, `gemini` (stub)
 
+**PR Merge Flow:**
+- PR Review Agent approves → generates commit message → saves to PR comment
+- Admin gets Telegram with Merge/Request Changes buttons
+- Merge: uses saved commit message, squash merges
+- Request Changes: back to implementor (admin must comment explaining changes)
+
 **Docs:** [docs/github-projects-integration.md](docs/github-projects-integration.md), [docs/agent-library-abstraction.md](docs/agent-library-abstraction.md)
 
 ---

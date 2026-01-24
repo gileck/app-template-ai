@@ -6,12 +6,22 @@
  * Supports multiple flows:
  *
  * 1. Initial Feature Request Approval:
- *    - Callback: "approve_request:requestId:token"
+ *    - Callback: "approve_request:requestId"
  *    - Creates GitHub issue from feature request
  *
  * 2. Design Review Actions (Product/Tech Design):
  *    - Callback: "approve:issueNumber" | "changes:issueNumber" | "reject:issueNumber"
  *    - Updates GitHub Project review status
+ *
+ * 3. PR Merge Flow (after PR Review approval):
+ *    - Callback: "merge:issueNumber:prNumber" - Squash merge PR with saved commit message
+ *    - Callback: "reqchanges:issueNumber:prNumber" - Send back to implementation
+ *
+ * 4. Clarification Flow:
+ *    - Callback: "clarified:issueNumber" - Mark clarification as received
+ *
+ * 5. Routing (after initial sync):
+ *    - Callback: "route_feature:requestId:destination" | "route_bug:reportId:destination"
  *
  * This is a direct API route because Telegram sends webhook requests directly to this URL.
  * It cannot go through the standard API architecture.
@@ -19,9 +29,11 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectManagementAdapter } from '@/server/project-management';
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES, COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
 import { featureRequests, reports } from '@/server/database';
 import { approveFeatureRequest, approveBugReport } from '@/server/github-sync';
+import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
+import { getPrUrl } from '@/server/project-management/config';
 
 /**
  * Status transitions when approved - move to next phase
@@ -652,6 +664,125 @@ async function handleClarificationReceived(
     }
 }
 
+/**
+ * Handle merge callback from Telegram
+ * Callback format: "merge:issueNumber:prNumber"
+ */
+async function handleMergeCallback(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    prNumber: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the commit message from PR comment
+        const commitComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
+        if (!commitComment) {
+            return { success: false, error: 'Commit message not found on PR. Please run PR Review again.' };
+        }
+
+        const commitMsg = parseCommitMessageComment(commitComment.body);
+        if (!commitMsg) {
+            return { success: false, error: 'Could not parse commit message. Please run PR Review again.' };
+        }
+
+        // 2. Perform the merge
+        await adapter.mergePullRequest(prNumber, commitMsg.title, commitMsg.body);
+
+        // 3. Update the message to show success
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const statusUpdate = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '✅ <b>Merged Successfully!</b>',
+                `PR #${prNumber} has been squash-merged.`,
+                'Issue will be marked as Done by webhook.',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                originalText + statusUpdate,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: merged PR #${prNumber} for issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling merge:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle request changes callback from Telegram (admin requests changes after PR approval)
+ * Callback format: "reqchanges:issueNumber:prNumber"
+ */
+async function handleRequestChangesCallback(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    prNumber: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // 2. Move back to Implementation with Request Changes
+        await adapter.updateItemStatus(item.itemId, STATUSES.implementation);
+        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.requestChanges);
+
+        // 3. Update the message with instructions
+        const prUrl = getPrUrl(prNumber);
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const statusUpdate = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '🔄 <b>Marked for Changes</b>',
+                '',
+                `📊 Status: ${STATUSES.implementation}`,
+                `📋 Review Status: ${REVIEW_STATUSES.requestChanges}`,
+                '',
+                `<b>Next:</b> <a href="${prUrl}">Comment on the PR</a> explaining what needs to change.`,
+                'Implementor will pick it up on next run.',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                originalText + statusUpdate,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: requested changes for PR #${prNumber}, issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling request changes:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -841,6 +972,66 @@ export default async function handler(
             );
 
             if (!result.success) {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Merge PR: "merge:issueNumber:prNumber"
+        if (action === 'merge' && parts.length === 3) {
+            const issueNumber = parseInt(parts[1], 10);
+            const prNumber = parseInt(parts[2], 10);
+
+            if (!issueNumber || !prNumber) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleMergeCallback(
+                botToken,
+                callback_query,
+                issueNumber,
+                prNumber
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '✅ Merged!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Request changes (admin requests changes after approval): "reqchanges:issueNumber:prNumber"
+        if (action === 'reqchanges' && parts.length === 3) {
+            const issueNumber = parseInt(parts[1], 10);
+            const prNumber = parseInt(parts[2], 10);
+
+            if (!issueNumber || !prNumber) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleRequestChangesCallback(
+                botToken,
+                callback_query,
+                issueNumber,
+                prNumber
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '🔄 Marked for changes');
+            } else {
                 await answerCallbackQuery(
                     botToken,
                     callback_query.id,
