@@ -173,7 +173,7 @@ export const useFeatureRequestsStore = createStore<FeatureRequestsState>({
                     priorityFilters,
                     githubFilters: [],
                     activityFilters: [],
-                    sortOrder: state.sortOrder || 'desc',
+                    sortOrder: (state.sortOrder as FeatureRequestsSortOrder) || 'desc',
                     sortMode: 'smart', // Default to smart sort
                     hasInteractedWithFilters: true, // Mark as interacted since they had old filters
                 };
@@ -189,20 +189,21 @@ export const useFeatureRequestsStore = createStore<FeatureRequestsState>({
                 return {
                     ...state,
                     statusFilters: ['active'], // Default to 'active' only on first load
-                    sortMode: state.sortMode || 'smart', // Ensure sortMode exists
+                    sortMode: (state.sortMode as SortMode) || 'smart', // Ensure sortMode exists
                     hasInteractedWithFilters: false, // Still first load
-                };
+                } as Partial<FeatureRequestsState>;
             }
 
             // Ensure sortMode exists for existing users
             if (!state.sortMode) {
                 return {
                     ...state,
-                    sortMode: 'smart',
-                };
+                    sortMode: 'smart' as SortMode,
+                } as Partial<FeatureRequestsState>;
             }
 
-            return state;
+            // Return the state as-is (it already matches the persisted structure)
+            return state as Partial<FeatureRequestsState>;
         },
     },
 });

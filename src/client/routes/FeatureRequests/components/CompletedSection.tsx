@@ -35,7 +35,7 @@ export function CompletedSection({ doneItems }: CompletedSectionProps) {
             {/* Collapsible header */}
             <Button
                 variant="ghost"
-                className="w-full justify-between h-auto py-3 px-4 hover:bg-muted/50"
+                className="w-full justify-between h-auto py-3 px-4"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-2">

@@ -35,11 +35,9 @@ import type { SortMode } from './utils/sortingUtils';
 import { toast } from '@/client/components/ui/toast';
 import type { GetGitHubStatusResponse } from '@/apis/feature-requests/types';
 
-// No longer needed - replaced with FilterChipBar component
-
 // Sort mode display labels
 const SORT_MODE_LABELS: Record<SortMode, string> = {
-    smart: 'Smart',
+    smart: 'Smart (Default)',
     newest: 'Newest First',
     oldest: 'Oldest First',
     priority: 'Priority',
@@ -205,7 +203,7 @@ export function FeatureRequests() {
                             onClick={() => setSortMode('smart')}
                             className={sortMode === 'smart' ? 'bg-accent' : ''}
                         >
-                            Smart (Default)
+                            {SORT_MODE_LABELS.smart}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={() => setSortMode('newest')}

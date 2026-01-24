@@ -23,14 +23,6 @@ const PRIORITY_ORDER: Record<FeatureRequestPriority, number> = {
     low: 1,
 };
 
-/**
- * Calculate days since last update
- */
-function _daysSinceUpdate(updatedAt: string): number {
-    const now = Date.now();
-    const updated = new Date(updatedAt).getTime();
-    return (now - updated) / (1000 * 60 * 60 * 24);
-}
 
 /**
  * Get effective status for sorting purposes
@@ -43,7 +35,7 @@ function getEffectiveStatus(
     if (request.githubProjectItemId && githubStatusMap?.[request._id]?.status) {
         return githubStatusMap[request._id]?.status?.toLowerCase() || '';
     }
-    return request.status;
+    return request.status.toLowerCase();
 }
 
 /**
@@ -112,15 +104,15 @@ export function smartSort(
     githubStatusMap?: Record<string, GetGitHubStatusResponse | undefined>
 ): FeatureRequestClient[] {
     // Separate into categories
+    // Note: Done items are excluded - they're handled separately via separateDoneItems()
     const blocked: FeatureRequestClient[] = [];
     const waitingForReview: FeatureRequestClient[] = [];
     const inProgress: FeatureRequestClient[] = [];
     const newOrBacklog: FeatureRequestClient[] = [];
-    const done: FeatureRequestClient[] = [];
 
     requests.forEach((request) => {
         if (isDone(request, githubStatusMap)) {
-            done.push(request);
+            return; // Skip done items - handled separately
         } else if (isBlocked(request, githubStatusMap)) {
             blocked.push(request);
         } else if (isWaitingForReview(request, githubStatusMap)) {
