@@ -821,7 +821,9 @@ Implement the feature as specified in ${implementationSource}:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
 - **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
 - For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
-- Exception: Dialog overlays may use \`bg-black/60\` for backdrop opacity
+- **Exceptions**:
+  - Dialog overlays may use \`bg-black/60\` for backdrop opacity
+  - Hardcoded colors ONLY if specifically requested in the task requirements (e.g., brand colors from product team). In this case, add a code comment: \`// Hardcoded per task requirement: "[quote the specific requirement]"\`
 
 Key principles:
 - Follow the existing code patterns in the codebase
@@ -956,7 +958,9 @@ You have received feedback from two different reviewers with distinct roles:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
 - **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
 - For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
-- Exception: Dialog overlays may use \`bg-black/60\` for backdrop opacity
+- **Exceptions**:
+  - Dialog overlays may use \`bg-black/60\` for backdrop opacity
+  - Hardcoded colors ONLY if specifically requested in the task requirements (e.g., brand colors from product team). In this case, add a code comment: \`// Hardcoded per task requirement: "[quote the specific requirement]"\`
 
 Key principles:
 - Address ALL feedback points
