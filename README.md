@@ -143,13 +143,46 @@ yarn build            # Build for production
 yarn start            # Start production server
 yarn ts               # Type check
 yarn lint             # Lint code
-yarn checks           # Run type check + lint
+yarn checks           # Run both checks, show ALL errors (alias to checks:ci)
+yarn checks:ci        # Run both checks, show ALL errors (CI/CD)
+yarn checks:dev       # Same as checks:ci
 yarn watch-checks     # Watch mode for checks
 
 # Template sync
 yarn init-template    # Initialize template tracking
 yarn sync-template    # Sync with template updates
 ```
+
+### Check Scripts Explained
+
+**`yarn checks` or `yarn checks:ci`**
+- Runs BOTH TypeScript and ESLint checks
+- Shows output from BOTH (even if first fails)
+- Fails if EITHER check fails
+- **Why:** See all errors at once instead of fixing them one at a time
+- Use before: commits, PRs, deployments, in CI/CD
+
+**Example Output:**
+```bash
+$ yarn checks
+🔍 Running TypeScript check...
+Error: src/file.ts(10,5): error TS2339: Property 'foo' does not exist
+
+🔍 Running ESLint check...
+/src/other.ts
+  15:1  error  'bar' is not defined  no-undef
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ Checks failed:
+   - TypeScript check failed (exit code: 2)
+   - ESLint check failed (exit code: 1)
+```
+
+**Before this change:**
+With `yarn ts && yarn lint`, TypeScript errors would hide ESLint errors. Developers had to fix TypeScript, re-run, then discover ESLint errors.
+
+**After this change:**
+All errors shown at once. Fix everything together.
 
 ## Guidelines Compliance
 

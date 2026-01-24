@@ -209,25 +209,26 @@ function pullBranch(branchName: string): void {
 }
 
 /**
- * Run yarn checks and return results
+ * Run yarn checks:ci and return results
+ * This runs BOTH TypeScript and ESLint checks, showing ALL errors at once
+ *
+ * CRITICAL: Uses exit code to determine success/failure, NOT output parsing.
+ * Exit code 0 = success, non-zero = failure. This is the ONLY reliable way.
  */
 function runYarnChecks(): { success: boolean; output: string } {
     try {
-        const output = execSync('yarn checks', {
+        const output = execSync('yarn checks:ci', {
             encoding: 'utf-8',
             stdio: 'pipe',
             timeout: 120000,
         });
-        // Check if output indicates success
-        const hasErrors = output.includes('Error:') || output.includes('error ') || output.includes('✗');
-        const hasSuccess = output.includes('✔ No ESLint warnings or errors');
-
+        // If execSync didn't throw, the command succeeded (exit code 0)
         return {
-            success: hasSuccess && !hasErrors,
+            success: true,
             output
         };
     } catch (error) {
-        // When execSync throws, the command exited with non-zero code
+        // execSync throws when command exits with non-zero code = failure
         const err = error as { status?: number; stdout?: string | Buffer; stderr?: string | Buffer; message?: string };
         const stdout = typeof err.stdout === 'string' ? err.stdout : err.stdout?.toString() || '';
         const stderr = typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString() || '';

@@ -132,7 +132,7 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
     };
   }
 
-  // Run sync-template with --json flag (falls back to legacy mode for older projects)
+  // Run sync-template with --json flag (required - child projects must be updated)
   try {
     const flags = dryRun ? '--dry-run --json' : '--json';
     const command = `yarn sync-template ${flags}`;
@@ -146,7 +146,7 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large outputs
     });
 
-    // Try to parse JSON output
+    // Parse JSON output (required - no legacy fallback)
     try {
       const jsonResult = JSON.parse(output.trim()) as SyncJsonResult;
 
@@ -192,16 +192,19 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
             message: `Unknown status: ${jsonResult.status}`,
           };
       }
-    } catch {
-      // JSON parsing failed - use legacy string matching for older projects
-      return parseLegacyOutput(projectName, output, dryRun);
+    } catch (parseError) {
+      // JSON parsing failed - child project has outdated sync-template script
+      return {
+        project: projectName,
+        status: 'error',
+        message: 'Project needs updating - run "yarn sync-template" in this project first to update sync scripts',
+      };
     }
   } catch (error) {
-    // Try to extract JSON or legacy output from stdout
+    // Try to extract JSON from stdout (some errors still return valid JSON)
     if (error && typeof error === 'object' && 'stdout' in error) {
       const stdout = (error as { stdout?: string }).stdout;
       if (stdout) {
-        // Try JSON first
         try {
           const jsonResult = JSON.parse(stdout.trim()) as SyncJsonResult;
           return {
@@ -212,8 +215,12 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
             checksResult: jsonResult.checksResult,
           };
         } catch {
-          // Try legacy parsing
-          return parseLegacyOutput(projectName, stdout, dryRun);
+          // JSON parsing failed
+          return {
+            project: projectName,
+            status: 'error',
+            message: 'Project needs updating - run "yarn sync-template" in this project first',
+          };
         }
       }
     }
@@ -225,51 +232,6 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
       message: errorMessage.split('\n')[0].substring(0, 80),
     };
   }
-}
-
-/**
- * Parse legacy (non-JSON) sync-template output using string matching.
- * Used for backward compatibility with older child projects.
- */
-function parseLegacyOutput(projectName: string, output: string, dryRun: boolean): SyncResult {
-  const hasChanges = output.includes('✅ Template sync completed') ||
-                     output.includes('Committed as');
-  const noChanges = output.includes('No changes detected') ||
-                    output.includes('Nothing to sync') ||
-                    output.includes('up to date');
-  const checksFailed = output.includes('yarn checks failed') ||
-                       output.includes('Validation failed');
-
-  if (checksFailed) {
-    return {
-      project: projectName,
-      status: 'checks-failed',
-      message: 'Validation failed (legacy detection)',
-    };
-  }
-
-  if (noChanges) {
-    return {
-      project: projectName,
-      status: 'no-changes',
-      message: 'Already up to date',
-    };
-  }
-
-  if (hasChanges) {
-    return {
-      project: projectName,
-      status: 'synced',
-      message: dryRun ? 'Changes available (dry run)' : 'Changes synced and committed',
-    };
-  }
-
-  // Default: assume sync completed
-  return {
-    project: projectName,
-    status: 'synced',
-    message: dryRun ? 'Checked (dry run)' : 'Sync completed',
-  };
 }
 
 function printSummary(results: SyncResult[]): void {
