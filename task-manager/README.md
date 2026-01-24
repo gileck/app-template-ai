@@ -19,6 +19,9 @@ Centralized task management system for tracking and implementing project tasks.
 ### Claude Code Slash Commands (Automated)
 
 ```bash
+# Create a new task interactively
+/add-task
+
 # List all tasks
 /task-list
 

@@ -2,15 +2,16 @@
 
 ## Claude Code Slash Commands (Recommended)
 
-**These commands make Claude actively implement tasks for you:**
+**These commands make Claude actively work with tasks:**
 
 | Slash Command | Description |
 |---------------|-------------|
-| `/task-list` | List all tasks by priority |
+| `/add-task` | Create a new task interactively following standardized format |
+| `/task-list` | List all tasks by priority (active and completed) |
 | `/start-task 1` | Claude implements task 1 with full workflow |
 | `/start-task-worktree 3` | Claude implements task 3 in a new worktree |
 
-**Use these in Claude Code CLI/Cloud for automated implementation.**
+**Use these in Claude Code CLI/Cloud for automated task management.**
 
 ---
 

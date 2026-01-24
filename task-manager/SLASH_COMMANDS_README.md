@@ -11,6 +11,53 @@ Unlike CLI tools that you run manually, **slash commands make Claude actively wo
 
 ## 📋 Available Slash Commands
 
+### `/add-task`
+
+**Interactively create a new task following the standardized format.**
+
+```
+In Claude Code:
+> /add-task
+
+What Claude does:
+✅ Reads TASK_FORMAT.md for format specification
+✅ Determines next task number automatically
+✅ Asks for required fields (title, priority, size, complexity, summary)
+✅ Optionally asks for additional fields (details, files, dependencies, risks)
+✅ Generates properly formatted task markdown
+✅ Inserts task in correct priority section of tasks.md
+✅ Confirms task was added successfully
+
+Example:
+You: /add-task
+
+Claude: Creating a new task in tasks.md. Next task number will be #13.
+
+[Claude asks for task details using interactive questions]
+
+You provide:
+- Title: "Add Dark Mode Support"
+- Priority: High, Size: M
+- Complexity: Medium
+- Summary: "Add dark mode theme toggle with persistent user preference"
+- Optional: Details, Files to Modify
+
+Claude:
+✅ Task #13 added successfully!
+
+📝 Task Details:
+- Title: Add Dark Mode Support
+- Priority: High
+- Size: M
+- Complexity: Medium
+
+💡 Next Steps:
+- Use /task-list to see all tasks
+- Use /start-task 13 to implement this task
+```
+
+---
+
 ### `/task-list`
 
 **Lists all tasks organized by priority.**
