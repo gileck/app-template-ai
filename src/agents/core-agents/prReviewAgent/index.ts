@@ -63,6 +63,10 @@ import {
 import {
     extractTechDesign,
 } from '../../lib';
+import {
+    createPrReviewerAgentPrompt,
+    type PromptContext,
+} from './createPrReviewerAgentPrompt';
 
 // ============================================================
 // TYPES
@@ -290,123 +294,36 @@ async function processItem(
                 console.log(`  Found ${prConversationComments.length} conversation comments (${claudeCommentCount} from Claude Code), ${prReviewComments.length} review comments`);
             }
 
-            // Build context with PR comments
-            let contextPrompt = '';
-
-            // Add phase context for multi-PR workflow (CRITICAL for phase-aware review)
-            if (processable.phaseInfo) {
-                const { current, total, phaseName, phaseDescription, phaseFiles } = processable.phaseInfo;
-                contextPrompt += '## ⚠️ MULTI-PHASE IMPLEMENTATION - PHASE-SPECIFIC REVIEW REQUIRED\n\n';
-                contextPrompt += `**This PR implements Phase ${current} of ${total}**: ${phaseName || 'Unknown'}\n\n`;
-                if (phaseDescription) {
-                    contextPrompt += `**Phase Description:** ${phaseDescription}\n\n`;
-                }
-                if (phaseFiles && phaseFiles.length > 0) {
-                    contextPrompt += `**Expected Files for this Phase:**\n`;
-                    for (const file of phaseFiles) {
-                        contextPrompt += `- \`${file}\`\n`;
-                    }
-                    contextPrompt += '\n';
-                }
-                contextPrompt += '**CRITICAL REVIEW REQUIREMENTS:**\n';
-                contextPrompt += `1. ✅ Verify the PR ONLY implements Phase ${current} functionality\n`;
-                contextPrompt += `2. ❌ Flag if the PR implements features from later phases (Phase ${current + 1}+)\n`;
-                contextPrompt += '3. ✅ Verify the PR is independently mergeable and testable\n';
-                contextPrompt += '4. ✅ Check that the PR follows the phase description above\n';
-                if (phaseFiles && phaseFiles.length > 0) {
-                    contextPrompt += '5. ✅ Verify changes are primarily in the expected files listed above\n';
-                }
-                contextPrompt += '\n---\n\n';
-            }
-
             // Separate Claude Code comments from other comments
             const claudeComments = prConversationComments.filter(c => c.author.toLowerCase() === 'claude');
             const otherComments = prConversationComments.filter(c => c.author.toLowerCase() !== 'claude');
 
-            // Add Claude Code's feedback as optional guidance (if exists)
-            if (claudeComments.length > 0) {
-                contextPrompt += '## Claude Code Review (Optional Guidance)\n\n';
-                contextPrompt += 'Claude Code has provided the following feedback as additional guidance:\n\n';
-                for (const comment of claudeComments) {
-                    contextPrompt += `${comment.body}\n\n`;
-                }
-                contextPrompt += '**Note**: Claude Code feedback is advisory. You are the final authority on approval decisions. ';
-                contextPrompt += 'Consider Claude\'s input but you may override if his concerns don\'t align with project guidelines or priorities.\n\n';
-                contextPrompt += '---\n\n';
-            }
+            // Build prompt context
+            const promptContext: PromptContext = {
+                phaseInfo: processable.phaseInfo,
+                claudeComments: claudeComments.map(c => ({
+                    author: c.author,
+                    body: c.body,
+                    createdAt: c.createdAt,
+                })),
+                otherComments: otherComments.map(c => ({
+                    author: c.author,
+                    body: c.body,
+                    createdAt: c.createdAt,
+                })),
+                prReviewComments: prReviewComments.map(c => ({
+                    author: c.author,
+                    body: c.body,
+                    path: c.path,
+                    line: c.line,
+                })),
+            };
 
-            // Add other conversation comments
-            if (otherComments.length > 0) {
-                contextPrompt += '## Other PR Comments\n\n';
-                contextPrompt += 'The following comments have been posted on the PR:\n\n';
-                for (const comment of otherComments) {
-                    contextPrompt += `**${comment.author}** (${new Date(comment.createdAt).toLocaleDateString()}):\n`;
-                    contextPrompt += `${comment.body}\n\n`;
-                }
-                contextPrompt += '---\n\n';
-            }
-
-            // Add inline review comments
-            if (prReviewComments.length > 0) {
-                contextPrompt += '## PR Review Comments (Inline Code Comments)\n\n';
-                contextPrompt += 'The following inline comments have been posted on specific code:\n\n';
-                for (const comment of prReviewComments) {
-                    contextPrompt += `**${comment.author}** on \`${comment.path}:${comment.line}\`:\n`;
-                    contextPrompt += `${comment.body}\n\n`;
-                }
-                contextPrompt += '---\n\n';
-            }
-
-            if (contextPrompt) {
-                contextPrompt += '## Your Role and Authority\n\n';
-                contextPrompt += '**You are the FINAL AUTHORITY on this PR review.** Your decision determines the status.\n\n';
-                contextPrompt += 'If Claude Code provided feedback above:\n';
-                contextPrompt += '- Treat it as helpful advisory input\n';
-                contextPrompt += '- You may override his suggestions if they conflict with project priorities\n';
-                contextPrompt += '- You may approve even if Claude requested changes (if you determine they\'re not necessary)\n';
-                contextPrompt += '- Use your judgment based on project guidelines\n\n';
-                contextPrompt += '## Instructions\n\n';
-                contextPrompt += 'Review this PR and make your final decision. ';
-                contextPrompt += 'Provide your review decision (APPROVED or REQUEST_CHANGES) and detailed feedback.\n\n';
-                contextPrompt += '**IMPORTANT**: Check compliance with project guidelines in `.cursor/rules/`:\n';
-                contextPrompt += '- TypeScript guidelines (`.cursor/rules/typescript-guidelines.mdc`)\n';
-                contextPrompt += '- React patterns (`.cursor/rules/react-component-organization.mdc`, `.cursor/rules/react-hook-organization.mdc`)\n';
-                contextPrompt += '- State management (`.cursor/rules/state-management-guidelines.mdc`)\n';
-                contextPrompt += '- UI/UX patterns (`.cursor/rules/ui-design-guidelines.mdc`, `.cursor/rules/shadcn-usage.mdc`)\n';
-                contextPrompt += '- File organization (`.cursor/rules/feature-based-structure.mdc`)\n';
-                contextPrompt += '- API patterns (`.cursor/rules/client-server-communications.mdc`)\n';
-                contextPrompt += '- Comprehensive checklist (`.cursor/rules/app-guidelines-checklist.mdc`)\n\n';
-            }
+            // Create the prompt using the dedicated prompt builder
+            const prompt = createPrReviewerAgentPrompt(promptContext);
 
             // Run the /review slash command with context
             console.log(`\n  Running PR review...`);
-
-            // JSON output instructions to append after /review
-            const outputInstructions = `
-
-After completing the review, provide your response as structured JSON with these fields:
-- decision: either "approved" or "request_changes"
-- summary: 1-2 sentence summary of the review
-- reviewText: the full review content to post as PR comment`;
-
-            let prompt: string;
-            if (contextPrompt) {
-                prompt = `${contextPrompt}/review${outputInstructions}`;
-            } else {
-                // No PR comments, but still provide guidelines
-                prompt = `## Instructions
-
-Review this PR and check compliance with project guidelines in \`.cursor/rules/\`:
-- TypeScript guidelines (\`.cursor/rules/typescript-guidelines.mdc\`)
-- React patterns (\`.cursor/rules/react-component-organization.mdc\`, \`.cursor/rules/react-hook-organization.mdc\`)
-- State management (\`.cursor/rules/state-management-guidelines.mdc\`)
-- UI/UX patterns (\`.cursor/rules/ui-design-guidelines.mdc\`, \`.cursor/rules/shadcn-usage.mdc\`)
-- File organization (\`.cursor/rules/feature-based-structure.mdc\`)
-- API patterns (\`.cursor/rules/client-server-communications.mdc\`)
-- Comprehensive checklist (\`.cursor/rules/app-guidelines-checklist.mdc\`)
-
-/review${outputInstructions}`;
-            }
 
             const result = await runAgent({
                 prompt,
