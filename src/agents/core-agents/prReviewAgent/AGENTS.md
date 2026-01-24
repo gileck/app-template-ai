@@ -144,19 +144,28 @@ When reviewing a multi-phase PR, the agent adds this context to the prompt:
 [...rest of review prompt...]
 ```
 
-### Branch Naming Validation
+### Finding the Correct PR (Shared Logic with Implementation Agent)
 
 ```typescript
-// Generates correct branch name for phase
-const branchName = generateBranchName(
-    issueNumber,
-    content.title,
-    issueType === 'bug',
-    phaseInfo?.current  // Includes phase number
-);
+// Uses SAME logic as Implementation Agent feedback mode
+// Finds the OPEN PR for an issue - returns both PR number AND branch name
+const openPR = await adapter.findOpenPRForIssue(issueNumber);
 
+if (!openPR) {
+    console.log('No open PR found - skip');
+    continue;
+}
+
+const { prNumber, branchName } = openPR;
+// branchName comes FROM the PR, not regenerated
 // Example: feature/issue-123-phase-2-authentication
 ```
+
+**Why get branch from PR instead of regenerating?**
+- Branch name = f(title, phase) - could change after PR creation
+- The PR itself KNOWS its actual branch name
+- Getting from PR = 100% reliable
+- Same logic as Implementation Agent (feedback mode)
 
 ## How It Works
 
@@ -167,9 +176,13 @@ const branchName = generateBranchName(
    - Status: "PR Review"
    - Review Status: "Waiting for Review"
 
-2. Extract PR number from issue comments
-   - Look for "PR #123" or "Created PR #123"
-   - If not found → Skip (no PR to review)
+2. Find the OPEN PR for this issue (SHARED LOGIC)
+   - Use findOpenPRForIssue(issueNumber)
+   - Returns BOTH: prNumber AND branchName
+   - If not found → Skip (no open PR to review)
+
+   NOTE: This is the SAME logic used by Implementation Agent
+   in feedback mode. Both agents share this function.
 
 3. Detect phase information
    - Read Implementation Phase field
@@ -179,9 +192,9 @@ const branchName = generateBranchName(
 4. Check for uncommitted changes
    - If local changes exist → Error (must be clean)
 
-5. Generate branch name
-   - Same logic as Implementation Agent
-   - Includes phase number if multi-phase
+5. Use branch name from PR
+   - Branch name retrieved FROM the open PR
+   - More reliable than regenerating (title/phase could change)
 
 6. Checkout feature branch
    - Try local branch first
@@ -537,15 +550,21 @@ try {
 
 **Impact:** Automatically fetches from remote
 
-### 4. Multiple PRs for Same Issue
+### 4. Multiple PRs for Same Issue (Multi-Phase)
 
-**Scenario:** Issue has multiple PR links in comments
+**Scenario:** Issue has multiple PRs (e.g., Phase 1 merged, Phase 2 open)
 
 **Handling:**
-- `extractPRNumber()` returns first match
-- Reviews the first PR found
+- `findOpenPRForIssue()` searches only OPEN PRs
+- Finds the currently OPEN PR (not old merged ones)
+- Returns both PR number AND branch name from the PR
 
-**Risk:** May review wrong PR if multiple exist
+**Impact:** Always reviews the correct OPEN PR, even with multiple historical PRs
+
+**Why this works:**
+- In multi-phase workflows, only one PR is open at a time
+- Phase 1 PR is merged before Phase 2 PR is created
+- No risk of reviewing a closed/merged PR
 
 ### 5. Claude Code Hasn't Reviewed Yet
 
@@ -662,17 +681,29 @@ git fetch origin feature/issue-123-phase-2-my-feature:feature/issue-123-phase-2-
 git status --porcelain
 ```
 
-### PR Number Extraction
+### Finding Open PR (Shared Logic)
+
+Both PR Review Agent and Implementation Agent (feedback mode) use the same function:
 
 ```typescript
-function extractPRNumber(adapter, issueNumber): Promise<number | null> {
-    const comments = await adapter.getIssueComments(issueNumber);
+// In GitHub adapter: src/server/project-management/adapters/github.ts
+async findOpenPRForIssue(issueNumber: number): Promise<{ prNumber: number; branchName: string } | null> {
+    // 1. List all OPEN PRs in the repo
+    const { data: prs } = await oc.pulls.list({ owner, repo, state: 'open' });
 
-    for (const comment of comments) {
-        // Look for: "PR: #123" or "Created PR #123"
-        const match = comment.body.match(/(?:PR:|Created PR|Pull Request)\s*#(\d+)/i);
-        if (match) {
-            return parseInt(match[1], 10);
+    // 2. Find PRs that reference this issue in their body
+    const issuePatterns = [
+        /Closes\s+#${issueNumber}\b/i,
+        /Part of\s+#${issueNumber}\b/i,
+        /#${issueNumber}\b/
+    ];
+
+    for (const pr of prs) {
+        if (issuePatterns.some(p => p.test(pr.body || ''))) {
+            return {
+                prNumber: pr.number,
+                branchName: pr.head.ref  // Branch name FROM the PR itself
+            };
         }
     }
 
@@ -680,29 +711,11 @@ function extractPRNumber(adapter, issueNumber): Promise<number | null> {
 }
 ```
 
-### Branch Name Generation
-
-```typescript
-function generateBranchName(
-    issueNumber: number,
-    title: string,
-    isBug: boolean = false,
-    phaseNumber?: number
-): string {
-    const slug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .slice(0, 40)
-        .replace(/^-|-$/g, '');
-
-    const prefix = isBug ? 'fix' : 'feature';
-
-    if (phaseNumber) {
-        return `${prefix}/issue-${issueNumber}-phase-${phaseNumber}-${slug}`;
-    }
-    return `${prefix}/issue-${issueNumber}-${slug}`;
-}
-```
+**Why this approach?**
+- ✅ Only finds OPEN PRs (ignores old merged PRs)
+- ✅ Gets branch name FROM the PR (100% reliable)
+- ✅ Works correctly for multi-phase features
+- ✅ Shared between agents (single source of truth)
 
 ## Configuration
 

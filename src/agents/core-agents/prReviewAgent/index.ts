@@ -75,6 +75,11 @@ import {
 interface ProcessableItem {
     item: ProjectItem;
     prNumber: number;
+    /**
+     * Branch name retrieved FROM the open PR.
+     * More reliable than regenerating (title/phase could change).
+     */
+    branchName: string;
     /** Phase info for multi-PR workflow */
     phaseInfo?: {
         current: number;
@@ -167,45 +172,21 @@ function hasUncommittedChanges(): boolean {
 }
 
 // ============================================================
-// PR EXTRACTION
+// PR FINDING
 // ============================================================
 
-/**
- * Extract PR number from issue comments
- */
-async function extractPRNumber(
-    adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
-    issueNumber: number
-): Promise<number | null> {
-    const comments = await adapter.getIssueComments(issueNumber);
-
-    // Look for PR link in comments (format: "PR: #123" or "Created PR #123")
-    for (const comment of comments) {
-        const match = comment.body.match(/(?:PR:|Created PR|Pull Request)\s*#(\d+)/i);
-        if (match) {
-            return parseInt(match[1], 10);
-        }
-    }
-
-    return null;
-}
-
-/**
- * Generate a branch name from issue number and title (same as implement.ts)
- * For multi-phase features, includes the phase number
- */
-function generateBranchName(issueNumber: number, title: string, isBug: boolean = false, phaseNumber?: number): string {
-    const slug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .slice(0, 40)
-        .replace(/^-|-$/g, ''); // Remove leading/trailing dashes AFTER truncating
-    const prefix = isBug ? 'fix' : 'feature';
-    if (phaseNumber) {
-        return `${prefix}/issue-${issueNumber}-phase-${phaseNumber}-${slug}`;
-    }
-    return `${prefix}/issue-${issueNumber}-${slug}`;
-}
+// NOTE: We use adapter.findOpenPRForIssue() to find the open PR.
+// This is the SAME logic used by the Implementation Agent.
+//
+// Why not parse PR numbers from comments?
+// - Comments may contain multiple PRs (from previous phases)
+// - Old merged PRs would be incorrectly selected
+// - findOpenPRForIssue() searches OPEN PRs only
+//
+// Why get branch name from PR?
+// - Branch name = f(title, phase) - could change
+// - The PR itself KNOWS its actual branch name
+// - Getting from PR = 100% reliable
 
 // ============================================================
 // MAIN LOGIC
@@ -254,14 +235,10 @@ async function processItem(
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
         }
 
-        // Generate branch name (same logic as implement.ts, including phase for multi-PR)
-        const branchName = generateBranchName(
-            issueNumber,
-            content.title,
-            issueType === 'bug',
-            processable.phaseInfo?.current
-        );
-        console.log(`  Branch: ${branchName}`);
+        // Use branch name from the PR (retrieved via findOpenPRForIssue)
+        // This is more reliable than regenerating - title/phase could have changed
+        const branchName = processable.branchName;
+        console.log(`  Branch: ${branchName} (from PR)`);
         if (processable.phaseInfo) {
             console.log(`  📋 Phase ${processable.phaseInfo.current}/${processable.phaseInfo.total}: ${processable.phaseInfo.phaseName || 'Unknown'}`);
         }
@@ -457,7 +434,8 @@ async function run(options: PRReviewOptions): Promise<void> {
 
     console.log(`Found ${items.length} item(s) to review\n`);
 
-    // Extract PR numbers and phase info from each item
+    // Find open PRs and extract phase info from each item
+    // Uses findOpenPRForIssue() - same logic as Implementation Agent
     const processableItems: ProcessableItem[] = [];
     for (const item of items) {
         if (!item.content || item.content.type !== 'Issue') {
@@ -465,11 +443,18 @@ async function run(options: PRReviewOptions): Promise<void> {
             continue;
         }
 
-        const prNumber = await extractPRNumber(adapter, item.content.number!);
-        if (!prNumber) {
-            console.log(`⚠️  Skipping issue #${item.content.number}: No PR found`);
+        const issueNumber = item.content.number!;
+
+        // Find the OPEN PR for this issue (same as Implementation Agent feedback mode)
+        // Returns both PR number AND branch name from the PR itself
+        const openPR = await adapter.findOpenPRForIssue(issueNumber);
+        if (!openPR) {
+            console.log(`⚠️  Skipping issue #${issueNumber}: No open PR found`);
             continue;
         }
+
+        const { prNumber, branchName } = openPR;
+        console.log(`  Found open PR #${prNumber} on branch: ${branchName}`);
 
         // Check for multi-phase workflow
         let phaseInfo: ProcessableItem['phaseInfo'];
@@ -478,7 +463,7 @@ async function run(options: PRReviewOptions): Promise<void> {
 
         if (parsed) {
             // Get phase details from comments or tech design
-            const issueComments = await adapter.getIssueComments(item.content.number!);
+            const issueComments = await adapter.getIssueComments(issueNumber);
             const commentsList = issueComments.map(c => ({
                 id: c.id,
                 body: c.body,
@@ -503,7 +488,7 @@ async function run(options: PRReviewOptions): Promise<void> {
             console.log(`  📋 Phase ${parsed.current}/${parsed.total}: ${currentPhaseDetails?.name || 'Unknown'}`);
         }
 
-        processableItems.push({ item, prNumber, phaseInfo });
+        processableItems.push({ item, prNumber, branchName, phaseInfo });
     }
 
     if (processableItems.length === 0) {
