@@ -31,10 +31,10 @@ import { spawn, execSync } from 'child_process';
 import { resolve } from 'path';
 
 const SCRIPTS = {
-    'product-design': resolve(__dirname, 'product-design.ts'),
-    'tech-design': resolve(__dirname, 'tech-design.ts'),
-    'implement': resolve(__dirname, 'implement.ts'),
-    'pr-review': resolve(__dirname, 'pr-review.ts'),
+    'product-design': resolve(__dirname, 'core-agents/productDesignAgent/index.ts'),
+    'tech-design': resolve(__dirname, 'core-agents/technicalDesignAgent/index.ts'),
+    'implement': resolve(__dirname, 'core-agents/implementAgent/index.ts'),
+    'pr-review': resolve(__dirname, 'core-agents/prReviewAgent/index.ts'),
     'auto-advance': resolve(__dirname, 'auto-advance.ts'),
 };
 
