@@ -61,17 +61,17 @@ export function FeatureRequests() {
     });
 
     // Build GitHub status map for filtering
-    // We'll fetch statuses for requests that have GitHub project items
+    // Use Record instead of Map to prevent infinite re-renders (stable reference comparison)
     const githubStatusMap = useMemo(() => {
-        const map = new Map<string, GetGitHubStatusResponse | undefined>();
+        const map: Record<string, GetGitHubStatusResponse | undefined> = {};
         // This will be populated as individual cards fetch their statuses
         // For now, we'll use the status from the request object itself
         rawRequests?.forEach((request) => {
             if (request.githubProjectItemId && request.githubProjectStatus) {
-                map.set(request._id, {
+                map[request._id] = {
                     status: request.githubProjectStatus,
                     reviewStatus: request.githubReviewStatus || null,
-                });
+                };
             }
         });
         return map;

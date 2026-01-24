@@ -20,7 +20,7 @@ import type { GetGitHubStatusResponse } from '@/apis/feature-requests/types';
 export function filterByGitHubStatus(
     requests: FeatureRequestClient[],
     statusFilters: string[],
-    githubStatusMap: Map<string, GetGitHubStatusResponse | undefined>
+    githubStatusMap: Record<string, GetGitHubStatusResponse | undefined>
 ): FeatureRequestClient[] {
     // If no status filters active, show all
     if (statusFilters.length === 0) {
@@ -28,7 +28,7 @@ export function filterByGitHubStatus(
     }
 
     return requests.filter((request) => {
-        const githubStatus = githubStatusMap.get(request._id);
+        const githubStatus = githubStatusMap[request._id];
         const effectiveStatus = getEffectiveStatus(request, githubStatus);
 
         // Check if request matches any of the active status filters
@@ -188,7 +188,7 @@ export function applyAllFilters(
         githubFilters: ('has_issue' | 'has_pr' | 'no_link')[];
         activityFilters: ('recent' | 'stale')[];
     },
-    githubStatusMap: Map<string, GetGitHubStatusResponse | undefined>
+    githubStatusMap: Record<string, GetGitHubStatusResponse | undefined>
 ): FeatureRequestClient[] {
     // Apply filters in sequence (AND logic between categories)
     let filtered = requests;
