@@ -259,7 +259,7 @@ Files modified:
 - [ ] Implementation plan created (if needed)
 - [ ] Task implemented following guidelines
 - [ ] `yarn checks` passed with 0 errors
-- [ ] Implementation self-reviewed
+- [ ] **User review requested and approval received**
 - [ ] Changes committed with proper message
 - [ ] Changes pushed to remote
 - [ ] PR created with clear title and description

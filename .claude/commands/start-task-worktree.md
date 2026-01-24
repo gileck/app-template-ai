@@ -226,7 +226,7 @@ git commit -m "WIP: add error handling"
 
 ---
 
-## Step 10: Return to Main Worktree
+## Step 11: Return to Main Worktree
 - **Objective**: Prepare for squash merge
 - **Actions**:
   - Navigate back to main project: `cd /path/to/main/project`
@@ -235,7 +235,7 @@ git commit -m "WIP: add error handling"
 
 ---
 
-## Step 11: Squash Merge Branch
+## Step 12: Squash Merge Branch
 - **Objective**: Combine all worktree commits into ONE clean commit
 - **Actions**:
   - Squash merge the worktree branch: `git merge --squash task/N-branch-name`
@@ -250,7 +250,7 @@ git commit -m "WIP: add error handling"
 
 ---
 
-## Step 12: Create Clean Commit
+## Step 13: Create Clean Commit
 - **Objective**: Write polished commit message for main branch
 - **Actions**:
   - Create commit with detailed message:
@@ -282,7 +282,7 @@ EOF
 
 ---
 
-## Step 13: Push to Main
+## Step 14: Push to Main
 - **Objective**: Deploy changes to main branch
 - **Actions**:
   - Push to main: `git push origin main`
@@ -290,7 +290,7 @@ EOF
 
 ---
 
-## Step 14: Clean Up Worktree
+## Step 15: Clean Up Worktree
 - **Objective**: Remove worktree and branch
 - **Actions**:
   - Remove worktree: `git worktree remove ../worktree-task-N`
@@ -300,7 +300,7 @@ EOF
 
 ---
 
-## Step 15: Mark Task Done
+## Step 16: Mark Task Done
 - **Objective**: Update task tracking
 - **Actions**:
   - Mark task complete: `yarn task mark-done --task N`
@@ -309,7 +309,7 @@ EOF
 
 ---
 
-## Step 16: Summarize
+## Step 17: Summarize
 - **Objective**: Report completion to user
 - **Actions**:
   - Summarize what was implemented
@@ -330,6 +330,7 @@ EOF
 - [ ] Relevant code explored
 - [ ] Task implemented (WIP commits OK)
 - [ ] `yarn checks` passed with 0 errors
+- [ ] **User review requested and approval received**
 - [ ] Final WIP commit made in worktree
 - [ ] Returned to main worktree on main branch
 - [ ] Squash merged branch: `git merge --squash task/N-branch`
