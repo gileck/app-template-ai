@@ -934,9 +934,9 @@ See issue #${issueNumber} for full context, product design, and technical design
         // Log execution end
         logExecutionEnd(logCtx, {
             success: true,
-            toolCallsCount: 0,
-            totalTokens: 0,
-            totalCost: 0,
+            toolCallsCount: 0, // Not tracked in UsageStats
+            totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+            totalCost: result.usage?.totalCostUSD ?? 0,
         });
 
         return { success: true, prNumber };
