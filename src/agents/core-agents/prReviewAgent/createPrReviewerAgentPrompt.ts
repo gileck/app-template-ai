@@ -34,8 +34,7 @@ export interface PRReviewComment {
 
 export interface PromptContext {
     phaseInfo?: PhaseInfo;
-    claudeComments: PRComment[];
-    otherComments: PRComment[];
+    prComments: PRComment[];
     prReviewComments: PRReviewComment[];
 }
 
@@ -89,43 +88,23 @@ function createPhaseContextSection(phaseInfo: PhaseInfo): string {
     return section;
 }
 
-function createClaudeCommentsSection(claudeComments: PRComment[]): string {
-    let section = `## Claude Code Review (Optional Guidance)
-
-Claude Code has provided the following feedback as additional guidance:
-
-`;
-
-    for (const comment of claudeComments) {
-        section += `${comment.body}
-
-`;
-    }
-
-    section += `**Note**: Claude Code feedback is advisory. You are the final authority on approval decisions. Consider Claude's input but you may override if his concerns don't align with project guidelines or priorities.
-
----
-
-`;
-
-    return section;
-}
-
-function createOtherCommentsSection(otherComments: PRComment[]): string {
-    let section = `## Other PR Comments
+function createPRCommentsSection(prComments: PRComment[]): string {
+    let section = `## PR Comments
 
 The following comments have been posted on the PR:
 
 `;
 
-    for (const comment of otherComments) {
+    for (const comment of prComments) {
         section += `**${comment.author}** (${new Date(comment.createdAt).toLocaleDateString()}):
 ${comment.body}
 
 `;
     }
 
-    section += `---
+    section += `**Note:** If Claude (GitHub App) has reviewed this PR, use his feedback as optional helpful guidance but not as final authority. You are the final decision maker.
+
+---
 
 `;
 
@@ -208,20 +187,18 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}
  *
  * The prompt is structured as:
  * 1. Phase context (if multi-phase workflow)
- * 2. Claude Code comments (if any)
- * 3. Other PR comments (if any)
- * 4. Inline review comments (if any)
- * 5. Instructions
- * 6. /review slash command
- * 7. Output format instructions
+ * 2. PR comments (if any)
+ * 3. Inline review comments (if any)
+ * 4. Instructions
+ * 5. /review slash command
+ * 6. Output format instructions
  */
 export function createPrReviewerAgentPrompt(context: PromptContext): string {
-    const { phaseInfo, claudeComments, otherComments, prReviewComments } = context;
+    const { phaseInfo, prComments, prReviewComments } = context;
 
     return `
 ${phaseInfo ? createPhaseContextSection(phaseInfo) : ''}
-${claudeComments.length > 0 ? createClaudeCommentsSection(claudeComments) : ''}
-${otherComments.length > 0 ? createOtherCommentsSection(otherComments) : ''}
+${prComments.length > 0 ? createPRCommentsSection(prComments) : ''}
 ${prReviewComments.length > 0 ? createReviewCommentsSection(prReviewComments) : ''}
 ${createInstructionsSection()}
 

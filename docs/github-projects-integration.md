@@ -563,11 +563,14 @@ Once routed, the appropriate AI agent picks up the item:
 - **For features:** Creates `feature/issue-#-title` branch, PR title: `feat: ...`
 - **For bugs:** Creates `fix/issue-#-title` branch, PR title: `fix: ...`
 - Posts high-level summary comment on PR (e.g., "Here's what I did: 1. ... 2. ... 3. ...")
+- **Posts status comment on issue** (e.g., "📋 Opening PR #123" or "🔧 Addressed feedback on PR #123")
 - Sends Telegram notification with summary
 - Bug implementation prompts include session logs and diagnostics
 
 **Feedback Mode:**
-When addressing review feedback, agents post "Here's what I changed: 1. ... 2. ... 3. ..." instead of "Here's what I did/designed"
+When addressing review feedback, agents:
+- Post "Here's what I changed: 1. ... 2. ... 3. ..." on the PR
+- Post status comment on issue (e.g., "🔧 Addressed feedback on PR #123 - ready for re-review")
 
 ### Alternative: App UI Approval
 
@@ -623,7 +626,7 @@ This requires:
 |------|--------|-------------|
 | `.github/workflows/issue-notifications.yml` | Issues, comments | Telegram notifications for issue events |
 | `.github/workflows/pr-notifications.yml` | Pull requests, reviews | Telegram notifications for PR events |
-| `.github/workflows/pr-merged-mark-done.yml` | PR merged | Auto-marks issue as Done when PR merges |
+| `.github/workflows/pr-merged-mark-done.yml` | PR merged | Handles phase transitions + posts status comments on merge |
 | `.github/workflows/deploy-notify.yml` | Deployments | Deployment notifications |
 | `.github/workflows/pr-checks.yml` | PR opened/updated | Run checks on PRs |
 | `.github/workflows/claude-code-review.yml` | PR opened/updated | Automated Claude Code PR review |
@@ -884,10 +887,11 @@ Feature Request Submitted
 **Key Points:**
 - **MongoDB status** stays `'in_progress'` throughout the entire workflow (Product Design → Tech Design → Ready for development → PR Review)
 - **Detailed workflow tracking** happens in GitHub Projects (Product Design, Technical Design, etc.)
-- **GitHub Action auto-completion**: When PR is merged, the action automatically:
-  - Extracts the issue number from the PR body (e.g., "Closes #123")
-  - Updates GitHub Project item status to "Done"
-  - Updates MongoDB feature request status to `'done'`
+- **GitHub Action on PR merge** (`on-pr-merged.ts`): When PR is merged, the action automatically:
+  - Extracts the issue number from the PR body ("Closes #123" or "Part of #123")
+  - Posts a status comment on the issue (phase-aware for multi-phase features)
+  - For multi-phase: Increments phase counter, returns to Implementation status
+  - For final/single phase: Updates GitHub Project status to "Done" + MongoDB to `'done'`
   - Sends a Telegram notification confirming completion
 
 ### Admin Actions
@@ -1177,9 +1181,10 @@ For large features (L/XL size), the system automatically splits implementation i
    - Ensures phase is independently mergeable
    - Run via: `yarn agent:pr-review` (or cron job)
 
-4. **On PR Merge**:
+4. **On PR Merge** (`on-pr-merged.ts`):
+   - Posts status comment on issue (e.g., "✅ Phase 1/3 complete - Merged PR #101")
    - If more phases remain: Issue returns to "Implementation" status, phase counter increments
-   - If all phases complete: Issue moves to "Done"
+   - If all phases complete: Posts final comment, issue moves to "Done"
 
 **Phase Storage & Retrieval:**
 
@@ -1326,10 +1331,72 @@ See issue #123 for full context, product design, and technical design.
 - Result: A perfect, clean conventional commit without any manual editing
 
 **Auto-completion on merge:**
-When you merge the PR, a GitHub Action automatically:
-- Extracts the issue number from "Closes #123"
-- Updates the project item status to "Done"
+When you merge the PR, a GitHub Action (`on-pr-merged.ts`) automatically:
+- Extracts the issue number from "Closes #123" or "Part of #123"
+- Posts a status comment on the issue (see "Issue Status Comments" section)
+- For multi-phase: Increments phase counter and returns to Implementation status
+- For final/single phase: Updates the project item status to "Done"
 - Sends a Telegram notification confirming completion
+
+## Issue Status Comments (Workflow Visibility)
+
+The system automatically posts status comments on GitHub issues at key workflow points. This provides visibility on the issue itself about current status, so the issue reflects the complete history of the project.
+
+### Comment Types
+
+| Event | Agent | Comment Format |
+|-------|-------|----------------|
+| **PR Opened** | Implementor | `⚙️ [Implementor Agent] 📋 Opening PR #123` |
+| **PR Opened (Phase)** | Implementor | `⚙️ [Implementor Agent] 📋 **Phase 1/3**: Opening PR #123 - Database Schema` |
+| **Feedback Addressed** | Implementor | `⚙️ [Implementor Agent] 🔧 Addressed feedback on PR #123 - ready for re-review` |
+| **Feedback Addressed (Phase)** | Implementor | `⚙️ [Implementor Agent] 🔧 **Phase 2/3**: Addressed feedback on PR #123 - ready for re-review` |
+| **PR Approved** | PR Review | `👀 [PR Review Agent] ✅ PR approved - ready for merge (#123)` |
+| **PR Approved (Phase)** | PR Review | `👀 [PR Review Agent] ✅ **Phase 1/3**: PR approved - ready for merge (#123)` |
+| **Changes Requested** | PR Review | `👀 [PR Review Agent] ⚠️ Changes requested on PR (#123)` |
+| **Changes Requested (Phase)** | PR Review | `👀 [PR Review Agent] ⚠️ **Phase 2/3**: Changes requested on PR (#123)` |
+| **Mid-Phase Merged** | on-pr-merged | `✅ **Phase 1/3** complete - Merged PR #123`<br>`🔄 Starting Phase 2/3...` |
+| **Final Phase Merged** | on-pr-merged | `✅ **Phase 3/3** complete - Merged PR #123`<br>`🎉 **All 3 phases complete!** Issue is now Done.` |
+| **Single-Phase Merged** | on-pr-merged | `✅ Merged PR #123 - Issue complete!` |
+
+### Example Issue Timeline
+
+For a 2-phase feature, the issue comments would look like:
+
+```
+🎨 [Product Design Agent]
+Here's the design overview...
+
+🏗️ [Tech Design Agent]
+Here's the implementation plan...
+
+⚙️ [Implementor Agent] 📋 **Phase 1/2**: Opening PR #101 - Database Schema
+
+👀 [PR Review Agent] ⚠️ **Phase 1/2**: Changes requested on PR (#101)
+
+⚙️ [Implementor Agent] 🔧 **Phase 1/2**: Addressed feedback on PR #101 - ready for re-review
+
+👀 [PR Review Agent] ✅ **Phase 1/2**: PR approved - ready for merge (#101)
+
+✅ **Phase 1/2** complete - Merged PR #101
+🔄 Starting Phase 2/2...
+
+⚙️ [Implementor Agent] 📋 **Phase 2/2**: Opening PR #102 - API Endpoints
+
+👀 [PR Review Agent] ✅ **Phase 2/2**: PR approved - ready for merge (#102)
+
+✅ **Phase 2/2** complete - Merged PR #102
+🎉 **All 2 phases complete!** Issue is now Done.
+```
+
+### Benefits
+
+- **Single Source of Truth**: Issue comments show complete workflow history
+- **Phase Visibility**: Clear indication of current phase in multi-phase features
+- **PR Linking**: Easy to navigate between issues and PRs
+- **Review Status**: Know at a glance if PR is approved or needs changes
+- **Agent Attribution**: Emoji prefixes identify which agent took each action
+
+---
 
 ## Running the Agents
 
@@ -1963,10 +2030,14 @@ src/
 │           └── approve/
 │               └── [requestId].ts   # Fallback approval endpoint (localhost only)
 
+scripts/
+└── on-pr-merged.ts                   # Handle PR merge: phase transitions + status comments
+
 .github/
 └── workflows/
     ├── issue-notifications.yml      # Issue event notifications
     ├── pr-notifications.yml         # PR event notifications
+    ├── pr-merged-mark-done.yml      # On PR merge → runs on-pr-merged.ts
     ├── pr-checks.yml                # PR checks
     └── deploy-notify.yml            # Deployment notifications
 ```

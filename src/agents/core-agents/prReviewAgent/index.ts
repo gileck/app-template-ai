@@ -267,23 +267,13 @@ async function processItem(
 
             const totalComments = prConversationComments.length + prReviewComments.length;
             if (totalComments > 0) {
-                const claudeCommentCount = prConversationComments.filter(c => c.author.toLowerCase() === 'claude').length;
-                console.log(`  Found ${prConversationComments.length} conversation comments (${claudeCommentCount} from Claude Code), ${prReviewComments.length} review comments`);
+                console.log(`  Found ${prConversationComments.length} conversation comments, ${prReviewComments.length} review comments`);
             }
 
-            // Separate Claude Code comments from other comments
-            const claudeComments = prConversationComments.filter(c => c.author.toLowerCase() === 'claude');
-            const otherComments = prConversationComments.filter(c => c.author.toLowerCase() !== 'claude');
-
-            // Build prompt context
+            // Build prompt context - pass all comments together
             const promptContext: PromptContext = {
                 phaseInfo: processable.phaseInfo,
-                claudeComments: claudeComments.map(c => ({
-                    author: c.author,
-                    body: c.body,
-                    createdAt: c.createdAt,
-                })),
-                otherComments: otherComments.map(c => ({
+                prComments: prConversationComments.map(c => ({
                     author: c.author,
                     body: c.body,
                     createdAt: c.createdAt,
