@@ -74,7 +74,7 @@ Examples of when to ask for clarification:
 // MARKDOWN FORMATTING INSTRUCTIONS
 // ============================================================
 
-const MARKDOWN_FORMATTING_INSTRUCTIONS = `
+export const MARKDOWN_FORMATTING_INSTRUCTIONS = `
 CRITICAL - Markdown Formatting:
 
 **NEVER USE TABLES IN MARKDOWN OUTPUT**
@@ -1273,8 +1273,6 @@ Key principles for bug fixes:
 - Add comments explaining non-obvious fixes
 - DO NOT refactor surrounding code unless necessary for the fix
 - DO NOT add features or improvements beyond the bug fix
-
-${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 

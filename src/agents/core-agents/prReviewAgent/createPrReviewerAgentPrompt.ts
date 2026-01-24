@@ -5,6 +5,8 @@
  * The prompt guides Claude to review PRs with phase awareness and project guidelines.
  */
 
+import { MARKDOWN_FORMATTING_INSTRUCTIONS } from "@/agents/shared/prompts";
+
 // ============================================================
 // TYPES
 // ============================================================
@@ -163,7 +165,7 @@ function createInstructionsSection(): string {
 
 Review this PR and make your final decision. Provide your review decision (APPROVED or REQUEST_CHANGES) and detailed feedback.
 
-**IMPORTANT**: Check compliance with project guidelines in \`.cursor/rules/\`:
+**IMPORTANT**: Check compliance with project guidelines in \`.cursor/rules/\` (Only when relevant to code changes):
 - TypeScript guidelines (\`.cursor/rules/typescript-guidelines.mdc\`)
 - React patterns (\`.cursor/rules/react-component-organization.mdc\`, \`.cursor/rules/react-hook-organization.mdc\`)
 - State management (\`.cursor/rules/state-management-guidelines.mdc\`)
@@ -171,6 +173,12 @@ Review this PR and make your final decision. Provide your review decision (APPRO
 - File organization (\`.cursor/rules/feature-based-structure.mdc\`)
 - API patterns (\`.cursor/rules/client-server-communications.mdc\`)
 - Comprehensive checklist (\`.cursor/rules/app-guidelines-checklist.mdc\`)
+- mongoDB usage (\`.cursor/rules/mongodb-usage.mdc\`)
+- pages-and-routing-guidelines (\`.cursor/rules/pages-and-routing-guidelines.mdc\`)
+- shadcn-usage (\`.cursor/rules/shadcn-usage.mdc\`)
+- theming-guidelines (\`.cursor/rules/theming-guidelines.mdc\`)
+- user-access (\`.cursor/rules/user-access.mdc\`)
+- ui-mobile-first-shadcn (\`.cursor/rules/ui-mobile-first-shadcn.mdc\`)
 
 `;
 }
@@ -180,7 +188,16 @@ const OUTPUT_INSTRUCTIONS = `
 After completing the review, provide your response as structured JSON with these fields:
 - decision: either "approved" or "request_changes"
 - summary: 1-2 sentence summary of the review
-- reviewText: the full review content to post as PR comment`;
+- reviewText: the full review content to post as PR comment
+   * Keep it short when highlighting positive feedback (checklist of what looks good is enough, no need to elaborate). 
+   * Keep it concise and direct when highlighting negative feedback. Include BAD/GOOD examples when applicable (short code examples).
+   * When writing negative feedback, always include a suggestion for improvement.
+   
+
+
+
+${MARKDOWN_FORMATTING_INSTRUCTIONS}
+`;
 
 // ============================================================
 // MAIN PROMPT CREATION
