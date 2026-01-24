@@ -139,15 +139,42 @@ Follow these steps to implement a task from task-manager/tasks.md:
 
 ---
 
-## Step 8: Review Implementation
-- **Objective**: Self-review before committing
+## Step 8: Request User Review and Approval (MANDATORY)
+- **Objective**: Get user approval before committing any code
 - **Actions**:
-  - Review all changed files
-  - Verify the implementation matches task requirements
-  - Check for edge cases
-  - Ensure error handling is proper
-  - Verify no unrelated changes were made
-  - Confirm adherence to project guidelines
+  - **STOP and present to the user:**
+    1. **Task Summary**: Remind the user what task was being implemented (task number, title, objective)
+    2. **Implementation Summary**: Explain what was done:
+       - List all files that were modified/created
+       - Briefly describe the key changes in each file
+       - Highlight any important decisions made
+    3. **Validation Status**: Confirm `yarn checks` passed
+    4. **Ask for Approval**: Explicitly ask the user to review and approve before committing
+
+**Example message to user:**
+```
+## Ready for Review
+
+**Task #2:** Debug PR Reviewer + Claude Integration
+
+**What was implemented:**
+- `src/agents/core-agents/prReviewAgent/createPrReviewerAgentPrompt.ts`
+  - Updated instruction text to require explicit acknowledgment of Claude's feedback
+  - Changed "optional guidance" to mandatory AGREE/DISAGREE response format
+- `src/agents/core-agents/prReviewAgent/AGENTS.md`
+  - Updated documentation to reflect new feedback handling behavior
+
+**Validation:** ✅ `yarn checks` passed
+
+**Please review the changes and let me know if you'd like me to:**
+1. Proceed with committing and creating the PR
+2. Make any modifications
+3. Show you the actual code changes
+```
+
+- **Wait for explicit approval** before proceeding to commit
+- If user requests changes, make them and return to Step 7 (validation)
+- Only proceed to Step 9 after user says "yes", "approve", "proceed", or similar
 
 ---
 

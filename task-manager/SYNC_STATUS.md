@@ -9,6 +9,7 @@ Complete list of task management files and their sync behavior.
 | File | Syncs? | Purpose |
 |------|--------|---------|
 | `tasks.md` | ❌ NO | Project-specific task list (never syncs) |
+| `TASK_FORMAT.md` | ✅ YES | Task format specification |
 | `tasks-cli.ts` | ✅ YES | CLI implementation |
 | `README.md` | ✅ YES | Folder overview |
 | `TASK_COMMANDS.md` | ✅ YES | Quick reference guide |
@@ -56,12 +57,12 @@ Complete list of task management files and their sync behavior.
 
 ## 📊 Sync Summary
 
-### Total Files: 10
+### Total Files: 11
 
-- ✅ **9 files sync** (tools, docs, commands, 1 script)
+- ✅ **10 files sync** (tools, docs, commands, format spec, 1 script)
 - ❌ **1 file doesn't sync** (tasks.md)
 
-### Sync Percentage: 90%
+### Sync Percentage: 91%
 
 Almost everything syncs except the project-specific task list.
 

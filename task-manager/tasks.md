@@ -2,6 +2,10 @@
 
 Tasks sorted by priority (Critical → High → Medium → Low).
 
+**Format:** All tasks follow the standardized format defined in `TASK_FORMAT.md`.
+
+**Required fields:** Number, Title, Priority, Complexity, Size, Status, Date Added, Summary
+
 ---
 
 ## 1. ~~Fix Cost Tracking Bug in Implementation Agent~~ ✅ DONE

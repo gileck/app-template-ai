@@ -178,7 +178,46 @@ git commit -m "WIP: add error handling"
 
 ---
 
-## Step 9: Final Commit in Worktree
+## Step 9: Request User Review and Approval (MANDATORY)
+- **Objective**: Get user approval before committing/merging any code
+- **Actions**:
+  - **STOP and present to the user:**
+    1. **Task Summary**: Remind the user what task was being implemented (task number, title, objective)
+    2. **Implementation Summary**: Explain what was done:
+       - List all files that were modified/created
+       - Briefly describe the key changes in each file
+       - Highlight any important decisions made
+    3. **Validation Status**: Confirm `yarn checks` passed
+    4. **Ask for Approval**: Explicitly ask the user to review and approve before committing
+
+**Example message to user:**
+```
+## Ready for Review
+
+**Task #2:** Debug PR Reviewer + Claude Integration
+
+**What was implemented:**
+- `src/agents/core-agents/prReviewAgent/createPrReviewerAgentPrompt.ts`
+  - Updated instruction text to require explicit acknowledgment of Claude's feedback
+  - Changed "optional guidance" to mandatory AGREE/DISAGREE response format
+- `src/agents/core-agents/prReviewAgent/AGENTS.md`
+  - Updated documentation to reflect new feedback handling behavior
+
+**Validation:** ✅ `yarn checks` passed
+
+**Please review the changes and let me know if you'd like me to:**
+1. Proceed with committing and pushing to main
+2. Make any modifications
+3. Show you the actual code changes
+```
+
+- **Wait for explicit approval** before proceeding to commit
+- If user requests changes, make them and return to Step 8 (validation)
+- Only proceed to Step 10 after user says "yes", "approve", "proceed", or similar
+
+---
+
+## Step 10: Final Commit in Worktree
 - **Objective**: Ensure all changes are committed
 - **Actions**:
   - Stage any remaining changes: `git add .`
