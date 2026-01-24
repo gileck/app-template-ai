@@ -5,17 +5,20 @@ interface MetadataIconRowProps {
     request: FeatureRequestClient;
 }
 
+// Staleness threshold in days
+const STALE_THRESHOLD_DAYS = 7;
+
 /**
  * Compact icon row for metadata display in collapsed card view
  * Shows: Owner, GitHub issue link, GitHub PR link, Activity staleness indicator
- * All icons are 16px, muted colors, and tappable
+ * All icons are 14px (h-3.5), muted colors, and tappable
  */
 export function MetadataIconRow({ request }: MetadataIconRowProps) {
     // Calculate days since last update
     const daysSinceUpdate = Math.floor(
         (Date.now() - new Date(request.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
     );
-    const isStale = daysSinceUpdate > 7;
+    const isStale = daysSinceUpdate > STALE_THRESHOLD_DAYS;
 
     return (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -24,6 +27,7 @@ export function MetadataIconRow({ request }: MetadataIconRowProps) {
                 <div
                     className="flex items-center gap-1"
                     title={`Requested by ${request.requestedByName}`}
+                    aria-label={`Requested by ${request.requestedByName}`}
                 >
                     <User className="h-3.5 w-3.5" />
                     <span className="hidden md:inline text-xs">{request.requestedByName}</span>

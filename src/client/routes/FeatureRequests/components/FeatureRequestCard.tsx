@@ -102,7 +102,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
             {/* Left-edge status indicator strip (4px) */}
             <StatusIndicatorStrip request={request} githubStatus={githubStatus?.status} />
 
-            <CardHeader className="pb-2 pt-3 px-4">
+            <CardHeader className="pb-3 pt-3 px-4">
                 {/* 3-zone layout: Left (handled by strip), Center (main content), Right (actions) */}
                 <div className="flex items-start justify-between gap-3">
                     {/* Center Zone: Main Content */}
@@ -128,7 +128,10 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                             {/* Show GitHub status as primary when linked, fallback to DB status */}
                             {request.githubProjectItemId ? (
                                 isLoadingGitHubStatus ? (
-                                    <span className="text-xs text-muted-foreground">Loading status...</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">Loading...</span>
+                                    </div>
                                 ) : githubStatus?.status ? (
                                     <GitHubStatusBadge
                                         status={githubStatus.status}

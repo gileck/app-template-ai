@@ -5,23 +5,23 @@ interface StatusIndicatorStripProps {
     githubStatus?: string | null;
 }
 
-// Color mapping for GitHub statuses (hard-coded as per design spec)
+// Color mapping for GitHub statuses using semantic CSS variables
 const githubStatusColors: Record<string, string> = {
-    'backlog': '#6B7280',
-    'todo': '#3B82F6',
-    'new': '#3B82F6',
-    'in progress': '#F59E0B',
-    'waiting for review': '#F59E0B',
-    'blocked': '#EF4444',
-    'done': '#10B981',
+    'backlog': 'hsl(var(--muted))',
+    'todo': 'hsl(var(--primary))',
+    'new': 'hsl(var(--primary))',
+    'in progress': 'hsl(var(--warning))',
+    'waiting for review': 'hsl(var(--warning))',
+    'blocked': 'hsl(var(--destructive))',
+    'done': 'hsl(var(--success))',
 };
 
-// Color mapping for database statuses (hard-coded as per design spec)
+// Color mapping for database statuses using semantic CSS variables
 const dbStatusColors: Record<FeatureRequestStatus, string> = {
-    'new': '#3B82F6',
-    'in_progress': '#F59E0B',
-    'done': '#10B981',
-    'rejected': '#EF4444',
+    'new': 'hsl(var(--primary))',
+    'in_progress': 'hsl(var(--warning))',
+    'done': 'hsl(var(--success))',
+    'rejected': 'hsl(var(--destructive))',
 };
 
 /**
@@ -30,7 +30,7 @@ const dbStatusColors: Record<FeatureRequestStatus, string> = {
 function getStatusColor(request: FeatureRequestClient, githubStatus?: string | null): string {
     // Use GitHub status if available
     if (request.githubProjectItemId && githubStatus) {
-        return githubStatusColors[githubStatus.toLowerCase()] || '#6B7280';
+        return githubStatusColors[githubStatus.toLowerCase()] || 'hsl(var(--muted))';
     }
 
     // Fallback to DB status
