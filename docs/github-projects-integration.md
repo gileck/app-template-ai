@@ -1175,10 +1175,12 @@ For large features (L/XL size), the system automatically splits implementation i
    - PR body includes phase description
 
 3. **PR Review Agent** reviews each phase's PR:
+   - **Fetches PR files from GitHub API** (authoritative list, not local git diff)
    - **Phase-aware review**: Knows which phase is being reviewed
    - Verifies PR only implements the specified phase (not future phases)
    - Checks that changes are in expected files for the phase
    - Ensures phase is independently mergeable
+   - Posts status comment on issue (e.g., "✅ Phase 1/3: PR approved")
    - Run via: `yarn agent:pr-review` (or cron job)
 
 4. **On PR Merge** (`on-pr-merged.ts`):
