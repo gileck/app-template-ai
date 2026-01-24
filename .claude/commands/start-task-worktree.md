@@ -14,16 +14,18 @@ Invoke this command with a task number:
 
 ## Worktree Workflow Overview
 
-This workflow uses **squash merge** for clean history:
-1. Create worktree with branch
-2. Work in worktree (messy commits are OK)
-3. Run validation checks
-4. **Return to main worktree**
-5. **Squash merge** all worktree commits into ONE clean commit
-6. Push to main
-7. Clean up worktree and branch
+This workflow wraps `/start-task` with git worktree isolation and squash merge:
 
-**No PRs needed** - Changes go directly to main with a clean commit.
+1. **Setup**: Create worktree with branch, symlink dependencies
+2. **Implement**: Follow `/start-task` steps 2-8 (in worktree, WIP commits OK)
+3. **Merge**: Return to main, squash merge into ONE clean commit
+4. **Cleanup**: Push to main, remove worktree and branch
+
+**Key differences from /start-task:**
+- ✅ Isolated workspace (separate worktree directory)
+- ✅ Messy WIP commits allowed (will be squashed)
+- ✅ Direct to main (no PR needed)
+- ✅ ONE clean commit on main branch
 
 ## When to Use Worktree Workflow
 
@@ -43,6 +45,9 @@ This workflow uses **squash merge** for clean history:
 ---
 
 ## Process Overview
+
+> **Note:** This command uses `/start-task` for the core implementation workflow (steps 2-8).
+> It adds worktree isolation before and squash-merge cleanup after.
 
 ---
 
@@ -84,136 +89,26 @@ This workflow uses **squash merge** for clean history:
 
 ---
 
-## Step 3: Understand Task Requirements
-- **Objective**: Read and understand what needs to be done
-- **Actions**:
-  - Read `task-manager/tasks.md` for task details
-  - Note priority, size, complexity
-  - Review implementation details and code examples
-  - Check for "CRITICAL" or "IMPORTANT" notes
-  - Identify files to modify
-  - If anything is unclear, ask the user
+## Step 3-9: Follow /start-task Implementation Steps
 
----
+**Now follow the core implementation workflow from `/start-task` command.**
 
-## Step 4: Review Documentation
-- **Objective**: Ensure compliance with project standards
-- **Actions**:
-  - Check `CLAUDE.md` for relevant guidelines
-  - Review any documentation mentioned in the task
-  - Understand architectural patterns
-  - Note specific requirements or constraints
+Read and execute steps 2-8 from `.claude/commands/start-task.md`:
+- Step 2: Understand Requirements
+- Step 3: Review Related Documentation
+- Step 4: Explore Relevant Code
+- Step 5: Create Implementation Plan (if complex)
+- Step 6: Implement the Task
+- Step 7: Run Validation Checks
+- Step 8: Request User Review and Approval (MANDATORY)
 
----
+**Key differences when working in worktree:**
+- ✅ You're in `../worktree-task-N/` directory, not main workspace
+- ✅ WIP commits are encouraged: `git commit -m "WIP: changes"` (will be squashed later)
+- ✅ Commit as often as you want - perfect commit messages not needed
+- ✅ All commits will be combined into ONE clean commit in Step 12
 
-## Step 5: Explore Relevant Code
-- **Objective**: Familiarize with code to be modified
-- **Actions**:
-  - Read files listed in "Files to Modify"
-  - Understand current implementation
-  - Identify where changes need to be made
-  - Look for existing patterns to follow
-
----
-
-## Step 6: Create Implementation Plan (Optional)
-- **Objective**: Break down complex work
-- **Actions**:
-  - For complex tasks, use TodoWrite tool for sub-tasks
-  - Break into logical steps ordered by dependencies
-  - For simple tasks (XS/S), skip this step
-
----
-
-## Step 7: Implement the Task
-- **Objective**: Execute implementation
-
-### Implementation Guidelines:
-
-**Follow Task Instructions**
-- Implement exactly what the task specifies
-- Use code examples from the task
-- Follow file structure and patterns mentioned
-
-**Keep It Simple**
-- Don't over-engineer
-- Use straightforward approaches
-- Only change what's necessary
-
-**Follow Project Guidelines**
-- Maintain consistency with existing code
-- Use project styling and naming conventions
-- Check CLAUDE.md for specific rules
-
-**Commit Freely (These Will Be Squashed)**
-- Commit as often as you want
-- WIP commits are fine: `git commit -m "WIP: initial changes"`
-- Don't worry about perfect commit messages
-- These commits will be combined into ONE clean commit later
-
-**Example worktree commits:**
-```bash
-git add .
-git commit -m "WIP: initial implementation"
-
-# More changes...
-git add .
-git commit -m "WIP: fix TypeScript errors"
-
-# More changes...
-git add .
-git commit -m "WIP: add error handling"
-```
-
----
-
-## Step 8: Run Validation Checks
-- **Objective**: Ensure code quality before merging
-- **Actions**:
-  - Run: `yarn checks`
-  - Fix any TypeScript errors
-  - Fix any ESLint errors
-  - Re-run until all checks pass
-  - **DO NOT proceed until checks pass**
-
----
-
-## Step 9: Request User Review and Approval (MANDATORY)
-- **Objective**: Get user approval before committing/merging any code
-- **Actions**:
-  - **STOP and present to the user:**
-    1. **Task Summary**: Remind the user what task was being implemented (task number, title, objective)
-    2. **Implementation Summary**: Explain what was done:
-       - List all files that were modified/created
-       - Briefly describe the key changes in each file
-       - Highlight any important decisions made
-    3. **Validation Status**: Confirm `yarn checks` passed
-    4. **Ask for Approval**: Explicitly ask the user to review and approve before committing
-
-**Example message to user:**
-```
-## Ready for Review
-
-**Task #2:** Debug PR Reviewer + Claude Integration
-
-**What was implemented:**
-- `src/agents/core-agents/prReviewAgent/createPrReviewerAgentPrompt.ts`
-  - Updated instruction text to require explicit acknowledgment of Claude's feedback
-  - Changed "optional guidance" to mandatory AGREE/DISAGREE response format
-- `src/agents/core-agents/prReviewAgent/AGENTS.md`
-  - Updated documentation to reflect new feedback handling behavior
-
-**Validation:** ✅ `yarn checks` passed
-
-**Please review the changes and let me know if you'd like me to:**
-1. Proceed with committing and pushing to main
-2. Make any modifications
-3. Show you the actual code changes
-```
-
-- **Wait for explicit approval** before proceeding to commit
-- If user requests changes, make them and return to Step 8 (validation)
-- Only proceed to Step 10 after user says "yes", "approve", "proceed", or similar
+**After completing Step 8 (User Approval) from /start-task, continue below with Step 10...**
 
 ---
 
@@ -327,18 +222,13 @@ EOF
 
 - [ ] Worktree created with `yarn task worktree --task N`
 - [ ] Navigated to worktree and symlinked node_modules (NOT yarn install)
-- [ ] Task requirements understood
-- [ ] Documentation reviewed (CLAUDE.md)
-- [ ] Relevant code explored
-- [ ] Task implemented (WIP commits OK)
-- [ ] `yarn checks` passed with 0 errors
-- [ ] **User review requested and approval received**
+- [ ] **Followed /start-task steps 2-8** (understand, document, explore, plan, implement, validate, user approval)
 - [ ] Final WIP commit made in worktree
 - [ ] Returned to main worktree on main branch
 - [ ] Squash merged branch: `git merge --squash task/N-branch`
 - [ ] Created ONE clean commit with detailed message
 - [ ] Pushed to main: `git push origin main`
-- [ ] Removed worktree and branch
+- [ ] Removed worktree and branch (MANDATORY)
 - [ ] Marked task as done
 - [ ] User notified with summary
 
