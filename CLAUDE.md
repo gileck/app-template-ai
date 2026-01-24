@@ -820,6 +820,45 @@ Use `--cloud-proxy` when running in Claude Code cloud environment. This enables:
 
 ---
 
+## Git Worktree Workflow
+
+Isolated development using git worktrees with clean commit history.
+
+**Summary:** Use worktrees for feature/fix development, then squash merge to main for a clean single commit.
+
+**Quick Reference:**
+```bash
+# === CREATE ===
+git worktree add -b fix/my-fix ../project-fix HEAD
+cd ../project-fix && yarn install
+
+# === WORK ===
+# ... make changes, commit freely ...
+yarn checks
+
+# === MERGE (from main worktree) ===
+cd /main/project
+git merge --squash fix/my-fix
+git commit -m "fix: detailed message
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+git push origin main
+
+# === CLEANUP ===
+git worktree remove ../project-fix
+git branch -d fix/my-fix
+```
+
+**Key Points:**
+- **Squash merge** combines all worktree commits into ONE clean commit
+- Write the final detailed commit message when merging to main
+- No need for PRs on small fixes - merge directly to main
+- Always run `yarn checks` before merging
+
+**Docs:** [docs/git-worktree-workflow.md](docs/git-worktree-workflow.md)
+
+---
+
 ## GitHub Projects Integration
 
 Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
