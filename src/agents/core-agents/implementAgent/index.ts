@@ -26,7 +26,7 @@
  *   yarn agent:implement --stream           # Stream Claude output
  */
 
-import './shared/loadEnv';
+import '../../shared/loadEnv';
 import { execSync } from 'child_process';
 import { Command } from 'commander';
 import {
@@ -70,14 +70,14 @@ import {
     IMPLEMENTATION_OUTPUT_FORMAT,
     // Agent Identity
     addAgentPrefix,
-} from './shared';
+} from '../../shared';
 import {
     extractPhasesFromTechDesign,
     parsePhaseString,
-} from './lib/parsing';
+} from '../../lib/parsing';
 import {
     parsePhasesFromComment,
-} from './lib/phases';
+} from '../../lib/phases';
 import {
     createLogContext,
     runWithLogContext,
@@ -85,7 +85,7 @@ import {
     logExecutionEnd,
     logGitHubAction,
     logError,
-} from './lib/logging';
+} from '../../lib/logging';
 
 // ============================================================
 // TYPES
