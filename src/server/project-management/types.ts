@@ -319,6 +319,12 @@ export interface ProjectManagementAdapter {
         body: string
     ): Promise<void>;
 
+    /**
+     * Get PR details including state (open/closed) and merged status
+     * Returns null if PR doesn't exist
+     */
+    getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null>;
+
     // --------------------------------------------------------
     // Branches
     // --------------------------------------------------------

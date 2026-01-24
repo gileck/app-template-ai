@@ -959,7 +959,14 @@ async function extractPRNumber(
         // Look for "PR: #123" or "Implementation PR: #123" pattern
         const match = comment.body.match(/(?:PR|Pull Request)[:\s]*#(\d+)/i);
         if (match) {
-            return parseInt(match[1], 10);
+            const prNumber = parseInt(match[1], 10);
+
+            // Check if PR is still open (ignore closed/merged PRs for multi-phase features)
+            const prDetails = await adapter.getPRDetails(prNumber);
+            if (prDetails && prDetails.state === 'open') {
+                return prNumber;
+            }
+            // PR is closed/merged - continue searching for an open PR
         }
     }
 

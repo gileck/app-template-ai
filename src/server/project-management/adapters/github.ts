@@ -1096,6 +1096,26 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         return data.default_branch;
     }
 
+    async getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null> {
+        try {
+            const oc = this.getOctokit();
+            const { owner, repo } = this.config.github;
+
+            const { data } = await oc.pulls.get({
+                owner,
+                repo,
+                pull_number: prNumber,
+            });
+
+            return {
+                state: data.state as 'open' | 'closed',
+                merged: data.merged || false,
+            };
+        } catch {
+            return null;
+        }
+    }
+
     async createBranch(branchName: string): Promise<void> {
         const oc = this.getOctokit();
         const { owner, repo } = this.config.github;
