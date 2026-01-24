@@ -167,6 +167,13 @@ async function processItem(
 
         if (mode === 'new') {
             // Flow A: New design
+            // Idempotency check: Skip if design already exists
+            const existingTechDesign = extractTechDesign(content.body);
+            if (existingTechDesign) {
+                console.log('  ⚠️  Technical design already exists in issue body - skipping to avoid duplication');
+                console.log('  If you want to regenerate, use feedback mode or manually remove the existing design');
+                return { success: false, error: 'Technical design already exists (idempotency check)' };
+            }
             if (diagnostics) {
                 // Bug fix tech design
                 prompt = buildBugTechDesignPrompt(content, diagnostics, productDesign, issueComments);

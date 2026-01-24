@@ -128,6 +128,10 @@ export {
     extractFeedbackResolution,
     formatFeedbackResolution,
     extractPRSummary,
+    // Concurrent processing lock
+    acquireAgentLock,
+    releaseAgentLock,
+    hasAgentLock,
     type BugDiagnostics,
     type FeedbackResolution,
 } from './utils';

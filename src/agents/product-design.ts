@@ -103,8 +103,9 @@ async function processItem(
     // Check if this is a bug - skip by default
     const issueType = getIssueType(content.labels);
     if (issueType === 'bug') {
-        console.log('  ⚠️  Skipping bug report (bugs typically skip Product Design)');
-        console.log('  💡 If this bug needs product design, admin should move it here manually');
+        console.log(`  ⏭️  Skipping bug #${issueNumber} - bugs bypass Product Design phase`);
+        console.log('  📌 Reason: Most bugs don\'t need product design (they need technical fixes)');
+        console.log('  💡 If this bug requires UX/UI redesign, admin can manually move it to Product Design');
         return { success: false, error: 'Bug reports skip Product Design by default' };
     }
 
@@ -144,6 +145,13 @@ async function processItem(
 
         if (mode === 'new') {
             // Flow A: New design
+            // Idempotency check: Skip if design already exists
+            const existingDesign = extractProductDesign(content.body);
+            if (existingDesign) {
+                console.log('  ⚠️  Product design already exists in issue body - skipping to avoid duplication');
+                console.log('  If you want to regenerate, use feedback mode or manually remove the existing design');
+                return { success: false, error: 'Product design already exists (idempotency check)' };
+            }
             prompt = buildProductDesignPrompt(content, issueComments);
         } else if (mode === 'feedback') {
             // Flow B: Address feedback

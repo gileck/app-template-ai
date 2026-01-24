@@ -194,7 +194,10 @@ The Status field should already exist. Configure it with these **exact** values:
 
 ### Create Review Status Custom Field
 
-> **⚠️ CRITICAL:** All 6 options are required. Missing options will cause agent errors.
+> **⚠️ CRITICAL:** All 6 options are REQUIRED. Missing any option will cause agent failures.
+>
+> **COMMON MISTAKE:** Forgetting to add "Waiting for Clarification" and "Clarification Received".
+> These statuses are used when agents need input from admin. Without them, agents will fail when they encounter ambiguous requirements.
 
 1. In your project, click the **"+"** button (add field)
 2. Select **"Single select"**
@@ -204,9 +207,11 @@ The Status field should already exist. Configure it with these **exact** values:
    2. `Approved`
    3. `Request Changes`
    4. `Rejected`
-   5. `Waiting for Clarification`
-   6. `Clarification Received`
+   5. `Waiting for Clarification` ⚠️ **REQUIRED** - Agents fail without this
+   6. `Clarification Received` ⚠️ **REQUIRED** - Agents fail without this
 5. Click **"Save"**
+
+**After setup, run `yarn verify-setup` to validate all 6 status options exist.**
 
 **Verification:** Your field should show all 6 options as in the screenshot below. If any are missing, agents will fail with "Unknown review status" errors.
 

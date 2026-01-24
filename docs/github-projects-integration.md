@@ -983,6 +983,53 @@ Please respond with one of:
 - "Option 1, but fetch user from database on backend instead of frontend" → Agent uses Option 1 approach with specified modification
 - "New Option: Store both requestedBy ID and requestedByName, fetch user details on hover" → Agent implements the completely new approach
 
+### Rejection Handling
+
+When an item is marked as "Rejected" (via Review Status), it enters a terminal state and requires manual intervention.
+
+**How Rejection Works:**
+
+1. Admin reviews a design or PR
+2. Admin sets Review Status = "Rejected" (via Telegram button, GitHub Projects, or App UI)
+3. Item is skipped by all agents - no agent will pick it up
+4. Item remains in its current phase on the project board
+
+**Handling Rejected Items:**
+
+Since rejected items accumulate with no automatic cleanup, you have these options:
+
+| Action | How | When to Use |
+|--------|-----|-------------|
+| **Close Issue** | Close the GitHub issue manually | Item won't be implemented (won't fix, duplicate, out of scope) |
+| **Move to Backlog** | Change Project Status to "Backlog" + clear Review Status | Defer for future consideration |
+| **Un-reject** | Clear Review Status (set to empty) | Changed your mind, want agents to process it |
+
+**Example Scenarios:**
+
+*Permanently reject:*
+```
+1. Review Status = "Rejected" (via Telegram or GitHub)
+2. Close the GitHub issue
+3. Issue remains closed, won't be processed
+```
+
+*Defer for later:*
+```
+1. Review Status = "Rejected" (via Telegram or GitHub)
+2. Change Project Status to "Backlog"
+3. Clear Review Status (set to empty or null)
+4. Item waits in Backlog until manually moved to a phase
+```
+
+*Accidental rejection:*
+```
+1. Review Status = "Rejected" (accidentally)
+2. Clear Review Status (set to empty)
+3. Item is now ready for agents to pick up again
+```
+
+**Important:** Rejected items never auto-advance. They stay in their current phase until manually moved or closed.
+
 ### Alternative Workflows (Non-Product Features)
 
 Not all work requires a product design phase. For internal implementations, architecture changes, refactoring, or bug fixes, you can skip phases:
@@ -1600,6 +1647,55 @@ GitHub API has rate limits:
 The agents are designed to minimize API calls. If you hit limits:
 - Wait for the rate limit to reset
 - Use `--limit` to process fewer items at once
+
+### Known Edge Cases
+
+**Concurrent Agent Execution**
+
+If two instances of the same agent run simultaneously (rare but possible):
+- Both may pick up the same items
+- Both may try to update the same Review Status
+- Could result in duplicate processing
+
+**Mitigations in place:**
+1. **Idempotency checks** - Agents check if work already exists:
+   - PR already created? Skip PR creation
+   - Design already in issue body? Skip design generation
+2. **Review Status tracking** - Items with non-empty Review Status are skipped
+
+**Optional lock mechanism:**
+Lock functions are available but not enabled by default:
+```typescript
+import { acquireAgentLock, releaseAgentLock } from './shared';
+
+// In agent main():
+if (!acquireAgentLock('product-design')) {
+    console.error('Another instance running');
+    process.exit(1);
+}
+```
+
+**When to enable locking:**
+- Running agents via cron/CI (automated)
+- Multiple users may trigger agents simultaneously
+- You want guaranteed single-instance execution
+
+**Note:** The lock mechanism uses PID-based detection, so crashed agents automatically recover (no 30-minute lockouts).
+
+---
+
+**Agent Crash Mid-Processing**
+
+If an agent crashes (Ctrl+C, kill, exception) during processing:
+
+| Scenario | What Happens | Recovery |
+|----------|--------------|----------|
+| Crash before any work | Item stays in queue | Next run processes it |
+| Crash after design, before status update | Design exists in issue | Next run: idempotency check skips design, updates status |
+| Crash after PR created, before comment | PR exists, no comment on issue | Next run: may create duplicate PR (rare) |
+| Crash after status update | Work complete | No recovery needed |
+
+**Worst case:** Duplicate PR created. This is easily fixable manually and extremely rare (requires crash in ~100ms window).
 
 ## Child Project Setup (Quick Start)
 
