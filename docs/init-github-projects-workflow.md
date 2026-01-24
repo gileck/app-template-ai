@@ -245,6 +245,35 @@ The field stores values like "1/3" (phase 1 of 3). It's automatically managed by
 - Incremented when each phase's PR is merged
 - Cleared when all phases are complete
 
+**How Phase Tracking Works:**
+
+The system uses a two-layer approach for storing and retrieving implementation phases:
+
+| Component | Storage | Usage |
+|-----------|---------|-------|
+| **Phase Counter** | GitHub Project Field (`Implementation Phase`) | Tracks current phase: `"1/3"` |
+| **Phase Details** | GitHub Issue Comment | Stores phase names, descriptions, files |
+
+**Tech Design Agent:**
+1. Generates phases for L/XL features
+2. Posts phases as a GitHub issue comment with marker `<!-- AGENT_PHASES_V1 -->`
+3. Format is deterministic (not LLM-generated)
+
+**Implementation Agent:**
+1. Reads phases from comment (reliable) or markdown (fallback)
+2. Implements current phase
+3. Creates PR with phase info
+
+**Example Workflow:**
+```
+1. Tech design generates phases → Posts comment with phase details
+2. Implementation reads comment → Gets phase 1 details
+3. Creates PR for phase 1 → Sets field to "1/3"
+4. PR merged → Script updates field to "2/3"
+5. Implementation reads comment → Gets phase 2 details
+6. Repeat until all phases complete
+```
+
 **When to add this field:**
 - **Add it** if you want large features to be split into multiple PRs
 - **Skip it** if you prefer all features to be single-PR (simpler workflow)

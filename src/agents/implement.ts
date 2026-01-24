@@ -76,6 +76,9 @@ import {
     parsePhaseString,
 } from './lib/parsing';
 import {
+    parsePhasesFromComment,
+} from './lib/phases';
+import {
     createLogContext,
     runWithLogContext,
     logExecutionStart,
@@ -320,6 +323,19 @@ async function processItem(
         const productDesign = extractProductDesign(content.body);
         const techDesign = extractTechDesign(content.body);
 
+        // Always fetch issue comments early - they're needed for phase extraction and prompts
+        const allIssueComments = await adapter.getIssueComments(issueNumber);
+        const issueComments: GitHubComment[] = allIssueComments.map((c) => ({
+            id: c.id,
+            body: c.body,
+            author: c.author,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+        }));
+        if (issueComments.length > 0) {
+            console.log(`  Found ${issueComments.length} comment(s) on issue`);
+        }
+
         // Check for multi-phase implementation (L/XL features)
         // Need to check phase for ALL modes to generate correct branch name
         let phaseInfo = processable.phaseInfo;
@@ -337,26 +353,42 @@ async function processItem(
             totalPhases = parsed.total;
             console.log(`  📋 Multi-phase feature: Phase ${currentPhase}/${totalPhases}`);
 
-            // Try to get phase details from tech design
-            if (techDesign) {
-                const parsedPhases = extractPhasesFromTechDesign(techDesign);
-                if (parsedPhases) {
-                    currentPhaseDetails = parsedPhases.find(p => p.order === currentPhase);
-                    phaseInfo = {
-                        current: currentPhase,
-                        total: totalPhases,
-                        phases: parsedPhases,
-                    };
+            // Try to get phase details from comments first (reliable), then fallback to markdown
+            const parsedPhases = parsePhasesFromComment(issueComments) ||
+                                 (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
+            if (parsedPhases) {
+                currentPhaseDetails = parsedPhases.find(p => p.order === currentPhase);
+                phaseInfo = {
+                    current: currentPhase,
+                    total: totalPhases,
+                    phases: parsedPhases,
+                };
+
+                // Log which method was used
+                if (parsePhasesFromComment(issueComments)) {
+                    console.log('  Phases loaded from comment (reliable)');
+                } else {
+                    console.log('  Phases loaded from markdown (fallback)');
                 }
             }
-        } else if (mode === 'new' && techDesign && !phaseInfo) {
+        } else if (mode === 'new' && !phaseInfo) {
             // No existing phase - check if we should start multi-phase (only for new implementations)
-            const parsedPhases = extractPhasesFromTechDesign(techDesign);
+            // Try comment first, fallback to markdown
+            const parsedPhases = parsePhasesFromComment(issueComments) ||
+                                 (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
+
             if (parsedPhases && parsedPhases.length >= 2) {
                 // Start new multi-phase implementation
                 currentPhase = 1;
                 totalPhases = parsedPhases.length;
                 console.log(`  📋 Multi-phase feature detected: ${totalPhases} phases`);
+
+                // Log which method was used
+                if (parsePhasesFromComment(issueComments)) {
+                    console.log('  Phases loaded from comment (reliable)');
+                } else {
+                    console.log('  Phases loaded from markdown (fallback)');
+                }
 
                 // Set phase tracking in GitHub project
                 if (!options.dryRun && adapter.hasImplementationPhaseField()) {
@@ -389,19 +421,6 @@ async function processItem(
             console.log('  Note: No technical design found - implementing from product design and issue description');
         } else if (!productDesign) {
             console.log('  Note: No product design found - implementing from technical design only (internal work)');
-        }
-
-        // Always fetch issue comments - they provide context for any phase
-        const allIssueComments = await adapter.getIssueComments(issueNumber);
-        const issueComments: GitHubComment[] = allIssueComments.map((c) => ({
-            id: c.id,
-            body: c.body,
-            author: c.author,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-        }));
-        if (issueComments.length > 0) {
-            console.log(`  Found ${issueComments.length} comment(s) on issue`);
         }
 
         let prompt: string;

@@ -1162,9 +1162,10 @@ For large features (L/XL size), the system automatically splits implementation i
    - Splits feature into 2-5 independently mergeable phases
    - Each phase should be size S or M (not L/XL)
    - Phases are ordered so dependencies flow forward
+   - **Posts phases as GitHub comment** (for reliable retrieval)
 
 2. **Implementation Agent** implements one phase at a time:
-   - Reads current phase from GitHub Project "Implementation Phase" field
+   - Reads phases from GitHub comment (reliable) or markdown (fallback)
    - Creates phase-specific branch: `feature/issue-{N}-phase-{X}-{slug}`
    - PR title includes phase: `feat: Feature Name (Phase 1/3)`
    - PR body includes phase description
@@ -1172,6 +1173,48 @@ For large features (L/XL size), the system automatically splits implementation i
 3. **On PR Merge**:
    - If more phases remain: Issue returns to "Implementation" status, phase counter increments
    - If all phases complete: Issue moves to "Done"
+
+**Phase Storage & Retrieval:**
+
+The system uses a deterministic two-layer approach for storing and retrieving implementation phases:
+
+| Layer | Location | Method | Reliability |
+|-------|----------|--------|-------------|
+| **Primary** | GitHub Issue Comment | `parsePhasesFromComment()` | 100% reliable |
+| **Fallback** | Tech Design Markdown | `extractPhasesFromTechDesign()` | Regex-based, for backward compatibility |
+
+**Phase Comment Format:**
+```markdown
+<!-- AGENT_PHASES_V1 -->
+## Implementation Phases
+
+This feature will be implemented in 3 sequential PRs:
+
+### Phase 1: Database Schema (S)
+
+Set up user and session collections
+
+**Files to modify:**
+- `src/server/database/collections/users.ts`
+- `src/server/database/collections/sessions.ts`
+
+### Phase 2: API Endpoints (M)
+
+Implement login and register endpoints
+
+**Files to modify:**
+- `src/apis/auth/index.ts`
+- `src/pages/api/process/auth_login.ts`
+
+---
+*Phase tracking managed by Implementation Agent*
+```
+
+**Why this architecture?**
+- ✅ **Deterministic**: Both serialization and deserialization use our code, not LLM formatting
+- ✅ **Reliable**: The comment format is controlled and predictable
+- ✅ **Visible**: Human-readable in GitHub UI for debugging
+- ✅ **Backward Compatible**: Falls back to markdown parsing for old issues
 
 **Example Flow (L feature with 3 phases):**
 

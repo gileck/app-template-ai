@@ -702,6 +702,13 @@ Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
 - Auto-completion when PR merges
 - Two-tier status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)
 
+**Multi-Phase Features (L/XL):**
+- Tech design agent generates 2-5 phases and posts them as a GitHub issue comment
+- Phase comment uses deterministic format with marker `<!-- AGENT_PHASES_V1 -->` (not LLM-generated)
+- Implementation agent reads phases from comment (reliable) or markdown (fallback)
+- Each phase is independently mergeable (S or M size)
+- Sequential PRs: Phase N+1 starts after Phase N merges
+
 **CLI Commands:**
 - `yarn init-agents-copy` - Create a separate copy for running agents (recommended)
 - `yarn agent:product-design` - Generate product designs

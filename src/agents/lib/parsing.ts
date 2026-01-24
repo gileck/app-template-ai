@@ -305,13 +305,24 @@ export interface ParsedPhase {
 }
 
 /**
- * Extract implementation phases from tech design markdown
+ * Extract implementation phases from tech design markdown (FALLBACK ONLY)
+ *
+ * ⚠️ DEPRECATED: This is a fallback for backward compatibility with issues created
+ * before the phase comment feature. New issues should use parsePhasesFromComment()
+ * from './phases.ts' which is more reliable.
+ *
+ * The new architecture:
+ * - Tech design agent: Posts phases as GitHub comment using formatPhasesToComment()
+ * - Implementation agent: Reads phases using parsePhasesFromComment()
+ * - This function: Only used if no phase comment exists (old issues)
  *
  * Looks for:
  * 1. "## Implementation Phases" or "## Phases" section
  * 2. Phase headers like "### Phase 1: Database Schema (S)"
  *
  * Returns null if no phases found (single-phase feature)
+ *
+ * @deprecated Prefer parsePhasesFromComment() from './phases.ts' for new implementations
  */
 export function extractPhasesFromTechDesign(techDesign: string): ParsedPhase[] | null {
     if (!techDesign) return null;

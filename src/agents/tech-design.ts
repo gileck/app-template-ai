@@ -76,6 +76,10 @@ import {
     logGitHubAction,
     logError,
 } from './lib/logging';
+import {
+    formatPhasesToComment,
+    hasPhaseComment,
+} from './lib/phases';
 
 // ============================================================
 // TYPES
@@ -292,6 +296,9 @@ async function processItem(
                 console.log(comment.split('\n').map(l => '  ' + l).join('\n'));
                 console.log('  ' + '='.repeat(60));
             }
+            if (structuredOutput?.phases && structuredOutput.phases.length >= 2) {
+                console.log(`  [DRY RUN] Would post phases comment (${structuredOutput.phases.length} phases)`);
+            }
             console.log('  [DRY RUN] Would send notification');
             return { success: true };
         }
@@ -308,6 +315,20 @@ async function processItem(
             await adapter.addIssueComment(issueNumber, prefixedComment);
             console.log('  Summary comment posted');
             logGitHubAction(logCtx, 'comment', 'Posted design summary comment');
+        }
+
+        // Post phases comment for multi-PR workflow (L/XL features)
+        // This provides deterministic phase storage that the implementation agent can reliably parse
+        if (structuredOutput?.phases && structuredOutput.phases.length >= 2) {
+            // Check if phases comment already exists (idempotency)
+            if (!hasPhaseComment(issueComments)) {
+                const phasesComment = formatPhasesToComment(structuredOutput.phases);
+                await adapter.addIssueComment(issueNumber, phasesComment);
+                console.log(`  Implementation phases comment posted (${structuredOutput.phases.length} phases)`);
+                logGitHubAction(logCtx, 'comment', `Posted ${structuredOutput.phases.length} implementation phases`);
+            } else {
+                console.log('  Phases comment already exists, skipping');
+            }
         }
 
         // Update review status (status stays at "Technical Design")
