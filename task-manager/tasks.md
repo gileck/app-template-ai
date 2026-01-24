@@ -88,11 +88,21 @@ logExecutionEnd(logCtx, {
 
 ---
 
-## 3. Add "Ready to Merge" Status with Admin Approval Gate
+## 3. ~~Add "Ready to Merge" Status with Admin Approval Gate~~ ✅ DONE
 
-| Priority | Complexity | Size |
-|----------|------------|------|
-| **High** | Mid | M |
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **High** | Mid | M | ✅ **DONE** |
+
+> **Completed:** 2026-01-24 - Implemented in commit `b79fca0`
+>
+> **Implementation Note:** Implemented differently than originally proposed - instead of a new "Ready to Merge" status with Implementor agent handling merges, we implemented a simpler Telegram-based flow:
+> - PR Review Agent generates commit message on approval → saves to PR comment
+> - Admin receives Telegram with Merge/Request Changes buttons
+> - Merge button squash-merges with the saved commit message
+> - Request Changes sends back to implementation
+>
+> This is simpler (no extra status needed) and more immediate (one-click merge from Telegram).
 
 **Summary:** Add a new workflow status between "PR Review Approved" and "Done" that requires admin approval before merging.
 
