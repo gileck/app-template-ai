@@ -1134,6 +1134,84 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }
     }
 
+    async mergePullRequest(
+        prNumber: number,
+        commitTitle: string,
+        commitMessage: string
+    ): Promise<void> {
+        return withRetry(async () => {
+            const oc = this.getOctokit(); // Use admin token for merging
+            const { owner, repo } = this.config.github;
+
+            await oc.pulls.merge({
+                owner,
+                repo,
+                pull_number: prNumber,
+                merge_method: 'squash',
+                commit_title: commitTitle,
+                commit_message: commitMessage,
+            });
+        });
+    }
+
+    async findPRCommentByMarker(prNumber: number, marker: string): Promise<{
+        id: number;
+        body: string;
+    } | null> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        const { data: comments } = await oc.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+        });
+
+        const comment = comments.find(c => c.body?.includes(marker));
+        if (!comment) return null;
+
+        return { id: comment.id, body: comment.body || '' };
+    }
+
+    async updatePRComment(_prNumber: number, commentId: number, body: string): Promise<void> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        await oc.issues.updateComment({
+            owner,
+            repo,
+            comment_id: commentId,
+            body,
+        });
+    }
+
+    async getPRInfo(prNumber: number): Promise<{
+        title: string;
+        body: string;
+        additions: number;
+        deletions: number;
+        changedFiles: number;
+        commits: number;
+    } | null> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        try {
+            const { data: pr } = await oc.pulls.get({ owner, repo, pull_number: prNumber });
+            return {
+                title: pr.title,
+                body: pr.body || '',
+                additions: pr.additions,
+                deletions: pr.deletions,
+                changedFiles: pr.changed_files,
+                commits: pr.commits,
+            };
+        } catch {
+            return null;
+        }
+    }
+
     /**
      * Find the open PR for an issue.
      *

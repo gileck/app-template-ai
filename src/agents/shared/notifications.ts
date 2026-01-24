@@ -297,6 +297,7 @@ ${isRevision ? 'Changes made based on feedback. ' : ''}Review and merge to compl
 
 /**
  * Notify admin that PR review is complete
+ * NOTE: This is the legacy notification. For approved PRs, use notifyPRReadyToMerge instead.
  */
 export async function notifyPRReviewComplete(
     title: string,
@@ -332,6 +333,69 @@ ${typeEmoji} ${typeLabel}
     };
 
     return sendToAdmin(message, buttons);
+}
+
+/**
+ * Notify admin that PR is approved and ready to merge
+ * Shows commit message preview with Merge/Request Changes buttons
+ */
+export async function notifyPRReadyToMerge(
+    issueTitle: string,
+    issueNumber: number,
+    prNumber: number,
+    commitMessage: { title: string; body: string },
+    itemType: 'bug' | 'feature' = 'feature'
+): Promise<SendResult> {
+    const prUrl = getPrUrl(prNumber);
+
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    // Truncate body for Telegram (keep it readable)
+    const bodyPreview = commitMessage.body.length > 200
+        ? commitMessage.body.substring(0, 200) + '...'
+        : commitMessage.body;
+
+    const message = `<b>Agent (PR Review):</b> ✅ Approved!
+${typeEmoji} ${typeLabel}
+
+<b>Issue:</b> ${escapeHtml(issueTitle)} (#${issueNumber})
+<b>PR:</b> #${prNumber}
+
+<b>Commit Message:</b>
+<code>${escapeHtml(commitMessage.title)}</code>
+
+${escapeHtml(bodyPreview)}`;
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [[
+            { text: '✅ Merge', callback_data: `merge:${issueNumber}:${prNumber}` },
+            { text: '🔄 Request Changes', callback_data: `reqchanges:${issueNumber}:${prNumber}` },
+        ], [
+            { text: '👀 View PR', url: prUrl },
+        ]],
+    };
+
+    return sendToAdmin(message, keyboard);
+}
+
+/**
+ * Notify admin that merge was successful
+ */
+export async function notifyMergeComplete(
+    issueTitle: string,
+    issueNumber: number,
+    prNumber: number
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const message = `<b>Merged:</b> ✅ PR #${prNumber}
+
+${escapeHtml(issueTitle)} (#${issueNumber})
+
+Issue will be marked as Done.`;
+
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
 
 /**

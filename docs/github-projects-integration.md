@@ -2044,6 +2044,50 @@ scripts/
     └── deploy-notify.yml            # Deployment notifications
 ```
 
+## PR Merge Flow (Admin Approval)
+
+When PR Review Agent approves a PR, it generates a commit message and notifies the admin via Telegram with merge buttons.
+
+### Happy Flow
+
+1. **PR Review Agent approves** → generates commit message → saves to PR comment
+2. **Admin receives Telegram** with commit message preview
+3. **Admin clicks Merge** → PR is squash-merged with the saved commit message
+4. **on-pr-merged.ts** triggers → status moves to Done
+
+### Admin Requests Changes (After Approval)
+
+If admin finds issues after PR Review approved:
+
+1. **Admin clicks Request Changes** in Telegram
+2. **Status** → "Ready for development", **Review Status** → "Request Changes"
+3. **Admin comments on PR** explaining what needs to change
+4. **Implementor Agent** picks it up, addresses feedback, pushes changes
+5. **Status** → "PR Review", **Review Status** → "Waiting for Review"
+6. **PR Review Agent** reviews again → generates NEW commit message (overwrites old)
+7. **Cycle repeats** until admin merges
+
+### Commit Message Storage
+
+- Stored as PR comment with marker: `<!-- COMMIT_MESSAGE_V1 -->`
+- Overwritten on each re-approval (always reflects latest code)
+- Contains title (PR title) and body (summary + stats + closes reference)
+
+### Telegram Buttons
+
+| Button | Action |
+|--------|--------|
+| ✅ Merge | Fetches commit message from PR, squash merges |
+| 🔄 Request Changes | Sends back to implementor (admin must comment on PR) |
+| 👀 View PR | Opens PR in browser |
+
+### Callback Data Format
+
+- Merge: `merge:{issueNumber}:{prNumber}`
+- Request Changes: `reqchanges:{issueNumber}:{prNumber}`
+
+---
+
 ## Related Documentation
 
 - [Telegram Notifications](./telegram-notifications.md)

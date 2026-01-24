@@ -332,6 +332,41 @@ export interface ProjectManagementAdapter {
     getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null>;
 
     /**
+     * Merge a pull request using squash merge
+     */
+    mergePullRequest(
+        prNumber: number,
+        commitTitle: string,
+        commitMessage: string
+    ): Promise<void>;
+
+    /**
+     * Find a PR comment by marker and return its body
+     * Returns null if not found
+     */
+    findPRCommentByMarker(prNumber: number, marker: string): Promise<{
+        id: number;
+        body: string;
+    } | null>;
+
+    /**
+     * Update an existing PR comment
+     */
+    updatePRComment(prNumber: number, commentId: number, body: string): Promise<void>;
+
+    /**
+     * Get PR info for commit message generation
+     */
+    getPRInfo(prNumber: number): Promise<{
+        title: string;
+        body: string;
+        additions: number;
+        deletions: number;
+        changedFiles: number;
+        commits: number;
+    } | null>;
+
+    /**
      * Find the open PR for an issue.
      *
      * For feedback mode (Request Changes), finds the currently open PR

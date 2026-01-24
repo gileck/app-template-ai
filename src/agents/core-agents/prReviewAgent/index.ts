@@ -36,6 +36,7 @@ import {
     runAgent,
     // Notifications
     notifyPRReviewComplete,
+    notifyPRReadyToMerge,
     notifyAgentError,
     notifyAgentStarted,
     // Types
@@ -62,7 +63,10 @@ import {
 } from '../../lib/phases';
 import {
     extractTechDesign,
+    generateCommitMessage,
+    formatCommitMessageComment,
 } from '../../lib';
+import { COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
 import {
     createPrReviewerAgentPrompt,
     type PromptContext,
@@ -333,6 +337,11 @@ async function processItem(
                 console.log(`\n  [DRY RUN] Summary: ${summary}`);
                 console.log(`\n  [DRY RUN] Would submit official GitHub review: ${decision === 'approved' ? 'APPROVE' : 'REQUEST_CHANGES'}`);
                 console.log(`\n  [DRY RUN] Would update review status to: ${decision === 'approved' ? 'Approved' : 'Request Changes'}`);
+
+                if (decision === 'approved') {
+                    console.log(`\n  [DRY RUN] Would generate and save commit message to PR comment`);
+                    console.log(`\n  [DRY RUN] Would send Telegram with Merge/Request Changes buttons`);
+                }
             } else {
                 // Submit official GitHub PR review (this automatically posts as a comment)
                 const prefixedReview = addAgentPrefix('pr-review', reviewText);
@@ -363,8 +372,48 @@ async function processItem(
                 await adapter.updateItemReviewStatus(item.id, newReviewStatus);
                 console.log(`  Updated review status to: ${newReviewStatus}`);
 
-                // Send notification
-                await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
+                // Handle approval flow: generate commit message, save to PR comment, notify admin
+                if (decision === 'approved') {
+                    // 1. Get PR info for commit message
+                    const prInfo = await adapter.getPRInfo(prNumber);
+                    if (prInfo) {
+                        // 2. Generate commit message
+                        const phaseInfoForCommit = processable.phaseInfo
+                            ? { current: processable.phaseInfo.current, total: processable.phaseInfo.total }
+                            : undefined;
+                        const commitMsg = generateCommitMessage(prInfo, item.content, phaseInfoForCommit);
+                        console.log(`  Generated commit message: ${commitMsg.title}`);
+
+                        // 3. Save/update commit message as PR comment
+                        const existingComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
+                        const commentBody = formatCommitMessageComment(commitMsg.title, commitMsg.body);
+
+                        if (existingComment) {
+                            // Update existing comment (re-approval after changes)
+                            await adapter.updatePRComment(prNumber, existingComment.id, commentBody);
+                            console.log('  Updated commit message comment');
+                        } else {
+                            // Create new comment
+                            await adapter.addPRComment(prNumber, commentBody);
+                            console.log('  Posted commit message comment');
+                        }
+
+                        // 4. Send notification with merge/request changes buttons
+                        await notifyPRReadyToMerge(
+                            content.title,
+                            issueNumber,
+                            prNumber,
+                            commitMsg,
+                            issueType
+                        );
+                    } else {
+                        // Fallback: use old notification if PR info not available
+                        await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
+                    }
+                } else {
+                    // Request changes - use old notification (no merge button needed)
+                    await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
+                }
             }
 
             // Log execution end

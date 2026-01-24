@@ -169,3 +169,13 @@ export {
     hasPhaseComment,
     getPhaseCommentMarker,
 } from './phases';
+
+// Re-export commit message utilities (for PR merge flow)
+export {
+    generateCommitMessage,
+    formatCommitMessageComment,
+    parseCommitMessageComment,
+    type PRInfo,
+    type CommitMessageResult,
+    type PhaseInfo,
+} from './commitMessage';

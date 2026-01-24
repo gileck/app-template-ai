@@ -95,6 +95,8 @@ export {
     notifyTechDesignReady,
     notifyPRReady,
     notifyPRReviewComplete,
+    notifyPRReadyToMerge,
+    notifyMergeComplete,
     notifyAgentNeedsClarification,
     notifyAgentError,
     notifyBatchComplete,
