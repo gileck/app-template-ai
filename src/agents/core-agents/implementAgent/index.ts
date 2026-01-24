@@ -858,8 +858,12 @@ See issue #${issueNumber} for full context, product design, and technical design
                     console.warn('  Warning: Failed to trigger Claude Code review:', error instanceof Error ? error.message : String(error));
                 }
 
-                // Add comment on issue linking to PR
-                const prLinkComment = addAgentPrefix('implementor', `Implementation PR: #${prNumber}`);
+                // Add status comment on issue (phase-aware)
+                const phasePrefix = currentPhase && totalPhases
+                    ? `**Phase ${currentPhase}/${totalPhases}**: `
+                    : '';
+                const phaseName = currentPhaseDetails?.name ? ` - ${currentPhaseDetails.name}` : '';
+                const prLinkComment = addAgentPrefix('implementor', `📋 ${phasePrefix}Opening PR #${prNumber}${phaseName}`);
                 await adapter.addIssueComment(issueNumber, prLinkComment);
 
                 // Post summary comment on PR (if available)
@@ -870,8 +874,15 @@ See issue #${issueNumber} for full context, product design, and technical design
                     logGitHubAction(logCtx, 'comment', 'Posted implementation summary comment on PR');
                 }
         } else {
-            // Add comment on PR about addressed feedback
+            // Feedback mode: Add comments on both issue and PR
             if (prNumber) {
+                // Add status comment on issue (phase-aware)
+                const feedbackPhasePrefix = currentPhase && totalPhases
+                    ? `**Phase ${currentPhase}/${totalPhases}**: `
+                    : '';
+                const issueStatusComment = addAgentPrefix('implementor', `🔧 ${feedbackPhasePrefix}Addressed feedback on PR #${prNumber} - ready for re-review`);
+                await adapter.addIssueComment(issueNumber, issueStatusComment);
+
                 // Use structured output comment if available, otherwise fallback
                 let feedbackComment: string;
                 if (comment) {
@@ -887,8 +898,8 @@ See issue #${issueNumber} for full context, product design, and technical design
                 }
                 const prefixedComment = addAgentPrefix('implementor', feedbackComment);
                 await adapter.addPRComment(prNumber, prefixedComment);
-                console.log('  Feedback response comment posted on PR');
-                logGitHubAction(logCtx, 'comment', 'Posted feedback response comment on PR');
+                console.log('  Feedback response comment posted on issue and PR');
+                logGitHubAction(logCtx, 'comment', 'Posted feedback response comment on issue and PR');
             }
         }
 

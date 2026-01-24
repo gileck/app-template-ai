@@ -344,6 +344,18 @@ async function processItem(
                 await adapter.submitPRReview(prNumber, reviewEvent, prefixedReview);
                 console.log(`  Submitted official GitHub review: ${reviewEvent}`);
 
+                // Add status comment on issue (phase-aware)
+                const phaseLabel = processable.phaseInfo
+                    ? `**Phase ${processable.phaseInfo.current}/${processable.phaseInfo.total}**: `
+                    : '';
+                const statusEmoji = decision === 'approved' ? '✅' : '⚠️';
+                const statusText = decision === 'approved'
+                    ? 'PR approved - ready for merge'
+                    : 'Changes requested on PR';
+                const issueStatusComment = addAgentPrefix('pr-review', `${statusEmoji} ${phaseLabel}${statusText} (#${prNumber})`);
+                await adapter.addIssueComment(issueNumber, issueStatusComment);
+                console.log('  Status comment posted on issue');
+
                 // Update review status
                 // - If approved: set to "Approved" (agent won't pick it up again, admin can merge)
                 // - If requesting changes: set to "Request Changes" (implement agent can address it)

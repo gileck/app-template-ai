@@ -1,4 +1,4 @@
-name: Mark Issue Done on PR Merge
+name: On PR Merged - Handle Phase Transitions
 
 # Trigger when a PR is closed
 on:
@@ -6,7 +6,7 @@ on:
     types: [closed]
 
 jobs:
-  mark-done:
+  on-pr-merged:
     # Only run if PR was actually merged (not just closed)
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Mark issue as Done
+      - name: Handle PR merge (phase transitions + status comments)
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           GITHUB_OWNER: ${{ vars.PROJECT_OWNER }}
@@ -36,4 +36,4 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
         run: |
-          yarn tsx scripts/mark-issue-done.ts
+          yarn tsx scripts/on-pr-merged.ts

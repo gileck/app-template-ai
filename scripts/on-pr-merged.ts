@@ -1,17 +1,27 @@
 #!/usr/bin/env tsx
 /**
- * Mark Issue as Done on PR Merge (Phase-Aware)
+ * On PR Merged - Handle Phase Transitions
  *
  * This script is triggered by GitHub Actions when a PR is merged.
- * It extracts the issue number from the PR body, finds the corresponding
- * project item, and updates its status.
+ * It handles all PR merge events including multi-phase transitions.
+ *
+ * What it does:
+ * 1. Extracts issue number from PR body ("Closes #X" or "Part of #X")
+ * 2. Finds the corresponding project item
+ * 3. Posts a status comment on the issue
+ * 4. Updates project status based on phase:
  *
  * For multi-phase features (L/XL):
- * - If more phases remain: increments phase counter, returns to Implementation
- * - If all phases complete: marks as Done
+ * - Mid-phase merge: Increments phase counter (1/3 → 2/3), returns to Implementation
+ * - Final phase merge: Clears phase, marks as Done
  *
  * For single-phase features:
  * - Marks as Done immediately
+ *
+ * Status Comments Posted:
+ * - Mid-phase: "✅ Phase X/Y complete - Merged PR #Z. Starting Phase X+1..."
+ * - Final phase: "✅ Phase X/X complete - All phases done!"
+ * - Single-phase: "✅ Merged PR #Z - Issue complete!"
  */
 
 import '../src/agents/shared/loadEnv';
@@ -93,6 +103,11 @@ async function main() {
                 const nextPhase = parsedPhase.current + 1;
                 console.log(`\n🔄 Phase ${parsedPhase.current} complete, starting Phase ${nextPhase}...`);
 
+                // Add status comment on issue
+                const phaseCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}...`;
+                await adapter.addIssueComment(issueNumber, phaseCompleteComment);
+                console.log(`  Phase completion comment added to issue`);
+
                 // Update phase counter
                 await adapter.setImplementationPhase(item.id, `${nextPhase}/${parsedPhase.total}`);
                 console.log(`  Implementation Phase updated to: ${nextPhase}/${parsedPhase.total}`);
@@ -143,8 +158,19 @@ Run <code>yarn agent:implement</code> to continue.`;
 
             // All phases complete - clear phase field and proceed to Done
             console.log(`\n🎉 All ${parsedPhase.total} phases complete!`);
+
+            // Add final phase completion comment
+            const allPhasesCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🎉 **All ${parsedPhase.total} phases complete!** Issue is now Done.`;
+            await adapter.addIssueComment(issueNumber, allPhasesCompleteComment);
+            console.log('  Final phase completion comment added to issue');
+
             await adapter.clearImplementationPhase(item.id);
             console.log('  Cleared Implementation Phase field');
+        } else {
+            // Single-phase feature - add completion comment
+            const completionComment = `✅ Merged PR #${prNumber} - Issue complete!`;
+            await adapter.addIssueComment(issueNumber, completionComment);
+            console.log('  Completion comment added to issue');
         }
 
         // Update GitHub Project status to Done
