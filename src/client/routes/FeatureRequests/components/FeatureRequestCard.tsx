@@ -98,16 +98,16 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
     };
 
     return (
-        <Card className="relative border border-border shadow-sm transition-all duration-200 ease-out hover:shadow-md">
+        <Card className="relative border border-border shadow-sm transition-all duration-200 ease-out hover:shadow-md overflow-hidden">
             {/* Left-edge status indicator strip (4px) */}
             <StatusIndicatorStrip request={request} githubStatus={githubStatus?.status} />
 
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 pt-3 px-4">
                 {/* 3-zone layout: Left (handled by strip), Center (main content), Right (actions) */}
                 <div className="flex items-start justify-between gap-3">
                     {/* Center Zone: Main Content */}
                     <div
-                        className="flex-1 space-y-1.5 cursor-pointer pl-2"
+                        className="flex-1 min-w-0 cursor-pointer pl-2"
                         onClick={handleCardClick}
                         role="button"
                         tabIndex={0}
@@ -118,13 +118,13 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                             }
                         }}
                     >
-                        {/* Title - max 2 lines */}
-                        <CardTitle className="text-base font-semibold leading-tight line-clamp-2 hover:text-primary transition-colors">
+                        {/* Title - max 2 lines, semibold, high contrast */}
+                        <CardTitle className="text-base font-semibold leading-tight line-clamp-2 hover:text-primary transition-colors mb-1.5">
                             {request.title}
                         </CardTitle>
 
-                        {/* Status Row: Inline badges and metadata icons */}
-                        <div className="flex flex-wrap items-center gap-2">
+                        {/* Status Row: Inline badges and metadata icons with compact spacing */}
+                        <div className="flex flex-wrap items-center gap-1.5">
                             {/* Show GitHub status as primary when linked, fallback to DB status */}
                             {request.githubProjectItemId ? (
                                 isLoadingGitHubStatus ? (
@@ -148,18 +148,18 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         </div>
                     </div>
 
-                    {/* Right Zone: Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Right Zone: Actions - compact and aligned */}
+                    <div className="flex items-start gap-1 flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
                         {canApprove && (
                             <Button
                                 variant="default"
                                 size="sm"
                                 onClick={handleApprove}
                                 disabled={approveMutation.isPending}
-                                className="gap-1"
+                                className="gap-1 h-8"
                             >
-                                <CheckCircle className="h-4 w-4" />
-                                {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">{approveMutation.isPending ? 'Approving...' : 'Approve'}</span>
                             </Button>
                         )}
                         {canReviewDesign && (
@@ -167,16 +167,18 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setShowDesignReview(true)}
-                                className="gap-1"
+                                className="gap-1 h-8"
                             >
-                                <Eye className="h-4 w-4" />
-                                Review
+                                <Eye className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Review</span>
                             </Button>
                         )}
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsExpanded(!isExpanded)}
+                            className="h-8 w-8"
+                            aria-label={isExpanded ? 'Collapse' : 'Expand'}
                         >
                             {isExpanded ? (
                                 <ChevronUp className="h-4 w-4" />
@@ -265,25 +267,25 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
             </CardHeader>
 
             {isExpanded && (
-                <CardContent className="space-y-5 pt-3 transition-all duration-200 ease-out">
+                <CardContent className="space-y-4 pt-2 px-4 pb-4 transition-all duration-200 ease-out">
                     <div className="space-y-2 rounded-lg bg-muted/20 p-3">
                         <h4 className="text-sm font-medium">Description</h4>
-                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                        <p className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
                             {request.description}
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-sm">
-                        <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1.5">
                             <User className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-muted-foreground">{request.requestedByName}</span>
                         </div>
-                        <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
+                        <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1.5">
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-muted-foreground">{new Date(request.createdAt).toLocaleDateString()}</span>
                         </div>
                         {request.page && (
-                            <div className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1">
+                            <div className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1.5">
                                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                                 <span className="text-muted-foreground">{request.page}</span>
                             </div>
@@ -344,7 +346,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         <div className="space-y-3 rounded-lg bg-muted/20 p-3">
                             <div className="flex items-center gap-2">
                                 <h4 className="text-sm font-medium">Comments</h4>
-                                <span className="inline-flex items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+                                <span className="inline-flex items-center justify-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                     {request.comments.length}
                                 </span>
                             </div>
@@ -352,22 +354,22 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                                 {request.comments.slice(-3).map((comment) => (
                                     <div
                                         key={comment.id}
-                                        className={`rounded-md border p-3 text-sm shadow-sm ${
-                                            comment.isAdmin ? 'bg-background' : 'bg-background/50'
+                                        className={`rounded-md border border-border/50 p-3 text-sm ${
+                                            comment.isAdmin ? 'bg-background' : 'bg-muted/10'
                                         }`}
                                     >
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <div className="flex flex-wrap items-center gap-2 text-xs">
                                             <span className="font-medium text-foreground">{comment.authorName}</span>
                                             {comment.isAdmin && (
-                                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
                                                     Admin
                                                 </span>
                                             )}
-                                            <span>
+                                            <span className="text-muted-foreground">
                                                 {new Date(comment.createdAt).toLocaleString()}
                                             </span>
                                         </div>
-                                        <p className="mt-2 text-foreground">{comment.content}</p>
+                                        <p className="mt-2 text-sm text-foreground leading-relaxed">{comment.content}</p>
                                     </div>
                                 ))}
                             </div>

@@ -68,6 +68,7 @@ interface GitHubStatusBadgeProps {
 /**
  * Badge for GitHub Project statuses
  * Maps common GitHub statuses to appropriate badge variants
+ * Displays review status inline with main status
  */
 export function GitHubStatusBadge({ status, reviewStatus }: GitHubStatusBadgeProps) {
     // Map GitHub status to badge variant
@@ -84,13 +85,25 @@ export function GitHubStatusBadge({ status, reviewStatus }: GitHubStatusBadgePro
         return 'outline'; // fallback
     };
 
+    // Get appropriate icon for status
+    const getIcon = (githubStatus: string) => {
+        const statusLower = githubStatus.toLowerCase();
+
+        if (statusLower === 'done') return <CheckCircle className="h-3 w-3" />;
+        if (statusLower === 'in progress') return <Hammer className="h-3 w-3" />;
+        if (statusLower === 'blocked') return <XCircle className="h-3 w-3" />;
+
+        return <CircleDot className="h-3 w-3" />;
+    };
+
     return (
-        <div className="flex items-center gap-2">
-            <Badge variant={getVariant(status)}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={getVariant(status)} className="gap-1">
+                {getIcon(status)}
                 {status}
             </Badge>
             {reviewStatus && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                     ({reviewStatus})
                 </span>
             )}

@@ -18,42 +18,45 @@ export function MetadataIconRow({ request }: MetadataIconRowProps) {
     const isStale = daysSinceUpdate > 7;
 
     return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {/* Owner indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {/* Owner indicator - show only icon on mobile, name on larger screens */}
             {request.requestedByName && (
-                <div className="flex items-center gap-1" title={`Requested by ${request.requestedByName}`}>
-                    <User className="h-4 w-4" />
-                    <span className="hidden sm:inline">{request.requestedByName}</span>
+                <div
+                    className="flex items-center gap-1"
+                    title={`Requested by ${request.requestedByName}`}
+                >
+                    <User className="h-3.5 w-3.5" />
+                    <span className="hidden md:inline text-xs">{request.requestedByName}</span>
                 </div>
             )}
 
-            {/* GitHub issue link */}
+            {/* GitHub issue link - compact display */}
             {request.githubIssueUrl && (
                 <a
                     href={request.githubIssueUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors"
-                    title={`Issue #${request.githubIssueNumber}`}
+                    title={`GitHub Issue #${request.githubIssueNumber}`}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <ExternalLink className="h-4 w-4" />
-                    <span className="hidden sm:inline">#{request.githubIssueNumber}</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span className="text-xs">#{request.githubIssueNumber}</span>
                 </a>
             )}
 
-            {/* GitHub PR link */}
+            {/* GitHub PR link - compact display */}
             {request.githubPrUrl && (
                 <a
                     href={request.githubPrUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors"
-                    title={`PR #${request.githubPrNumber}`}
+                    title={`Pull Request #${request.githubPrNumber}`}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <GitPullRequest className="h-4 w-4" />
-                    <span className="hidden sm:inline">#{request.githubPrNumber}</span>
+                    <GitPullRequest className="h-3.5 w-3.5" />
+                    <span className="text-xs">#{request.githubPrNumber}</span>
                 </a>
             )}
 
@@ -63,8 +66,8 @@ export function MetadataIconRow({ request }: MetadataIconRowProps) {
                     className="flex items-center gap-1 text-warning"
                     title={`Last updated ${daysSinceUpdate} days ago`}
                 >
-                    <Clock className="h-4 w-4" />
-                    <span className="hidden sm:inline">{daysSinceUpdate}d</span>
+                    <Clock className="h-3.5 w-3.5" />
+                    <span className="text-xs">{daysSinceUpdate}d</span>
                 </div>
             )}
         </div>
