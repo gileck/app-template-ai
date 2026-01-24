@@ -103,7 +103,16 @@ ${comment.body}
 `;
     }
 
-    section += `**Note:** If Claude (GitHub App) has reviewed this PR, use his feedback as optional helpful guidance but not as final authority. You are the final decision maker.
+    section += `**⚠️ IMPORTANT - Claude GitHub App Feedback:**
+If Claude (GitHub App) has reviewed this PR, you MUST explicitly respond to each point he raised. Include a "Claude Feedback Response" section in your review:
+
+\`\`\`
+### Claude Feedback Response
+1. [Claude's point about X] - **AGREE** - Added to changes requested
+2. [Claude's point about Y] - **DISAGREE** - This pattern is acceptable because [reason]
+\`\`\`
+
+You are the final decision maker, but you must provide reasoning for each point you agree or disagree with. Do not silently ignore Claude's feedback.
 
 ---
 

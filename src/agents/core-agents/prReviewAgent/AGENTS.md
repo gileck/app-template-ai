@@ -495,28 +495,26 @@ This ensures the commit message always reflects the current state of the PR.
 
 ### Handling Claude's Feedback
 
-All PR comments (including Claude bot comments) are passed together to the prompt. The prompt includes a note:
+All PR comments (including Claude bot comments) are passed together to the prompt. The agent is **required to explicitly respond to Claude's feedback** if present.
 
-> "If Claude (GitHub App) has reviewed this PR, use his feedback as optional helpful guidance but not as final authority. You are the final decision maker."
-
-**Simplified approach:**
-- No special detection of Claude bot comments
-- All comments shown with their authors
-- Agent can see who wrote what and decide accordingly
+**Required Response Format:**
+```markdown
+### Claude Feedback Response
+1. [Claude's point about X] - **AGREE** - Added to changes requested
+2. [Claude's point about Y] - **DISAGREE** - This pattern is acceptable because [reason]
+```
 
 ### Authority Hierarchy
 
-```markdown
-## Your Role and Authority
+The PR Review Agent is the final authority, but must:
+1. **Explicitly acknowledge** each point Claude raised
+2. **State AGREE or DISAGREE** for each point
+3. **Provide reasoning** for disagreements
 
-**You are the FINAL AUTHORITY on this PR review.** Your decision determines the status.
-
-If Claude (GitHub App) has reviewed this PR:
-- Use his feedback as optional helpful guidance
-- You may override his suggestions if they conflict with project priorities
-- You may approve even if Claude requested changes (if you determine they're not necessary)
-- Use your judgment based on project guidelines
-```
+This ensures:
+- Claude's feedback is never silently ignored
+- There's a clear audit trail of why feedback was accepted/rejected
+- Valid feedback gets incorporated into the review
 
 ## LLM Response Format
 
