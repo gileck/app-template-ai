@@ -14,16 +14,24 @@ Display all available tasks from `task-manager/tasks.md` organized by priority.
   - Read the `task-manager/tasks.md` file from the project root
   - Parse all tasks with their metadata (number, title, priority, size, complexity)
 
-### Step 2: Organize by Priority
-- **Objective**: Group tasks for easy decision-making
+### Step 2: Separate Active and Completed Tasks
+- **Objective**: Distinguish between tasks to work on and completed tasks
 - **Actions**:
-  - Group tasks by priority: Critical → High → Medium → Low
-  - Within each priority, maintain task order by number
+  - Identify tasks marked as DONE (have "## ~~N. Title~~" or status indicating completion)
+  - Keep active (not done) tasks in the main list
+  - Save completed tasks for display at the bottom
 
-### Step 3: Display Task List
-- **Objective**: Present tasks in a clear, actionable format
+### Step 3: Organize Active Tasks by Priority
+- **Objective**: Group active tasks for easy decision-making
 - **Actions**:
-  - Show tasks grouped by priority with visual indicators
+  - Group active tasks by priority: Critical → High → Medium → Low
+  - Within each priority, maintain task order by number
+  - Only include tasks that are NOT marked as done
+
+### Step 4: Display Active Task List
+- **Objective**: Present active tasks in a clear, actionable format
+- **Actions**:
+  - Show active tasks grouped by priority with visual indicators
   - Display task number, title, and size for each task
   - Use emojis for priority levels:
     - 🔴 Critical
@@ -31,38 +39,55 @@ Display all available tasks from `task-manager/tasks.md` organized by priority.
     - 🟡 Medium
     - 🟢 Low
 
-### Step 4: Recommend Next Task
+### Step 5: Display Completed Tasks
+- **Objective**: Show completed tasks for reference without cluttering main list
+- **Actions**:
+  - Add a separator (e.g., "---")
+  - Show section header: "✅ Completed Tasks"
+  - List completed tasks with strikethrough formatting
+  - Include task number, title, and size
+
+### Step 6: Recommend Next Task
 - **Objective**: Help user prioritize work
 - **Actions**:
-  - Identify the highest priority task that's not marked as done
+  - Identify the highest priority active task (not marked as done)
   - Suggest it as the next task to work on
   - Mention the size estimate to set expectations
 
 ## Example Output Format
 
 ```
-📋 Tasks by Priority
+📋 Active Tasks by Priority
 
 🔴 Critical:
-  1. Fix Cost Tracking Bug in Implementation Agent (XS)
+  2. Debug PR Reviewer + Claude Integration (S)
 
 🟠 High:
-  2. Debug PR Reviewer + Claude Integration (S)
-  3. Add "Ready to Merge" Status with Admin Approval Gate (M)
-
-🟡 Medium:
   4. Add Agent Retry Logic for Transient Failures (M)
   5. Add Stale Item Detection Workflow (M)
+
+🟡 Medium:
+  6. Improve Error Messages in Tech Design Agent (S)
+  7. Add Notification System for Agent Events (M)
 
 🟢 Low:
   10. Add Cost Budgeting and Alerts (M)
 
-💡 Recommended: Start with Task 1 (Critical, XS size)
+---
+
+✅ Completed Tasks:
+  ~~1. Fix Cost Tracking Bug in Implementation Agent (XS)~~
+  ~~3. Add "Ready to Merge" Status with Admin Approval Gate (M)~~
+  ~~8. Update Documentation for GitHub Projects Setup (S)~~
+
+💡 Recommended: Start with Task 2 (Critical, S size)
 ```
 
 ## Quick Checklist
 
 - [ ] Tasks file read successfully
-- [ ] Tasks organized by priority
-- [ ] Task list displayed clearly
+- [ ] Active and completed tasks separated
+- [ ] Active tasks organized by priority
+- [ ] Active task list displayed clearly
+- [ ] Completed tasks shown at bottom
 - [ ] Recommendation provided
