@@ -13,7 +13,9 @@
     "src/client/routes/index.ts",
     "src/apis/apis.ts"
   ],
-  "projectSpecificFiles": [],
+  "projectSpecificFiles": [
+    "task-manager/tasks.md"
+  ],
   "templateIgnoredFiles": [
     ".claude/commands/sync-children.md",
     "scripts/sync-child-projects.ts",

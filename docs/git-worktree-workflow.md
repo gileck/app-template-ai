@@ -14,12 +14,18 @@ Best practices for using git worktrees to implement features and fixes with clea
 
 ```bash
 # From main project directory
+MAIN_PROJECT_PATH=$(pwd)
 git worktree add -b fix/my-fix ../my-project-fix HEAD
 
-# Go to worktree and install dependencies
+# Go to worktree and symlink node_modules (faster than reinstalling)
 cd ../my-project-fix
-yarn install
+ln -s "${MAIN_PROJECT_PATH}/node_modules" node_modules
 ```
+
+**Why symlink node_modules?**
+- **Faster**: No need to reinstall dependencies (saves minutes)
+- **Saves disk space**: Doesn't duplicate node_modules (saves GBs)
+- **Same dependencies**: Uses exact same packages as main workspace
 
 **Naming convention:**
 - `fix/descriptive-name` - for bug fixes
@@ -96,15 +102,16 @@ git push origin --delete fix/my-fix
 
 ```bash
 # === CREATE ===
+MAIN_PROJECT_PATH=$(pwd)
 git worktree add -b fix/my-fix ../project-fix HEAD
-cd ../project-fix && yarn install
+cd ../project-fix && ln -s "${MAIN_PROJECT_PATH}/node_modules" node_modules
 
 # === WORK ===
 # ... make changes, commit freely ...
 yarn checks
 
 # === MERGE (from main worktree) ===
-cd /main/project
+cd "${MAIN_PROJECT_PATH}"
 git merge --squash fix/my-fix
 git commit -m "fix: detailed message"
 git push origin main
