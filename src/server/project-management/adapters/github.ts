@@ -1119,14 +1119,17 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         const oc = this.getOctokit();
         const { owner, repo } = this.config.github;
 
+        console.log(`  🔍 Checking if branch exists on GitHub: ${branchName}`);
         try {
             await oc.git.getRef({
                 owner,
                 repo,
                 ref: `heads/${branchName}`,
             });
+            console.log(`  ✅ Branch exists on GitHub`);
             return true;
         } catch {
+            console.log(`  ℹ️  Branch not found on GitHub (404 is expected - will create it)`);
             return false;
         }
     }
