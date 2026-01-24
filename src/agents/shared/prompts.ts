@@ -812,9 +812,16 @@ Implement the feature as specified in ${implementationSource}:
 - \`.cursor/rules/feature-based-structure.mdc\` - File organization by feature
 - \`.cursor/rules/ui-design-guidelines.mdc\` - UI/UX patterns
 - \`.cursor/rules/shadcn-usage.mdc\` - shadcn/ui component usage
+- \`.cursor/rules/theming-guidelines.mdc\` - **CRITICAL** Theming and color usage
 - \`.cursor/rules/client-server-communications.mdc\` - API patterns
 - \`.cursor/rules/mongodb-usage.mdc\` - Database operations (if applicable)
 - \`.cursor/rules/app-guidelines-checklist.mdc\` - Comprehensive checklist
+
+**THEMING (Read \`docs/theming.md\` and \`.cursor/rules/theming-guidelines.mdc\` before styling)**:
+- **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
+- **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
+- For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
+- Exception: Dialog overlays may use \`bg-black/60\` for backdrop opacity
 
 Key principles:
 - Follow the existing code patterns in the codebase
@@ -822,7 +829,6 @@ Key principles:
 - Follow the project's ESLint rules
 - Keep components small and focused
 - Use existing UI components from shadcn/ui
-- Use semantic color tokens (bg-background, not bg-white)
 - For state management, use React Query for server state and Zustand for client state
 
 ## Important Notes
@@ -945,6 +951,12 @@ You have received feedback from two different reviewers with distinct roles:
 ## Guidelines
 
 **Follow project guidelines in \`.cursor/rules/\`** (same as initial implementation)
+
+**THEMING (Read \`docs/theming.md\` and \`.cursor/rules/theming-guidelines.mdc\` if fixing styling issues)**:
+- **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
+- **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
+- For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
+- Exception: Dialog overlays may use \`bg-black/60\` for backdrop opacity
 
 Key principles:
 - Address ALL feedback points
