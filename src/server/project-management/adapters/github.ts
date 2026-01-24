@@ -1116,6 +1116,59 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }
     }
 
+    /**
+     * Find the open PR for an issue.
+     *
+     * For feedback mode (Request Changes), we need to find the currently open PR
+     * to push fixes to. This method searches for open PRs that reference the issue
+     * and returns both the PR number AND the branch name (from the PR itself).
+     *
+     * Why get branch from PR instead of regenerating?
+     * - Branch name is deterministic but depends on title + phase
+     * - If title changed or phase is wrong, regeneration fails
+     * - The PR itself knows its actual branch name - use that!
+     *
+     * @returns PR number and branch name, or null if no open PR found
+     */
+    async findOpenPRForIssue(issueNumber: number): Promise<{ prNumber: number; branchName: string } | null> {
+        try {
+            const oc = this.getOctokit();
+            const { owner, repo } = this.config.github;
+
+            // List open PRs
+            const { data: prs } = await oc.pulls.list({
+                owner,
+                repo,
+                state: 'open',
+                per_page: 100, // Should be enough for most repos
+            });
+
+            // Find PRs that reference this issue
+            // Look for "Closes #N", "Part of #N", or "#N" in PR body
+            const issuePatterns = [
+                new RegExp(`Closes\\s+#${issueNumber}\\b`, 'i'),
+                new RegExp(`Part of\\s+#${issueNumber}\\b`, 'i'),
+                new RegExp(`#${issueNumber}\\b`),
+            ];
+
+            for (const pr of prs) {
+                const body = pr.body || '';
+                const matchesIssue = issuePatterns.some(pattern => pattern.test(body));
+
+                if (matchesIssue) {
+                    return {
+                        prNumber: pr.number,
+                        branchName: pr.head.ref, // The actual branch name from the PR
+                    };
+                }
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
+    }
+
     async createBranch(branchName: string): Promise<void> {
         const oc = this.getOctokit();
         const { owner, repo } = this.config.github;

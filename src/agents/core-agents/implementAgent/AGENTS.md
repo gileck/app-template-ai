@@ -292,12 +292,19 @@ Expected files to modify:
    - Review Status: "Request Changes"
    - Has existing PR
 
-2. Extract PR number from comments
-   - Look for "PR #123" in comments
-   - If not found → Error
+2. Find the OPEN PR for this issue (CRITICAL FOR MULTI-PHASE!)
+   - Use findOpenPRForIssue(issueNumber)
+   - Search open PRs, find one referencing this issue
+   - Returns BOTH: prNumber AND branchName
+   - If not found → Error (no open PR to fix)
+
+   WHY NOT regenerate branch name?
+   - Branch name = f(title, phase) - could change
+   - PR itself KNOWS its actual branch name
+   - Getting from PR = 100% reliable
 
 3. Checkout existing branch
-   - Branch name from PR
+   - Use branch name FROM the PR (not regenerated)
    - Pull latest changes
 
 4. Load PR context
@@ -652,16 +659,30 @@ if (!techDesign) {
 
 **Impact:** Agent tries to implement anyway, may fail or ask for clarification
 
-### 5. PR Already Exists
+### 5. PR Handling in Different Modes
 
-**Scenario:** Running agent when PR already created
+**Scenario A: New Implementation (mode === 'new')**
 
-**Handling:**
-- No explicit check
-- Git push will update existing branch
-- New PR won't be created (GitHub prevents duplicates)
+When status is "Ready for dev" with empty Review Status:
+- **Always creates a new PR** - no idempotency check
+- Why? In multi-phase workflows, old merged PRs from previous phases would be incorrectly detected as "existing" PRs
+- If a PR already exists for the same branch, git push will update it
 
-**Impact:** Updates existing PR with new commits
+**Scenario B: Addressing Feedback (mode === 'feedback')**
+
+When status is "Implementation" (returned from PR Review) with Review Status = "Request Changes":
+- **Must find the OPEN PR** using `findOpenPRForIssue()`
+- Gets both PR number AND branch name from the open PR
+- If no open PR found → Skip with warning (no PR to fix)
+
+**Why get branch from PR?**
+- Branch name is deterministic but depends on title + phase
+- If title changed or phase number doesn't match expectations, regeneration fails
+- The PR itself knows its actual branch name - use that!
+
+**Impact:**
+- New mode: Always creates new PR, no risk of reusing merged PRs
+- Feedback mode: Uses existing open PR with correct branch name
 
 ### 6. Phase Out of Bounds
 

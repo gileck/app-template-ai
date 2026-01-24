@@ -95,6 +95,15 @@ interface ProcessableItem {
     item: ProjectItem;
     mode: 'new' | 'feedback' | 'clarification';
     prNumber?: number;
+    /**
+     * Branch name for feedback mode.
+     * For feedback mode, this is retrieved FROM the open PR (not regenerated).
+     * This is more reliable than regenerating because:
+     * - Title could have changed
+     * - Phase number could be wrong
+     * - The PR itself knows its actual branch name
+     */
+    branchName?: string;
     /** Phase info for multi-PR workflow */
     phaseInfo?: {
         current: number;
@@ -413,8 +422,16 @@ async function processItem(
             console.log(`  📋 Continuing phase ${currentPhase}/${totalPhases}`);
         }
 
-        // Generate branch name (with phase if multi-phase)
-        const branchName = generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
+        // Determine branch name:
+        // - For feedback mode: use the branch name from the OPEN PR (more reliable)
+        // - For new/clarification mode: generate the branch name
+        const branchName = (mode === 'feedback' && processable.branchName)
+            ? processable.branchName
+            : generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
+
+        if (mode === 'feedback' && processable.branchName) {
+            console.log(`  Using branch from PR: ${branchName}`);
+        }
 
         if (!techDesign && !productDesign) {
             console.log('  Note: No design documents found - implementing from issue description only');
@@ -751,16 +768,14 @@ ${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have alrea
         let prNumber = processable.prNumber;
 
         // Create PR if new implementation
+        // NOTE: No idempotency check here - for new implementations, we ALWAYS create a new PR
+        // Reason: In multi-phase workflows, old merged PRs from previous phases would be
+        // incorrectly detected as "existing" PRs. Instead, we simply create new PRs.
+        // If there's truly a duplicate (e.g., crash recovery), GitHub will return an error
+        // that we can handle gracefully.
         if (mode === 'new') {
-            // Check if PR already exists (idempotency check)
-            const existingPRNumber = await extractPRNumber({ ...item, content: { ...content, number: issueNumber } }, adapter);
-            if (existingPRNumber) {
-                console.log(`  ⚠️  PR #${existingPRNumber} already exists for this issue - skipping PR creation`);
-                console.log(`  Using existing PR instead`);
-                prNumber = existingPRNumber;
-            } else {
-                console.log('  Creating pull request...');
-                const defaultBranch = await adapter.getDefaultBranch();
+            console.log('  Creating pull request...');
+            const defaultBranch = await adapter.getDefaultBranch();
 
                 // Get list of changed files for PR description
                 const changedFiles = getChangedFiles();
@@ -854,7 +869,6 @@ See issue #${issueNumber} for full context, product design, and technical design
                     console.log('  Summary comment posted on PR');
                     logGitHubAction(logCtx, 'comment', 'Posted implementation summary comment on PR');
                 }
-            } // Close else block for existingPRNumber check
         } else {
             // Add comment on PR about addressed feedback
             if (prNumber) {
@@ -941,36 +955,6 @@ See issue #${issueNumber} for full context, product design, and technical design
             return { success: false, error: errorMsg };
         }
     });
-}
-
-/**
- * Extract PR number from a project item
- * The PR might be linked in comments or in the content
- */
-async function extractPRNumber(
-    item: ProjectItem,
-    adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>
-): Promise<number | undefined> {
-    if (!item.content?.number) return undefined;
-
-    // Check issue comments for PR link
-    const comments = await adapter.getIssueComments(item.content.number);
-    for (const comment of comments) {
-        // Look for "PR: #123" or "Implementation PR: #123" pattern
-        const match = comment.body.match(/(?:PR|Pull Request)[:\s]*#(\d+)/i);
-        if (match) {
-            const prNumber = parseInt(match[1], 10);
-
-            // Check if PR is still open (ignore closed/merged PRs for multi-phase features)
-            const prDetails = await adapter.getPRDetails(prNumber);
-            if (prDetails && prDetails.state === 'open') {
-                return prNumber;
-            }
-            // PR is closed/merged - continue searching for an open PR
-        }
-    }
-
-    return undefined;
 }
 
 async function main(): Promise<void> {
@@ -1065,6 +1049,7 @@ async function main(): Promise<void> {
         // Determine mode based on current status and review status
         let mode: 'new' | 'feedback' | 'clarification';
         let prNumber: number | undefined;
+        let branchName: string | undefined;
 
         if (item.status === STATUSES.implementation && !item.reviewStatus) {
             mode = 'new';
@@ -1073,7 +1058,13 @@ async function main(): Promise<void> {
             item.reviewStatus === REVIEW_STATUSES.requestChanges
         ) {
             mode = 'feedback';
-            prNumber = await extractPRNumber(item, adapter);
+            // Find the open PR and get both PR number AND branch name from it
+            // Getting branch from PR is more reliable than regenerating (title/phase could change)
+            const openPR = await adapter.findOpenPRForIssue(item.content?.number || 0);
+            if (openPR) {
+                prNumber = openPR.prNumber;
+                branchName = openPR.branchName;
+            }
         } else if (item.status === STATUSES.implementation && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
             mode = 'clarification';
         } else if (item.status === STATUSES.implementation && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
@@ -1088,9 +1079,10 @@ async function main(): Promise<void> {
             process.exit(1);
         }
 
-        itemsToProcess.push({ item, mode, prNumber });
+        itemsToProcess.push({ item, mode, prNumber, branchName });
     } else {
         // Flow A: Fetch items ready for implementation (Implementation status with empty Review Status)
+        // For new implementations, we ALWAYS create a new PR (no idempotency check needed)
         console.log(`\nFetching items in "${STATUSES.implementation}" with empty Review Status...`);
         const allImplementationItems = await adapter.listItems({ status: STATUSES.implementation, limit: options.limit || 50 });
         const newItems = allImplementationItems.filter((item) => !item.reviewStatus);
@@ -1100,14 +1092,25 @@ async function main(): Promise<void> {
         console.log(`  Found ${newItems.length} item(s) for implementation`);
 
         // Flow B: Fetch items needing revision (Implementation or PR Review status with Request Changes)
+        // For feedback mode, we find the OPEN PR and get its branch name directly from the PR
+        // This is more reliable than regenerating the branch name (title/phase could have changed)
         if (adapter.hasReviewStatusField()) {
             console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.requestChanges}"...`);
             const feedbackItems = allImplementationItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
             );
             for (const item of feedbackItems) {
-                const prNumber = await extractPRNumber(item, adapter);
-                itemsToProcess.push({ item, mode: 'feedback', prNumber });
+                const openPR = await adapter.findOpenPRForIssue(item.content?.number || 0);
+                if (openPR) {
+                    itemsToProcess.push({
+                        item,
+                        mode: 'feedback',
+                        prNumber: openPR.prNumber,
+                        branchName: openPR.branchName,
+                    });
+                } else {
+                    console.log(`  ⚠️ No open PR found for issue #${item.content?.number} - skipping`);
+                }
             }
             console.log(`  Found ${feedbackItems.length} item(s) in "${STATUSES.implementation}" needing revision`);
 
@@ -1118,8 +1121,17 @@ async function main(): Promise<void> {
                 (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
             );
             for (const item of prFeedbackItems) {
-                const prNumber = await extractPRNumber(item, adapter);
-                itemsToProcess.push({ item, mode: 'feedback', prNumber });
+                const openPR = await adapter.findOpenPRForIssue(item.content?.number || 0);
+                if (openPR) {
+                    itemsToProcess.push({
+                        item,
+                        mode: 'feedback',
+                        prNumber: openPR.prNumber,
+                        branchName: openPR.branchName,
+                    });
+                } else {
+                    console.log(`  ⚠️ No open PR found for issue #${item.content?.number} - skipping`);
+                }
             }
             console.log(`  Found ${prFeedbackItems.length} item(s) in "${STATUSES.prReview}" needing revision`);
 

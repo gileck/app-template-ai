@@ -325,6 +325,20 @@ export interface ProjectManagementAdapter {
      */
     getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null>;
 
+    /**
+     * Find the open PR for an issue.
+     *
+     * For feedback mode (Request Changes), finds the currently open PR
+     * to push fixes to. Returns both PR number AND branch name (from the PR itself).
+     *
+     * Why get branch from PR?
+     * - Branch name depends on title + phase - regenerating may fail if these changed
+     * - The PR itself knows its actual branch name - use that!
+     *
+     * @returns PR number and branch name, or null if no open PR found
+     */
+    findOpenPRForIssue(issueNumber: number): Promise<{ prNumber: number; branchName: string } | null>;
+
     // --------------------------------------------------------
     // Branches
     // --------------------------------------------------------

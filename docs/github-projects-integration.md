@@ -1584,6 +1584,60 @@ Result: One complete log file showing the entire journey!
    - Sets Review Status back to "Waiting for Review"
 5. Admin receives notification that revisions are ready
 
+### Finding the Correct PR in Feedback Mode (Critical for Multi-Phase)
+
+When the implementation agent addresses PR feedback, it needs to find the **currently open PR** to push fixes to. This is especially critical for multi-phase workflows where an issue may have had multiple PRs over time (some already merged).
+
+**The Problem:**
+- Issue #42 has 3 phases
+- Phase 1 PR merged (PR #101 - closed)
+- Phase 2 PR is open with feedback (PR #102 - open)
+- Agent needs to find PR #102, NOT PR #101
+
+**The Solution:**
+
+The agent uses `findOpenPRForIssue()` to search for open PRs referencing the issue:
+
+```typescript
+const openPR = await adapter.findOpenPRForIssue(issueNumber);
+// Returns: { prNumber: 102, branchName: 'feature/issue-42-phase-2-...' }
+```
+
+**Key Design Decisions:**
+
+| Aspect | Decision | Why |
+|--------|----------|-----|
+| PR State | Only search **OPEN** PRs | Avoids finding old merged/closed PRs |
+| Branch Name | Get from PR, not regenerate | Branch name = f(title, phase) - if these changed, regeneration fails |
+| Single Open PR | Assume at most 1 open PR per issue | Multi-phase creates sequential PRs, not parallel |
+
+**Branch Name from PR (Not Regenerated):**
+
+Branch names are generated as: `{prefix}/issue-{N}-phase-{X}-{slug}`
+
+Why get it from the PR?
+- Title could have changed since PR was created
+- Phase number parsing might differ
+- The PR itself **knows** its actual branch name
+- Getting from PR = 100% reliable
+
+**Mode Detection:**
+
+| Status | Review Status | Mode | PR Action |
+|--------|---------------|------|-----------|
+| Ready for dev | Empty | `new` | Always create new PR |
+| Implementation | Request Changes | `feedback` | Find open PR via `findOpenPRForIssue()` |
+
+**New Mode (Always Create):**
+- No idempotency check for existing PRs
+- Reason: In multi-phase, old merged PRs would be incorrectly detected as "existing"
+- Simply creates a new PR for the new phase
+
+**Feedback Mode (Find Open PR):**
+1. Call `findOpenPRForIssue(issueNumber)`
+2. If found → checkout branch (from PR), push fixes
+3. If not found → skip with warning (no open PR to fix)
+
 ### PR Review State and Multiple Review Cycles
 
 **Understanding Two Status Systems:**
