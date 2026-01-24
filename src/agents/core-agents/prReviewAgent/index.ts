@@ -37,7 +37,6 @@ import {
     // Notifications
     notifyPRReviewComplete,
     notifyAgentError,
-    notifyBatchComplete,
     notifyAgentStarted,
     // Types
     type CommonCLIOptions,
@@ -639,10 +638,9 @@ async function run(options: PRReviewOptions): Promise<void> {
         }
     }
 
-    // Send batch notification
-    if (!options.dryRun && results.length > 0) {
-        await notifyBatchComplete('PR Review', results.length, successful, failed);
-    }
+    // Note: Individual notifications are already sent for each PR review
+    // (notifyAgentStarted, notifyPRReviewComplete, notifyAgentError)
+    // No batch notification needed
 }
 
 // ============================================================
