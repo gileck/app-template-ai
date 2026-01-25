@@ -10,14 +10,17 @@ import '../src/agents/shared/loadEnv';
  *   yarn task <command> [options]
  *
  * Commands:
- *   list                List all tasks by priority
+ *   list [filter]       List tasks (filter: open, in-progress, done, all)
  *   work                Work on a specific task
  *   worktree            Create worktree and work on task
  *   plan                Plan implementation for a task
  *   mark-done           Mark task as completed
  *
  * Examples:
- *   yarn task list
+ *   yarn task list              # All tasks grouped by status
+ *   yarn task list open         # Only open tasks
+ *   yarn task list in-progress  # Only in-progress tasks
+ *   yarn task list done         # Only completed tasks
  *   yarn task work --task 1
  *   yarn task worktree --task 3
  *   yarn task plan --task 5
@@ -33,12 +36,15 @@ import * as path from 'path';
 // Types
 // ============================================================================
 
+type TaskStatus = 'Open' | 'In Progress' | 'Done';
+
 interface Task {
     number: number;
     title: string;
     priority: 'Critical' | 'High' | 'Medium' | 'Low';
     complexity: string;
     size: string;
+    status: TaskStatus;
     startLine: number;
     endLine: number;
     content: string;
@@ -67,7 +73,7 @@ function parseTasks(): Task[] {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        // Detect task header: ## 1. Task Title
+        // Detect task header: ## 1. Task Title or ## 1. ~~Task Title~~ ✅ DONE
         const headerMatch = line.match(/^## (\d+)\.\s+(.+)/);
         if (headerMatch) {
             // Save previous task
@@ -79,11 +85,18 @@ function parseTasks(): Task[] {
                 } as Task);
             }
 
+            // Check if task is done (header contains ✅ DONE)
+            const isDone = line.includes('✅ DONE');
+            // Clean up title (remove strikethrough and DONE marker)
+            let title = headerMatch[2];
+            title = title.replace(/~~(.+?)~~/g, '$1').replace(/✅ DONE/g, '').trim();
+
             // Start new task
             currentTask = {
                 number: parseInt(headerMatch[1]),
-                title: headerMatch[2],
+                title,
                 startLine: i,
+                status: isDone ? 'Done' : 'Open', // Will be updated if "In Progress" found
             };
             taskContent = [line];
             taskStartLine = i;
@@ -92,14 +105,22 @@ function parseTasks(): Task[] {
 
         // Parse metadata table
         if (currentTask && line.includes('| Priority |')) {
-            // Next line has the values
+            // Next line has the values (skip separator line)
             const nextLine = lines[i + 2];
             if (nextLine) {
-                const valuesMatch = nextLine.match(/\|\s*\*\*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|/);
-                if (valuesMatch) {
-                    currentTask.priority = valuesMatch[1].trim() as Task['priority'];
-                    currentTask.complexity = valuesMatch[2].trim();
-                    currentTask.size = valuesMatch[3].trim();
+                // Parse: | **Priority** | Complexity | Size | Status (optional) |
+                const cells = nextLine.split('|').map(c => c.trim()).filter(c => c);
+                if (cells.length >= 3) {
+                    currentTask.priority = cells[0].replace(/\*\*/g, '').trim() as Task['priority'];
+                    currentTask.complexity = cells[1].trim();
+                    currentTask.size = cells[2].trim();
+                    // Check for status in 4th column (if exists and not already Done)
+                    if (cells.length >= 4 && currentTask.status !== 'Done') {
+                        const statusCell = cells[3].toLowerCase();
+                        if (statusCell.includes('in progress')) {
+                            currentTask.status = 'In Progress';
+                        }
+                    }
                 }
             }
         }
@@ -135,29 +156,75 @@ function getTask(taskNumber: number): Task {
 // Commands
 // ============================================================================
 
-function listTasks() {
+function listTasks(filter?: 'open' | 'in-progress' | 'done' | 'all') {
     const tasks = parseTasks();
-
-    console.log('\n📋 Tasks by Priority\n');
-
     const priorityOrder: Task['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
+    const priorityEmoji: Record<Task['priority'], string> = {
+        Critical: '🔴',
+        High: '🟠',
+        Medium: '🟡',
+        Low: '🟢',
+    };
 
-    priorityOrder.forEach((priority) => {
-        const tasksInPriority = tasks.filter((t) => t.priority === priority);
-        if (tasksInPriority.length === 0) return;
+    // Filter tasks by status if specified
+    const openTasks = tasks.filter(t => t.status === 'Open');
+    const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
+    const doneTasks = tasks.filter(t => t.status === 'Done');
 
-        const emoji = {
-            Critical: '🔴',
-            High: '🟠',
-            Medium: '🟡',
-            Low: '🟢',
-        }[priority];
+    // Helper to print tasks grouped by priority
+    const printTasksByPriority = (taskList: Task[], indent = '  ') => {
+        priorityOrder.forEach((priority) => {
+            const tasksInPriority = taskList.filter((t) => t.priority === priority);
+            if (tasksInPriority.length === 0) return;
 
-        console.log(`\n${emoji} ${priority}:`);
-        tasksInPriority.forEach((task) => {
-            console.log(`  ${task.number}. ${task.title} (${task.size})`);
+            console.log(`\n${indent}${priorityEmoji[priority]} ${priority}:`);
+            tasksInPriority.forEach((task) => {
+                console.log(`${indent}  ${task.number}. ${task.title} (${task.size})`);
+            });
         });
-    });
+    };
+
+    // Print based on filter
+    if (filter === 'open') {
+        console.log('\n📋 Open Tasks\n');
+        if (openTasks.length === 0) {
+            console.log('  No open tasks');
+        } else {
+            printTasksByPriority(openTasks);
+        }
+    } else if (filter === 'in-progress') {
+        console.log('\n🔄 In Progress Tasks\n');
+        if (inProgressTasks.length === 0) {
+            console.log('  No tasks in progress');
+        } else {
+            printTasksByPriority(inProgressTasks);
+        }
+    } else if (filter === 'done') {
+        console.log('\n✅ Done Tasks\n');
+        if (doneTasks.length === 0) {
+            console.log('  No completed tasks');
+        } else {
+            printTasksByPriority(doneTasks);
+        }
+    } else {
+        // Show all, separated by status
+        console.log('\n📋 Tasks\n');
+
+        if (openTasks.length > 0) {
+            console.log('━━━ 📋 Open ━━━');
+            printTasksByPriority(openTasks);
+        }
+
+        if (inProgressTasks.length > 0) {
+            console.log('\n━━━ 🔄 In Progress ━━━');
+            printTasksByPriority(inProgressTasks);
+        }
+
+        if (doneTasks.length > 0) {
+            console.log('\n━━━ ✅ Done ━━━');
+            printTasksByPriority(doneTasks);
+        }
+    }
 
     console.log('');
 }
@@ -313,10 +380,16 @@ const program = new Command();
 program.name('task').description('Tasks Management CLI').version('1.0.0');
 
 program
-    .command('list')
-    .description('List all tasks by priority')
-    .action(() => {
-        listTasks();
+    .command('list [filter]')
+    .description('List tasks (filter: open, in-progress, done, or all)')
+    .action((filter?: string) => {
+        const validFilters = ['open', 'in-progress', 'done', 'all'];
+        if (filter && !validFilters.includes(filter)) {
+            console.error(`❌ Invalid filter: ${filter}`);
+            console.log(`   Valid filters: ${validFilters.join(', ')}`);
+            process.exit(1);
+        }
+        listTasks(filter as 'open' | 'in-progress' | 'done' | 'all' | undefined);
     });
 
 program
