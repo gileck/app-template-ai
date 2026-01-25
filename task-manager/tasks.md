@@ -725,7 +725,7 @@ design-docs/
 
 ---
 
-## 12. Improve Telegram Messages
+## 12. Improve Telegram Messages ✅ DONE
 
 | Priority | Complexity | Size |
 |----------|------------|------|
