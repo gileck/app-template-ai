@@ -752,17 +752,43 @@ async function handleDesignPRApproval(
         // 2. Merge the design PR
         await adapter.mergePullRequest(prNumber, commitTitle, commitBody);
 
-        // 3. Update the message to show success
+        // 3. Advance status directly (don't rely on GitHub Action which may not run)
+        const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+        const nextPhase = designType === 'product' ? STATUSES.techDesign : STATUSES.implementation;
+        const nextPhaseLabel = designType === 'product' ? 'Tech Design' : 'Implementation';
+
+        // Find and update the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (item) {
+            // Update status to next phase
+            await adapter.updateItemStatus(item.itemId, nextPhase);
+            console.log(`Telegram webhook: advanced status to ${nextPhase}`);
+
+            // Clear review status
+            if (adapter.hasReviewStatusField() && item.reviewStatus) {
+                await adapter.clearItemReviewStatus(item.itemId);
+                console.log(`Telegram webhook: cleared review status`);
+            }
+
+            // Delete the design branch
+            const prDetails = await adapter.getPRDetails(prNumber);
+            if (prDetails?.headBranch) {
+                await adapter.deleteBranch(prDetails.headBranch);
+                console.log(`Telegram webhook: deleted branch ${prDetails.headBranch}`);
+            }
+        } else {
+            console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
+        }
+
+        // 4. Update the message to show success
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
-            const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
-            const nextPhase = designType === 'product' ? 'Tech Design' : 'Implementation';
             const statusUpdate = [
                 '',
                 '━━━━━━━━━━━━━━━━━━━━',
                 '✅ <b>Merged Successfully!</b>',
                 `${designLabel} PR #${prNumber} merged.`,
-                `📊 Moving to: ${nextPhase}`,
+                `📊 Status: ${nextPhaseLabel}`,
             ].join('\n');
 
             await editMessageText(
