@@ -621,6 +621,8 @@ Closes #43
 |----------|------------|------|
 | **Low** | Mid | M |
 
+**Plan:** `task-manager/plans/task-10-plan.md`
+
 **Summary:** Track and aggregate costs per issue across all workflow phases, with configurable budget alerts.
 
 **Use Cases:**

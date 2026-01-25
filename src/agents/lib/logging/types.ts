@@ -70,3 +70,14 @@ export interface ExecutionSummary {
     totalCost: number;
     success: boolean;
 }
+
+/**
+ * Phase cost data for cumulative summary
+ */
+export interface PhaseData {
+    name: string;
+    duration: number;
+    toolCallsCount: number;
+    totalTokens: number;
+    totalCost: number;
+}
