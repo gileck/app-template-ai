@@ -32,6 +32,7 @@ Display all available tasks from `task-manager/tasks.md` organized by priority.
 - **Objective**: Present active tasks in a clear, actionable format
 - **Actions**:
   - Show active tasks grouped by priority with visual indicators
+  - **ALWAYS use numbered lists** (e.g., "1. Task Name (S)")
   - Display task number, title, and size for each task
   - Use emojis for priority levels:
     - 🔴 Critical
@@ -44,7 +45,7 @@ Display all available tasks from `task-manager/tasks.md` organized by priority.
 - **Actions**:
   - Add a separator (e.g., "---")
   - Show section header: "✅ Completed Tasks"
-  - List completed tasks with strikethrough formatting
+  - **ALWAYS use numbered lists** with strikethrough formatting
   - Include task number, title, and size
 
 ### Step 6: Recommend Next Task
