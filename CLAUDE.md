@@ -733,27 +733,44 @@ git branch -d fix/my-fix
 
 ---
 
-## yarn.lock Management
+## Lock File Management (yarn.lock & package-lock.json)
 
-Special handling for yarn.lock due to corporate network constraints.
+Special handling for lock files due to corporate network constraints.
 
-**Problem:** Local development requires private npm registry (blocked from public registry), but Vercel deployments need public registry URLs.
+**Problem:** Local development requires private npm registry (`npm.dev.wixpress.com`) because access to public npm is blocked. However, Vercel deployments need public registry URLs.
 
-**Solution:**
-- **Committed yarn.lock**: Uses public npm registry (for Vercel builds)
-- **Local yarn.lock**: Gets modified with private registry URLs (never committed)
-- **Pre-commit hook**: Automatically blocks commits containing yarn.lock changes
-- **GitHub Action**: Validates PRs don't include private registry URLs
+**Solution - Multi-Layer Protection:**
+
+| Layer | yarn.lock | package-lock.json |
+|-------|-----------|-------------------|
+| **Committed version** | ✅ Public npm registry (for Vercel) | ❌ Should not exist (project uses yarn) |
+| **Local changes** | Auto-reset by pre-commit hook | Auto-removed by pre-commit hook |
+| **GitHub Action** | Blocks PRs with `npm.dev.wixpress.com` | Blocks PRs containing this file |
 
 **For Local Development:**
 
-When you install dependencies locally, yarn.lock will update with private registry URLs. This is expected and safe - the pre-commit hook will prevent you from committing these changes.
+When you run `yarn install` locally, yarn.lock will update with private Wix registry URLs. This is expected and safe - the pre-commit hook automatically resets it to the committed version.
 
-**If you accidentally stage yarn.lock:**
+**IMPORTANT - Use yarn, not npm:**
+
+This project uses Yarn. If you accidentally run `npm install`, it will create `package-lock.json` with private registry URLs. The pre-commit hook will automatically remove it, but always use:
 
 ```bash
-git restore --staged yarn.lock
+yarn install  # ✅ Correct
+npm install   # ❌ Wrong - creates package-lock.json
 ```
+
+**Pre-commit Hook Behavior:**
+
+The hook in `.githooks/pre-commit` automatically:
+1. Resets `yarn.lock` to HEAD (removes private registry URLs)
+2. Removes `package-lock.json` if it exists (project uses yarn)
+
+**GitHub Action Protection:**
+
+The workflow `.github/workflows/validate-yarn-lock.yml` runs on all PRs that modify lock files:
+1. Fails if `package-lock.json` exists
+2. Fails if `yarn.lock` contains `npm.dev.wixpress.com`
 
 **When dependencies need updating (rare):**
 
@@ -761,9 +778,7 @@ Option 1: Let CI/Vercel regenerate yarn.lock automatically
 Option 2: Use a machine with public npm access to generate clean yarn.lock
 Option 3: Manually clean private registry URLs before committing
 
-**Pre-commit Hook Setup:**
-
-The hook is in `.git/hooks/pre-commit` and automatically blocks yarn.lock commits. If you need to bypass it temporarily (not recommended):
+**To bypass the hook (not recommended):**
 
 ```bash
 git commit --no-verify  # Use with extreme caution
