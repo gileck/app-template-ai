@@ -1,9 +1,10 @@
-name: Validate yarn.lock
+name: Validate Lock Files
 
 on:
   pull_request:
     paths:
       - 'yarn.lock'
+      - 'package-lock.json'
 
 jobs:
   validate:
@@ -12,7 +13,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check for private Wix registry URLs
+      - name: Check for package-lock.json
+        run: |
+          echo "🔍 Checking for package-lock.json..."
+
+          # Check if package-lock.json exists (should not - project uses yarn)
+          if [ -f "package-lock.json" ]; then
+            echo ""
+            echo "❌ ERROR: package-lock.json should not exist in this repo"
+            echo ""
+            echo "This project uses Yarn, not npm."
+            echo "package-lock.json was likely created by running 'npm install'"
+            echo "and may contain private registry URLs that break Vercel builds."
+            echo ""
+            echo "To fix this PR:"
+            echo "  git rm package-lock.json"
+            echo "  git commit -m 'chore: remove package-lock.json (project uses yarn)'"
+            echo "  git push"
+            echo ""
+            echo "Always use 'yarn install' instead of 'npm install'"
+            echo ""
+            exit 1
+          fi
+
+          echo "✅ No package-lock.json found"
+
+      - name: Check yarn.lock for private Wix registry URLs
         run: |
           echo "🔍 Checking yarn.lock for private registry URLs..."
 
