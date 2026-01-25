@@ -348,6 +348,64 @@ function planTask(taskNumber: number) {
     console.log('💡 For now, please review the task details above and create a plan manually.');
 }
 
+function markTaskInProgress(taskNumber: number) {
+    const task = getTask(taskNumber);
+
+    console.log(`\n🔄 Marking Task ${taskNumber} as in progress: ${task.title}\n`);
+
+    // Check if already done
+    if (task.status === 'Done') {
+        console.log('⚠️  Task is already marked as done, cannot mark as in progress');
+        return;
+    }
+
+    // Check if already in progress
+    if (task.status === 'In Progress') {
+        console.log('ℹ️  Task is already in progress');
+        return;
+    }
+
+    // Read the file
+    const content = fs.readFileSync(TASKS_FILE, 'utf-8');
+    const lines = content.split('\n');
+
+    // Find and update the status in the metadata table
+    // Look for the line with | Priority | Complexity | Size | (with optional Status column)
+    for (let i = task.startLine; i <= task.endLine; i++) {
+        const line = lines[i];
+        // Match the data row (not header row) - contains actual values like "High", "Mid", etc.
+        if (line.includes('|') && (line.includes('High') || line.includes('Medium') || line.includes('Low') || line.includes('Critical'))) {
+            const cells = line.split('|').map(c => c.trim());
+            // Check if there's already a Status column (4th data column after empty first)
+            if (cells.length >= 5) {
+                // Has Status column - update it
+                cells[4] = ' In Progress ';
+                lines[i] = '|' + cells.slice(1).join('|');
+            } else if (cells.length === 4) {
+                // No Status column - add it
+                // First, update the header row (should be 2 lines above)
+                const headerLine = i - 2;
+                if (lines[headerLine] && lines[headerLine].includes('| Priority |')) {
+                    lines[headerLine] = lines[headerLine].replace(/\|(\s*)$/, '| Status |');
+                }
+                // Update separator line
+                const separatorLine = i - 1;
+                if (lines[separatorLine] && lines[separatorLine].includes('|---')) {
+                    lines[separatorLine] = lines[separatorLine].replace(/\|(\s*)$/, '|--------|');
+                }
+                // Add status to data row
+                lines[i] = line.replace(/\|(\s*)$/, '| In Progress |');
+            }
+            break;
+        }
+    }
+
+    // Write back
+    fs.writeFileSync(TASKS_FILE, lines.join('\n'), 'utf-8');
+
+    console.log('✅ Task marked as in progress in tasks.md');
+}
+
 function markTaskDone(taskNumber: number) {
     const task = getTask(taskNumber);
 
@@ -422,6 +480,14 @@ program
     .requiredOption('--task <number>', 'Task number to plan')
     .action((options) => {
         planTask(parseInt(options.task));
+    });
+
+program
+    .command('mark-in-progress')
+    .description('Mark task as in progress')
+    .requiredOption('--task <number>', 'Task number to mark as in progress')
+    .action((options) => {
+        markTaskInProgress(parseInt(options.task));
     });
 
 program

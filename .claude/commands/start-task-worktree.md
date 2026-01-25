@@ -68,9 +68,10 @@ This is NOT optional. This step is MANDATORY for all tasks, regardless of size.
 
 ---
 
-## Step 1: Create Worktree
-- **Objective**: Set up isolated workspace for the task
+## Step 1: Create Worktree and Mark In Progress
+- **Objective**: Set up isolated workspace for the task and mark it as being worked on
 - **Actions**:
+  - **FIRST**: Mark task as in progress: `yarn task mark-in-progress --task N`
   - Run: `yarn task worktree --task N` (where N is the task number)
   - This automatically:
     - Creates worktree at `../worktree-task-N/`
@@ -257,6 +258,7 @@ EOF
 
 ## Quick Checklist
 
+- [ ] Task marked as in progress with `yarn task mark-in-progress --task N`
 - [ ] Worktree created with `yarn task worktree --task N`
 - [ ] Navigated to worktree and symlinked node_modules (NOT yarn install)
 - [ ] **Followed /start-task steps 2-7** (understand, document, explore, plan, implement, validate)
@@ -275,6 +277,10 @@ EOF
 ## Squash Merge Workflow Quick Reference
 
 ```bash
+# === SETUP ===
+yarn task mark-in-progress --task N
+yarn task worktree --task N
+
 # === IN WORKTREE ===
 MAIN_PROJECT_PATH=$(pwd)
 cd ../worktree-task-N

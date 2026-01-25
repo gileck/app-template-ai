@@ -42,6 +42,7 @@ Follow these steps to implement a task from task-manager/tasks.md:
 ## Step 1: Load Task Details and Mark In Progress
 - **Objective**: Read the specific task and mark it as being worked on
 - **Actions**:
+  - **FIRST**: Mark task as in progress: `yarn task mark-in-progress --task N`
   - Run: `yarn task work --task N` (where N is the task number)
   - This automatically:
     - Creates/switches to a git branch: `task/N-task-name`
@@ -50,14 +51,6 @@ Follow these steps to implement a task from task-manager/tasks.md:
     - Provides next steps
   - Read the task content carefully
   - Note the task priority, size, and complexity
-  - **Mark task as In Progress**: Update `task-manager/tasks.md`:
-    - Find the task's metadata table
-    - Change `Status` from `TODO` to `In Progress`
-    ```markdown
-    | Priority | Complexity | Size | Status |
-    |----------|------------|------|--------|
-    | **High** | Mid | M | In Progress |
-    ```
 
 ---
 
@@ -344,8 +337,8 @@ This PR includes 2 commits:
 
 ## Quick Checklist
 
+- [ ] Task marked as in progress with `yarn task mark-in-progress --task N`
 - [ ] Task loaded with `yarn task work --task N`
-- [ ] Task status updated to "In Progress" in tasks.md
 - [ ] Requirements understood
 - [ ] Documentation reviewed (CLAUDE.md, task-specific docs)
 - [ ] Relevant code explored
