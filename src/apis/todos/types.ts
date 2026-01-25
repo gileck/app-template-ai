@@ -26,6 +26,7 @@ export interface CreateTodoRequest {
     /** Client-generated ID (UUID). If provided, server will use this ID. */
     _id?: string;
     title: string;
+    dueDate?: string;
 }
 
 export interface CreateTodoResponse {
@@ -38,6 +39,7 @@ export interface UpdateTodoRequest {
     todoId: string;
     title?: string;
     completed?: boolean;
+    dueDate?: string | null;
 }
 
 export interface UpdateTodoResponse {

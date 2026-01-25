@@ -22,7 +22,7 @@ import { TodoStats } from './components/TodoStats';
 import { EmptyState } from './components/EmptyState';
 import { TodoControls } from './components/TodoControls';
 import { useTodoPreferencesStore } from './store';
-import { sortTodos, filterTodos, groupUncompletedFirst } from './utils';
+import { sortTodos, filterTodos, groupUncompletedFirst, filterTodosByDueDate } from './utils';
 
 export function Todos() {
     // React Query hooks - cache is guaranteed to be restored at this point
@@ -46,6 +46,7 @@ export function Todos() {
     const sortBy = useTodoPreferencesStore((state) => state.sortBy);
     const uncompletedFirst = useTodoPreferencesStore((state) => state.uncompletedFirst);
     const hideCompleted = useTodoPreferencesStore((state) => state.hideCompleted);
+    const dueDateFilter = useTodoPreferencesStore((state) => state.dueDateFilter);
 
     // Compute filtered/sorted list with useMemo
     const displayTodos = useMemo(() => {
@@ -53,6 +54,9 @@ export function Todos() {
 
         // Apply hide completed filter
         result = filterTodos(result, hideCompleted);
+
+        // Apply due date filter
+        result = filterTodosByDueDate(result, dueDateFilter);
 
         // Apply sort
         result = sortTodos(result, sortBy);
@@ -63,7 +67,7 @@ export function Todos() {
         }
 
         return result;
-    }, [todos, sortBy, uncompletedFirst, hideCompleted]);
+    }, [todos, sortBy, uncompletedFirst, hideCompleted, dueDateFilter]);
 
     // Log page view on mount
     useEffect(() => {
@@ -184,8 +188,32 @@ export function Todos() {
                 <EmptyState />
             ) : displayTodos.length === 0 ? (
                 <div className="py-8 text-center">
-                    <p className="text-2xl mb-2">🎉</p>
-                    <p className="text-muted-foreground">No uncompleted todos. Great work!</p>
+                    {dueDateFilter === 'today' ? (
+                        <>
+                            <p className="text-2xl mb-2">📅</p>
+                            <p className="text-muted-foreground">No todos due today! You&apos;re all caught up.</p>
+                        </>
+                    ) : dueDateFilter === 'overdue' ? (
+                        <>
+                            <p className="text-2xl mb-2">✅</p>
+                            <p className="text-muted-foreground">No overdue todos. Great job staying on top of things!</p>
+                        </>
+                    ) : dueDateFilter === 'week' ? (
+                        <>
+                            <p className="text-2xl mb-2">📆</p>
+                            <p className="text-muted-foreground">No todos due this week.</p>
+                        </>
+                    ) : dueDateFilter === 'none' ? (
+                        <>
+                            <p className="text-2xl mb-2">📋</p>
+                            <p className="text-muted-foreground">No todos without due dates.</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-2xl mb-2">🎉</p>
+                            <p className="text-muted-foreground">No uncompleted todos. Great work!</p>
+                        </>
+                    )}
                 </div>
             ) : showDivider ? (
                 <div className="todo-list-container">

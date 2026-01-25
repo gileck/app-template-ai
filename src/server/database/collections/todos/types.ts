@@ -8,6 +8,7 @@ export interface TodoItem {
     userId: ObjectId;
     title: string;
     completed: boolean;
+    dueDate?: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -34,6 +35,7 @@ export interface TodoItemClient {
     userId: string;
     title: string;
     completed: boolean;
+    dueDate?: string;
     createdAt: string;
     updatedAt: string;
 } 

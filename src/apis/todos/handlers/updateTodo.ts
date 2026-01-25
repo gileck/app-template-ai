@@ -17,7 +17,7 @@ export const updateTodo = async (
             return { error: "Todo ID is required" };
         }
 
-        if (!request.title && request.completed === undefined) {
+        if (!request.title && request.completed === undefined && request.dueDate === undefined) {
             return { error: "No update data provided" };
         }
 
@@ -26,6 +26,7 @@ export const updateTodo = async (
             updatedAt: Date;
             title?: string;
             completed?: boolean;
+            dueDate?: Date;
         } = {
             updatedAt: new Date()
         };
@@ -39,6 +40,18 @@ export const updateTodo = async (
 
         if (request.completed !== undefined) {
             updateData.completed = request.completed;
+        }
+
+        if (request.dueDate !== undefined) {
+            if (request.dueDate === null) {
+                updateData.dueDate = undefined;
+            } else {
+                const parsedDate = new Date(request.dueDate);
+                if (isNaN(parsedDate.getTime())) {
+                    return { error: "Invalid due date format" };
+                }
+                updateData.dueDate = parsedDate;
+            }
         }
 
         const updatedTodo = await todos.updateTodo(request.todoId, context.userId, updateData);
@@ -58,6 +71,7 @@ export const updateTodo = async (
             userId: toStringId(updatedTodo.userId),
             title: updatedTodo.title,
             completed: updatedTodo.completed,
+            dueDate: updatedTodo.dueDate?.toISOString(),
             createdAt: updatedTodo.createdAt.toISOString(),
             updatedAt: updatedTodo.updatedAt.toISOString()
         };
