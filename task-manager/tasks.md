@@ -731,6 +731,8 @@ design-docs/
 |----------|------------|------|
 | **Low** | Low | S |
 
+> **Completed:** 2026-01-25 - Implemented in commit `fd4af46`
+
 **Summary:** Too many messages cause information overload on Telegram. Need to consolidate and filter notifications.
 
 **Problem Statement:**
