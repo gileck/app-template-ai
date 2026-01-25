@@ -74,7 +74,7 @@ export function HealthIndicator({ request, githubStatus }: HealthIndicatorProps)
     const config = healthConfig[health];
 
     return (
-        <div className="rounded-lg bg-muted/20 p-3">
+        <div className="rounded-lg bg-muted/20 p-3 transition-all duration-200 ease-out">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                     <div className={`h-2 w-2 rounded-full ${config.colorClass}`} />
