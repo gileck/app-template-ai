@@ -62,4 +62,3 @@ template-diff-summary.md
 # child projects config (local only)
 child-projects.json
 .env*.local
-yarn.lock

@@ -733,6 +733,44 @@ git branch -d fix/my-fix
 
 ---
 
+## yarn.lock Management
+
+Special handling for yarn.lock due to corporate network constraints.
+
+**Problem:** Local development requires private npm registry (blocked from public registry), but Vercel deployments need public registry URLs.
+
+**Solution:**
+- **Committed yarn.lock**: Uses public npm registry (for Vercel builds)
+- **Local yarn.lock**: Gets modified with private registry URLs (never committed)
+- **Pre-commit hook**: Automatically blocks commits containing yarn.lock changes
+- **GitHub Action**: Validates PRs don't include private registry URLs
+
+**For Local Development:**
+
+When you install dependencies locally, yarn.lock will update with private registry URLs. This is expected and safe - the pre-commit hook will prevent you from committing these changes.
+
+**If you accidentally stage yarn.lock:**
+
+```bash
+git restore --staged yarn.lock
+```
+
+**When dependencies need updating (rare):**
+
+Option 1: Let CI/Vercel regenerate yarn.lock automatically
+Option 2: Use a machine with public npm access to generate clean yarn.lock
+Option 3: Manually clean private registry URLs before committing
+
+**Pre-commit Hook Setup:**
+
+The hook is in `.git/hooks/pre-commit` and automatically blocks yarn.lock commits. If you need to bypass it temporarily (not recommended):
+
+```bash
+git commit --no-verify  # Use with extreme caution
+```
+
+---
+
 ## GitHub Projects Integration
 
 Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
