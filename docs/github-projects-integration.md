@@ -906,9 +906,9 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Design PR merged → artifact updated → auto-advances)
+                      ▼ (Telegram webhook: merges PR → updates status → sends notification)
     ┌─────────────────────────────────────┐
-    │ GitHub Status: Technical Design     │
+    │ GitHub Status: Technical Design     │ ← Updated by Telegram webhook (NOT GitHub Action)
     │ Review Status: (empty)              │
     │ Artifact: Product Design ✅ Approved │
     │ MongoDB: 'in_progress' (unchanged)  │
@@ -931,9 +931,9 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Tech Design PR merged → artifact updated → auto-advances)
+                      ▼ (Telegram webhook: merges PR → updates status → sends notification)
     ┌─────────────────────────────────────┐
-    │ GitHub Status: Ready for development│
+    │ GitHub Status: Ready for development│ ← Updated by Telegram webhook (NOT GitHub Action)
     │ Review Status: (empty)              │
     │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
@@ -955,23 +955,32 @@ Feature Request Submitted
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Admin merges PR → GitHub Action automatically marks Done)
+                      ▼ (Admin merges PR on GitHub → GitHub Action handles status update)
     ┌─────────────────────────────────────────────────────────┐
-    │ GitHub Status: Done                                     │
+    │ GitHub Status: Done                                     │ ← Updated by GitHub Action (NOT Telegram)
     │ MongoDB: 'done' ← auto-updated by GitHub Action         │
     │ (PR merged, auto-completed in both systems)             │
     └─────────────────────────────────────────────────────────┘
 ```
 
+**Status Update Sources Summary:**
+| PR Type | Approved Via | Status Updated By | Why |
+|---------|--------------|-------------------|-----|
+| Product Design PR | Telegram "Approve & Merge" button | Telegram webhook | Instant feedback, design flow |
+| Tech Design PR | Telegram "Approve & Merge" button | Telegram webhook | Instant feedback, design flow |
+| Implementation PR | GitHub merge button | GitHub Action (`on-pr-merged.ts`) | Standard PR merge flow |
+
 **Key Points:**
 - **MongoDB status** stays `'in_progress'` throughout the entire workflow (Product Design → Tech Design → Ready for development → PR Review)
 - **Detailed workflow tracking** happens in GitHub Projects (Product Design, Technical Design, etc.)
-- **GitHub Action on PR merge** (`on-pr-merged.ts`): When PR is merged, the action automatically:
+- **Design PRs** (Product/Tech Design): Status updates handled by **Telegram webhook** when admin clicks "Approve & Merge"
+- **Implementation PRs**: Status updates handled by **GitHub Action** (`on-pr-merged.ts`) when PR is merged:
   - Extracts the issue number from the PR body ("Closes #123" or "Part of #123")
   - Posts a status comment on the issue (phase-aware for multi-phase features)
   - For multi-phase: Increments phase counter, returns to Implementation status
   - For final/single phase: Updates GitHub Project status to "Done" + MongoDB to `'done'`
   - Sends a Telegram notification confirming completion
+- **See "Status Update Architecture" section** for detailed explanation of why different PR types use different update sources
 
 ### Admin Actions
 
@@ -1429,13 +1438,15 @@ See issue #123 for full context, product design, and technical design.
 - Everything below `---` is ignored
 - Result: A perfect, clean conventional commit without any manual editing
 
-**Auto-completion on merge:**
-When you merge the PR, a GitHub Action (`on-pr-merged.ts`) automatically:
+**Auto-completion on merge (Implementation PRs only):**
+When you merge an **implementation PR**, a GitHub Action (`on-pr-merged.ts`) automatically:
 - Extracts the issue number from "Closes #123" or "Part of #123"
 - Posts a status comment on the issue (see "Issue Status Comments" section)
 - For multi-phase: Increments phase counter and returns to Implementation status
 - For final/single phase: Updates the project item status to "Done"
 - Sends a Telegram notification confirming completion
+
+**Note:** For **design PRs** (Product/Tech Design), status updates are handled by the Telegram webhook when you click "Approve & Merge" in Telegram, NOT by the GitHub Action. See "Status Update Architecture" section for details.
 
 ## Issue Status Comments (Workflow Visibility)
 
@@ -2203,6 +2214,67 @@ If admin finds issues after PR Review approved:
 
 - Merge: `merge:{issueNumber}:{prNumber}`
 - Request Changes: `reqchanges:{issueNumber}:{prNumber}`
+
+---
+
+## Status Update Architecture (Critical)
+
+**IMPORTANT:** The system uses different status update sources for different PR types to prevent race conditions and double updates.
+
+### Design PRs (Product Design / Tech Design)
+
+**Primary Source: Telegram Webhook**
+
+When admin approves a design PR via Telegram button:
+1. Telegram webhook (`/api/telegram-webhook`) receives the callback
+2. Webhook merges the PR
+3. Webhook updates GitHub Project status (Product Design → Tech Design, or Tech Design → Implementation)
+4. Webhook sends confirmation Telegram notification
+5. Webhook deletes the design branch
+
+**Backup Operations: GitHub Action (on-pr-merged.ts)**
+
+The GitHub Action `on-pr-merged.ts` runs when ANY PR is merged, but for design PRs it **only performs idempotent backup operations**:
+- Updates artifact comment on issue (if not already updated)
+- For tech design: Posts phases comment on issue (if not exists)
+- Attempts branch deletion (with try-catch, may already be deleted by Telegram)
+
+**The GitHub Action does NOT update status for design PRs** because:
+1. Telegram webhook already updated it
+2. Double updates could cause race conditions
+3. Idempotent operations are safe to run multiple times
+
+### Implementation PRs
+
+**Primary Source: GitHub Action (on-pr-merged.ts)**
+
+Implementation PRs are merged directly on GitHub (not via Telegram button), so the GitHub Action handles everything:
+1. Extracts issue number from PR body ("Closes #123" or "Part of #123")
+2. Posts status comment on issue (phase-aware for multi-phase)
+3. Updates artifact comment with phase status
+4. For multi-phase: Increments phase counter, returns to Implementation status
+5. For final/single phase: Updates GitHub Project status to "Done" + MongoDB to 'done'
+6. Deletes feature branch
+7. Sends Telegram notification
+
+### Why This Architecture?
+
+| PR Type | Merged Via | Status Updated By | Reason |
+|---------|------------|-------------------|--------|
+| Product Design | Telegram button | Telegram webhook | Admin approval flow with instant feedback |
+| Tech Design | Telegram button | Telegram webhook | Admin approval flow with instant feedback |
+| Implementation | GitHub merge button | GitHub Action | Natural PR merge flow, multi-phase support |
+
+**Benefits:**
+- **No double updates**: Each PR type has exactly one status update source
+- **Idempotent backups**: GitHub Action safely handles operations that may already be done
+- **Instant feedback**: Telegram buttons give immediate response
+- **Reliable**: No race conditions between webhook and action
+
+**If you see duplicate status updates or comments:**
+- Check if both Telegram webhook AND GitHub Action are updating status for the same PR type
+- Design PRs should ONLY have status updates from Telegram webhook
+- Implementation PRs should ONLY have status updates from GitHub Action
 
 ---
 
