@@ -67,34 +67,36 @@ This applies to BOTH active tasks AND completed tasks.
 
 ## Example Output Format
 
-**NOTE: All lists use NUMBERS (1., 2., 3.), NEVER letters (a., b., c.)**
+**IMPORTANT: Use the TASK NUMBER as the list number (not separate numbering)**
 
 ```
 📋 Active Tasks by Priority
 
 🔴 Critical:
-1. 2. Debug PR Reviewer + Claude Integration (S)
+2. Debug PR Reviewer + Claude Integration (S)
 
 🟠 High:
-1. 4. Add Agent Retry Logic for Transient Failures (M)
-2. 5. Add Stale Item Detection Workflow (M)
+4. Add Agent Retry Logic for Transient Failures (M)
+5. Add Stale Item Detection Workflow (M)
 
 🟡 Medium:
-1. 6. Improve Error Messages in Tech Design Agent (S)
-2. 7. Add Notification System for Agent Events (M)
+6. Improve Error Messages in Tech Design Agent (S)
+7. Add Notification System for Agent Events (M)
 
 🟢 Low:
-1. 10. Add Cost Budgeting and Alerts (M)
+10. Add Cost Budgeting and Alerts (M)
 
 ---
 
 ✅ Completed Tasks:
-1. ~~1. Fix Cost Tracking Bug in Implementation Agent (XS)~~
-2. ~~3. Add "Ready to Merge" Status with Admin Approval Gate (M)~~
-3. ~~8. Update Documentation for GitHub Projects Setup (S)~~
+1. ~~Fix Cost Tracking Bug in Implementation Agent (XS)~~ - commit abc123
+3. ~~Add "Ready to Merge" Status with Admin Approval Gate (M)~~ - commit def456
+8. ~~Update Documentation for GitHub Projects Setup (S)~~ - commit ghi789
 
 💡 Recommended: Start with Task 2 (Critical, S size)
 ```
+
+**The task number IS the list number. Do NOT add separate numbering.**
 
 ## Quick Checklist
 
