@@ -171,7 +171,7 @@ function listTasks(filter?: 'open' | 'in-progress' | 'done' | 'all') {
     const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
     const doneTasks = tasks.filter(t => t.status === 'Done');
 
-    // Helper to print tasks grouped by priority
+    // Helper to print tasks grouped by priority (for Open tasks)
     const printTasksByPriority = (taskList: Task[], indent = '  ') => {
         priorityOrder.forEach((priority) => {
             const tasksInPriority = taskList.filter((t) => t.priority === priority);
@@ -181,6 +181,14 @@ function listTasks(filter?: 'open' | 'in-progress' | 'done' | 'all') {
             tasksInPriority.forEach((task) => {
                 console.log(`${indent}  ${task.number}. ${task.title} (${task.size})`);
             });
+        });
+    };
+
+    // Helper to print tasks sorted by task number descending (for Done/In Progress)
+    const printTasksByNumber = (taskList: Task[], indent = '  ') => {
+        const sorted = [...taskList].sort((a, b) => b.number - a.number);
+        sorted.forEach((task) => {
+            console.log(`${indent}${task.number}. ${task.title} (${task.size})`);
         });
     };
 
@@ -197,14 +205,14 @@ function listTasks(filter?: 'open' | 'in-progress' | 'done' | 'all') {
         if (inProgressTasks.length === 0) {
             console.log('  No tasks in progress');
         } else {
-            printTasksByPriority(inProgressTasks);
+            printTasksByNumber(inProgressTasks);
         }
     } else if (filter === 'done') {
         console.log('\n✅ Done Tasks\n');
         if (doneTasks.length === 0) {
             console.log('  No completed tasks');
         } else {
-            printTasksByPriority(doneTasks);
+            printTasksByNumber(doneTasks);
         }
     } else {
         // Show all, separated by status
@@ -216,13 +224,13 @@ function listTasks(filter?: 'open' | 'in-progress' | 'done' | 'all') {
         }
 
         if (inProgressTasks.length > 0) {
-            console.log('\n━━━ 🔄 In Progress ━━━');
-            printTasksByPriority(inProgressTasks);
+            console.log('\n━━━ 🔄 In Progress ━━━\n');
+            printTasksByNumber(inProgressTasks);
         }
 
         if (doneTasks.length > 0) {
-            console.log('\n━━━ ✅ Done ━━━');
-            printTasksByPriority(doneTasks);
+            console.log('\n━━━ ✅ Done ━━━\n');
+            printTasksByNumber(doneTasks);
         }
     }
 
