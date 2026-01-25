@@ -6,6 +6,16 @@ description: List all tasks from task-manager/tasks.md organized by priority
 
 Display all available tasks from `task-manager/tasks.md` organized by priority.
 
+## CRITICAL FORMATTING RULE
+
+**YOU MUST USE NUMBERED LISTS WITH ACTUAL NUMBERS (1., 2., 3., etc.)**
+
+❌ WRONG: `a.`, `b.`, `c.`, `d.` (letters)
+❌ WRONG: `-`, `•`, `*` (bullets)
+✅ CORRECT: `1.`, `2.`, `3.`, `4.` (numbers)
+
+This applies to BOTH active tasks AND completed tasks.
+
 ## Process
 
 ### Step 1: Read Tasks File
@@ -57,29 +67,31 @@ Display all available tasks from `task-manager/tasks.md` organized by priority.
 
 ## Example Output Format
 
+**NOTE: All lists use NUMBERS (1., 2., 3.), NEVER letters (a., b., c.)**
+
 ```
 📋 Active Tasks by Priority
 
 🔴 Critical:
-  2. Debug PR Reviewer + Claude Integration (S)
+1. 2. Debug PR Reviewer + Claude Integration (S)
 
 🟠 High:
-  4. Add Agent Retry Logic for Transient Failures (M)
-  5. Add Stale Item Detection Workflow (M)
+1. 4. Add Agent Retry Logic for Transient Failures (M)
+2. 5. Add Stale Item Detection Workflow (M)
 
 🟡 Medium:
-  6. Improve Error Messages in Tech Design Agent (S)
-  7. Add Notification System for Agent Events (M)
+1. 6. Improve Error Messages in Tech Design Agent (S)
+2. 7. Add Notification System for Agent Events (M)
 
 🟢 Low:
-  10. Add Cost Budgeting and Alerts (M)
+1. 10. Add Cost Budgeting and Alerts (M)
 
 ---
 
 ✅ Completed Tasks:
-  ~~1. Fix Cost Tracking Bug in Implementation Agent (XS)~~
-  ~~3. Add "Ready to Merge" Status with Admin Approval Gate (M)~~
-  ~~8. Update Documentation for GitHub Projects Setup (S)~~
+1. ~~1. Fix Cost Tracking Bug in Implementation Agent (XS)~~
+2. ~~3. Add "Ready to Merge" Status with Admin Approval Gate (M)~~
+3. ~~8. Update Documentation for GitHub Projects Setup (S)~~
 
 💡 Recommended: Start with Task 2 (Critical, S size)
 ```
