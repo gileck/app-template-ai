@@ -11,51 +11,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Check for yarn.lock changes
+      - name: Check for private Wix registry URLs
         run: |
-          echo "🔍 Checking if yarn.lock has been modified..."
+          echo "🔍 Checking yarn.lock for private registry URLs..."
 
-          # Get the list of changed files in this PR
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-
-          if echo "$CHANGED_FILES" | grep -q "^yarn.lock$"; then
+          # Check if yarn.lock contains the private Wix registry
+          if grep -q "npm.dev.wixpress.com" yarn.lock; then
             echo ""
-            echo "❌ ERROR: yarn.lock should not be modified in PRs"
+            echo "❌ ERROR: yarn.lock contains private Wix registry URLs"
             echo ""
-            echo "This project uses a special yarn.lock setup:"
-            echo "  - Local development: private npm registry (DO NOT COMMIT)"
-            echo "  - Vercel/CI: public npm registry (committed version)"
+            echo "Found 'npm.dev.wixpress.com' in yarn.lock."
+            echo "This will break Vercel deployments which cannot access the private registry."
+            echo ""
+            echo "This happened because dependencies were installed from the local"
+            echo "corporate network, which uses the private npm registry."
             echo ""
             echo "To fix this PR:"
             echo "  git checkout origin/${{ github.base_ref }} -- yarn.lock"
-            echo "  git commit -m 'chore: revert yarn.lock changes'"
+            echo "  git commit -m 'chore: revert yarn.lock to remove private registry URLs'"
             echo "  git push"
             echo ""
-            exit 1
-          fi
-
-          echo "✅ yarn.lock not modified - check passed"
-
-      - name: Check for private registry URLs (if yarn.lock was somehow modified)
-        if: failure()
-        run: |
-          echo "🔍 Checking for private registry URLs..."
-
-          # Check if yarn.lock contains non-public registry URLs
-          # This catches cases where yarn.lock was modified despite the previous check
-          if git show HEAD:yarn.lock | grep -v "registry.npmjs.org" | grep -E "https?://[^/]*registry" | grep -v "yarnpkg.com"; then
-            echo ""
-            echo "❌ ERROR: yarn.lock contains private registry URLs"
-            echo ""
-            echo "Found non-public registry URLs in yarn.lock."
-            echo "This will break Vercel deployments."
-            echo ""
-            echo "Please revert yarn.lock to the version from main branch."
+            echo "If you need to update dependencies, ensure they come from public npm."
             echo ""
             exit 1
           fi
 
-          echo "✅ No private registry URLs found"
+          echo "✅ No private registry URLs found - yarn.lock is clean"
