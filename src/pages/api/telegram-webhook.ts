@@ -36,7 +36,16 @@ import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
 import { getPrUrl } from '@/server/project-management/config';
 import { readDesignDoc } from '@/agents/lib/design-files';
 import { formatPhasesToComment, parsePhasesFromMarkdown, hasPhaseComment } from '@/agents/lib/phases';
-import { initializeImplementationPhases } from '@/agents/lib/artifacts';
+import {
+    initializeImplementationPhases,
+    parsePhaseString,
+    updateDesignArtifact,
+    getDesignDocLink,
+    updateImplementationPhaseArtifact,
+    parseArtifactComment,
+} from '@/agents/lib';
+import { sendNotificationToOwner } from '@/server/telegram';
+import { appConfig } from '@/app.config';
 
 /**
  * Status transitions when approved - move to next phase
@@ -668,8 +677,19 @@ async function handleClarificationReceived(
 }
 
 /**
- * Handle merge callback from Telegram
+ * Handle merge callback from Telegram - SINGLE SOURCE OF TRUTH for PR merge handling
  * Callback format: "merge:issueNumber:prNumber"
+ *
+ * This function handles ALL post-merge operations:
+ * 1. Merge the PR (or handle if already merged)
+ * 2. Get phase info for multi-phase features
+ * 3. Update artifact comment
+ * 4. Post status comment on issue
+ * 5. Update project status (next phase or Done)
+ * 6. Clear review status
+ * 7. Update MongoDB (for final/single phase → done)
+ * 8. Delete the feature branch
+ * 9. Update Telegram message with confirmation
  */
 async function handleMergeCallback(
     botToken: string,
@@ -692,10 +712,171 @@ async function handleMergeCallback(
             return { success: false, error: 'Could not parse commit message. Please run PR Review again.' };
         }
 
-        // 2. Perform the merge
-        await adapter.mergePullRequest(prNumber, commitMsg.title, commitMsg.body);
+        // 2. Try to merge the PR (skip if already merged)
+        let alreadyMerged = false;
+        try {
+            await adapter.mergePullRequest(prNumber, commitMsg.title, commitMsg.body);
+            console.log(`Telegram webhook: merged PR #${prNumber}`);
+        } catch (mergeError) {
+            const errorMsg = mergeError instanceof Error ? mergeError.message : String(mergeError);
+            // Check if PR was already merged
+            if (errorMsg.includes('already been merged') ||
+                errorMsg.includes('Pull Request is not mergeable') ||
+                errorMsg.includes('not open')) {
+                console.log(`Telegram webhook: PR #${prNumber} already merged, continuing with status updates`);
+                alreadyMerged = true;
+            } else {
+                throw mergeError;
+            }
+        }
 
-        // 3. Update the message to show success
+        // 3. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
+            // Still return success if PR was merged - issue just wasn't in project
+            if (alreadyMerged || !commitComment) {
+                return { success: true };
+            }
+        }
+
+        // 4. Check for multi-phase implementation
+        const phase = item ? await adapter.getImplementationPhase(item.itemId) : null;
+        const parsedPhase = parsePhaseString(phase);
+
+        // Get phase name from artifact comment if available
+        const issueComments = await adapter.getIssueComments(issueNumber);
+        const artifact = parseArtifactComment(issueComments);
+        const currentPhaseArtifact = artifact?.implementation?.phases?.find(
+            p => parsedPhase && p.phase === parsedPhase.current
+        );
+        const phaseName = currentPhaseArtifact?.name || (parsedPhase ? `Phase ${parsedPhase.current}` : '');
+
+        let statusMessage = '';
+        let isMultiPhaseMiddle = false;
+
+        if (parsedPhase && item) {
+            console.log(`Telegram webhook: Multi-phase feature: Phase ${parsedPhase.current}/${parsedPhase.total}`);
+
+            // Update artifact comment to mark phase as merged
+            try {
+                await updateImplementationPhaseArtifact(
+                    adapter,
+                    issueNumber,
+                    parsedPhase.current,
+                    parsedPhase.total,
+                    phaseName,
+                    'merged',
+                    prNumber
+                );
+                console.log('Telegram webhook: updated artifact comment - phase marked as merged');
+            } catch (artifactError) {
+                console.warn('Telegram webhook: failed to update artifact comment:', artifactError);
+            }
+
+            if (parsedPhase.current < parsedPhase.total) {
+                // Mid-phase: increment and return to Implementation
+                isMultiPhaseMiddle = true;
+                const nextPhase = parsedPhase.current + 1;
+
+                // Post status comment on issue
+                const phaseCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}...`;
+                await adapter.addIssueComment(issueNumber, phaseCompleteComment);
+                console.log(`Telegram webhook: posted phase completion comment`);
+
+                // Update phase counter
+                await adapter.setImplementationPhase(item.itemId, `${nextPhase}/${parsedPhase.total}`);
+                console.log(`Telegram webhook: updated Implementation Phase to: ${nextPhase}/${parsedPhase.total}`);
+
+                // Return to Implementation status
+                await adapter.updateItemStatus(item.itemId, STATUSES.implementation);
+                console.log(`Telegram webhook: status updated to: ${STATUSES.implementation}`);
+
+                // Clear review status for next phase
+                if (adapter.hasReviewStatusField() && item.reviewStatus) {
+                    await adapter.clearItemReviewStatus(item.itemId);
+                    console.log('Telegram webhook: cleared review status');
+                }
+
+                statusMessage = `📋 Phase ${parsedPhase.current}/${parsedPhase.total} complete\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}`;
+            } else {
+                // Final phase - mark as Done
+                console.log(`Telegram webhook: All ${parsedPhase.total} phases complete!`);
+
+                // Post final completion comment
+                const allPhasesCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🎉 **All ${parsedPhase.total} phases complete!** Issue is now Done.`;
+                await adapter.addIssueComment(issueNumber, allPhasesCompleteComment);
+
+                // Clear phase field
+                await adapter.clearImplementationPhase(item.itemId);
+                console.log('Telegram webhook: cleared Implementation Phase field');
+
+                statusMessage = `🎉 All ${parsedPhase.total} phases complete!\n📊 Status: Done`;
+            }
+        } else if (item) {
+            // Single-phase feature
+            try {
+                // Use Phase 1/1 format for consistency
+                await updateImplementationPhaseArtifact(
+                    adapter,
+                    issueNumber,
+                    1,
+                    1,
+                    '', // No name for single-phase
+                    'merged',
+                    prNumber
+                );
+                console.log('Telegram webhook: updated artifact comment - implementation marked as merged');
+            } catch (artifactError) {
+                console.warn('Telegram webhook: failed to update artifact comment:', artifactError);
+            }
+
+            // Post completion comment
+            const completionComment = `✅ Merged PR #${prNumber} - Issue complete!`;
+            await adapter.addIssueComment(issueNumber, completionComment);
+
+            statusMessage = '📊 Status: Done';
+        }
+
+        // 5. For final/single phase: Update status to Done, update MongoDB
+        if (!isMultiPhaseMiddle && item) {
+            // Update GitHub Project status to Done
+            await adapter.updateItemStatus(item.itemId, STATUSES.done);
+            console.log('Telegram webhook: status updated to Done');
+
+            // Clear review status
+            if (adapter.hasReviewStatusField() && item.reviewStatus) {
+                await adapter.clearItemReviewStatus(item.itemId);
+                console.log('Telegram webhook: cleared review status');
+            }
+
+            // Update MongoDB
+            const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
+            if (featureRequest) {
+                await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'done');
+                console.log('Telegram webhook: feature request marked as done in database');
+            } else {
+                const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
+                if (bugReport) {
+                    await reports.updateReport(bugReport._id.toString(), { status: 'resolved' });
+                    console.log('Telegram webhook: bug report marked as resolved in database');
+                }
+            }
+        }
+
+        // 6. Delete the feature branch
+        try {
+            const prDetails = await adapter.getPRDetails(prNumber);
+            if (prDetails?.headBranch) {
+                await adapter.deleteBranch(prDetails.headBranch);
+                console.log(`Telegram webhook: deleted branch ${prDetails.headBranch}`);
+            }
+        } catch {
+            // Branch may already be deleted - that's fine
+            console.log('Telegram webhook: branch already deleted or not found');
+        }
+
+        // 7. Update the Telegram message with confirmation
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const statusUpdate = [
@@ -703,7 +884,7 @@ async function handleMergeCallback(
                 '━━━━━━━━━━━━━━━━━━━━',
                 '✅ <b>Merged Successfully!</b>',
                 `PR #${prNumber} has been squash-merged.`,
-                'Issue will be marked as Done by webhook.',
+                statusMessage,
             ].join('\n');
 
             await editMessageText(
@@ -715,7 +896,25 @@ async function handleMergeCallback(
             );
         }
 
-        console.log(`Telegram webhook: merged PR #${prNumber} for issue #${issueNumber}`);
+        // 8. Send notification for multi-phase mid-phase completion (optional)
+        if (isMultiPhaseMiddle && parsedPhase && appConfig.ownerTelegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
+            const nextPhase = parsedPhase.current + 1;
+            const message = `<b>Agent (Multi-PR):</b> ✅ Phase ${parsedPhase.current}/${parsedPhase.total} merged
+
+🔗 Issue #${issueNumber}
+🔀 PR #${prNumber}
+
+Starting Phase ${nextPhase}/${parsedPhase.total}...
+Run <code>yarn agent:implement</code> to continue.`;
+
+            // Use different chat ID for agent notifications if configured
+            await sendNotificationToOwner(message, {
+                parseMode: 'HTML',
+            });
+            console.log('Telegram webhook: sent multi-phase notification');
+        }
+
+        console.log(`Telegram webhook: completed merge handling for PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
         console.error('Error handling merge:', error);
@@ -733,9 +932,9 @@ async function handleMergeCallback(
  *
  * Actions:
  * 1. Merge the design PR (squash)
- * 2. The on-pr-merged.ts GitHub Action will handle:
- *    - Posting/updating artifact comment
- *    - Advancing status to next phase
+ * 2. Update artifact comment on issue
+ * 3. Advance status to next phase
+ * 4. For tech design: post phases comment and initialize implementation phases
  */
 async function handleDesignPRApproval(
     botToken: string,
@@ -755,7 +954,18 @@ async function handleDesignPRApproval(
         // 2. Merge the design PR
         await adapter.mergePullRequest(prNumber, commitTitle, commitBody);
 
-        // 3. Advance status directly (don't rely on GitHub Action which may not run)
+        // 3. Update artifact comment on issue
+        const isProductDesign = designType === 'product';
+        await updateDesignArtifact(adapter, issueNumber, {
+            type: isProductDesign ? 'product-design' : 'tech-design',
+            path: getDesignDocLink(issueNumber, designType),
+            status: 'approved',
+            lastUpdated: new Date().toISOString().split('T')[0],
+            prNumber,
+        });
+        console.log(`Telegram webhook: updated design artifact for issue #${issueNumber}`);
+
+        // 4. Advance status to next phase
         const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
         const nextPhase = designType === 'product' ? STATUSES.techDesign : STATUSES.implementation;
         const nextPhaseLabel = designType === 'product' ? 'Tech Design' : 'Implementation';

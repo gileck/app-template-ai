@@ -1,4 +1,10 @@
-name: On PR Merged - Handle Phase Transitions
+name: On PR Merged - Handle Phase Transitions (DISABLED)
+
+# DISABLED: All PR merge logic has been moved to the Telegram webhook.
+# The Telegram webhook is now the single source of truth for PR merge handling.
+# See: src/pages/api/telegram-webhook.ts (handleMergeCallback function)
+#
+# This workflow is kept for reference but disabled via the `if: false` condition.
 
 # Trigger when a PR is closed
 on:
@@ -7,8 +13,9 @@ on:
 
 jobs:
   on-pr-merged:
-    # Only run if PR was actually merged (not just closed)
-    if: github.event.pull_request.merged == true
+    # DISABLED - All logic moved to Telegram webhook
+    # To re-enable, change to: if: github.event.pull_request.merged == true
+    if: false
     runs-on: ubuntu-latest
 
     steps:
