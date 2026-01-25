@@ -207,7 +207,8 @@ export function TodoItem({
                 ref={cardRef}
                 className={`todo-item-card ${todo.completed ? 'todo-success-gradient' : ''} ${isDisabled ? 'opacity-60' : ''} ${borderColorClass}`}
             >
-                <div className="flex flex-col gap-2">
+                {/* Desktop Layout */}
+                <div className="hidden sm:flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                         {/* Custom Checkbox */}
                         <button
@@ -312,6 +313,116 @@ export function TodoItem({
                                 <Calendar className="mr-1 h-3 w-3" />
                                 {isDueDateToday ? 'Today' : isDueDateOverdue ? `Overdue - ${formatDueDate(todo.dueDate)}` : `Due ${formatDueDate(todo.dueDate)}`}
                             </Badge>
+                        </div>
+                    )}
+                </div>
+
+                {/* Mobile Layout */}
+                <div className="flex flex-col gap-3 sm:hidden todo-item-mobile">
+                    <div className="todo-item-main-row">
+                        {/* Custom Checkbox */}
+                        <button
+                            className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
+                            aria-checked={todo.completed}
+                            role="checkbox"
+                            onClick={handleToggleComplete}
+                            disabled={isDisabled}
+                            aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                        >
+                            {todo.completed && <Check className="h-4 w-4" />}
+                        </button>
+
+                        {/* Title or Edit Input */}
+                        {isEditing ? (
+                            <Input
+                                className="flex-1"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyDown={handleEditKeyPress}
+                                disabled={isDisabled}
+                                autoFocus
+                            />
+                        ) : (
+                            <span
+                                className={`todo-item-title text-base ${
+                                    todo.completed ? 'todo-completed-text' : ''
+                                }`}
+                            >
+                                {todo.title}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Due Date Badge - Full width on mobile */}
+                    {todo.dueDate && !isEditing && (
+                        <div className="todo-item-due-badge-mobile">
+                            <Badge
+                                variant={isDueDateOverdue ? 'destructive' : isDueDateToday ? 'default' : 'secondary'}
+                                className="text-xs"
+                            >
+                                <Calendar className="mr-1 h-3 w-3" />
+                                {isDueDateToday ? 'Today' : isDueDateOverdue ? `Overdue - ${formatDueDate(todo.dueDate)}` : `Due ${formatDueDate(todo.dueDate)}`}
+                            </Badge>
+                        </div>
+                    )}
+
+                    {/* Action Buttons - Separate row on mobile */}
+                    {isEditing ? (
+                        <div className="todo-item-edit-actions-mobile">
+                            <Button
+                                variant="outline"
+                                onClick={() => setDatePickerOpen(true)}
+                                title="Set due date"
+                                className="todo-edit-calendar-row w-full"
+                            >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Set Due Date
+                            </Button>
+                            <div className="todo-edit-buttons-row">
+                                <Button
+                                    variant="default"
+                                    onClick={handleSaveEdit}
+                                    disabled={isDisabled}
+                                >
+                                    <Save className="mr-1 h-4 w-4" />
+                                    Save
+                                </Button>
+                                <Button variant="outline" onClick={handleCancelEdit}>
+                                    <X className="mr-1 h-4 w-4" />
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="todo-item-actions-mobile">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleViewTodo}
+                                title="View details"
+                            >
+                                <Eye className="mr-1 h-4 w-4" />
+                                View
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleStartEdit}
+                                disabled={isDisabled}
+                                title="Edit"
+                            >
+                                <Pencil className="mr-1 h-4 w-4" />
+                                Edit
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onDelete(todo)}
+                                disabled={isDisabled}
+                                title="Delete"
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                         </div>
                     )}
                 </div>

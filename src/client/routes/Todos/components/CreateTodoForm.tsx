@@ -76,7 +76,8 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
         <>
             <Card className="mb-5 p-4 todo-card-gradient">
                 <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
+                    {/* Desktop layout: horizontal row */}
+                    <div className="hidden sm:flex items-center gap-3">
                         <Input
                             value={newTodoTitle}
                             onChange={(e) => setNewTodoTitle(e.target.value)}
@@ -103,9 +104,37 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
                         </Button>
                     </div>
 
+                    {/* Mobile layout: vertical stack */}
+                    <div className="flex flex-col gap-3 sm:hidden todo-create-form-mobile">
+                        <Input
+                            value={newTodoTitle}
+                            onChange={(e) => setNewTodoTitle(e.target.value)}
+                            placeholder="What will you do today? ✨"
+                            onKeyPress={handleKeyPress}
+                            className="todo-create-input h-12 text-base todo-input-focus"
+                        />
+                        <div className="todo-create-buttons">
+                            <Button
+                                variant="outline"
+                                onClick={() => setDatePickerOpen(true)}
+                                className="todo-create-calendar-btn"
+                                title="Set due date"
+                            >
+                                <Calendar className="h-5 w-5" />
+                            </Button>
+                            <Button
+                                onClick={handleCreateTodo}
+                                disabled={!newTodoTitle.trim()}
+                                className="todo-button-gradient todo-create-add-btn"
+                            >
+                                <Plus className="mr-2 h-5 w-5" /> Add Todo
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Show selected date badge */}
                     {selectedDate && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 todo-create-due-badge">
                             <Badge variant="secondary" className="text-sm">
                                 <Calendar className="mr-1 h-3 w-3" />
                                 Due: {formatDueDate(selectedDate.toISOString())}

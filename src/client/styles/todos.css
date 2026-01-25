@@ -343,18 +343,50 @@
 
 /* === Responsive adjustments === */
 @media (max-width: 640px) {
-    .todo-item-card {
-        padding: 0.75rem;
+    /* === Page Container === */
+    .todo-gradient-bg {
+        padding: 1rem;
     }
 
+    /* === Header === */
+    .todo-mobile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .todo-mobile-header h1 {
+        font-size: 2rem; /* 32px */
+    }
+
+    .todo-mobile-header-actions {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* === Card Padding === */
+    .todo-item-card {
+        padding: 1.5rem 1rem; /* 24px vertical, 16px horizontal */
+    }
+
+    .todo-stats-card,
+    .todo-card-gradient,
+    .todo-controls-card {
+        padding: 1.5rem 1rem; /* Increased from 0.75rem/1rem */
+    }
+
+    /* === Empty State === */
     .todo-empty-icon {
         font-size: 3rem;
     }
 
-    /* Mobile Layout for Controls */
+    /* === Controls Layout === */
     .todo-controls-layout {
         flex-direction: column;
         align-items: stretch;
+        gap: 1rem;
     }
 
     .todo-controls-sort {
@@ -362,9 +394,191 @@
         min-width: auto;
     }
 
+    /* Stack filter toggles vertically */
     .todo-controls-filters {
-        flex-direction: row;
-        justify-content: space-between;
-        gap: 1rem;
+        flex-direction: column;
+        gap: 1rem; /* 16px gap */
+    }
+
+    .todo-controls-filters > div {
+        padding: 0.5rem 0; /* Extra vertical padding for touch */
+    }
+
+    /* Due date filter buttons */
+    .todo-controls-card .flex.flex-wrap.gap-2 {
+        gap: 0.75rem; /* 12px gap */
+    }
+
+    .todo-controls-card Button {
+        min-height: 3rem; /* 48px touch target */
+    }
+
+    /* === Create Form === */
+    .todo-create-form-mobile {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .todo-create-form-mobile .todo-create-input {
+        width: 100%;
+        height: 3rem; /* 48px */
+        font-size: 1rem; /* 16px prevents iOS zoom */
+    }
+
+    .todo-create-form-mobile .todo-create-buttons {
+        display: flex;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .todo-create-form-mobile .todo-create-calendar-btn {
+        flex: 0 0 auto;
+        min-width: 3rem; /* 48px */
+        height: 3rem; /* 48px */
+    }
+
+    .todo-create-form-mobile .todo-create-add-btn {
+        flex: 1;
+        height: 3rem; /* 48px */
+        font-size: 1rem;
+    }
+
+    .todo-create-due-badge {
+        width: 100%;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    /* === Todo Item === */
+    .todo-item-mobile {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .todo-item-mobile .todo-item-main-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    /* Checkbox - larger touch target */
+    .todo-checkbox {
+        width: 1.5rem; /* 24px visual */
+        height: 1.5rem;
+        min-width: 1.5rem;
+        min-height: 1.5rem;
+        padding: 0.75rem; /* 12px padding = 48px total touch area */
+        margin: -0.75rem;
+    }
+
+    /* Title - allow wrapping on mobile */
+    .todo-item-title {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Action buttons on separate row */
+    .todo-item-actions-mobile {
+        display: flex;
+        gap: 0.75rem; /* 12px */
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .todo-item-actions-mobile button {
+        min-width: 2.75rem; /* 44px touch target */
+        min-height: 2.75rem;
+        flex: 1;
+    }
+
+    /* Edit mode buttons */
+    .todo-item-edit-actions-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .todo-item-edit-actions-mobile .todo-edit-calendar-row {
+        width: 100%;
+    }
+
+    .todo-item-edit-actions-mobile .todo-edit-buttons-row {
+        display: flex;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .todo-item-edit-actions-mobile .todo-edit-buttons-row button {
+        flex: 1;
+        min-height: 3rem; /* 48px */
+    }
+
+    /* Due date badge - full width on mobile */
+    .todo-item-due-badge-mobile {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .todo-item-due-badge-mobile .badge {
+        font-size: 0.875rem; /* 14px */
+        padding: 0.375rem 0.75rem;
+    }
+
+    /* === Stats === */
+    .todo-stats-mobile .grid {
+        gap: 1rem; /* Increased from 0.75rem */
+    }
+
+    .todo-stats-mobile .text-xl {
+        font-size: 1.5rem; /* 24px - increased from 20px */
+    }
+
+    .todo-stats-mobile .text-xs {
+        font-size: 0.875rem; /* 14px - increased from 12px */
+    }
+
+    /* Progress bar - taller on mobile */
+    .todo-progress-bar {
+        height: 0.5rem; /* 8px - increased from 6px */
+    }
+
+    /* === Typography === */
+    .todo-gradient-text {
+        font-size: 2rem; /* 32px for mobile */
+    }
+
+    /* === Touch Target Enforcement === */
+    button,
+    input[type="checkbox"],
+    .todo-checkbox,
+    a {
+        min-height: 2.75rem; /* 44px minimum */
+    }
+
+    /* Input fields must be 16px to prevent iOS zoom */
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    textarea,
+    select {
+        font-size: 1rem; /* 16px */
+    }
+
+    /* === Spacing === */
+    .todo-list-container {
+        gap: 1rem; /* Increased from 0.75rem */
+    }
+
+    .todo-completed-divider {
+        margin: 1.5rem 0; /* Increased from 1rem */
     }
 }

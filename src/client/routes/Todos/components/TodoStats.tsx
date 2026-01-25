@@ -21,28 +21,28 @@ export function TodoStats({ todos }: TodoStatsProps) {
     const overdue = todos.filter((t) => !t.completed && isOverdue(t.dueDate)).length;
 
     return (
-        <Card className="mb-5 p-3 todo-stats-card">
-            <div className="mb-2">
-                <h2 className="text-sm font-medium text-muted-foreground">Your Progress</h2>
+        <Card className="mb-5 p-3 sm:p-4 todo-stats-card">
+            <div className="mb-3 sm:mb-2">
+                <h2 className="text-sm sm:text-base font-medium text-muted-foreground">Your Progress</h2>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-3 gap-4 sm:gap-3 mb-4 sm:mb-3 todo-stats-mobile">
                 {/* Completed/Total */}
                 <div className="text-center">
-                    <div className="text-xl font-bold">{completed}/{total}</div>
-                    <div className="text-xs text-muted-foreground">Completed</div>
+                    <div className="text-2xl sm:text-xl font-bold">{completed}/{total}</div>
+                    <div className="text-sm sm:text-xs text-muted-foreground">Completed</div>
                 </div>
 
                 {/* Percentage */}
                 <div className="text-center">
-                    <div className="text-xl font-bold text-primary">{percentage}%</div>
-                    <div className="text-xs text-muted-foreground">Progress</div>
+                    <div className="text-2xl sm:text-xl font-bold text-primary">{percentage}%</div>
+                    <div className="text-sm sm:text-xs text-muted-foreground">Progress</div>
                 </div>
 
                 {/* Total */}
                 <div className="text-center">
-                    <div className="text-xl font-bold text-muted-foreground">{total}</div>
-                    <div className="text-xs text-muted-foreground">Total Tasks</div>
+                    <div className="text-2xl sm:text-xl font-bold text-muted-foreground">{total}</div>
+                    <div className="text-sm sm:text-xs text-muted-foreground">Total Tasks</div>
                 </div>
             </div>
 
@@ -53,14 +53,14 @@ export function TodoStats({ todos }: TodoStatsProps) {
 
             {/* Due Date Stats */}
             {(dueToday > 0 || overdue > 0) && (
-                <div className="mt-3 flex gap-2 flex-wrap">
+                <div className="mt-4 sm:mt-3 flex gap-2 flex-wrap">
                     {dueToday > 0 && (
-                        <Badge variant="default" className="text-xs">
+                        <Badge variant="default" className="text-sm sm:text-xs px-3 py-1 sm:px-2 sm:py-0.5">
                             Due Today: {dueToday}
                         </Badge>
                     )}
                     {overdue > 0 && (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant="destructive" className="text-sm sm:text-xs px-3 py-1 sm:px-2 sm:py-0.5">
                             Overdue: {overdue}
                         </Badge>
                     )}
