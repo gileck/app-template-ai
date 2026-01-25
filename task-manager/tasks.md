@@ -615,7 +615,7 @@ Closes #43
 
 ---
 
-## 10. Add Cost Budgeting and Alerts
+## 10. Add Cost Budgeting and Alerts ✅ DONE
 
 | Priority | Complexity | Size |
 |----------|------------|------|
