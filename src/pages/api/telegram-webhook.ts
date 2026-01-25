@@ -34,6 +34,9 @@ import { featureRequests, reports } from '@/server/database';
 import { approveFeatureRequest, approveBugReport } from '@/server/github-sync';
 import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
 import { getPrUrl } from '@/server/project-management/config';
+import { readDesignDoc } from '@/agents/lib/design-files';
+import { formatPhasesToComment, parsePhasesFromMarkdown, hasPhaseComment } from '@/agents/lib/phases';
+import { initializeImplementationPhases } from '@/agents/lib/artifacts';
 
 /**
  * Status transitions when approved - move to next phase
@@ -775,6 +778,31 @@ async function handleDesignPRApproval(
             if (prDetails?.headBranch) {
                 await adapter.deleteBranch(prDetails.headBranch);
                 console.log(`Telegram webhook: deleted branch ${prDetails.headBranch}`);
+            }
+
+            // For tech design PRs, handle phases for multi-PR workflow
+            if (designType === 'tech') {
+                const techDesign = readDesignDoc(issueNumber, 'tech');
+                if (techDesign) {
+                    const phases = parsePhasesFromMarkdown(techDesign);
+                    if (phases && phases.length >= 2) {
+                        // Post phases comment on issue (for implementation agent to read)
+                        const issueComments = await adapter.getIssueComments(issueNumber);
+                        if (!hasPhaseComment(issueComments)) {
+                            const phasesComment = formatPhasesToComment(phases);
+                            await adapter.addIssueComment(issueNumber, phasesComment);
+                            console.log(`Telegram webhook: posted phases comment (${phases.length} phases)`);
+                        }
+
+                        // Initialize implementation phases in artifact comment
+                        await initializeImplementationPhases(
+                            adapter,
+                            issueNumber,
+                            phases.map(p => ({ order: p.order, name: p.name }))
+                        );
+                        console.log(`Telegram webhook: initialized implementation phases`);
+                    }
+                }
             }
         } else {
             console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
