@@ -181,7 +181,7 @@ Before writing the design, explore the codebase:
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format (same structure as before)
-- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Format: "Here's the design overview: 1. ... 2. ... 3. ..."
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 
@@ -299,7 +299,7 @@ Focus ONLY on:
 
 Provide your response as structured JSON with these fields:
 - **design**: COMPLETE revised Product Design document in markdown format (entire document, not just changes)
-- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
@@ -376,7 +376,7 @@ Focus ONLY on:
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format
-- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Format: "Here's the design overview: 1. ... 2. ... 3. ..."
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
@@ -464,7 +464,7 @@ Explore the codebase:
 Provide your response as structured JSON with these fields:
 - **design**: Complete Technical Design document in markdown format (same structure as before)
 - **phases** (L/XL features ONLY): Array of implementation phases (see schema below). Leave empty/null for S/M features.
-- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
+- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 **Phase schema (for L/XL features only):**
 \`\`\`json
@@ -685,7 +685,7 @@ ${feedbackSection}
 
 Provide your response as structured JSON with these fields:
 - **design**: COMPLETE revised Technical Design document in markdown format (entire document, not just changes)
-- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
@@ -748,7 +748,7 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Technical Design document in markdown format
-- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
+- **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
@@ -886,7 +886,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 After implementing, provide your response as structured JSON with these fields:
 - **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
-- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Example prSummary format:
 \`\`\`markdown
@@ -1015,7 +1015,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 After making changes, provide your response as structured JSON with these fields:
 - **prSummary**: Updated PR summary in markdown format with "## Summary" and "## Changes" sections
-- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Example comment format:
 \`\`\`
@@ -1090,7 +1090,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 After implementing, provide your response as structured JSON with these fields:
 - **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
-- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Example prSummary format:
 \`\`\`markdown
@@ -1185,7 +1185,7 @@ Analyze this bug and create a Technical Design for the fix:
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Technical Design document in markdown format (same structure as shown in example below)
-- **comment**: High-level implementation plan for the fix to post as GitHub comment (3-5 bullet points). Format: "Here's the implementation plan: 1. ... 2. ... 3. ..."
+- **comment**: High-level implementation plan for the fix to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Example design structure:
 
@@ -1336,7 +1336,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 
 After implementing, provide your response as structured JSON with these fields:
 - **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
-- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Format: "Here's what I did: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Example prSummary format (for bug fixes, mention root cause, how it was fixed, and how to verify):
 \`\`\`markdown
@@ -1395,7 +1395,7 @@ ${feedbackSection}
 
 Provide your response as structured JSON with these fields:
 - **design**: COMPLETE revised Technical Design document in markdown format (entire document, not just changes)
-- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Format: "Here's what I changed: 1. ... 2. ... 3. ..."
+- **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
 Do NOT output just the changes in design - output the entire revised document.
 
