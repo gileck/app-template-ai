@@ -38,7 +38,8 @@ const REQUIRED_SECRETS = [
     { envKey: 'TELEGRAM_BOT_TOKEN', githubKey: 'TELEGRAM_BOT_TOKEN', description: 'Telegram Bot Token' },
     { envKey: 'LOCAL_TELEGRAM_CHAT_ID', githubKey: 'TELEGRAM_CHAT_ID', description: 'Telegram Chat ID' },
     // GitHub Actions needs bot token for posting comments - try GITHUB_BOT_TOKEN first, fallback to GITHUB_TOKEN
-    { envKey: 'GITHUB_BOT_TOKEN', fallbackKey: 'GITHUB_TOKEN', githubKey: 'GITHUB_TOKEN', description: 'Bot account token for GitHub Actions' },
+    // Note: Workflow uses PROJECT_TOKEN secret name
+    { envKey: 'GITHUB_BOT_TOKEN', fallbackKey: 'GITHUB_TOKEN', githubKey: 'PROJECT_TOKEN', description: 'Bot account token for GitHub Actions' },
 ];
 
 // Variables (non-sensitive configuration)
@@ -107,7 +108,13 @@ function checkGhAuth(): boolean {
 
 function setGitHubSecret(key: string, value: string): boolean {
     try {
-        execSync(`gh secret set ${key} --body "${value}"`, { stdio: 'inherit' });
+        // Use stdin to avoid shell interpolation issues with special characters/newlines
+        // Trim the value to remove any accidental trailing whitespace/newlines
+        const trimmedValue = value.trim();
+        execSync(`gh secret set ${key}`, {
+            input: trimmedValue,
+            stdio: ['pipe', 'inherit', 'inherit'],
+        });
         return true;
     } catch {
         return false;
@@ -116,7 +123,13 @@ function setGitHubSecret(key: string, value: string): boolean {
 
 function setGitHubVariable(key: string, value: string): boolean {
     try {
-        execSync(`gh variable set ${key} --body "${value}"`, { stdio: 'inherit' });
+        // Use stdin to avoid shell interpolation issues with special characters
+        // Trim the value to remove any accidental trailing whitespace/newlines
+        const trimmedValue = value.trim();
+        execSync(`gh variable set ${key}`, {
+            input: trimmedValue,
+            stdio: ['pipe', 'inherit', 'inherit'],
+        });
         return true;
     } catch {
         return false;
