@@ -101,6 +101,13 @@ async function handleDesignPRMerged(
         console.log('  Cleared review status');
     }
 
+    // Delete the design branch after successful merge
+    const prDetails = await adapter.getPRDetails(prNumber);
+    if (prDetails?.headBranch) {
+        console.log(`  Cleaning up design branch: ${prDetails.headBranch}`);
+        await adapter.deleteBranch(prDetails.headBranch);
+    }
+
     // 3. For tech design PRs, check for phases and initialize in artifact comment
     if (!isProductDesign) {
         const techDesign = readDesignDoc(issueNumber, 'tech');
@@ -295,6 +302,13 @@ async function main() {
                     console.log('  Cleared review status');
                 }
 
+                // Delete the feature branch after successful phase merge
+                const prDetails = await adapter.getPRDetails(parseInt(prNumber, 10));
+                if (prDetails?.headBranch) {
+                    console.log(`  Cleaning up feature branch: ${prDetails.headBranch}`);
+                    await adapter.deleteBranch(prDetails.headBranch);
+                }
+
                 // Send notification for phase completion
                 if (appConfig.ownerTelegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
                     const repoUrl = `https://github.com/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}`;
@@ -371,6 +385,13 @@ Run <code>yarn agent:implement</code> to continue.`;
         if (adapter.hasReviewStatusField() && item.reviewStatus) {
             await adapter.clearItemReviewStatus(item.id);
             console.log('Cleared review status');
+        }
+
+        // Delete the feature branch after successful merge
+        const prDetails = await adapter.getPRDetails(parseInt(prNumber, 10));
+        if (prDetails?.headBranch) {
+            console.log(`\nCleaning up feature branch: ${prDetails.headBranch}`);
+            await adapter.deleteBranch(prDetails.headBranch);
         }
 
         // Update feature request OR bug report in MongoDB

@@ -340,10 +340,10 @@ export interface ProjectManagementAdapter {
     ): Promise<void>;
 
     /**
-     * Get PR details including state (open/closed) and merged status
+     * Get PR details including state (open/closed), merged status, and head branch
      * Returns null if PR doesn't exist
      */
-    getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null>;
+    getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean; headBranch: string } | null>;
 
     /**
      * Merge a pull request using squash merge
@@ -412,6 +412,12 @@ export interface ProjectManagementAdapter {
      * Check if a branch exists
      */
     branchExists(branchName: string): Promise<boolean>;
+
+    /**
+     * Delete a branch from the repository
+     * Used to clean up feature branches after PR merge
+     */
+    deleteBranch(branchName: string): Promise<void>;
 
     // --------------------------------------------------------
     // Project Fields (for advanced use)

@@ -1146,7 +1146,7 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         return data.default_branch;
     }
 
-    async getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean } | null> {
+    async getPRDetails(prNumber: number): Promise<{ state: 'open' | 'closed'; merged: boolean; headBranch: string } | null> {
         try {
             const oc = this.getOctokit();
             const { owner, repo } = this.config.github;
@@ -1160,6 +1160,7 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
             return {
                 state: data.state as 'open' | 'closed',
                 merged: data.merged || false,
+                headBranch: data.head.ref,
             };
         } catch {
             return null;
@@ -1332,6 +1333,37 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         } catch {
             console.log(`  ℹ️  Branch not found on GitHub (404 is expected - will create it)`);
             return false;
+        }
+    }
+
+    async deleteBranch(branchName: string): Promise<void> {
+        const oc = this.getOctokit();
+        const { owner, repo } = this.config.github;
+        const defaultBranch = await this.getDefaultBranch();
+
+        // Safety check: never delete the default branch
+        if (branchName === defaultBranch) {
+            console.warn(`  ⚠️ Refusing to delete default branch: ${branchName}`);
+            return;
+        }
+
+        try {
+            await oc.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${branchName}`,
+            });
+            console.log(`  🗑️ Deleted branch: ${branchName}`);
+        } catch (error: unknown) {
+            // Don't fail if branch doesn't exist (may have been deleted manually)
+            const is404 = error instanceof Error &&
+                'status' in error &&
+                (error as { status: number }).status === 404;
+            if (is404) {
+                console.log(`  ℹ️ Branch already deleted or doesn't exist: ${branchName}`);
+            } else {
+                throw error;
+            }
         }
     }
 
