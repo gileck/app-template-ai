@@ -12,6 +12,27 @@ Invoke this command with a task number:
 - `/start-task 1` - Start task 1
 - `/start-task --task 3` - Start task 3
 
+## ⚠️ CRITICAL WORKFLOW REQUIREMENT ⚠️
+
+**YOU MUST REQUEST USER REVIEW AND APPROVAL (STEP 8) BEFORE COMMITTING ANY CODE**
+
+This is NOT optional. This step is MANDATORY for all tasks, regardless of size.
+
+**The workflow is:**
+1. Implement the task
+2. Run `yarn checks` to validate
+3. **STOP and request user review (Step 8)** ← YOU ARE HERE
+4. Wait for explicit user approval
+5. ONLY THEN proceed to commit (Step 9)
+
+**Why this is critical:**
+- Prevents accidental commits of incorrect implementations
+- Allows user to review before changes are permanent
+- Gives user chance to request modifications
+- Essential for maintaining code quality and collaboration
+
+**If you skip Step 8, you MUST revert and start over.**
+
 ## Process Overview
 
 Follow these steps to implement a task from task-manager/tasks.md:
@@ -170,9 +191,14 @@ High-level approach and key decisions.
 ---
 
 ## Step 8: Request User Review and Approval (MANDATORY)
+
+### ⚠️⚠️⚠️ CRITICAL - DO NOT SKIP THIS STEP ⚠️⚠️⚠️
+
+**YOU MUST STOP HERE AND REQUEST USER APPROVAL BEFORE PROCEEDING TO STEP 9**
+
 - **Objective**: Get user approval before committing any code
 - **Actions**:
-  - **STOP and present to the user:**
+  - **STOP IMMEDIATELY and present to the user:**
     1. **Task Summary**: Remind the user what task was being implemented (task number, title, objective)
     2. **Implementation Summary**: Explain what was done:
        - List all files that were modified/created
@@ -180,6 +206,12 @@ High-level approach and key decisions.
        - Highlight any important decisions made
     3. **Validation Status**: Confirm `yarn checks` passed
     4. **Ask for Approval**: Explicitly ask the user to review and approve before committing
+
+### WHY THIS IS MANDATORY:
+- ✅ Gives user visibility into what you implemented
+- ✅ Allows user to request changes before code is committed
+- ✅ Prevents wasted work from incorrect implementations
+- ✅ Essential for collaborative development workflow
 
 **Example message to user:**
 ```
@@ -202,13 +234,32 @@ High-level approach and key decisions.
 3. Show you the actual code changes
 ```
 
+### WAITING FOR USER APPROVAL
+
 - **Wait for explicit approval** before proceeding to commit
 - If user requests changes, make them and return to Step 7 (validation)
 - Only proceed to Step 9 after user says "yes", "approve", "proceed", or similar
 
+**Valid approval responses:**
+- "yes"
+- "approve"
+- "proceed"
+- "looks good"
+- "LGTM" (Looks Good To Me)
+
+**If user has NOT given approval, DO NOT proceed to Step 9.**
+
 ---
 
 ## Step 9: Commit Changes
+
+### ⚠️ PREREQUISITE: User must have approved in Step 8 ⚠️
+
+**Before proceeding, verify:**
+- [ ] You requested user review in Step 8
+- [ ] User has given explicit approval
+- [ ] If NOT approved yet, STOP and wait for approval
+
 - **Objective**: Save the work to version control
 - **Actions**:
   - Stage all changes: `git add .`
@@ -301,7 +352,7 @@ This PR includes 2 commits:
 - [ ] Implementation plan created (if M/L/XL) with path recorded in tasks.md
 - [ ] Task implemented following guidelines
 - [ ] `yarn checks` passed with 0 errors
-- [ ] **User review requested and approval received**
+- [ ] **⚠️ CRITICAL: User review requested and approval received (MANDATORY - DO NOT SKIP)**
 - [ ] Changes committed with proper message (implementation commit)
 - [ ] Task marked as done with `yarn task mark-done --task N` (separate commit)
 - [ ] Both commits pushed to remote

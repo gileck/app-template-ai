@@ -44,6 +44,23 @@ This workflow wraps `/start-task` with git worktree isolation and squash merge:
 
 ---
 
+## ⚠️ CRITICAL WORKFLOW REQUIREMENT ⚠️
+
+**YOU MUST REQUEST USER REVIEW AND APPROVAL (STEP 8) BEFORE RETURNING TO MAIN**
+
+This is NOT optional. This step is MANDATORY for all tasks, regardless of size.
+
+**The workflow is:**
+1. Implement the task in worktree
+2. Run `yarn checks` to validate
+3. **STOP and request user review (Step 8)** ← YOU ARE HERE
+4. Wait for explicit user approval
+5. ONLY THEN return to main and squash merge (Step 10+)
+
+**Even though you're working in a worktree and will squash merge later, you MUST still get user approval before proceeding. The worktree workflow does NOT exempt you from Step 8.**
+
+---
+
 ## Process Overview
 
 > **Note:** This command uses `/start-task` for the core implementation workflow (steps 2-8).
@@ -100,7 +117,7 @@ Read and execute steps 2-8 from `.claude/commands/start-task.md`:
 - Step 5: Create Implementation Plan (if complex)
 - Step 6: Implement the Task
 - Step 7: Run Validation Checks
-- Step 8: Request User Review and Approval (MANDATORY)
+- **Step 8: Request User Review and Approval (⚠️ MANDATORY - DO NOT SKIP ⚠️)**
 
 **Key differences when working in worktree:**
 - ✅ You're in `../worktree-task-N/` directory, not main workspace
@@ -108,7 +125,17 @@ Read and execute steps 2-8 from `.claude/commands/start-task.md`:
 - ✅ Commit as often as you want - perfect commit messages not needed
 - ✅ All commits will be combined into ONE clean commit in Step 12
 
-**After completing Step 8 (User Approval) from /start-task, continue below with Step 10...**
+### ⚠️⚠️⚠️ CRITICAL CHECKPOINT ⚠️⚠️⚠️
+
+**YOU MUST COMPLETE Step 8 (Request User Review and Approval) BEFORE CONTINUING TO STEP 10**
+
+After validation checks pass (Step 7), you MUST:
+1. STOP and request user review
+2. Present implementation summary to user
+3. Wait for explicit user approval
+4. ONLY THEN continue to Step 10 below
+
+**If you have NOT received user approval yet, DO NOT proceed to Step 10.**
 
 ---
 
@@ -232,7 +259,8 @@ EOF
 
 - [ ] Worktree created with `yarn task worktree --task N`
 - [ ] Navigated to worktree and symlinked node_modules (NOT yarn install)
-- [ ] **Followed /start-task steps 2-8** (understand, document, explore, plan, implement, validate, user approval)
+- [ ] **Followed /start-task steps 2-7** (understand, document, explore, plan, implement, validate)
+- [ ] **⚠️ CRITICAL: Step 8 - User review requested and approval received (MANDATORY - DO NOT SKIP)**
 - [ ] Final WIP commit made in worktree
 - [ ] Returned to main worktree on main branch
 - [ ] Squash merged branch: `git merge --squash task/N-branch`
