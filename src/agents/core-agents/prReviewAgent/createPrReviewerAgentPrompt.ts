@@ -46,6 +46,14 @@ export interface PromptContext {
 function createPhaseContextSection(phaseInfo: PhaseInfo): string {
     const { current, total, phaseName, phaseDescription, phaseFiles } = phaseInfo;
 
+    // Separate source files from documentation files
+    const sourceFiles = phaseFiles?.filter(f =>
+        !f.startsWith('docs/') && !f.startsWith('.cursor/rules/')
+    ) || [];
+    const docFiles = phaseFiles?.filter(f =>
+        f.startsWith('docs/') || f.startsWith('.cursor/rules/')
+    ) || [];
+
     let section = `## ⚠️ MULTI-PHASE IMPLEMENTATION - PHASE-SPECIFIC REVIEW REQUIRED
 
 **This PR implements Phase ${current} of ${total}**: ${phaseName || 'Unknown'}
@@ -58,10 +66,22 @@ function createPhaseContextSection(phaseInfo: PhaseInfo): string {
 `;
     }
 
-    if (phaseFiles && phaseFiles.length > 0) {
-        section += `**Expected Files for this Phase:**
+    if (sourceFiles.length > 0) {
+        section += `**Expected Source Files for this Phase:**
 `;
-        for (const file of phaseFiles) {
+        for (const file of sourceFiles) {
+            section += `- \`${file}\`
+`;
+        }
+        section += `
+`;
+    }
+
+    if (docFiles.length > 0) {
+        section += `**Relevant Documentation (verify compliance):**
+The tech design specified these docs as relevant for this phase. READ them and verify the implementation follows their guidelines:
+`;
+        for (const file of docFiles) {
             section += `- \`${file}\`
 `;
         }
@@ -76,8 +96,13 @@ function createPhaseContextSection(phaseInfo: PhaseInfo): string {
 4. ✅ Check that the PR follows the phase description above
 `;
 
-    if (phaseFiles && phaseFiles.length > 0) {
-        section += `5. ✅ Verify changes are primarily in the expected files listed above
+    if (sourceFiles.length > 0) {
+        section += `5. ✅ Verify changes are primarily in the expected source files listed above
+`;
+    }
+
+    if (docFiles.length > 0) {
+        section += `6. ✅ Verify implementation follows the guidelines in the relevant documentation
 `;
     }
 
