@@ -111,13 +111,13 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
                             onChange={(e) => setNewTodoTitle(e.target.value)}
                             placeholder="What will you do today? ✨"
                             onKeyPress={handleKeyPress}
-                            className="todo-create-input h-12 text-base todo-input-focus"
+                            className="h-12 text-base w-full todo-input-focus"
                         />
                         <div className="todo-create-buttons">
                             <Button
                                 variant="outline"
                                 onClick={() => setDatePickerOpen(true)}
-                                className="todo-create-calendar-btn"
+                                className="h-12 min-w-12 flex-shrink-0"
                                 title="Set due date"
                             >
                                 <Calendar className="h-5 w-5" />
@@ -125,7 +125,7 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
                             <Button
                                 onClick={handleCreateTodo}
                                 disabled={!newTodoTitle.trim()}
-                                className="todo-button-gradient todo-create-add-btn"
+                                className="todo-button-gradient h-12 flex-1 text-base"
                             >
                                 <Plus className="mr-2 h-5 w-5" /> Add Todo
                             </Button>

@@ -26,6 +26,7 @@ export function TodoStats({ todos }: TodoStatsProps) {
                 <h2 className="text-sm sm:text-base font-medium text-muted-foreground">Your Progress</h2>
             </div>
 
+            {/* Mobile uses larger text (24px) vs desktop (20px) for better readability at arm's length */}
             <div className="grid grid-cols-3 gap-4 sm:gap-3 mb-4 sm:mb-3 todo-stats-mobile">
                 {/* Completed/Total */}
                 <div className="text-center">
@@ -46,8 +47,8 @@ export function TodoStats({ todos }: TodoStatsProps) {
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="todo-progress-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage} aria-live="polite">
+            {/* Progress Bar - 8px height on mobile for visibility */}
+            <div className="h-2 sm:h-1.5 rounded-sm overflow-hidden bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage} aria-live="polite">
                 <div className="todo-progress-fill" style={{ width: `${percentage}%` }} />
             </div>
 

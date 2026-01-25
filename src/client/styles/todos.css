@@ -419,28 +419,10 @@
         gap: 0.75rem;
     }
 
-    .todo-create-form-mobile .todo-create-input {
-        width: 100%;
-        height: 3rem; /* 48px */
-        font-size: 1rem; /* 16px prevents iOS zoom */
-    }
-
     .todo-create-form-mobile .todo-create-buttons {
         display: flex;
         gap: 0.75rem;
         width: 100%;
-    }
-
-    .todo-create-form-mobile .todo-create-calendar-btn {
-        flex: 0 0 auto;
-        min-width: 3rem; /* 48px */
-        height: 3rem; /* 48px */
-    }
-
-    .todo-create-form-mobile .todo-create-add-btn {
-        flex: 1;
-        height: 3rem; /* 48px */
-        font-size: 1rem;
     }
 
     .todo-create-due-badge {
@@ -462,12 +444,8 @@
         width: 100%;
     }
 
-    /* Checkbox - larger touch target */
+    /* Checkbox - larger touch target (48px touch area on mobile vs 40px on desktop) */
     .todo-checkbox {
-        width: 1.5rem; /* 24px visual */
-        height: 1.5rem;
-        min-width: 1.5rem;
-        min-height: 1.5rem;
         padding: 0.75rem; /* 12px padding = 48px total touch area */
         margin: -0.75rem;
     }
@@ -493,8 +471,6 @@
     }
 
     .todo-item-actions-mobile button {
-        min-width: 2.75rem; /* 44px touch target */
-        min-height: 2.75rem;
         flex: 1;
     }
 
@@ -518,7 +494,6 @@
 
     .todo-item-edit-actions-mobile .todo-edit-buttons-row button {
         flex: 1;
-        min-height: 3rem; /* 48px */
     }
 
     /* Due date badge - full width on mobile */
@@ -533,21 +508,9 @@
     }
 
     /* === Stats === */
+    /* Note: Stats use larger text on mobile (24px) vs desktop (20px) for better readability at arm's length */
     .todo-stats-mobile .grid {
         gap: 1rem; /* Increased from 0.75rem */
-    }
-
-    .todo-stats-mobile .text-xl {
-        font-size: 1.5rem; /* 24px - increased from 20px */
-    }
-
-    .todo-stats-mobile .text-xs {
-        font-size: 0.875rem; /* 14px - increased from 12px */
-    }
-
-    /* Progress bar - taller on mobile */
-    .todo-progress-bar {
-        height: 0.5rem; /* 8px - increased from 6px */
     }
 
     /* === Typography === */
@@ -555,21 +518,10 @@
         font-size: 2rem; /* 32px for mobile */
     }
 
-    /* === Touch Target Enforcement === */
-    button,
-    input[type="checkbox"],
-    .todo-checkbox,
-    a {
-        min-height: 2.75rem; /* 44px minimum */
-    }
-
-    /* Input fields must be 16px to prevent iOS zoom */
-    input[type="text"],
-    input[type="search"],
-    input[type="email"],
-    input[type="password"],
-    textarea,
-    select {
+    /* Input fields must be 16px to prevent iOS auto-zoom */
+    .todo-list-container input[type="text"],
+    .todo-list-container input[type="search"],
+    .todo-list-container textarea {
         font-size: 1rem; /* 16px */
     }
 

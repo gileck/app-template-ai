@@ -373,7 +373,7 @@ export function TodoItem({
                                 variant="outline"
                                 onClick={() => setDatePickerOpen(true)}
                                 title="Set due date"
-                                className="todo-edit-calendar-row w-full"
+                                className="todo-edit-calendar-row w-full h-12"
                             >
                                 <Calendar className="mr-2 h-4 w-4" />
                                 Set Due Date
@@ -383,11 +383,12 @@ export function TodoItem({
                                     variant="default"
                                     onClick={handleSaveEdit}
                                     disabled={isDisabled}
+                                    className="h-12"
                                 >
                                     <Save className="mr-1 h-4 w-4" />
                                     Save
                                 </Button>
-                                <Button variant="outline" onClick={handleCancelEdit}>
+                                <Button variant="outline" onClick={handleCancelEdit} className="h-12">
                                     <X className="mr-1 h-4 w-4" />
                                     Cancel
                                 </Button>
@@ -397,29 +398,29 @@ export function TodoItem({
                         <div className="todo-item-actions-mobile">
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={handleViewTodo}
                                 title="View details"
+                                className="min-h-11 min-w-11"
                             >
                                 <Eye className="mr-1 h-4 w-4" />
                                 View
                             </Button>
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={handleStartEdit}
                                 disabled={isDisabled}
                                 title="Edit"
+                                className="min-h-11 min-w-11"
                             >
                                 <Pencil className="mr-1 h-4 w-4" />
                                 Edit
                             </Button>
                             <Button
                                 variant="outline"
-                                size="sm"
                                 onClick={() => onDelete(todo)}
                                 disabled={isDisabled}
                                 title="Delete"
+                                className="min-h-11 min-w-11"
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
