@@ -50,7 +50,8 @@ export function parseCostSummary(logContent: string): PhaseData[] {
         const summarySection = summaryMatch[1];
 
         // Extract table rows (skip header, divider, and total row)
-        const tableMatch = summarySection.match(/\|.*\|.*\|.*\|.*\|.*\|\n\|[-:| ]+\|\n([\s\S]*?)(?=\n\|.*Total.*\||$)/);
+        // Match: header row -> divider row (with proper column separators) -> data rows
+        const tableMatch = summarySection.match(/\|.*\|.*\|.*\|.*\|.*\|\n\|[-:| ]+\|[-:| ]+\|[-:| ]+\|[-:| ]+\|[-:| ]+\|\n([\s\S]*?)(?=\n\|.*Total.*\||$)/);
         if (!tableMatch) {
             console.warn('  ⚠️ Found summary section but could not parse table - creating new summary');
             return [];
