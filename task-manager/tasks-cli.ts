@@ -424,8 +424,33 @@ function markTaskDone(taskNumber: number) {
         return;
     }
 
-    // Add ✅ DONE to the header
-    lines[taskHeaderLine] = currentHeader + ' ✅ DONE';
+    // Add strikethrough and ✅ DONE to the header
+    // Pattern: ## N. Title -> ## N. ~~Title~~ ✅ DONE
+    const headerMatch = currentHeader.match(/^(## \d+\.\s+)(.+)/);
+    if (headerMatch) {
+        const prefix = headerMatch[1]; // "## N. "
+        const title = headerMatch[2];  // "Title"
+        lines[taskHeaderLine] = `${prefix}~~${title}~~ ✅ DONE`;
+    } else {
+        // Fallback if pattern doesn't match
+        lines[taskHeaderLine] = currentHeader + ' ✅ DONE';
+    }
+
+    // Update Status column in the metadata table to ✅ **DONE**
+    for (let i = task.startLine; i <= task.endLine; i++) {
+        const line = lines[i];
+        // Match the data row (contains priority values)
+        if (line.includes('|') && (line.includes('High') || line.includes('Medium') || line.includes('Low') || line.includes('Critical'))) {
+            const cells = line.split('|').map(c => c.trim());
+            // Check if there's a Status column (4th data column after empty first)
+            if (cells.length >= 5) {
+                // Has Status column - update it to ✅ **DONE**
+                cells[4] = ' ✅ **DONE** ';
+                lines[i] = '|' + cells.slice(1).join('|');
+            }
+            break;
+        }
+    }
 
     // Write back
     fs.writeFileSync(TASKS_FILE, lines.join('\n'), 'utf-8');
