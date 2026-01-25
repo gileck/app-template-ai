@@ -288,6 +288,10 @@ async function processItem(
                 }
             }
 
+            else {
+                console.log(` ⚠️  No product design found for issue ⚠️`);
+            }
+
             // Check for existing tech design in file (for idempotency)
             const existingTechDesign = readDesignDoc(issueNumber, 'tech');
 

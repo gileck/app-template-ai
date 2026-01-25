@@ -37,9 +37,10 @@ const ENV_FILE = existsSync(resolve(process.cwd(), '.env.local'))
 const REQUIRED_SECRETS = [
     { envKey: 'TELEGRAM_BOT_TOKEN', githubKey: 'TELEGRAM_BOT_TOKEN', description: 'Telegram Bot Token' },
     { envKey: 'LOCAL_TELEGRAM_CHAT_ID', githubKey: 'TELEGRAM_CHAT_ID', description: 'Telegram Chat ID' },
-    // GitHub Actions needs bot token for posting comments - try GITHUB_BOT_TOKEN first, fallback to GITHUB_TOKEN
+    // GitHub Actions needs GITHUB_TOKEN (admin token) for project access
+    // GITHUB_BOT_TOKEN doesn't have project:read scope - only use admin token
     // Note: Workflow uses PROJECT_TOKEN secret name
-    { envKey: 'GITHUB_BOT_TOKEN', fallbackKey: 'GITHUB_TOKEN', githubKey: 'PROJECT_TOKEN', description: 'Bot account token for GitHub Actions' },
+    { envKey: 'GITHUB_TOKEN', githubKey: 'PROJECT_TOKEN', description: 'Admin token for GitHub Actions (needs project access)' },
 ];
 
 // Variables (non-sensitive configuration)
