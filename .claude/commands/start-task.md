@@ -18,8 +18,8 @@ Follow these steps to implement a task from task-manager/tasks.md:
 
 ---
 
-## Step 1: Load Task Details
-- **Objective**: Read the specific task from task-manager/tasks.md
+## Step 1: Load Task Details and Mark In Progress
+- **Objective**: Read the specific task and mark it as being worked on
 - **Actions**:
   - Run: `yarn task work --task N` (where N is the task number)
   - This automatically:
@@ -29,6 +29,14 @@ Follow these steps to implement a task from task-manager/tasks.md:
     - Provides next steps
   - Read the task content carefully
   - Note the task priority, size, and complexity
+  - **Mark task as In Progress**: Update `task-manager/tasks.md`:
+    - Find the task's metadata table
+    - Change `Status` from `TODO` to `In Progress`
+    ```markdown
+    | Priority | Complexity | Size | Status |
+    |----------|------------|------|--------|
+    | **High** | Mid | M | In Progress |
+    ```
 
 ---
 
@@ -68,13 +76,32 @@ Follow these steps to implement a task from task-manager/tasks.md:
 ## Step 5: Create Implementation Plan
 - **Objective**: Break down the work into manageable steps
 - **Actions**:
-  - Use the TodoWrite tool to create a structured task list if the task is complex
+  - For complex tasks (M/L/XL), create a plan file:
+    - Write plan to: `task-manager/plans/task-N-plan.md`
+    - Include: objectives, approach, sub-tasks, file changes
+  - Use the TodoWrite tool to create a structured task list if helpful
   - Break down implementation into logical sub-tasks
   - Order sub-tasks by dependencies
   - For simple tasks (XS/S), you may skip this step
 
-**Example Todo List for Complex Task:**
-```
+**If a plan file is created, update tasks.md:**
+- Add a `**Plan:**` field to the task with the path to the plan file
+- Example in task-manager/tasks.md:
+  ```markdown
+  **Plan:** `task-manager/plans/task-7-plan.md`
+  ```
+
+**Example Plan File (`task-manager/plans/task-N-plan.md`):**
+```markdown
+# Task N: [Task Title] - Implementation Plan
+
+## Objective
+Brief description of what we're implementing.
+
+## Approach
+High-level approach and key decisions.
+
+## Sub-tasks
 - [ ] Read and understand current implementation
 - [ ] Add new field to TypeScript interface
 - [ ] Implement server-side logic
@@ -82,6 +109,9 @@ Follow these steps to implement a task from task-manager/tasks.md:
 - [ ] Update component to use new field
 - [ ] Test the implementation
 - [ ] Run validation checks
+
+## Files to Modify
+- `path/to/file.ts` - What changes
 ```
 
 ---
@@ -264,10 +294,11 @@ This PR includes 2 commits:
 ## Quick Checklist
 
 - [ ] Task loaded with `yarn task work --task N`
+- [ ] Task status updated to "In Progress" in tasks.md
 - [ ] Requirements understood
 - [ ] Documentation reviewed (CLAUDE.md, task-specific docs)
 - [ ] Relevant code explored
-- [ ] Implementation plan created (if needed)
+- [ ] Implementation plan created (if M/L/XL) with path recorded in tasks.md
 - [ ] Task implemented following guidelines
 - [ ] `yarn checks` passed with 0 errors
 - [ ] **User review requested and approval received**
