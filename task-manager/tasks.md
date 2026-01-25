@@ -568,7 +568,7 @@ yarn review-workflow --issue 43 --output report.md
 
 | Priority | Complexity | Size | Status |
 |----------|------------|------|--------|
-| **Medium** | Low | S | TODO |
+| **Medium** | Low | S | In Progress |
 
 **Date Added:** 2026-01-25
 
