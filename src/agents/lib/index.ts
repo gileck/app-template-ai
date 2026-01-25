@@ -166,6 +166,7 @@ export {
 export {
     formatPhasesToComment,
     parsePhasesFromComment,
+    parsePhasesFromMarkdown,
     hasPhaseComment,
     getPhaseCommentMarker,
 } from './phases';
@@ -179,3 +180,40 @@ export {
     type CommitMessageResult,
     type PhaseInfo,
 } from './commitMessage';
+
+// Re-export artifact comment utilities (for design document workflow)
+export {
+    ARTIFACT_COMMENT_MARKER,
+    type DesignArtifact,
+    type ArtifactComment,
+    type ImplementationStatus,
+    type ImplementationArtifact,
+    type ImplementationPhaseArtifact,
+    getDesignDocPath,
+    getDesignDocLink,
+    generateDesignBranchName,
+    findArtifactComment,
+    hasArtifactComment,
+    parseArtifactComment,
+    getProductDesignPath,
+    getTechDesignPath,
+    formatArtifactComment,
+    saveArtifactComment,
+    updateDesignArtifact,
+    ensureArtifactComment,
+    updateImplementationArtifact,
+    updateImplementationPhaseArtifact,
+    initializeImplementationPhases,
+} from './artifacts';
+
+// Re-export design file utilities
+export {
+    getDesignDocFullPath,
+    getDesignDocRelativePath,
+    getIssueDesignDir,
+    writeDesignDoc,
+    readDesignDoc,
+    designDocExists,
+    deleteDesignDoc,
+    deleteIssueDesignDir,
+} from './design-files';

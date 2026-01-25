@@ -724,6 +724,134 @@ async function handleMergeCallback(
 }
 
 /**
+ * Handle design PR approval callback
+ * Callback format: "design_approve:prNumber:issueNumber:type"
+ * where type is "product" or "tech"
+ *
+ * Actions:
+ * 1. Merge the design PR (squash)
+ * 2. The on-pr-merged.ts GitHub Action will handle:
+ *    - Posting/updating artifact comment
+ *    - Advancing status to next phase
+ */
+async function handleDesignPRApproval(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    prNumber: number,
+    issueNumber: number,
+    designType: 'product' | 'tech'
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Generate commit message for design PR
+        const commitTitle = `docs: ${designType} design for issue #${issueNumber}`;
+        const commitBody = `Approved ${designType} design document.\n\nPart of #${issueNumber}`;
+
+        // 2. Merge the design PR
+        await adapter.mergePullRequest(prNumber, commitTitle, commitBody);
+
+        // 3. Update the message to show success
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+            const nextPhase = designType === 'product' ? 'Tech Design' : 'Implementation';
+            const statusUpdate = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '✅ <b>Merged Successfully!</b>',
+                `${designLabel} PR #${prNumber} merged.`,
+                `📊 Moving to: ${nextPhase}`,
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                originalText + statusUpdate,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: merged ${designType} design PR #${prNumber} for issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling design PR approval:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle design PR request changes callback
+ * Callback format: "design_changes:prNumber:issueNumber:type"
+ * where type is "product" or "tech"
+ *
+ * Actions:
+ * 1. Update review status to "Request Changes"
+ * 2. Design agent will pick it up on next run
+ */
+async function handleDesignPRRequestChanges(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    prNumber: number,
+    issueNumber: number,
+    designType: 'product' | 'tech'
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // 2. Update review status to Request Changes
+        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.requestChanges);
+
+        // 3. Update the message with instructions
+        const prUrl = getPrUrl(prNumber);
+        const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const statusUpdate = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '🔄 <b>Changes Requested</b>',
+                '',
+                `📊 Status: ${item.status}`,
+                `📋 Review Status: ${REVIEW_STATUSES.requestChanges}`,
+                '',
+                `<b>Next:</b> <a href="${prUrl}">Comment on the ${designLabel} PR</a> explaining what needs to change.`,
+                'Design agent will revise on next run.',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                originalText + statusUpdate,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: requested changes for ${designType} design PR #${prNumber}, issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling design PR request changes:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
  * Handle request changes callback from Telegram (admin requests changes after PR approval)
  * Callback format: "reqchanges:issueNumber:prNumber"
  */
@@ -1031,6 +1159,70 @@ export default async function handler(
 
             if (result.success) {
                 await answerCallbackQuery(botToken, callback_query.id, '🔄 Marked for changes');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Design PR approval: "design_approve:prNumber:issueNumber:type"
+        if (action === 'design_approve' && parts.length === 4) {
+            const prNumber = parseInt(parts[1], 10);
+            const issueNumber = parseInt(parts[2], 10);
+            const designType = parts[3] as 'product' | 'tech';
+
+            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleDesignPRApproval(
+                botToken,
+                callback_query,
+                prNumber,
+                issueNumber,
+                designType
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '✅ Merged!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Design PR request changes: "design_changes:prNumber:issueNumber:type"
+        if (action === 'design_changes' && parts.length === 4) {
+            const prNumber = parseInt(parts[1], 10);
+            const issueNumber = parseInt(parts[2], 10);
+            const designType = parts[3] as 'product' | 'tech';
+
+            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleDesignPRRequestChanges(
+                botToken,
+                callback_query,
+                prNumber,
+                issueNumber,
+                designType
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '🔄 Changes requested');
             } else {
                 await answerCallbackQuery(
                     botToken,

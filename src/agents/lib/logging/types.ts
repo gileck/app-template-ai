@@ -45,7 +45,7 @@ export interface StatusTransition {
  * GitHub action information
  */
 export interface GitHubAction {
-    action: 'comment' | 'pr_created' | 'issue_updated' | 'label_added';
+    action: 'comment' | 'pr_created' | 'issue_updated' | 'label_added' | 'branch' | 'pr';
     details: string;
     timestamp: Date;
 }

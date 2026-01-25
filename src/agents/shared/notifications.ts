@@ -562,6 +562,49 @@ ${typeEmoji} ${typeLabel}
 }
 
 /**
+ * Notify admin that design PR is ready for review
+ * Shows Approve & Merge / Request Changes buttons for direct action
+ */
+export async function notifyDesignPRReady(
+    designType: 'product' | 'tech',
+    title: string,
+    issueNumber: number,
+    prNumber: number,
+    isRevision: boolean = false,
+    itemType: 'bug' | 'feature' = 'feature',
+    summary?: string
+): Promise<SendResult> {
+    const prUrl = getPrUrl(prNumber);
+
+    const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+    const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const summarySection = summary ? `\n\n<b>${isRevision ? 'Changes:' : 'Overview:'}</b>\n${escapeHtml(summary)}` : '';
+
+    const message = `<b>Agent (${designLabel}):</b> ${status}
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber} → PR #${prNumber}
+📊 Status: ${designLabel} (Waiting for Review)
+
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and merge to proceed.${summarySection}`;
+
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [[
+            { text: '✅ Approve & Merge', callback_data: `design_approve:${prNumber}:${issueNumber}:${designType}` },
+            { text: '📝 Request Changes', callback_data: `design_changes:${prNumber}:${issueNumber}:${designType}` },
+        ], [
+            { text: '👀 View PR', url: prUrl },
+        ]],
+    };
+
+    return sendToAdmin(message, keyboard);
+}
+
+/**
  * Notify admin that a phase of a multi-PR feature was completed
  */
 export async function notifyPhaseComplete(

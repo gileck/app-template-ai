@@ -65,7 +65,13 @@ import {
     extractTechDesign,
     generateCommitMessage,
     formatCommitMessageComment,
+    parseArtifactComment,
+    getTechDesignPath,
+    updateImplementationPhaseArtifact,
 } from '../../lib';
+import {
+    readDesignDoc,
+} from '../../lib/design-files';
 import { COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
 import {
     createPrReviewerAgentPrompt,
@@ -374,17 +380,47 @@ async function processItem(
 
                 // Handle approval flow: generate commit message, save to PR comment, notify admin
                 if (decision === 'approved') {
-                    // 1. Get PR info for commit message
+                    // 1. Update artifact comment to show PR is approved
+                    try {
+                        if (processable.phaseInfo) {
+                            // Multi-phase feature
+                            await updateImplementationPhaseArtifact(
+                                adapter,
+                                issueNumber,
+                                processable.phaseInfo.current,
+                                processable.phaseInfo.total,
+                                processable.phaseInfo.phaseName || '',
+                                'approved',
+                                prNumber
+                            );
+                        } else {
+                            // Single-phase feature - use Phase 1/1 format for consistency
+                            await updateImplementationPhaseArtifact(
+                                adapter,
+                                issueNumber,
+                                1,
+                                1,
+                                '',
+                                'approved',
+                                prNumber
+                            );
+                        }
+                        console.log('  Updated artifact comment - PR approved');
+                    } catch (error) {
+                        console.warn('  Warning: Failed to update artifact comment:', error instanceof Error ? error.message : String(error));
+                    }
+
+                    // 2. Get PR info for commit message
                     const prInfo = await adapter.getPRInfo(prNumber);
                     if (prInfo) {
-                        // 2. Generate commit message
+                        // 3. Generate commit message
                         const phaseInfoForCommit = processable.phaseInfo
                             ? { current: processable.phaseInfo.current, total: processable.phaseInfo.total }
                             : undefined;
                         const commitMsg = generateCommitMessage(prInfo, item.content, phaseInfoForCommit);
                         console.log(`  Generated commit message: ${commitMsg.title}`);
 
-                        // 3. Save/update commit message as PR comment
+                        // 4. Save/update commit message as PR comment
                         const existingComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
                         const commentBody = formatCommitMessageComment(commitMsg.title, commitMsg.body);
 
@@ -398,7 +434,7 @@ async function processItem(
                             console.log('  Posted commit message comment');
                         }
 
-                        // 4. Send notification with merge/request changes buttons
+                        // 5. Send notification with merge/request changes buttons
                         await notifyPRReadyToMerge(
                             content.title,
                             issueNumber,
@@ -411,7 +447,35 @@ async function processItem(
                         await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
                     }
                 } else {
-                    // Request changes - use old notification (no merge button needed)
+                    // Request changes - update artifact and notify
+                    try {
+                        if (processable.phaseInfo) {
+                            await updateImplementationPhaseArtifact(
+                                adapter,
+                                issueNumber,
+                                processable.phaseInfo.current,
+                                processable.phaseInfo.total,
+                                processable.phaseInfo.phaseName || '',
+                                'changes-requested',
+                                prNumber
+                            );
+                        } else {
+                            // Single-phase feature - use Phase 1/1 format for consistency
+                            await updateImplementationPhaseArtifact(
+                                adapter,
+                                issueNumber,
+                                1,
+                                1,
+                                '',
+                                'changes-requested',
+                                prNumber
+                            );
+                        }
+                        console.log('  Updated artifact comment - changes requested');
+                    } catch (error) {
+                        console.warn('  Warning: Failed to update artifact comment:', error instanceof Error ? error.message : String(error));
+                    }
+
                     await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
                 }
             }
@@ -529,8 +593,26 @@ async function run(options: PRReviewOptions): Promise<void> {
                 updatedAt: c.updatedAt,
             }));
 
+            // Try to get phases from:
+            // 1. Issue comments (most reliable - deterministic format)
+            // 2. Tech design file (new system)
+            // 3. Issue body (old system - fallback)
+            let techDesign: string | null = null;
+
+            // Try file-based tech design first
+            const artifact = parseArtifactComment(commentsList);
+            const techPath = getTechDesignPath(artifact);
+            if (techPath && artifact?.techDesign?.status === 'approved') {
+                techDesign = readDesignDoc(issueNumber, 'tech');
+            }
+
+            // Fallback to issue body
+            if (!techDesign && item.content.body) {
+                techDesign = extractTechDesign(item.content.body);
+            }
+
             const phases = parsePhasesFromComment(commentsList) ||
-                          (item.content.body ? extractPhasesFromTechDesign(extractTechDesign(item.content.body) || '') : null);
+                          (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
 
             const currentPhaseDetails = phases?.find(p => p.order === parsed.current);
 

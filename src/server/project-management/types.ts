@@ -275,6 +275,20 @@ export interface ProjectManagementAdapter {
      */
     addIssueToProject(issueNodeId: string): Promise<string>;
 
+    /**
+     * Find an issue comment by marker
+     * @returns Comment with id and body, or null if not found
+     */
+    findIssueCommentByMarker(issueNumber: number, marker: string): Promise<{
+        id: number;
+        body: string;
+    } | null>;
+
+    /**
+     * Update an existing issue comment
+     */
+    updateIssueComment(issueNumber: number, commentId: number, body: string): Promise<void>;
+
     // --------------------------------------------------------
     // Pull Requests
     // --------------------------------------------------------

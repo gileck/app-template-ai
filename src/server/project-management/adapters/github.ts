@@ -834,6 +834,38 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }));
     }
 
+    async findIssueCommentByMarker(issueNumber: number, marker: string): Promise<{
+        id: number;
+        body: string;
+    } | null> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        const { data: comments } = await oc.issues.listComments({
+            owner,
+            repo,
+            issue_number: issueNumber,
+            per_page: 100,
+        });
+
+        const comment = comments.find(c => c.body?.includes(marker));
+        if (!comment) return null;
+
+        return { id: comment.id, body: comment.body || '' };
+    }
+
+    async updateIssueComment(_issueNumber: number, commentId: number, body: string): Promise<void> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        await oc.issues.updateComment({
+            owner,
+            repo,
+            comment_id: commentId,
+            body,
+        });
+    }
+
     async getIssueDetails(issueNumber: number): Promise<import('../types').GitHubIssueDetails | null> {
         const oc = this.getBotOctokit();
         const { owner, repo } = this.config.github;

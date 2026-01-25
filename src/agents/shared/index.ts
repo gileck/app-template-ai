@@ -93,6 +93,7 @@ export {
     notifyIssueSynced,
     notifyProductDesignReady,
     notifyTechDesignReady,
+    notifyDesignPRReady,
     notifyPRReady,
     notifyPRReviewComplete,
     notifyPRReadyToMerge,

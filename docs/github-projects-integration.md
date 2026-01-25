@@ -15,9 +15,11 @@ The integration creates a complete pipeline using a 6-column workflow for **both
    - ⚡ **Ready for development** - Simple item, go straight to coding
    - 📋 **Backlog** - Keep in backlog for now
 5. **Item moves to selected phase** → AI agent processes accordingly
-6. **AI agent generates design/implementation** → sets Review Status = "Waiting for Review"
-7. **Admin approves** (via Telegram button) → auto-advances to next phase
-8. **Admin merges PR** → GitHub Action marks item as Done
+6. **AI agent generates design/implementation**:
+   - **Design agents**: Create PR with design file → Telegram notification with Approve/Reject buttons
+   - **Implementation agent**: Create PR with code changes → sets Review Status = "Waiting for Review"
+7. **Admin approves design PR** (via Telegram button) → PR auto-merged → status advances to next phase
+8. **Admin merges implementation PR** → GitHub Action marks item as Done
 
 **Key concepts:**
 - **6 board columns**: Backlog → Product Design → Technical Design → Ready for development → PR Review → Done
@@ -31,6 +33,8 @@ The integration creates a complete pipeline using a 6-column workflow for **both
 - **Single webhook**: All Telegram approval and routing buttons use `/api/telegram-webhook` for instant in-app feedback
 - **Simplified MongoDB schema**: MongoDB stores only high-level status (4 values), GitHub Projects tracks detailed workflow
 - **Separate MongoDB collections**: `feature-requests` and `reports` collections (bugs need session logs, screenshots, diagnostics)
+- **Design documents as files**: Stored in `design-docs/issue-{N}/` with PR-based review workflow
+- **Artifact comments**: Track design docs and implementation PRs with status (pending → in-review → approved → merged)
 
 ## MongoDB Status vs GitHub Project Status
 
@@ -430,6 +434,75 @@ const item = await adapter.getItem(itemId);
 
 The adapter uses a singleton pattern and caches project metadata (field IDs, status options) after initialization to minimize API calls.
 
+## Design Document Workflow (PR-Based)
+
+Design documents are stored as versioned files with PR-based review, providing version control and cleaner issue bodies.
+
+### How It Works
+
+**Storage Location:**
+```
+design-docs/
+├── issue-123/
+│   ├── product-design.md
+│   └── tech-design.md
+└── issue-456/
+    └── product-design.md
+```
+
+**Design Agent Flow:**
+
+1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md`
+2. **Agent creates branch** → `design/issue-{N}-product` or `design/issue-{N}-tech`
+3. **Agent creates PR** → `docs: product design for issue #123`
+4. **Telegram notification** with `[Approve & Merge]` and `[Request Changes]` buttons
+5. **Admin approves** → PR auto-merged → artifact comment updated → status advances
+
+**Feedback Mode:**
+When admin clicks "Request Changes":
+1. Agent finds existing design PR
+2. Revises design file, pushes to same branch
+3. PR auto-updates
+4. Admin receives new notification
+
+### Artifact Comments
+
+Every issue gets an artifact comment (created when issue enters the pipeline) that tracks all artifacts:
+
+```markdown
+<!-- ISSUE_ARTIFACT_V1 -->
+## Design Documents
+
+| Document | Status | Updated | PR |
+|----------|--------|---------|-----|
+| [Product Design](../design-docs/issue-123/product-design.md) | Approved | 2026-01-25 | #456 |
+| [Technical Design](../design-docs/issue-123/tech-design.md) | Approved | 2026-01-25 | #457 |
+
+## Pull Requests
+
+| Phase | Status | PR |
+|-------|--------|-----|
+| Phase 1/2: Database Schema | Merged | #458 |
+| Phase 2/2: API Endpoints | In Review | #459 |
+
+---
+*Maintained by agents. Do not edit manually.*
+```
+
+**Implementation PR Status Flow:**
+- **Pending** (⏳) - Phase defined but not started
+- **In Review** (🔄) - PR created, waiting for review
+- **Approved** (✅) - PR approved by reviewer
+- **Changes Requested** (📝) - Reviewer requested changes
+- **Merged** (🎉) - PR merged
+
+### Backward Compatibility
+
+For issues created before this workflow:
+- Implementation agent falls back to reading designs from issue body
+- Uses `extractProductDesign()` / `extractTechDesign()` parsing
+- No changes needed for existing issues
+
 **Key interface methods:**
 | Method | Description |
 |--------|-------------|
@@ -547,17 +620,22 @@ Once routed, the appropriate AI agent picks up the item:
 
 **Product Design Agent:**
 - Generates UX/UI design document
-- Posts high-level summary comment on GitHub issue (e.g., "Here's the design overview: 1. ... 2. ... 3. ...")
-- Sends Telegram notification with summary
+- **Creates design file**: `design-docs/issue-{N}/product-design.md`
+- **Creates PR**: `design/issue-{N}-product` branch with title `docs: product design for issue #{N}`
+- Posts high-level summary comment on **PR** (e.g., "Here's the design overview: 1. ... 2. ... 3. ...")
+- **Sends Telegram notification** with `[Approve & Merge]` / `[Request Changes]` buttons
 - **Note:** Bugs are skipped by default (most bugs don't need product design)
 - If a bug needs product design, admin manually routes it there
 
 **Tech Design Agent:**
 - **For features:** Generates technical architecture
 - **For bugs:** Loads diagnostics (session logs, stack traces) and generates root cause analysis + fix approach
-- Posts high-level implementation plan comment on GitHub issue (e.g., "Here's the implementation plan: 1. ... 2. ... 3. ...")
-- Sends Telegram notification with summary
+- **Creates design file**: `design-docs/issue-{N}/tech-design.md`
+- **Creates PR**: `design/issue-{N}-tech` branch with title `docs: tech design for issue #{N}`
+- Posts high-level implementation plan comment on **PR** (e.g., "Here's the implementation plan: 1. ... 2. ... 3. ...")
+- **Sends Telegram notification** with `[Approve & Merge]` / `[Request Changes]` buttons
 - Bug prompts include full diagnostic data (NOT shown in GitHub issue)
+- For multi-phase features: posts phases comment on issue AND initializes all phases in artifact comment
 
 **Implementation Agent:**
 - **For features:** Creates `feature/issue-#-title` branch, PR title: `feat: ...`
@@ -814,45 +892,46 @@ Feature Request Submitted
                           ▼ yarn agent:product-design
     ┌─────────────────────────────────────┐
     │ GitHub Status: Product Design       │
-    │ Review Status: Waiting for Review   │
-    │ (Issue body updated with design)    │
+    │ (Design PR created)                 │
+    │ Telegram: [Approve & Merge] sent    │
     │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
               ┌───────┴───────┐
               ▼               ▼
-         Approved        Request Changes
+    [Approve & Merge]    [Request Changes]
               │               │
               │               ▼ yarn agent:product-design
-              │           (Revises design)
+              │           (Revises design, updates PR)
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Auto-advances to Technical Design)
+                      ▼ (Design PR merged → artifact updated → auto-advances)
     ┌─────────────────────────────────────┐
     │ GitHub Status: Technical Design     │
     │ Review Status: (empty)              │
+    │ Artifact: Product Design ✅ Approved │
     │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
                       ▼ yarn agent:tech-design
     ┌─────────────────────────────────────┐
     │ GitHub Status: Technical Design     │
-    │ Review Status: Waiting for Review   │
-    │ (Issue body updated with design)    │
+    │ (Tech Design PR created)            │
+    │ Telegram: [Approve & Merge] sent    │
     │ MongoDB: 'in_progress' (unchanged)  │
     └─────────────────┬───────────────────┘
                       │
               ┌───────┴───────┐
               ▼               ▼
-         Approved        Request Changes
+    [Approve & Merge]    [Request Changes]
               │               │
               │               ▼ yarn agent:tech-design
-              │           (Revises design)
+              │           (Revises design, updates PR)
               │               │
               └───────┬───────┘
                       │
-                      ▼ (Auto-advances to Ready for development)
+                      ▼ (Tech Design PR merged → artifact updated → auto-advances)
     ┌─────────────────────────────────────┐
     │ GitHub Status: Ready for development│
     │ Review Status: (empty)              │
@@ -1184,9 +1263,27 @@ For large features (L/XL size), the system automatically splits implementation i
    - Run via: `yarn agent:pr-review` (or cron job)
 
 4. **On PR Merge** (`on-pr-merged.ts`):
+   - **Updates artifact comment** with phase status → "Merged"
    - Posts status comment on issue (e.g., "✅ Phase 1/3 complete - Merged PR #101")
    - If more phases remain: Issue returns to "Implementation" status, phase counter increments
    - If all phases complete: Posts final comment, issue moves to "Done"
+
+**Artifact Comment Tracking:**
+
+When tech design merges, all phases are pre-populated in the artifact comment:
+```markdown
+## Pull Requests
+
+| Phase | Status | PR |
+|-------|--------|-----|
+| Phase 1/3: Database Schema | Pending | - |
+| Phase 2/3: API Endpoints | Pending | - |
+| Phase 3/3: UI Components | Pending | - |
+```
+
+As implementation progresses, statuses update:
+- **Pending** (⏳) → **In Review** (🔄) → **Approved** (✅) → **Merged** (🎉)
+- Or: **In Review** (🔄) → **Changes Requested** (📝) → **In Review** (🔄) → ...
 
 **Phase Storage & Retrieval:**
 
@@ -1799,15 +1896,18 @@ GitHub issue created for "Add dark mode toggle"
 🔗 View GitHub Issue
 ```
 
-**Design Ready for Review:**
+**Design PR Ready for Review:**
 ```
-📝 Product Design Ready for Review!
+🎨 Product Design PR Ready!
 
 📋 Add dark mode toggle
 🔗 Issue #123
-📊 Status: Product Design (Waiting for Review)
+🔀 PR #456: docs: product design for issue #123
 
-Review and approve to proceed to Technical Design.
+Review the design and approve to proceed to Technical Design.
+
+[✅ Approve & Merge] [📝 Request Changes]  ← inline buttons
+[🔗 View PR]
 ```
 
 **PR Ready:**
@@ -1831,17 +1931,22 @@ All Telegram approval buttons use a single webhook (`/api/telegram-webhook`) for
 **Initial Feature Request Approval:**
 - **✅ Approve & Create GitHub Issue** - Creates issue, sets to Product Design status
 
-**Design Review Actions (Product Design / Tech Design / Ready for development):**
+**Design PR Review Actions (Product Design / Tech Design PRs):**
+- **✅ Approve & Merge** - Merges design PR → artifact comment updated → auto-advances to next phase
+- **📝 Request Changes** - Sets Review Status to "Request Changes" (agent will revise and update PR)
+
+**Implementation Review Actions (Ready for development / PR Review):**
 - **✅ Approve** - Approves and auto-advances to next phase (clears Review Status)
 - **📝 Request Changes** - Sets Review Status to "Request Changes"
 - **❌ Reject** - Sets Review Status to "Rejected"
 
 When you tap a button:
 1. Telegram calls `/api/telegram-webhook`
-2. Webhook performs the action (create issue / update status)
-3. For approve: auto-advances to next phase and clears Review Status
-4. Message is edited to show the action taken
-5. Toast notification confirms the action
+2. Webhook performs the action (create issue / merge PR / update status)
+3. For design PR approve: merges PR, updates artifact comment, advances status
+4. For implementation approve: auto-advances to next phase and clears Review Status
+5. Message is edited to show the action taken
+6. Toast notification confirms the action
 
 **Setup:**
 1. Deploy your app (the webhook endpoint needs to be publicly accessible)
@@ -1856,7 +1961,9 @@ When you tap a button:
 
 **Callback Data Formats:**
 - Initial approval: `approve_request:{requestId}:{token}`
-- Design review: `approve:{issueNumber}`, `changes:{issueNumber}`, `reject:{issueNumber}`
+- Design PR approval: `design_approve:{prNumber}:{issueNumber}:{type}` (type = "product" | "tech")
+- Design PR changes: `design_changes:{prNumber}:{issueNumber}:{type}`
+- Implementation review: `approve:{issueNumber}`, `changes:{issueNumber}`, `reject:{issueNumber}`
 
 ## Troubleshooting
 
@@ -1980,26 +2087,37 @@ For projects based on this template:
 ## File Structure
 
 ```
+design-docs/                         # Design document storage (versioned)
+├── README.md                        # Directory documentation
+├── issue-123/                       # Per-issue design docs
+│   ├── product-design.md
+│   └── tech-design.md
+└── issue-456/
+    └── product-design.md
+
 src/
 ├── agents/                          # CLI agent scripts
 │   ├── index.ts                     # Master CLI (yarn github-workflows-agent)
 │   ├── auto-advance.ts              # Auto-advance approved items
 │   ├── core-agents/                 # Agent workflows
-│   │   ├── productDesignAgent/      # Generate product design
+│   │   ├── productDesignAgent/      # Generate product design (creates PR)
 │   │   │   ├── index.ts
 │   │   │   └── AGENTS.md
-│   │   ├── technicalDesignAgent/    # Generate technical design
+│   │   ├── technicalDesignAgent/    # Generate technical design (creates PR)
 │   │   │   ├── index.ts
 │   │   │   └── AGENTS.md
 │   │   ├── implementAgent/          # Implement + create PR
 │   │   │   ├── index.ts
 │   │   │   └── AGENTS.md
-│   │   └── prReviewAgent/           # Review PRs
+│   │   └── prReviewAgent/           # Review PRs (updates artifact on approval)
 │   │       ├── index.ts
 │   │       └── AGENTS.md
 │   ├── lib/                         # Agent library abstraction
 │   │   ├── types.ts                 # Library adapter interface
 │   │   ├── config.ts                # Configuration loader
+│   │   ├── artifacts.ts             # Artifact comment utilities (design + impl tracking)
+│   │   ├── design-files.ts          # Design file read/write utilities
+│   │   ├── phases.ts                # Phase serialization/deserialization
 │   │   └── adapters/                # Provider implementations
 │   └── shared/
 │       ├── config.ts                # Agent-specific config + re-exports
