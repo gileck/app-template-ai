@@ -907,6 +907,7 @@ Feature Request Submitted
               └───────┬───────┘
                       │
                       ▼ (Telegram webhook: merges PR → updates status → sends notification)
+                        (GitHub Action runs but skips status update - only does backup ops)
     ┌─────────────────────────────────────┐
     │ GitHub Status: Technical Design     │ ← Updated by Telegram webhook (NOT GitHub Action)
     │ Review Status: (empty)              │
@@ -932,6 +933,7 @@ Feature Request Submitted
               └───────┬───────┘
                       │
                       ▼ (Telegram webhook: merges PR → updates status → sends notification)
+                        (GitHub Action runs but skips status update - only does backup ops)
     ┌─────────────────────────────────────┐
     │ GitHub Status: Ready for development│ ← Updated by Telegram webhook (NOT GitHub Action)
     │ Review Status: (empty)              │
