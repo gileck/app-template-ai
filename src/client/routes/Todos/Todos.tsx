@@ -148,9 +148,10 @@ export function Todos() {
     const showDivider = uncompletedFirst && !hideCompleted && uncompletedTodos.length > 0 && completedTodos.length > 0;
 
     return (
-        <div className="mx-auto max-w-3xl p-4 todo-gradient-bg min-h-screen">
+        <div className="mx-auto max-w-3xl p-4 sm:p-6 todo-gradient-bg min-h-screen">
             {/* Header with gradient text */}
-            <div className="mb-5 flex items-center justify-between">
+            {/* Desktop Header */}
+            <div className="mb-5 hidden sm:flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <h1 className="text-4xl font-bold todo-gradient-text">My Todos</h1>
                     {/* Background refresh indicator - shows when fetching with existing data */}
@@ -163,6 +164,28 @@ export function Todos() {
                 </div>
                 <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
                     <RefreshCcw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+            </div>
+
+            {/* Mobile Header */}
+            <div className="mb-5 flex sm:hidden flex-col gap-3 todo-mobile-header">
+                <div className="flex items-center gap-2">
+                    <h1 className="text-3xl font-bold todo-gradient-text">My Todos</h1>
+                    {/* Background refresh indicator - shows when fetching with existing data */}
+                    {isFetching && !isLoading && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        </div>
+                    )}
+                </div>
+                <Button
+                    variant="outline"
+                    onClick={handleRefresh}
+                    disabled={isFetching}
+                    className="h-12 w-full"
+                >
+                    <RefreshCcw className={`mr-2 h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
+                    {isFetching ? 'Updating...' : 'Refresh'}
                 </Button>
             </div>
 

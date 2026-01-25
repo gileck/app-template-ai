@@ -34,11 +34,11 @@ export function TodoControls() {
             <div className="todo-controls-layout">
                 {/* Sort Dropdown */}
                 <div className="todo-controls-sort">
-                    <Label htmlFor="sort-select" className="text-sm font-medium">
+                    <Label htmlFor="sort-select" className="text-sm font-medium mb-2 block">
                         Sort by
                     </Label>
                     <Select value={sortBy} onValueChange={setSortBy}>
-                        <SelectTrigger id="sort-select">
+                        <SelectTrigger id="sort-select" className="h-12 sm:h-10">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -55,7 +55,7 @@ export function TodoControls() {
 
                 {/* Filter Toggles */}
                 <div className="todo-controls-filters">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 py-2 sm:py-0">
                         <Switch
                             id="uncompleted-first"
                             checked={uncompletedFirst}
@@ -68,7 +68,7 @@ export function TodoControls() {
                             Uncompleted First
                         </Label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 py-2 sm:py-0">
                         <Switch
                             id="hide-completed"
                             checked={hideCompleted}
@@ -86,12 +86,13 @@ export function TodoControls() {
 
             {/* Due Date Filters */}
             <div className="mt-4 border-t border-border pt-4">
-                <Label className="text-sm font-medium mb-2 block">Filter by Due Date</Label>
+                <Label className="text-sm font-medium mb-3 block">Filter by Due Date</Label>
                 <div className="flex flex-wrap gap-2">
                     <Button
                         variant={dueDateFilter === 'all' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDueDateFilter('all')}
+                        className="h-12 sm:h-9"
                     >
                         All
                     </Button>
@@ -99,6 +100,7 @@ export function TodoControls() {
                         variant={dueDateFilter === 'today' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDueDateFilter('today')}
+                        className="h-12 sm:h-9"
                     >
                         Due Today
                     </Button>
@@ -106,6 +108,7 @@ export function TodoControls() {
                         variant={dueDateFilter === 'week' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDueDateFilter('week')}
+                        className="h-12 sm:h-9"
                     >
                         Due This Week
                     </Button>
@@ -113,6 +116,7 @@ export function TodoControls() {
                         variant={dueDateFilter === 'overdue' ? 'destructive' : 'outline'}
                         size="sm"
                         onClick={() => setDueDateFilter('overdue')}
+                        className="h-12 sm:h-9"
                     >
                         Overdue
                     </Button>
@@ -120,6 +124,7 @@ export function TodoControls() {
                         variant={dueDateFilter === 'none' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setDueDateFilter('none')}
+                        className="h-12 sm:h-9"
                     >
                         No Due Date
                     </Button>
