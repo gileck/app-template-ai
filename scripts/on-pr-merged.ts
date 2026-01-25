@@ -35,7 +35,7 @@ import { findByGitHubIssueNumber as findReportByIssue, updateReport } from '@/se
 import { parsePhaseString } from '../src/agents/lib/parsing';
 import {
     updateDesignArtifact,
-    getDesignDocPath,
+    getDesignDocLink,
     hasPhaseComment,
     updateImplementationArtifact,
     updateImplementationPhaseArtifact,
@@ -71,7 +71,7 @@ async function handleDesignPRMerged(
     console.log(`  Updating artifact comment on issue #${issueNumber}...`);
     await updateDesignArtifact(adapter, issueNumber, {
         type: isProductDesign ? 'product-design' : 'tech-design',
-        path: getDesignDocPath(issueNumber, designType),
+        path: getDesignDocLink(issueNumber, designType),
         status: 'approved',
         lastUpdated: new Date().toISOString().split('T')[0],
         prNumber,

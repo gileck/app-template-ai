@@ -12,6 +12,7 @@
  */
 
 import type { ProjectManagementAdapter } from '@/server/project-management/types';
+import { getProjectConfig } from '@/server/project-management/config';
 
 // ============================================================
 // CONSTANTS
@@ -81,12 +82,13 @@ export function getDesignDocPath(issueNumber: number, type: 'product' | 'tech'):
 }
 
 /**
- * Generate relative link for artifact comment
- * Links are relative to the repo root
- * @returns Relative path: "design-docs/issue-{N}/product-design.md"
+ * Generate full GitHub blob URL for artifact comment link
+ * @returns Full URL: "https://github.com/{owner}/{repo}/blob/main/design-docs/issue-{N}/..."
  */
 export function getDesignDocLink(issueNumber: number, type: 'product' | 'tech'): string {
-    return getDesignDocPath(issueNumber, type);
+    const config = getProjectConfig();
+    const path = getDesignDocPath(issueNumber, type);
+    return `https://github.com/${config.github.owner}/${config.github.repo}/blob/main/${path}`;
 }
 
 /**
