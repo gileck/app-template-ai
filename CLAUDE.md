@@ -384,10 +384,21 @@ logger.info('feature', 'Message', { meta: { ... } });
 | **Owner** | App administrator | `ownerTelegramChatId` in app.config.js | New signups, errors, API thresholds, system alerts |
 | **User** | Individual logged-in users | `telegramChatId` in user's Profile | Personal alerts, task updates, user-specific events |
 
+**Owner Notifications - 3 Categories:**
+
+Owner notifications can be split into 3 separate chats to reduce information overload:
+
+| Category | Frequency | Priority | Config |
+|----------|-----------|----------|--------|
+| **Vercel Deployments** | Low | Medium | `VERCEL_TELEGRAM_CHAT_ID` |
+| **GitHub Activity** | Medium | Low | `GITHUB_TELEGRAM_CHAT_ID` |
+| **Agent Workflow** | High | High | `AGENT_TELEGRAM_CHAT_ID` |
+
 **Setup:**
 - Requires `TELEGRAM_BOT_TOKEN` in `.env`
 - Run `yarn telegram-setup` to get chat IDs
-- Owner: Set `ownerTelegramChatId` in app.config.js
+- **Simple mode:** Use same chat ID for all (`LOCAL_TELEGRAM_CHAT_ID`)
+- **Advanced mode:** Configure 3 separate chats (see env vars above)
 - Users: Each user sets their own chat ID in Profile settings
 
 **Usage:**
