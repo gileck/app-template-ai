@@ -564,11 +564,11 @@ yarn review-workflow --issue 43 --output report.md
 
 ---
 
-## 13. Improve PR Reviewer Commit Message Generation
+## 13. Improve PR Reviewer Commit Message Generation ✅ DONE
 
 | Priority | Complexity | Size | Status |
 |----------|------------|------|--------|
-| **Medium** | Low | S | TODO |
+| **Medium** | Low | S | In Progress |
 
 **Date Added:** 2026-01-25
 

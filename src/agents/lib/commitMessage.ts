@@ -55,6 +55,13 @@ export function generateCommitMessage(
 
 /**
  * Build commit message body from PR info
+ *
+ * Format:
+ * - What: Brief summary of changes
+ * - Why: Problem being solved (from issue body if available)
+ * - Stats: Change statistics
+ * - Phase info (if multi-phase)
+ * - Issue reference (Closes/Part of)
  */
 function buildCommitBody(
     prInfo: PRInfo,
@@ -63,41 +70,129 @@ function buildCommitBody(
 ): string {
     const lines: string[] = [];
 
-    // Extract summary from PR body (before "---" separator or "## Test plan")
-    const bodyParts = prInfo.body.split(/---|\n## Test [Pp]lan/);
-    let summary = bodyParts[0].trim();
-
-    // Remove "## Summary" header if present
-    summary = summary.replace(/^## Summary\s*/i, '').trim();
-
-    // Clean up bullet points - keep first 3 lines max
-    const summaryLines = summary.split('\n').filter(line => line.trim()).slice(0, 3);
-    if (summaryLines.length > 0) {
-        lines.push(summaryLines.join('\n'));
+    // Extract "What" - summary from PR body
+    const whatSummary = extractWhatSummary(prInfo.body);
+    if (whatSummary) {
+        lines.push(whatSummary);
+        lines.push('');
     }
 
-    // Add change stats
-    lines.push('');
-    lines.push(`Changes: +${prInfo.additions}/-${prInfo.deletions} across ${prInfo.changedFiles} files`);
-
-    // Add phase info if multi-phase
-    if (phaseInfo && phaseInfo.total > 1) {
-        lines.push(`Phase: ${phaseInfo.current}/${phaseInfo.total}`);
+    // Extract "Why" - rationale from issue body
+    const whyRationale = extractWhyRationale(content?.body);
+    if (whyRationale) {
+        lines.push(`Why: ${whyRationale}`);
+        lines.push('');
     }
 
-    // Add closes reference for final phase or single-phase
+    // Add change stats (compact format)
+    const statsLine = buildStatsLine(prInfo, phaseInfo);
+    lines.push(statsLine);
+
+    // Add issue reference (always "Part of" - never "Closes" since PRs may be phases)
     if (content?.number) {
-        const shouldClose = !phaseInfo || phaseInfo.current >= phaseInfo.total;
-        if (shouldClose) {
-            lines.push('');
-            lines.push(`Closes #${content.number}`);
-        } else {
-            lines.push('');
-            lines.push(`Part of #${content.number}`);
-        }
+        lines.push('');
+        lines.push(`Part of #${content.number}`);
     }
 
     return lines.join('\n');
+}
+
+/**
+ * Extract "What" summary from PR body
+ * Looks for content before separators or specific sections
+ */
+function extractWhatSummary(prBody: string): string {
+    if (!prBody) return '';
+
+    // Split at common separators
+    const bodyParts = prBody.split(/---|\n## Test [Pp]lan|\n## Changes/);
+    let summary = bodyParts[0].trim();
+
+    // Remove common headers
+    summary = summary.replace(/^## Summary\s*/i, '');
+    summary = summary.replace(/^## What\s*/i, '');
+    summary = summary.trim();
+
+    // Convert to bullet points if not already
+    const lines = summary.split('\n').filter(line => line.trim());
+
+    // Take first 4 meaningful lines
+    const meaningfulLines = lines
+        .slice(0, 4)
+        .map(line => {
+            // Ensure bullet point format
+            const trimmed = line.trim();
+            if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
+                return trimmed;
+            }
+            // Skip headers and empty lines
+            if (trimmed.startsWith('#') || !trimmed) return '';
+            return `- ${trimmed}`;
+        })
+        .filter(line => line);
+
+    return meaningfulLines.join('\n');
+}
+
+/**
+ * Extract "Why" rationale from issue body
+ * Looks for problem statement, motivation, or first paragraph
+ */
+function extractWhyRationale(issueBody: string | null | undefined): string {
+    if (!issueBody) return '';
+
+    // Try to find explicit "Why" or "Problem" section
+    const whyMatch = issueBody.match(/## (?:Why|Problem|Motivation|Background)\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (whyMatch) {
+        const whyContent = whyMatch[1].trim().split('\n')[0].trim();
+        if (whyContent && whyContent.length > 10) {
+            return truncateText(whyContent, 100);
+        }
+    }
+
+    // Try to extract from summary section
+    const summaryMatch = issueBody.match(/## Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (summaryMatch) {
+        const firstLine = summaryMatch[1].trim().split('\n')[0].trim();
+        if (firstLine && firstLine.length > 10) {
+            return truncateText(firstLine, 100);
+        }
+    }
+
+    // Fall back to first non-empty, non-header line
+    const lines = issueBody.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('|') && trimmed.length > 10) {
+            return truncateText(trimmed, 100);
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Build compact stats line
+ */
+function buildStatsLine(prInfo: PRInfo, phaseInfo?: PhaseInfo): string {
+    const parts: string[] = [];
+
+    parts.push(`+${prInfo.additions}/-${prInfo.deletions}`);
+    parts.push(`${prInfo.changedFiles} files`);
+
+    if (phaseInfo && phaseInfo.total > 1) {
+        parts.push(`Phase ${phaseInfo.current}/${phaseInfo.total}`);
+    }
+
+    return parts.join(' | ');
+}
+
+/**
+ * Truncate text to max length, adding ellipsis if needed
+ */
+function truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 3).trim() + '...';
 }
 
 // ============================================================
