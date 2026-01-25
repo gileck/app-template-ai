@@ -160,6 +160,49 @@ Benefits:
 
 ---
 
+### `/mark-task-as-done [N]`
+
+**Mark a task as complete with commit hash (auto-detects from git if N not provided).**
+
+```
+In Claude Code:
+> /mark-task-as-done
+
+What Claude does:
+✅ Auto-detects task number from recent git commit with "task #N"
+✅ Gets current commit hash (short format)
+✅ Updates task header with strikethrough and ✅ DONE
+✅ Updates status table to DONE
+✅ Adds completion metadata (date + commit hash)
+✅ Shows success message with next steps
+
+Or provide explicit task number:
+> /mark-task-as-done 5
+
+Claude:
+✅ Task #5 marked as done!
+
+📝 Task: Fix Cost Tracking Bug
+📅 Completed: 2026-01-25
+🔗 Commit: abc1234
+
+💡 Next Steps:
+- Commit: git add task-manager/tasks.md && git commit -m "docs: mark task #5 as done"
+```
+
+**When to use:**
+- After merging a PR that completed a task
+- To record which commit fixed the task
+- When you forgot to mark task done during implementation
+- To update completion info for already-done tasks
+
+**Auto-detection:**
+- Searches for "task #N" in recent commit messages
+- Uses most recent commit if multiple found
+- Falls back to asking for task number if not found
+
+---
+
 ## 🚀 Quick Start Examples
 
 ### Example 1: Simple Bug Fix
@@ -215,9 +258,11 @@ Slash commands are markdown files in `.claude/commands/`:
 
 ```
 .claude/commands/
+├── add-task.md            (/add-task)
 ├── task-list.md           (/task-list)
 ├── start-task.md          (/start-task)
-└── start-task-worktree.md (/start-task-worktree)
+├── start-task-worktree.md (/start-task-worktree)
+└── mark-task-as-done.md   (/mark-task-as-done)
 ```
 
 Each file contains:

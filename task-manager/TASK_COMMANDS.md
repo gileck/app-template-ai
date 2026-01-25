@@ -10,6 +10,8 @@
 | `/task-list` | List all tasks by priority (active and completed) |
 | `/start-task 1` | Claude implements task 1 with full workflow |
 | `/start-task-worktree 3` | Claude implements task 3 in a new worktree |
+| `/mark-task-as-done` | Mark last task as done with commit hash (auto-detect) |
+| `/mark-task-as-done 5` | Mark task 5 as done with commit hash |
 
 **Use these in Claude Code CLI/Cloud for automated task management.**
 
@@ -180,6 +182,48 @@ Claude implements task N in a separate git worktree using squash-merge workflow.
 
 ---
 
+### `/mark-task-as-done [N]`
+
+Mark a task as complete with commit hash and completion date.
+
+**What it does:**
+1. Auto-detects task number from recent git commit (if not provided)
+2. Gets current commit hash
+3. Updates task header with strikethrough and ✅ DONE marker
+4. Adds completion metadata (date + commit hash)
+5. Displays success message with next steps
+
+**Usage:**
+```bash
+/mark-task-as-done        # Auto-detect from "task #N" in recent commit
+/mark-task-as-done 5      # Mark task 5 as done
+```
+
+**When to use:**
+- After merging a PR that completed a task
+- To manually mark a task complete with commit reference
+- When you forgot to mark a task done during implementation
+- To update completion info for an already-done task
+
+**Auto-detection:**
+- Searches recent commits for "task #N" pattern
+- Uses the most recent commit mentioning a task
+- Falls back to asking for task number if not found
+
+**Example output:**
+```
+✅ Task #5 marked as done!
+
+📝 Task: Fix Cost Tracking Bug
+📅 Completed: 2026-01-25
+🔗 Commit: abc1234
+
+💡 Next Steps:
+- Commit: git add task-manager/tasks.md && git commit -m "docs: mark task #5 as done"
+```
+
+---
+
 ## Comparison: Slash Commands vs CLI
 
 | Aspect | `/start-task` | `/start-task-worktree` | CLI Commands |
@@ -226,6 +270,8 @@ Claude implements task N in a separate git worktree using squash-merge workflow.
 For detailed usage, examples, and workflows, see:
 - [task-manager/task-management-cli.md](task-manager/task-management-cli.md)
 - Slash command docs:
+  - `.claude/commands/add-task.md`
   - `.claude/commands/task-list.md`
   - `.claude/commands/start-task.md`
   - `.claude/commands/start-task-worktree.md`
+  - `.claude/commands/mark-task-as-done.md`

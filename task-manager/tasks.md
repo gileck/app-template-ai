@@ -48,47 +48,31 @@ logExecutionEnd(logCtx, {
 
 ---
 
-## 2. Debug PR Reviewer + Claude Integration
+## 2. ~~Debug PR Reviewer + Claude Integration~~ ✅ DONE
 
-| Priority | Complexity | Size |
-|----------|------------|------|
-| **High** | Low | S |
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **High** | Low | S | ✅ **DONE** |
+
+> **Completed:** 2026-01-24 - Fixed in commit `dc3fb4c`
 
 **Summary:** PR Reviewer agent sometimes ignores valid feedback from Claude GitHub App without explanation.
 
-**Symptoms:**
-- Claude (@claude) posts review comments with valid points
-- PR Reviewer agent's output shows "0 from Claude Code" or doesn't address Claude's feedback
-- No explanation for why feedback was ignored
+**Solution Implemented:**
 
-**Investigation Steps:**
+The PR Review Agent prompt was updated to require explicit acknowledgment of Claude's feedback. The agent must now include a "Claude Feedback Response" section that states AGREE or DISAGREE for each point Claude raised, with reasoning:
 
-1. **Verify Comment Fetching:**
-   - Check if `getPRComments()` returns Claude's comments
-   - Verify comment author detection (`claude[bot]` vs `claude`)
+```
+### Claude Feedback Response
+1. [Claude's point about X] - **AGREE** - Added to changes requested
+2. [Claude's point about Y] - **DISAGREE** - This pattern is acceptable because [reason]
+```
 
-2. **Check Prompt Construction:**
-   - Verify Claude comments are included in the prompt sent to PR Reviewer
-   - Check if there's filtering that excludes them
+This ensures Claude's feedback can never be silently ignored - the agent must explicitly respond to each point.
 
-3. **Review Agent Logic:**
-   - Does the agent explicitly address each piece of feedback?
-   - Is there a "dismiss with reason" requirement?
-
-4. **Add Logging:**
-   - Log all fetched comments with authors
-   - Log which comments are included in prompt
-   - Log agent's reasoning for each feedback point
-
-**Potential Fixes:**
-- Require explicit acknowledgment of each Claude comment
-- Add structured output requiring "addressed/dismissed with reason" for each point
-- Improve prompt to emphasize Claude's feedback importance
-
-**Files to Check:**
-- `src/agents/core-agents/prReviewAgent/index.ts`
-- `src/agents/core-agents/prReviewAgent/createPrReviewerAgentPrompt.ts`
-- `src/server/project-management/adapters/github.ts` - `getPRComments()`
+**Files Modified:**
+- `src/agents/core-agents/prReviewAgent/createPrReviewerAgentPrompt.ts` - Updated prompt instructions
+- `src/agents/core-agents/prReviewAgent/AGENTS.md` - Updated documentation
 
 ---
 

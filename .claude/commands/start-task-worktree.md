@@ -177,15 +177,34 @@ EOF
 
 ---
 
-## Step 14: Push to Main
-- **Objective**: Deploy changes to main branch
+## Step 14: Mark Task as Done (AUTOMATIC)
+- **Objective**: Update task status in task-manager/tasks.md immediately after implementation
+- **Actions**:
+  - Run: `yarn task mark-done --task N` (where N is the task number)
+  - This updates the task header with ✅ DONE marker and completion date
+  - Stage the change: `git add task-manager/tasks.md`
+  - Commit with message: `git commit -m "docs: mark task #N as done"`
+  - This creates a **separate commit** following the implementation commit
+
+**CRITICAL:** This step MUST happen before pushing so both commits go to main together.
+
+**Why a separate commit?**
+- Keeps implementation and documentation changes separated
+- Makes git history cleaner and easier to review
+- Follows the principle of atomic commits
+
+---
+
+## Step 15: Push to Main
+- **Objective**: Deploy changes to main branch (includes both commits)
 - **Actions**:
   - Push to main: `git push origin main`
+    - This pushes **both commits**: implementation commit + task status commit
   - Verify push succeeded
 
 ---
 
-## Step 15: Clean Up Worktree (MANDATORY)
+## Step 16: Clean Up Worktree (MANDATORY)
 - **Objective**: Remove worktree and branch immediately after push
 - **CRITICAL**: Always clean up the worktree after changes are pushed to main. Never leave worktrees around.
 - **Actions**:
@@ -194,15 +213,6 @@ EOF
   - Delete local branch: `git branch -D task/N-branch-name`
     - Note: Use `-D` (force) because squash merges don't register as "merged" to git
   - Verify cleanup: `git worktree list` (should only show main worktree)
-
----
-
-## Step 16: Mark Task Done
-- **Objective**: Update task tracking
-- **Actions**:
-  - Mark task complete: `yarn task mark-done --task N`
-  - Commit change: `git add task-manager/tasks.md && git commit -m "docs: mark task N as done"`
-  - Push: `git push origin main`
 
 ---
 
@@ -226,10 +236,10 @@ EOF
 - [ ] Final WIP commit made in worktree
 - [ ] Returned to main worktree on main branch
 - [ ] Squash merged branch: `git merge --squash task/N-branch`
-- [ ] Created ONE clean commit with detailed message
-- [ ] Pushed to main: `git push origin main`
+- [ ] Created ONE clean commit with detailed message (implementation commit)
+- [ ] Task marked as done with `yarn task mark-done --task N` (separate commit)
+- [ ] Both commits pushed to main: `git push origin main`
 - [ ] Removed worktree and branch (MANDATORY)
-- [ ] Marked task as done
 - [ ] User notified with summary
 
 ---
@@ -251,7 +261,7 @@ git checkout main
 git pull origin main
 git merge --squash task/N-branch-name
 
-# Create ONE clean commit
+# Create ONE clean commit (implementation)
 git commit -m "$(cat <<'EOF'
 fix: description (task #N)
 
@@ -261,13 +271,18 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 EOF
 )"
 
+# Mark task as done (separate commit)
+yarn task mark-done --task N
+git add task-manager/tasks.md
+git commit -m "docs: mark task #N as done"
+
+# Push both commits
 git push origin main
 
 # === CLEANUP (MANDATORY - DO THIS IMMEDIATELY) ===
 git worktree remove ../worktree-task-N
 git branch -D task/N-branch-name  # Use -D because squash merge doesn't register as merged
 git worktree list  # Verify only main worktree remains
-yarn task mark-done --task N
 ```
 
 ---
@@ -308,12 +323,16 @@ cd ../worktree-task-5 && ln -s "${MAIN_PROJECT_PATH}/node_modules" node_modules
 cd "${MAIN_PROJECT_PATH}"
 git merge --squash task/3-branch
 git commit -m "..."
+yarn task mark-done --task 3
+git add task-manager/tasks.md && git commit -m "docs: mark task #3 as done"
 git push origin main
 git worktree remove ../worktree-task-3
 
 # Merge task 5 when ready
 git merge --squash task/5-branch
 git commit -m "..."
+yarn task mark-done --task 5
+git add task-manager/tasks.md && git commit -m "docs: mark task #5 as done"
 git push origin main
 git worktree remove ../worktree-task-5
 ```

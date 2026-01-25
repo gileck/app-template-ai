@@ -193,10 +193,29 @@ Follow these steps to implement a task from task-manager/tasks.md:
 
 ---
 
-## Step 10: Push and Create PR
-- **Objective**: Submit changes for review
+## Step 10: Mark Task as Done (AUTOMATIC)
+- **Objective**: Update task status in task-manager/tasks.md immediately after implementation
+- **Actions**:
+  - Run: `yarn task mark-done --task N` (where N is the task number)
+  - This updates the task header with ✅ DONE marker and completion date
+  - Stage the change: `git add task-manager/tasks.md`
+  - Commit with message: `git commit -m "docs: mark task #N as done"`
+  - This creates a **separate commit** following the implementation commit
+
+**CRITICAL:** This step MUST happen before pushing/PR creation so both commits go into the same PR.
+
+**Why a separate commit?**
+- Keeps implementation and documentation changes separated
+- Makes git history cleaner and easier to review
+- Follows the principle of atomic commits
+
+---
+
+## Step 11: Push and Create PR
+- **Objective**: Submit changes for review (includes both implementation and task status commits)
 - **Actions**:
   - Push to remote: `git push -u origin task/N-branch-name`
+    - This pushes **both commits**: implementation commit + task status commit
   - Create PR using: `yarn github-pr create --title "Title" --body "Description"`
   - PR title should:
     - Use conventional commit format
@@ -221,20 +240,12 @@ Changes:
 - Now correctly tracks toolCallsCount, totalTokens, totalCost
 
 Files modified:
-- src/agents/core-agents/implementAgent/index.ts"
+- src/agents/core-agents/implementAgent/index.ts
+
+This PR includes 2 commits:
+1. Implementation commit with the fix
+2. Documentation commit marking task as done"
 ```
-
----
-
-## Step 11: Mark Task as Done (After PR Merges)
-- **Objective**: Track completion in task-manager/tasks.md
-- **Actions**:
-  - After PR is merged, run: `yarn task mark-done --task N`
-  - This adds ✅ DONE marker to the task header
-  - Commit the change: `git add task-manager/tasks.md && git commit -m "docs: mark task N as done"`
-  - Push: `git push`
-
-**IMPORTANT:** Only mark task as done AFTER the PR is merged, not before!
 
 ---
 
@@ -245,7 +256,7 @@ Files modified:
   - Highlight key changes and files modified
   - Show the PR URL
   - Confirm validation checks passed
-  - Remind to mark task as done after PR merges
+  - Confirm task was marked as done in tasks.md
   - Note any follow-up items if applicable
 
 ---
@@ -260,11 +271,11 @@ Files modified:
 - [ ] Task implemented following guidelines
 - [ ] `yarn checks` passed with 0 errors
 - [ ] **User review requested and approval received**
-- [ ] Changes committed with proper message
-- [ ] Changes pushed to remote
+- [ ] Changes committed with proper message (implementation commit)
+- [ ] Task marked as done with `yarn task mark-done --task N` (separate commit)
+- [ ] Both commits pushed to remote
 - [ ] PR created with clear title and description
 - [ ] User notified with summary
-- [ ] (After merge) Task marked as done
 
 ---
 
@@ -293,5 +304,6 @@ Ask the user if:
 - Don't add features beyond task scope
 - Don't refactor unrelated code
 - Don't skip documentation if task requires it
-- Don't mark task as done before PR merges
+- Don't forget to mark task as done (Step 10) before pushing
 - Don't ignore "CRITICAL" notes in task description
+- Don't combine implementation and task status into one commit - keep them separate
