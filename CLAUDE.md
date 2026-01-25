@@ -786,47 +786,50 @@ git commit --no-verify  # Use with extreme caution
 
 ---
 
-## GitHub Projects Integration
+## GitHub Agents Workflow
 
-Automated pipeline from feature requests to merged PRs using GitHub Projects V2.
+AI-powered feature request and bug fix pipeline using GitHub Projects V2.
+
+**Summary:** Complete automation from user submission to merged PR. Features and bugs flow through a 6-column workflow (Backlog → Product Design → Tech Design → Ready for development → PR Review → Done) with AI agents handling design and implementation at each stage.
 
 **Key Features:**
-- Squash-merge ready PRs (no editing needed before merge)
-- Auto-completion when PR merges
-- Two-tier status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)
+- **6-column workflow** with AI agents at each stage
+- **Two-tier status tracking**: MongoDB (high-level: new/in_progress/done) + GitHub Projects (detailed: Product Design/Tech Design/etc.)
+- **Type-aware agents**: Different prompts for bugs vs features
+- **Multi-phase features**: L/XL features split into 2-5 sequential PRs (phase-aware review)
+- **Squash-merge ready PRs**: No editing needed, clean commit history
+- **Telegram quick actions**: Approve/reject/merge with inline buttons
+- **Design versioning**: Design docs as files with PR-based review
 
-**Multi-Phase Features (L/XL):**
-- Tech design agent generates 2-5 phases and posts them as a GitHub issue comment
-- Phase comment uses deterministic format with marker `<!-- AGENT_PHASES_V1 -->` (not LLM-generated)
-- Implementation agent reads phases from comment (reliable) or markdown (fallback)
-- **PR review agent is phase-aware** - verifies PR only implements the specified phase
-- Each phase is independently mergeable (S or M size)
-- Sequential PRs: Phase N+1 starts after Phase N merges
+**Workflow Overview:**
+```
+User Submits → Admin Approves (Telegram) → Admin Routes (choose starting phase)
+  ↓
+Product Design Agent (optional) → Design PR → Admin Approves → Auto-advance
+  ↓
+Tech Design Agent → Design PR → Admin Approves → Auto-advance (generates phases for L/XL)
+  ↓
+Implementation Agent → Creates PR (per phase for L/XL) → PR Review Agent reviews
+  ↓
+Admin Merges (Telegram) → Status updates to Done (or next phase for multi-phase)
+```
 
-**CLI Commands:**
-- `yarn init-agents-copy` - Create a separate copy for running agents (recommended)
-- `yarn agent:product-design` - Generate product designs
-- `yarn agent:tech-design` - Generate technical designs
-- `yarn agent:implement` - Implement features and create PRs
-- `yarn agent:pr-review` - **Review PRs (phase-aware, run via cron)**
+**Quick Start:**
+- `yarn init-agents-copy` - Create dedicated agents workspace (recommended)
+- `yarn github-workflows-agent --all` - Run all agents in sequence
+- `yarn verify-setup` - Verify configuration
 
-**Setup:**
-📚 **[docs/init-github-projects-workflow.md](docs/init-github-projects-workflow.md)** - Complete setup guide
+**Complete Documentation:**
+📚 **[docs/github-agents-workflow/](docs/github-agents-workflow/)** - Full workflow documentation
 
-**Verify setup:** `yarn verify-setup`
+Key documents:
+- [Setup Guide](docs/github-agents-workflow/setup-guide.md) - GitHub Project + tokens + Telegram setup
+- [Workflow Guide](docs/github-agents-workflow/workflow-guide.md) - Step-by-step workflow
+- [Running Agents](docs/github-agents-workflow/running-agents.md) - How to execute agents
+- [Multi-Phase Features](docs/github-agents-workflow/multi-phase-features.md) - L/XL feature handling
+- [Troubleshooting](docs/github-agents-workflow/troubleshooting.md) - Common issues
 
-**Agent Library Abstraction:**
-- Default: Claude Code SDK
-- Per-workflow overrides configurable in `src/agents/agents.config.ts`
-- Available libraries: `claude-code-sdk`, `cursor`, `gemini` (stub)
-
-**PR Merge Flow:**
-- PR Review Agent approves → generates commit message → saves to PR comment
-- Admin gets Telegram with Merge/Request Changes buttons
-- Merge: uses saved commit message, squash merges
-- Request Changes: back to implementor (admin must comment explaining changes)
-
-**Docs:** [docs/github-projects-integration.md](docs/github-projects-integration.md), [docs/agent-library-abstraction.md](docs/agent-library-abstraction.md)
+**See also:** [Agent Library Abstraction](docs/agent-library-abstraction.md)
 
 ---
 
