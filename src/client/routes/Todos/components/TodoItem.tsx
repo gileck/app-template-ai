@@ -6,7 +6,8 @@ import { useState, useRef } from 'react';
 import { Button } from '@/client/components/ui/button';
 import { Input } from '@/client/components/ui/input';
 import { Card } from '@/client/components/ui/card';
-import { Eye, Save, X, Pencil, Trash2, Check } from 'lucide-react';
+import { Badge } from '@/client/components/ui/badge';
+import { Eye, Save, X, Pencil, Trash2, Check, Calendar } from 'lucide-react';
 import { useRouter } from '@/client/router';
 import { useUpdateTodo } from '../hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
@@ -14,6 +15,8 @@ import { logger } from '@/client/features/session-logs';
 import { toast } from '@/client/components/ui/toast';
 import { CelebrationEffect } from './CelebrationEffect';
 import { prefersReducedMotion } from '../animations';
+import { DatePickerDialog } from './DatePickerDialog';
+import { formatDueDate, isToday, isOverdue } from '../utils/dateUtils';
 
 interface TodoItemProps {
     todo: TodoItemClient;
@@ -40,6 +43,8 @@ export function TodoItem({
     const [editTitle, setEditTitle] = useState('');
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral celebration state
     const [celebrating, setCelebrating] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog state
+    const [datePickerOpen, setDatePickerOpen] = useState(false);
 
     const handleToggleComplete = async () => {
         const newCompletedState = !todo.completed;
@@ -61,7 +66,12 @@ export function TodoItem({
                     // Trigger celebration if completing (not uncompleting)
                     if (newCompletedState && !prefersReducedMotion()) {
                         setCelebrating(true);
-                        toast.success(`🎉 Great job completing "${todo.title}"!`);
+                        // Check if it was overdue
+                        const wasOverdue = todo.dueDate && isOverdue(todo.dueDate);
+                        const message = wasOverdue
+                            ? `Better late than never! 🎉`
+                            : `🎉 Great job completing "${todo.title}"!`;
+                        toast.success(message);
 
                         // Add bounce animation to card
                         if (cardRef.current) {
@@ -152,100 +162,167 @@ export function TodoItem({
         }
     };
 
+    const handleDateSelect = (date: Date | undefined) => {
+        const newDueDate = date?.toISOString() || null;
+
+        setMutatingTodoId(todo._id);
+
+        updateTodoMutation.mutate(
+            { todoId: todo._id, dueDate: newDueDate },
+            {
+                onSettled: () => setMutatingTodoId(null),
+                onSuccess: () => {
+                    logger.info('todos', 'Todo due date updated', {
+                        meta: { todoId: todo._id, dueDate: newDueDate }
+                    });
+                },
+                onError: (err) => {
+                    const errorMessage = err instanceof Error ? err.message : 'Failed to update due date';
+                    logger.error('todos', 'Failed to update due date', {
+                        meta: { todoId: todo._id, error: errorMessage }
+                    });
+                    onError(errorMessage);
+                },
+            }
+        );
+    };
+
     const isDisabled = mutatingTodoId === todo._id;
+
+    // Determine visual styling based on due date
+    const isDueDateToday = todo.dueDate && isToday(todo.dueDate);
+    const isDueDateOverdue = todo.dueDate && !todo.completed && isOverdue(todo.dueDate);
+
+    // Border color for visual priority
+    let borderColorClass = '';
+    if (isDueDateOverdue) {
+        borderColorClass = 'border-l-4 border-l-destructive';
+    } else if (isDueDateToday) {
+        borderColorClass = 'border-l-4 border-l-primary';
+    }
 
     return (
         <>
             <Card
                 ref={cardRef}
-                className={`todo-item-card ${todo.completed ? 'todo-success-gradient' : ''} ${isDisabled ? 'opacity-60' : ''}`}
+                className={`todo-item-card ${todo.completed ? 'todo-success-gradient' : ''} ${isDisabled ? 'opacity-60' : ''} ${borderColorClass}`}
             >
-                <div className="flex items-center gap-3">
-                    {/* Custom Checkbox */}
-                    <button
-                        className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
-                        aria-checked={todo.completed}
-                        role="checkbox"
-                        onClick={handleToggleComplete}
-                        disabled={isDisabled}
-                        aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                    >
-                        {todo.completed && <Check className="h-4 w-4" />}
-                    </button>
-
-                    {/* Title or Edit Input */}
-                    {isEditing ? (
-                        <Input
-                            className="flex-1"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            onKeyDown={handleEditKeyPress}
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* Custom Checkbox */}
+                        <button
+                            className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
+                            aria-checked={todo.completed}
+                            role="checkbox"
+                            onClick={handleToggleComplete}
                             disabled={isDisabled}
-                            autoFocus
-                        />
-                    ) : (
-                        <span
-                            className={`todo-item-title text-base ${
-                                todo.completed ? 'todo-completed-text' : ''
-                            }`}
-                            title={todo.title}
+                            aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
                         >
-                            {todo.title}
-                        </span>
-                    )}
+                            {todo.completed && <Check className="h-4 w-4" />}
+                        </button>
 
-                    {/* Action Buttons */}
-                    {isEditing ? (
-                        <div className="flex gap-2">
-                            <Button
-                                variant="default"
-                                size="sm"
-                                onClick={handleSaveEdit}
+                        {/* Title or Edit Input */}
+                        {isEditing ? (
+                            <Input
+                                className="flex-1"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyDown={handleEditKeyPress}
                                 disabled={isDisabled}
+                                autoFocus
+                            />
+                        ) : (
+                            <span
+                                className={`todo-item-title text-base ${
+                                    todo.completed ? 'todo-completed-text' : ''
+                                }`}
+                                title={todo.title}
                             >
-                                <Save className="mr-1 h-4 w-4" />
-                                Save
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={handleCancelEdit}>
-                                <X className="mr-1 h-4 w-4" />
-                                Cancel
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex gap-2">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleViewTodo}
-                                title="View details"
-                                className="todo-action-button"
+                                {todo.title}
+                            </span>
+                        )}
+
+                        {/* Action Buttons */}
+                        {isEditing ? (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDatePickerOpen(true)}
+                                    title="Set due date"
+                                >
+                                    <Calendar className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={handleSaveEdit}
+                                    disabled={isDisabled}
+                                >
+                                    <Save className="mr-1 h-4 w-4" />
+                                    Save
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                                    <X className="mr-1 h-4 w-4" />
+                                    Cancel
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleViewTodo}
+                                    title="View details"
+                                    className="todo-action-button"
+                                >
+                                    <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleStartEdit}
+                                    disabled={isDisabled}
+                                    title="Edit"
+                                    className="todo-action-button"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onDelete(todo)}
+                                    disabled={isDisabled}
+                                    title="Delete"
+                                    className="todo-action-button"
+                                >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Due Date Badge */}
+                    {todo.dueDate && (
+                        <div className="flex items-center gap-2 ml-11">
+                            <Badge
+                                variant={isDueDateOverdue ? 'destructive' : isDueDateToday ? 'default' : 'secondary'}
+                                className="text-xs"
                             >
-                                <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleStartEdit}
-                                disabled={isDisabled}
-                                title="Edit"
-                                className="todo-action-button"
-                            >
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onDelete(todo)}
-                                disabled={isDisabled}
-                                title="Delete"
-                                className="todo-action-button"
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                                <Calendar className="mr-1 h-3 w-3" />
+                                {isDueDateToday ? 'Today' : isDueDateOverdue ? `Overdue - ${formatDueDate(todo.dueDate)}` : `Due ${formatDueDate(todo.dueDate)}`}
+                            </Badge>
                         </div>
                     )}
                 </div>
             </Card>
+
+            <DatePickerDialog
+                open={datePickerOpen}
+                onOpenChange={setDatePickerOpen}
+                selectedDate={todo.dueDate ? new Date(todo.dueDate) : undefined}
+                onDateSelect={handleDateSelect}
+            />
 
             {/* Celebration Effect */}
             <CelebrationEffect

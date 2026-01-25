@@ -98,6 +98,7 @@ export function useInvalidateTodos() {
  */
 export interface CreateTodoInput {
     title: string;
+    dueDate?: string;
 }
 
 /**
@@ -135,6 +136,7 @@ export function useCreateTodo() {
                 userId: '', // Will be set by server, not displayed
                 title: variables.title,
                 completed: false,
+                dueDate: variables.dueDate,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -207,10 +209,27 @@ export function useUpdateTodo() {
             // Optimistic update
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return old;
+
+                // Build the update object with proper type handling for dueDate
+                const updates: Partial<TodoItemClient> = {
+                    updatedAt: new Date().toISOString(),
+                };
+
+                // Copy over defined fields, converting null to undefined for dueDate
+                if (variables.title !== undefined) {
+                    updates.title = variables.title;
+                }
+                if (variables.completed !== undefined) {
+                    updates.completed = variables.completed;
+                }
+                if (variables.dueDate !== undefined) {
+                    updates.dueDate = variables.dueDate === null ? undefined : variables.dueDate;
+                }
+
                 return {
                     todos: old.todos.map((todo) =>
                         todo._id === variables.todoId
-                            ? { ...todo, ...variables, updatedAt: new Date().toISOString() }
+                            ? { ...todo, ...updates }
                             : todo
                     ),
                 };

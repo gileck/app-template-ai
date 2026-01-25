@@ -17,6 +17,14 @@ export const createTodo = async (
             return { error: "Title is required" };
         }
 
+        // Validate due date if provided
+        if (request.dueDate) {
+            const parsedDate = new Date(request.dueDate);
+            if (isNaN(parsedDate.getTime())) {
+                return { error: "Invalid due date format" };
+            }
+        }
+
         // If client provided an ID, check for idempotency (handle retries)
         if (request._id) {
             const existing = await todos.findTodoById(request._id, context.userId);
@@ -28,6 +36,7 @@ export const createTodo = async (
                         userId: toStringId(existing.userId),
                         title: existing.title,
                         completed: existing.completed,
+                        dueDate: existing.dueDate?.toISOString(),
                         createdAt: existing.createdAt.toISOString(),
                         updatedAt: existing.updatedAt.toISOString()
                     }
@@ -42,6 +51,7 @@ export const createTodo = async (
             userId: toQueryId(context.userId) as ObjectId,
             title: request.title.trim(),
             completed: false,
+            dueDate: request.dueDate ? new Date(request.dueDate) : undefined,
             createdAt: now,
             updatedAt: now
         };
@@ -54,6 +64,7 @@ export const createTodo = async (
             userId: toStringId(newTodo.userId),
             title: newTodo.title,
             completed: newTodo.completed,
+            dueDate: newTodo.dueDate?.toISOString(),
             createdAt: newTodo.createdAt.toISOString(),
             updatedAt: newTodo.updatedAt.toISOString()
         };

@@ -6,7 +6,8 @@
  */
 
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
-import type { TodoSortBy } from './store';
+import type { TodoSortBy, TodoDueDateFilter } from './store';
+import { isToday, isDueThisWeek, isOverdue } from './utils/dateUtils';
 
 /**
  * Sort todos by the specified criteria
@@ -38,6 +39,22 @@ export function sortTodos(
             return sorted.sort((a, b) => a.title.localeCompare(b.title));
         case 'title-desc':
             return sorted.sort((a, b) => b.title.localeCompare(a.title));
+        case 'due-earliest':
+            return sorted.sort((a, b) => {
+                // Todos without due dates go to the end
+                if (!a.dueDate && !b.dueDate) return 0;
+                if (!a.dueDate) return 1;
+                if (!b.dueDate) return -1;
+                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            });
+        case 'due-latest':
+            return sorted.sort((a, b) => {
+                // Todos without due dates go to the end
+                if (!a.dueDate && !b.dueDate) return 0;
+                if (!a.dueDate) return 1;
+                if (!b.dueDate) return -1;
+                return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+            });
         default:
             return sorted;
     }
@@ -72,4 +89,32 @@ export function groupUncompletedFirst(
     const uncompleted = todos.filter(todo => !todo.completed);
     const completed = todos.filter(todo => todo.completed);
     return [...uncompleted, ...completed];
+}
+
+/**
+ * Filter todos by due date
+ *
+ * @param todos - Array of todos to filter
+ * @param dueDateFilter - Due date filter criteria
+ * @returns New filtered array
+ */
+export function filterTodosByDueDate(
+    todos: TodoItemClient[],
+    dueDateFilter: TodoDueDateFilter
+): TodoItemClient[] {
+    switch (dueDateFilter) {
+        case 'all':
+            return todos;
+        case 'today':
+            return todos.filter(todo => isToday(todo.dueDate));
+        case 'week':
+            return todos.filter(todo => isDueThisWeek(todo.dueDate));
+        case 'overdue':
+            // Overdue filter excludes completed todos
+            return todos.filter(todo => !todo.completed && isOverdue(todo.dueDate));
+        case 'none':
+            return todos.filter(todo => !todo.dueDate);
+        default:
+            return todos;
+    }
 }
