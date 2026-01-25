@@ -67,7 +67,6 @@ function parseTasks(): Task[] {
     const tasks: Task[] = [];
 
     let currentTask: Partial<Task> | null = null;
-    let taskStartLine = 0;
     let taskContent: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -99,7 +98,6 @@ function parseTasks(): Task[] {
                 status: isDone ? 'Done' : 'Open', // Will be updated if "In Progress" found
             };
             taskContent = [line];
-            taskStartLine = i;
             continue;
         }
 
@@ -245,34 +243,31 @@ function workOnTask(taskNumber: number) {
     console.log(`Size: ${task.size}`);
     console.log(`Complexity: ${task.complexity}\n`);
 
-    // Create a branch name
-    const branchName = `task/${taskNumber}-${task.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-        .substring(0, 50)}`;
+    // Show current branch (no branch creation)
+    const currentBranch = execSync('git branch --show-current', { encoding: 'utf-8' }).trim();
+    console.log(`📌 Current branch: ${currentBranch}`);
 
-    console.log(`📌 Branch: ${branchName}\n`);
-
-    // Check if branch exists
-    try {
-        execSync(`git rev-parse --verify ${branchName}`, { stdio: 'ignore' });
-        console.log('ℹ️  Branch already exists, switching to it...');
-        execSync(`git checkout ${branchName}`, { stdio: 'inherit' });
-    } catch {
-        console.log('🌿 Creating new branch...');
-        execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+    if (currentBranch !== 'main') {
+        console.log('⚠️  You are not on main branch. Consider switching to main unless you explicitly want to work on a separate branch.\n');
+    } else {
+        console.log('✅ Working on main branch\n');
     }
 
-    console.log('\n✅ Ready to work on task!');
-    console.log('\n📝 Task details:\n');
+    console.log('📝 Task details:\n');
     console.log(task.content);
     console.log('\n💡 Next steps:');
     console.log('  1. Implement the task');
     console.log('  2. Run: yarn checks');
-    console.log('  3. Commit your changes');
-    console.log('  4. Create a PR');
-    console.log(`  5. After merge: yarn task mark-done --task ${taskNumber}`);
+    console.log('  3. Request user approval (MANDATORY)');
+    if (currentBranch === 'main') {
+        console.log('  4. Commit changes to main');
+        console.log(`  5. Run: yarn task mark-done --task ${taskNumber}`);
+        console.log('  6. Push to main: git push origin main');
+    } else {
+        console.log('  4. Commit your changes');
+        console.log('  5. Create a PR');
+        console.log(`  6. After merge: yarn task mark-done --task ${taskNumber}`);
+    }
 }
 
 function createWorktree(taskNumber: number) {

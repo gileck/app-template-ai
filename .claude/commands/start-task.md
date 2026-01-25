@@ -44,13 +44,14 @@ Follow these steps to implement a task from task-manager/tasks.md:
 - **Actions**:
   - **FIRST**: Mark task as in progress: `yarn task mark-in-progress --task N`
   - Run: `yarn task work --task N` (where N is the task number)
-  - This automatically:
-    - Creates/switches to a git branch: `task/N-task-name`
-    - Displays full task details (priority, size, complexity, implementation details)
-    - Shows files to modify
-    - Provides next steps
+  - This displays:
+    - Full task details (priority, size, complexity, implementation details)
+    - Files to modify
+    - Next steps
   - Read the task content carefully
   - Note the task priority, size, and complexity
+
+**IMPORTANT:** Work stays on main branch unless user explicitly requested a separate branch before starting the task.
 
 ---
 
@@ -244,7 +245,7 @@ High-level approach and key decisions.
 
 ---
 
-## Step 9: Commit Changes
+## Step 9: Commit Changes to Main
 
 ### ⚠️ PREREQUISITE: User must have approved in Step 8 ⚠️
 
@@ -253,8 +254,9 @@ High-level approach and key decisions.
 - [ ] User has given explicit approval
 - [ ] If NOT approved yet, STOP and wait for approval
 
-- **Objective**: Save the work to version control
+- **Objective**: Save the work to version control on main branch
 - **Actions**:
+  - Ensure you're on main branch: `git branch --show-current`
   - Stage all changes: `git add .`
   - Write a proper commit message following conventional commit format:
     - `fix:` for bug fixes
@@ -267,7 +269,7 @@ High-level approach and key decisions.
 
 ---
 
-## Step 10: Mark Task as Done (AUTOMATIC)
+## Step 10: Mark Task as Done
 - **Objective**: Update task status in task-manager/tasks.md immediately after implementation
 - **Actions**:
   - Run: `yarn task mark-done --task N` (where N is the task number)
@@ -276,8 +278,6 @@ High-level approach and key decisions.
   - Commit with message: `git commit -m "docs: mark task #N as done"`
   - This creates a **separate commit** following the implementation commit
 
-**CRITICAL:** This step MUST happen before pushing/PR creation so both commits go into the same PR.
-
 **Why a separate commit?**
 - Keeps implementation and documentation changes separated
 - Makes git history cleaner and easier to review
@@ -285,41 +285,11 @@ High-level approach and key decisions.
 
 ---
 
-## Step 11: Push and Create PR
-- **Objective**: Submit changes for review (includes both implementation and task status commits)
+## Step 11: Push to Main
+- **Objective**: Push both commits to main branch
 - **Actions**:
-  - Push to remote: `git push -u origin task/N-branch-name`
+  - Push to remote: `git push origin main`
     - This pushes **both commits**: implementation commit + task status commit
-  - Create PR using: `yarn github-pr create --title "Title" --body "Description"`
-  - PR title should:
-    - Use conventional commit format
-    - Clearly describe what was done
-    - Reference task number
-  - PR body should:
-    - Link to task: "Implements Task #N from task-manager/tasks.md"
-    - Summarize what was changed
-    - List key files modified
-    - Note any important decisions
-
-**Example PR Creation:**
-```bash
-yarn github-pr create \
-  --title "fix: Cost Tracking Bug in Implementation Agent" \
-  --body "Implements Task #1 from task-manager/tasks.md
-
-Fixes cost tracking by using actual usage values from Claude SDK response instead of hardcoded zeros.
-
-Changes:
-- Updated logExecutionEnd() call in implementAgent/index.ts
-- Now correctly tracks toolCallsCount, totalTokens, totalCost
-
-Files modified:
-- src/agents/core-agents/implementAgent/index.ts
-
-This PR includes 2 commits:
-1. Implementation commit with the fix
-2. Documentation commit marking task as done"
-```
 
 ---
 
@@ -328,7 +298,7 @@ This PR includes 2 commits:
 - **Actions**:
   - Summarize what was implemented
   - Highlight key changes and files modified
-  - Show the PR URL
+  - List commits pushed to main
   - Confirm validation checks passed
   - Confirm task was marked as done in tasks.md
   - Note any follow-up items if applicable
@@ -339,6 +309,7 @@ This PR includes 2 commits:
 
 - [ ] Task marked as in progress with `yarn task mark-in-progress --task N`
 - [ ] Task loaded with `yarn task work --task N`
+- [ ] Staying on main branch (unless user explicitly requested a separate branch)
 - [ ] Requirements understood
 - [ ] Documentation reviewed (CLAUDE.md, task-specific docs)
 - [ ] Relevant code explored
@@ -346,10 +317,9 @@ This PR includes 2 commits:
 - [ ] Task implemented following guidelines
 - [ ] `yarn checks` passed with 0 errors
 - [ ] **⚠️ CRITICAL: User review requested and approval received (MANDATORY - DO NOT SKIP)**
-- [ ] Changes committed with proper message (implementation commit)
+- [ ] Changes committed to main with proper message (implementation commit)
 - [ ] Task marked as done with `yarn task mark-done --task N` (separate commit)
-- [ ] Both commits pushed to remote
-- [ ] PR created with clear title and description
+- [ ] Both commits pushed to main
 - [ ] User notified with summary
 
 ---
