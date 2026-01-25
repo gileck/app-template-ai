@@ -48,12 +48,12 @@ import { formatPhasesToComment, parsePhasesFromMarkdown } from '../src/agents/li
 /**
  * Handle design PR merged event
  *
- * Actions:
- * 1. Post/update artifact comment on issue
- * 2. Advance status:
- *    - Product Design PR → Status = "Tech Design"
- *    - Tech Design PR → Status = "Implementation"
- * 3. For tech design PRs with phases, post phases comment on issue
+ * NOTE: Status updates are handled by Telegram webhook (primary flow).
+ * This function only handles idempotent backup operations:
+ * 1. Update artifact comment on issue
+ * 2. For tech design PRs with phases, post phases comment on issue (if not exists)
+ *
+ * Status is NOT updated here to avoid conflicts with Telegram webhook.
  */
 async function handleDesignPRMerged(
     adapter: ProjectManagementAdapter,
@@ -64,7 +64,6 @@ async function handleDesignPRMerged(
 ): Promise<void> {
     const designType = isProductDesign ? 'product' : 'tech';
     const designLabel = isProductDesign ? 'Product Design' : 'Technical Design';
-    const nextStatus = isProductDesign ? STATUSES.techDesign : STATUSES.implementation;
 
     console.log(`\n📄 Processing ${designLabel} PR merge...`);
 
@@ -90,22 +89,18 @@ async function handleDesignPRMerged(
 
     console.log(`  Found project item: ${item.id}`);
     console.log(`  Current status: ${item.status}`);
-    console.log(`  Advancing to: ${nextStatus}`);
+    console.log('  (Status update handled by Telegram webhook - skipping here)')
 
-    await adapter.updateItemStatus(item.id, nextStatus);
-    console.log('  Status updated');
-
-    // Clear review status for next phase
-    if (adapter.hasReviewStatusField() && item.reviewStatus) {
-        await adapter.clearItemReviewStatus(item.id);
-        console.log('  Cleared review status');
-    }
-
-    // Delete the design branch after successful merge
-    const prDetails = await adapter.getPRDetails(prNumber);
-    if (prDetails?.headBranch) {
-        console.log(`  Cleaning up design branch: ${prDetails.headBranch}`);
-        await adapter.deleteBranch(prDetails.headBranch);
+    // Delete the design branch after successful merge (idempotent - may already be deleted)
+    try {
+        const prDetails = await adapter.getPRDetails(prNumber);
+        if (prDetails?.headBranch) {
+            console.log(`  Cleaning up design branch: ${prDetails.headBranch}`);
+            await adapter.deleteBranch(prDetails.headBranch);
+        }
+    } catch (error) {
+        // Branch may already be deleted by Telegram webhook - that's fine
+        console.log('  Branch already deleted or not found (skipping)');
     }
 
     // 3. For tech design PRs, check for phases and initialize in artifact comment
@@ -134,40 +129,9 @@ async function handleDesignPRMerged(
         }
     }
 
-    // 4. Post status comment
-    const statusComment = `✅ **${designLabel}** approved - Merged PR #${prNumber}
+    // Status comment and Telegram notification handled by Telegram webhook
 
-📊 Status advanced to: **${nextStatus}**
-${!isProductDesign ? '🤖 Implementation agent will pick this up.' : '🤖 Technical Design agent will pick this up.'}`;
-    await adapter.addIssueComment(issueNumber, statusComment);
-    console.log('  Status comment posted on issue');
-
-    // 5. Send Telegram notification
-    if (appConfig.ownerTelegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
-        const repoUrl = `https://github.com/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}`;
-        const issueUrl = `${repoUrl}/issues/${issueNumber}`;
-
-        const escapeHtml = (text: string) =>
-            text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-        const message = `<b>Agent (Design Merged):</b> ✅ ${designLabel} Approved
-
-📋 ${escapeHtml(prTitle)}
-🔗 Issue #${issueNumber}
-📊 Status: ${nextStatus}
-
-${!isProductDesign ? 'Implementation agent will start work.' : 'Technical Design agent will start work.'}`;
-
-        await sendNotificationToOwner(message, {
-            parseMode: 'HTML',
-            inlineKeyboard: [
-                [{ text: '📋 View Issue', url: issueUrl }],
-            ],
-        });
-        console.log('  Telegram notification sent');
-    }
-
-    console.log(`\n✅ ${designLabel} PR processed successfully\n`);
+    console.log(`\n✅ ${designLabel} PR backup operations completed\n`);
 }
 
 async function main() {
