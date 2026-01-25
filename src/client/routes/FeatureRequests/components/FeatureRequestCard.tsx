@@ -12,11 +12,13 @@ import {
     DropdownMenuSubTrigger,
 } from '@/client/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
-import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, Eye, ExternalLink, GitPullRequest, CheckCircle, Loader2, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, ExternalLink, GitPullRequest, Loader2, RotateCcw } from 'lucide-react';
 import { StatusBadge, PriorityBadge, GitHubStatusBadge } from './StatusBadge';
 import { StatusIndicatorStrip } from './StatusIndicatorStrip';
 import { MetadataIconRow } from './MetadataIconRow';
 import { DesignReviewPanel } from './DesignReviewPanel';
+import { HealthIndicator } from './HealthIndicator';
+import { PrimaryActionButton } from './PrimaryActionButton';
 import type { FeatureRequestClient, FeatureRequestPriority, DesignPhaseType } from '@/apis/feature-requests/types';
 import { useUpdatePriority, useDeleteFeatureRequest, useApproveFeatureRequest, useGitHubStatus, useGitHubStatuses, useUpdateGitHubStatus, useUpdateGitHubReviewStatus, useClearGitHubReviewStatus } from '../hooks';
 import { useRouter } from '@/client/router';
@@ -91,7 +93,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
           ? 'tech'
           : null;
 
-    const canReviewDesign = currentDesignPhase && currentDesignPhase.content && currentPhaseType;
+    const canReviewDesign = !!(currentDesignPhase && currentDesignPhase.content && currentPhaseType);
 
     const handleCardClick = () => {
         navigate(`/admin/feature-requests/${request._id}`);
@@ -102,7 +104,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
             {/* Left-edge status indicator strip (4px) */}
             <StatusIndicatorStrip request={request} githubStatus={githubStatus?.status} />
 
-            <CardHeader className="pb-3 pt-3 px-4">
+            <CardHeader className="pb-2 pt-3 px-4">
                 {/* 3-zone layout: Left (handled by strip), Center (main content), Right (actions) */}
                 <div className="flex items-start justify-between gap-3">
                     {/* Center Zone: Main Content */}
@@ -124,7 +126,7 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                         </CardTitle>
 
                         {/* Status Row: Inline badges and metadata icons with compact spacing */}
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
                             {/* Show GitHub status as primary when linked, fallback to DB status */}
                             {request.githubProjectItemId ? (
                                 isLoadingGitHubStatus ? (
@@ -153,29 +155,13 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
 
                     {/* Right Zone: Actions - compact and aligned */}
                     <div className="flex items-start gap-1 flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
-                        {canApprove && (
-                            <Button
-                                variant="default"
-                                size="sm"
-                                onClick={handleApprove}
-                                disabled={approveMutation.isPending}
-                                className="gap-1 h-8"
-                            >
-                                <CheckCircle className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">{approveMutation.isPending ? 'Approving...' : 'Approve'}</span>
-                            </Button>
-                        )}
-                        {canReviewDesign && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowDesignReview(true)}
-                                className="gap-1 h-8"
-                            >
-                                <Eye className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Review</span>
-                            </Button>
-                        )}
+                        <PrimaryActionButton
+                            canApprove={canApprove}
+                            canReviewDesign={canReviewDesign}
+                            onApprove={handleApprove}
+                            onReview={() => setShowDesignReview(true)}
+                            isApproving={approveMutation.isPending}
+                        />
                         <Button
                             variant="ghost"
                             size="icon"
@@ -325,6 +311,9 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                             </div>
                         </div>
                     )}
+
+                    {/* Health Indicator - shown in expanded view only when not healthy */}
+                    <HealthIndicator request={request} githubStatus={githubStatus} />
 
                     {currentDesignPhase?.content && (
                         <div className="space-y-2 rounded-lg border border-info/30 bg-info/5 p-3">
