@@ -58,7 +58,7 @@ export function logExecutionStart(ctx: LogContext): void {
         console.log(`  📝 Agent log found: ${logPath}`);
     }
 
-    const content = `## Phase: ${ctx.phase}
+    const content = `## [LOG:PHASE_START] Phase: ${ctx.phase}
 
 **Agent:** ${ctx.workflow}
 ${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}**Started:** ${formatTime(ctx.startTime)}
@@ -80,7 +80,7 @@ export function logPrompt(
     const model = options?.model || 'Unknown';
     const timeout = options?.timeout ? `${options.timeout}s` : 'None';
 
-    const content = `### Prompt
+    const content = `### [LOG:PROMPT] Prompt
 
 **Model:** ${model} | **Tools:** ${toolsList} | **Timeout:** ${timeout}
 
@@ -107,7 +107,7 @@ export function logToolCall(
     const timestamp = formatTime(new Date());
     const inputStr = typeof input === 'string' ? input : JSON.stringify(input, null, 2);
 
-    const content = `**[${timestamp}]** 🔧 Tool: ${toolName} (ID: ${toolId})
+    const content = `**[${timestamp}]** [LOG:TOOL_CALL] 🔧 Tool: ${toolName} (ID: ${toolId})
 
 \`\`\`json
 ${escapeCodeBlock(inputStr)}
@@ -139,7 +139,7 @@ export function logToolResult(
         ? outputStr.slice(0, 5000) + '\n\n... (truncated)'
         : outputStr;
 
-    const content = `**[${timestamp}]** ✅ Tool Result: ${toolName} (ID: ${toolId})
+    const content = `**[${timestamp}]** [LOG:TOOL_RESULT] ✅ Result: ${toolName} (ID: ${toolId})
 
 \`\`\`
 ${escapeCodeBlock(displayOutput)}
@@ -156,7 +156,7 @@ ${escapeCodeBlock(displayOutput)}
 export function logThinking(ctx: LogContext, thinking: string): void {
     const timestamp = formatTime(new Date());
 
-    const content = `**[${timestamp}]** 💭 Thinking:
+    const content = `**[${timestamp}]** [LOG:THINKING] 💭 Thinking:
 
 > ${thinking.split('\n').join('\n> ')}
 
@@ -171,7 +171,7 @@ export function logThinking(ctx: LogContext, thinking: string): void {
 export function logTextResponse(ctx: LogContext, text: string): void {
     const timestamp = formatTime(new Date());
 
-    const content = `**[${timestamp}]** 📝 Response:
+    const content = `**[${timestamp}]** [LOG:RESPONSE] 📝 Response:
 
 ${text}
 
@@ -190,7 +190,7 @@ export function logStatusTransition(
 ): void {
     const timestamp = formatTime(new Date());
 
-    const content = `**[${timestamp}]** 🔄 Status changed: ${from} → ${to}
+    const content = `**[${timestamp}]** [LOG:STATUS] 🔄 Status: ${from} → ${to}
 
 `;
 
@@ -215,7 +215,7 @@ export function logGitHubAction(
                 ? '📝'
                 : '🏷️';
 
-    const content = `**[${timestamp}]** ${emoji} GitHub: ${action.replace('_', ' ')} - ${details}
+    const content = `**[${timestamp}]** [LOG:GITHUB] ${emoji} ${action.replace('_', ' ')}: ${details}
 
 `;
 
@@ -234,7 +234,8 @@ export function logError(
     const message = typeof error === 'string' ? error : error.message;
     const stack = typeof error === 'string' ? undefined : error.stack;
 
-    const content = `**[${timestamp}]** ❌ ${isFatal ? 'FATAL ' : ''}Error:
+    const marker = isFatal ? '[LOG:FATAL]' : '[LOG:ERROR]';
+    const content = `**[${timestamp}]** ${marker} ❌ Error:
 
 \`\`\`
 ${message}
@@ -257,7 +258,7 @@ export function logTokenUsage(
     const total = usage.inputTokens + usage.outputTokens;
     const costStr = usage.cost ? ` | **Cost:** ${formatCost(usage.cost)}` : '';
 
-    const content = `**[${timestamp}]** 📊 Tokens: ${usage.inputTokens} in / ${usage.outputTokens} out (${total} total)${costStr}
+    const content = `**[${timestamp}]** [LOG:TOKENS] 📊 Tokens: ${usage.inputTokens} in / ${usage.outputTokens} out (${total} total)${costStr}
 
 `;
 
@@ -276,7 +277,7 @@ export function logExecutionEnd(
 
     const content = `---
 
-### Phase Result
+### [LOG:PHASE_END] Phase Result
 
 **Duration:** ${durationStr}
 **Tool calls:** ${summary.toolCallsCount || 0}
@@ -329,7 +330,7 @@ export function logFinalSummary(
 
     const content = `---
 
-## Summary
+## [LOG:SUMMARY] Summary
 
 | Phase | Duration | Tools | Tokens | Cost |
 |-------|----------|-------|--------|------|
