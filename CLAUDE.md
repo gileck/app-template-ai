@@ -125,6 +125,7 @@ Full offline support with service worker and optimistic updates.
 - **Batch sync alert** shows sync progress when coming back online
 - POST requests return `{}` when offline (not an error)
 - **CRITICAL - Optimistic-Only Pattern**: Never update UI from server response
+- **Multi-cache updates**: If data shows in both list and detail views, update BOTH caches in `onMutate` (see `docs/react-query-mutations.md`)
 
 ```typescript
 useMutation({
