@@ -459,6 +459,8 @@ Explore the codebase:
 3. Check \`src/server/database/collections/\` for database patterns
 4. Look at \`src/client/routes/\` for component patterns
 
+**Data availability check**: Before specifying UI that displays data, verify the schema/types have the required fields. If missing, note "requires schema change" or remove the feature from design.
+
 ## Output Format
 
 Provide your response as structured JSON with these fields:
