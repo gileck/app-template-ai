@@ -229,6 +229,8 @@ async function processItem(
         mode: 'Review',
         issueTitle: content.title,
         issueType,
+        currentStatus: item.status,
+        currentReviewStatus: item.reviewStatus,
     });
 
     return runWithLogContext(logCtx, async () => {

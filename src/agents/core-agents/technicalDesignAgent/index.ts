@@ -224,6 +224,8 @@ async function processItem(
         mode: mode === 'new' ? 'New design' : mode === 'feedback' ? 'Address feedback' : 'Clarification',
         issueTitle: content.title,
         issueType,
+        currentStatus: item.status,
+        currentReviewStatus: item.reviewStatus,
     });
 
     return runWithLogContext(logCtx, async () => {

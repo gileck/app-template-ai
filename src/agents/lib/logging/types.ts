@@ -9,6 +9,10 @@ export interface LogContext {
     issueTitle: string;
     issueType?: 'feature' | 'bug' | 'chore' | 'docs' | 'refactor';
     startTime: Date;
+    /** Current GitHub Projects status (column) when agent started */
+    currentStatus?: string | null;
+    /** Current review status when agent started */
+    currentReviewStatus?: string | null;
 }
 
 /**

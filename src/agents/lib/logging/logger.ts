@@ -60,10 +60,15 @@ export function logExecutionStart(ctx: LogContext): void {
         console.log(`  📝 Agent log found: ${logPath}`);
     }
 
+    // Build status line if status info is available
+    const statusLine = ctx.currentStatus
+        ? `**Current Status:** ${ctx.currentStatus}${ctx.currentReviewStatus ? ` | **Review Status:** ${ctx.currentReviewStatus}` : ''}\n`
+        : '';
+
     const content = `## [LOG:PHASE_START] Phase: ${ctx.phase}
 
 **Agent:** ${ctx.workflow}
-${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}**Started:** ${formatTime(ctx.startTime)}
+${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}${statusLine}**Started:** ${formatTime(ctx.startTime)}
 
 `;
 
