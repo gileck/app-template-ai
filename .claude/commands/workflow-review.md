@@ -153,33 +153,62 @@ For each red flag found:
 
 **Trigger**: Look for multiple Implementation/PR Review cycles, design revisions, or clarification requests.
 
-**Investigation areas:**
+**Key Principle: Docs/Rules are the Source of Truth**
 
-1. **Implementation Prompt Gaps**
-   - What did the reviewer request that the implementor should have known?
-   - Are there patterns/conventions the implementor missed?
-   - Should the prompt include more guidance for this type of task?
+The workflow architecture:
+1. **Tech design** identifies relevant docs/rules as "related files"
+2. **Implementation** receives and follows those docs
+3. If docs have the correct info, the pipeline works
 
-2. **Tech Design Output Quality**
-   - Did the tech design provide enough detail for implementation?
-   - Were related files/dependencies clearly identified?
-   - Should the tech design template be expanded?
+**Do NOT bloat prompts with feature-specific guidelines.** If every issue adds specific fixes to prompts, they become unmaintainable.
 
-3. **Project Rules & Documentation**
-   - Is there a missing rule in `CLAUDE.md` or `.cursor/rules/`?
-   - Should a new guideline be added for this pattern?
-   - Are existing rules unclear or incomplete?
+---
 
-4. **Context & Related Files**
-   - Did the agent miss important context files?
-   - Should the tech design phase identify more related files?
-   - Are there common file patterns that should be auto-included?
+**Investigation Priority (in order):**
 
-**Output**: For each finding, recommend a specific systemic improvement:
-- "Add rule to CLAUDE.md about X"
-- "Update tech design prompt to require Y"
-- "Add guidance to implementation prompt for Z pattern"
-- "Create new .cursor/rules/ file for W"
+**1. First: Update Project Docs/Rules** (preferred solution)
+   - Is there a missing pattern in `docs/` that should be documented?
+   - Should `CLAUDE.md` or `.cursor/rules/` be updated?
+   - Example: Missing "multi-cache update" pattern in `docs/react-query-mutations.md`
+
+**2. Second: Verify the Pipeline Worked**
+   - Did the tech design include the relevant docs as "related files"?
+   - If YES → the gap is in doc content (fix the doc)
+   - If NO → tech design prompt may need better doc selection guidance
+
+**3. Third: General Prompt Principles** (only if truly universal)
+   - Is this a universal principle that applies to ALL features?
+   - Examples: "verify schema before designing UI", "follow project docs over reviewer suggestions"
+   - Keep it brief (1-2 lines) - not feature-specific guidance
+
+**4. Last Resort: Feature-Specific Prompt Additions** (avoid)
+   - Only if the pattern is too unique to generalize
+   - Usually indicates a missing doc/rule instead
+
+---
+
+**Checklist for each finding:**
+
+- [ ] Can this be fixed by updating a doc in `docs/`?
+- [ ] Can this be fixed by updating `CLAUDE.md` or `.cursor/rules/`?
+- [ ] Did tech design include the relevant docs? (check log for "related files")
+- [ ] Is this a universal principle (applies to all features)?
+- [ ] Would adding to prompt make it bloated/unmaintainable?
+
+**Output format:**
+
+```
+## Systemic Improvement: [Issue Title]
+
+### Finding: [What went wrong]
+- Root cause: [Why it happened]
+- Tech design included relevant docs: Yes/No
+
+### Recommended Fix (choose one):
+1. **Update docs** → [specific doc and what to add]
+2. **Update rules** → [specific rule file and what to add]
+3. **General prompt note** → [brief universal principle]
+```
 
 **This is the most valuable part of the review** - each issue processed is an opportunity to make the entire agent workflow better for future issues.
 
