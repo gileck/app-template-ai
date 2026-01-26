@@ -227,6 +227,34 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Parse and validate callback data with defensive parsing
+ * Handles whitespace, case normalization, and type validation
+ */
+function parseCallbackData(callbackData: string) {
+    const trimmed = callbackData.trim();
+    const parts = trimmed.split(':').map(p => p.trim());
+    const action = parts[0]?.toLowerCase() || '';
+
+    return {
+        action,
+        parts,
+        /**
+         * Safely parse an integer from a callback data part
+         * Returns null if the value is invalid, NaN, or missing
+         */
+        getInt: (index: number): number | null => {
+            const val = parseInt(parts[index]?.trim() || '', 10);
+            return isNaN(val) || !val ? null : val;
+        },
+        /**
+         * Safely get a string from a callback data part
+         * Returns empty string if missing
+         */
+        getString: (index: number): string => parts[index]?.trim() || '',
+    };
+}
+
+/**
  * Find project item by issue number
  */
 async function findItemByIssueNumber(
@@ -1421,17 +1449,24 @@ export default async function handler(
         return res.status(200).json({ ok: true });
     }
 
-    // Parse callback data - supports multiple formats:
-    // - "approve_request:requestId" - Initial feature request approval
-    // - "action:issueNumber" - Design review actions
-    const parts = callbackData.split(':');
-    const action = parts[0];
+    // Parse callback data with defensive parsing
+    const parsed = parseCallbackData(callbackData);
+    const { action, parts } = parsed;
 
     try {
         // Route to appropriate handler based on action type
         if (action === 'approve_request' && parts.length === 2) {
             // Initial feature request approval: "approve_request:requestId"
-            const [, requestId] = parts;
+            const requestId = parsed.getString(1);
+
+            if (!requestId) {
+                console.error('Telegram webhook: Invalid approve_request callback data', {
+                    callbackData,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid request ID');
+                return res.status(200).json({ ok: true });
+            }
             const result = await handleFeatureRequestApproval(
                 botToken,
                 callback_query,
@@ -1464,7 +1499,16 @@ export default async function handler(
 
         // Bug report approval: "approve_bug:reportId"
         if (action === 'approve_bug' && parts.length === 2) {
-            const [, reportId] = parts;
+            const reportId = parsed.getString(1);
+
+            if (!reportId) {
+                console.error('Telegram webhook: Invalid approve_bug callback data', {
+                    callbackData,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid report ID');
+                return res.status(200).json({ ok: true });
+            }
             const result = await handleBugReportApproval(
                 botToken,
                 callback_query,
@@ -1497,7 +1541,19 @@ export default async function handler(
 
         // Feature routing: "route_feature:requestId:destination"
         if (action === 'route_feature' && parts.length === 3) {
-            const [, requestId, destination] = parts;
+            const requestId = parsed.getString(1);
+            const destination = parsed.getString(2);
+
+            if (!requestId || !destination) {
+                console.error('Telegram webhook: Invalid route_feature callback data', {
+                    callbackData,
+                    requestId,
+                    destination,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid routing data');
+                return res.status(200).json({ ok: true });
+            }
             const result = await handleFeatureRouting(
                 botToken,
                 callback_query,
@@ -1518,7 +1574,19 @@ export default async function handler(
 
         // Bug routing: "route_bug:reportId:destination"
         if (action === 'route_bug' && parts.length === 3) {
-            const [, reportId, destination] = parts;
+            const reportId = parsed.getString(1);
+            const destination = parsed.getString(2);
+
+            if (!reportId || !destination) {
+                console.error('Telegram webhook: Invalid route_bug callback data', {
+                    callbackData,
+                    reportId,
+                    destination,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid routing data');
+                return res.status(200).json({ ok: true });
+            }
             const result = await handleBugRouting(
                 botToken,
                 callback_query,
@@ -1539,9 +1607,14 @@ export default async function handler(
 
         // Design review actions: "approve:123", "changes:123", "reject:123"
         if (['approve', 'changes', 'reject'].includes(action) && parts.length === 2) {
-            const issueNumber = parseInt(parts[1], 10);
+            const issueNumber = parsed.getInt(1);
 
             if (!issueNumber) {
+                console.error('Telegram webhook: Invalid design review callback data', {
+                    callbackData,
+                    action,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
                 return res.status(200).json({ ok: true });
             }
@@ -1566,9 +1639,13 @@ export default async function handler(
 
         // Clarification received: "clarified:123"
         if (action === 'clarified' && parts.length === 2) {
-            const issueNumber = parseInt(parts[1], 10);
+            const issueNumber = parsed.getInt(1);
 
             if (!issueNumber) {
+                console.error('Telegram webhook: Invalid clarified callback data', {
+                    callbackData,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
                 return res.status(200).json({ ok: true });
             }
@@ -1592,10 +1669,16 @@ export default async function handler(
 
         // Merge PR: "merge:issueNumber:prNumber"
         if (action === 'merge' && parts.length === 3) {
-            const issueNumber = parseInt(parts[1], 10);
-            const prNumber = parseInt(parts[2], 10);
+            const issueNumber = parsed.getInt(1);
+            const prNumber = parsed.getInt(2);
 
             if (!issueNumber || !prNumber) {
+                console.error('Telegram webhook: Invalid merge callback data', {
+                    callbackData,
+                    issueNumber,
+                    prNumber,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
                 return res.status(200).json({ ok: true });
             }
@@ -1622,10 +1705,16 @@ export default async function handler(
 
         // Request changes (admin requests changes after approval): "reqchanges:issueNumber:prNumber"
         if (action === 'reqchanges' && parts.length === 3) {
-            const issueNumber = parseInt(parts[1], 10);
-            const prNumber = parseInt(parts[2], 10);
+            const issueNumber = parsed.getInt(1);
+            const prNumber = parsed.getInt(2);
 
             if (!issueNumber || !prNumber) {
+                console.error('Telegram webhook: Invalid reqchanges callback data', {
+                    callbackData,
+                    issueNumber,
+                    prNumber,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
                 return res.status(200).json({ ok: true });
             }
@@ -1652,11 +1741,11 @@ export default async function handler(
 
         // Design PR approval: "design_approve:prNumber:issueNumber:type"
         if (action === 'design_approve' && parts.length === 4) {
-            const prNumber = parseInt(parts[1]?.trim() || '', 10);
-            const issueNumber = parseInt(parts[2]?.trim() || '', 10);
-            const designType = (parts[3]?.trim()?.toLowerCase() || '') as 'product' | 'tech';
+            const prNumber = parsed.getInt(1);
+            const issueNumber = parsed.getInt(2);
+            const designType = parsed.getString(3).toLowerCase() as 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || isNaN(prNumber) || isNaN(issueNumber) || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
                 console.error('Telegram webhook: Invalid design_approve callback data', {
                     callbackData,
                     prNumber,
@@ -1691,11 +1780,11 @@ export default async function handler(
 
         // Design PR request changes: "design_changes:prNumber:issueNumber:type"
         if (action === 'design_changes' && parts.length === 4) {
-            const prNumber = parseInt(parts[1]?.trim() || '', 10);
-            const issueNumber = parseInt(parts[2]?.trim() || '', 10);
-            const designType = (parts[3]?.trim()?.toLowerCase() || '') as 'product' | 'tech';
+            const prNumber = parsed.getInt(1);
+            const issueNumber = parsed.getInt(2);
+            const designType = parsed.getString(3).toLowerCase() as 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || isNaN(prNumber) || isNaN(issueNumber) || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
                 console.error('Telegram webhook: Invalid design_changes callback data', {
                     callbackData,
                     prNumber,
