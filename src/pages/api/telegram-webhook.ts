@@ -221,7 +221,9 @@ function escapeHtml(text: string): string {
     return text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 /**
@@ -1650,11 +1652,18 @@ export default async function handler(
 
         // Design PR approval: "design_approve:prNumber:issueNumber:type"
         if (action === 'design_approve' && parts.length === 4) {
-            const prNumber = parseInt(parts[1], 10);
-            const issueNumber = parseInt(parts[2], 10);
-            const designType = parts[3] as 'product' | 'tech';
+            const prNumber = parseInt(parts[1]?.trim() || '', 10);
+            const issueNumber = parseInt(parts[2]?.trim() || '', 10);
+            const designType = (parts[3]?.trim()?.toLowerCase() || '') as 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || isNaN(prNumber) || isNaN(issueNumber) || !['product', 'tech'].includes(designType)) {
+                console.error('Telegram webhook: Invalid design_approve callback data', {
+                    callbackData,
+                    prNumber,
+                    issueNumber,
+                    designType,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
                 return res.status(200).json({ ok: true });
             }
@@ -1682,11 +1691,18 @@ export default async function handler(
 
         // Design PR request changes: "design_changes:prNumber:issueNumber:type"
         if (action === 'design_changes' && parts.length === 4) {
-            const prNumber = parseInt(parts[1], 10);
-            const issueNumber = parseInt(parts[2], 10);
-            const designType = parts[3] as 'product' | 'tech';
+            const prNumber = parseInt(parts[1]?.trim() || '', 10);
+            const issueNumber = parseInt(parts[2]?.trim() || '', 10);
+            const designType = (parts[3]?.trim()?.toLowerCase() || '') as 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || isNaN(prNumber) || isNaN(issueNumber) || !['product', 'tech'].includes(designType)) {
+                console.error('Telegram webhook: Invalid design_changes callback data', {
+                    callbackData,
+                    prNumber,
+                    issueNumber,
+                    designType,
+                    parts,
+                });
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
                 return res.status(200).json({ ok: true });
             }
@@ -1725,25 +1741,29 @@ export default async function handler(
             timestamp: new Date().toISOString(),
         });
 
-        const truncatedData = callbackData.length > 50
-            ? `${callbackData.slice(0, 50)}...`
-            : callbackData;
-
         await answerCallbackQuery(
             botToken,
             callback_query.id,
-            `⚠️ Unknown action: ${truncatedData}`
+            `⚠️ Unknown action: ${callbackData.length > 50 ? `${callbackData.slice(0, 50)}...` : callbackData}`
         );
 
         // Edit message to show error details
         if (callback_query.message) {
             const originalText = callback_query.message.text || '';
+            const errorMarker = '⚠️ <b>Unknown Action</b>';
+
+            // Prevent duplicate error messages if user clicks multiple times
+            if (originalText.includes(errorMarker)) {
+                return res.status(200).json({ ok: true });
+            }
+
             const errorDetails = [
                 '',
                 '━━━━━━━━━━━━━━━━━━━━',
-                '⚠️ <b>Unknown Action</b>',
+                errorMarker,
                 '',
                 `Received callback: <code>${escapeHtml(callbackData)}</code>`,
+                `Action parsed: <code>${escapeHtml(action)}</code>`,
                 '',
                 'This action is not recognized by the webhook handler.',
                 'Please try again or contact support if the issue persists.',
@@ -1758,7 +1778,10 @@ export default async function handler(
                     'HTML'
                 );
             } catch (editError) {
-                console.error('Failed to edit message for unknown action:', editError);
+                console.error('Failed to edit message for unknown action:', {
+                    error: editError instanceof Error ? editError.message : editError,
+                    callbackData: callbackData,
+                });
             }
         }
 
