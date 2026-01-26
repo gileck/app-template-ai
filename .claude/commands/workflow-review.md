@@ -147,6 +147,42 @@ For each red flag found:
 - [ ] Agent confused? (`Grep pattern="\[LOG:RESPONSE\]"` then read for confusion indicators)
 - [ ] Missing context? (`Grep pattern="\[LOG:TOOL_RESULT\].*not found\|\[LOG:ERROR\].*missing"`)
 
+### Systemic Improvement (Feedback Loop)
+
+**When any phase ends with "Request Changes" or requires multiple iterations**, investigate how the overall system can be improved. The goal is not to fix this specific issue, but to improve the agents' ability to handle similar issues in the future.
+
+**Trigger**: Look for multiple Implementation/PR Review cycles, design revisions, or clarification requests.
+
+**Investigation areas:**
+
+1. **Implementation Prompt Gaps**
+   - What did the reviewer request that the implementor should have known?
+   - Are there patterns/conventions the implementor missed?
+   - Should the prompt include more guidance for this type of task?
+
+2. **Tech Design Output Quality**
+   - Did the tech design provide enough detail for implementation?
+   - Were related files/dependencies clearly identified?
+   - Should the tech design template be expanded?
+
+3. **Project Rules & Documentation**
+   - Is there a missing rule in `CLAUDE.md` or `.cursor/rules/`?
+   - Should a new guideline be added for this pattern?
+   - Are existing rules unclear or incomplete?
+
+4. **Context & Related Files**
+   - Did the agent miss important context files?
+   - Should the tech design phase identify more related files?
+   - Are there common file patterns that should be auto-included?
+
+**Output**: For each finding, recommend a specific systemic improvement:
+- "Add rule to CLAUDE.md about X"
+- "Update tech design prompt to require Y"
+- "Add guidance to implementation prompt for Z pattern"
+- "Create new .cursor/rules/ file for W"
+
+**This is the most valuable part of the review** - each issue processed is an opportunity to make the entire agent workflow better for future issues.
+
 ---
 
 ## Log File Structure Reference
