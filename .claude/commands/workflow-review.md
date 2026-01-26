@@ -132,7 +132,9 @@ For each red flag found:
 - [ ] Git operation failures? (`Grep pattern="\[LOG:GITHUB\].*failed\|\[LOG:ERROR\].*git"`)
 
 ### Efficiency
-- [ ] Same file read multiple times? (`Grep pattern="\[LOG:TOOL_CALL\].*Read"` then check for duplicates)
+- [ ] Same file read multiple times **within a single phase**? (`Grep pattern="\[LOG:TOOL_CALL\].*Read"` then check for duplicates within each phase)
+  - **IMPORTANT**: Repeated reads **across different phases** is expected and acceptable. Each agent runs independently with no shared state - this is by design.
+  - Only flag as inefficiency if the same file is read 3+ times within ONE agent's execution.
 - [ ] Large token counts for simple tasks? (`Grep pattern="\[LOG:TOKENS\]"` or check Summary table)
 - [ ] Redundant Grep/Glob patterns? (`Grep pattern="\[LOG:TOOL_CALL\].*Grep\|\[LOG:TOOL_CALL\].*Glob"`)
 
@@ -222,11 +224,11 @@ None found.
 
 #### Warning (2)
 
-1. **Redundant File Reads** (Tech Design phase)
-   - `src/agents/shared/prompts.ts` read 4 times
+1. **Redundant File Reads Within Phase** (Tech Design phase)
+   - `src/agents/shared/prompts.ts` read 4 times within single agent run
    - **Line**: 1245-1890
    - **Impact**: ~2000 extra tokens ($0.03)
-   - **Recommendation**: Cache file contents in agent context
+   - **Recommendation**: Investigate if agent is re-reading unnecessarily (note: reads across different phases are expected)
 
 2. **Long Thinking Block** (Implement phase)
    - 800 tokens of thinking for simple import statement
@@ -238,6 +240,6 @@ None found.
 
 ### Recommendations
 1. [High] Update prompts to include common import patterns
-2. [Medium] Consider file caching for repeated reads
+2. [Medium] Investigate within-phase redundant reads
 3. [Low] Add explicit phase transition logging
 ```
