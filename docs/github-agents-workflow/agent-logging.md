@@ -40,6 +40,9 @@ These markers enable the workflow reviewer (`/workflow-review`) to search logs p
 | `[LOG:ERROR]` | Non-fatal error | `[LOG:ERROR] Error: Something went wrong` |
 | `[LOG:FATAL]` | Fatal error (stops execution) | `[LOG:FATAL] Error: Critical failure` |
 | `[LOG:SUMMARY]` | Final summary table | `## [LOG:SUMMARY] Summary` |
+| `[LOG:WEBHOOK]` | Telegram webhook event | `[LOG:WEBHOOK] approved: Feature #43` |
+| `[LOG:ACTION]` | GitHub Action event | `[LOG:ACTION] deploy: Started deployment` |
+| `[LOG:TELEGRAM]` | Telegram-specific event | `[LOG:TELEGRAM] merge: PR #45 merged` |
 
 ### Why Markers Matter
 
@@ -313,12 +316,145 @@ Grep pattern="\[LOG:PHASE_END\]" path="agent-logs/issue-43.md" -A 5
 
 ---
 
+## External Logging API
+
+External services (Telegram webhooks, GitHub Actions) can write to agent logs via API endpoints.
+
+### API Endpoints
+
+#### `POST /api/process/agent-log_event`
+
+Log an external event to an agent log file.
+
+**Request:**
+```json
+{
+  "params": {
+    "issueNumber": 43,
+    "event": {
+      "source": "webhook",
+      "action": "approved",
+      "details": "Feature request approved by admin",
+      "metadata": {
+        "userId": "123",
+        "approvedBy": "admin@example.com"
+      }
+    }
+  }
+}
+```
+
+**Sources:** `webhook` | `github_action` | `telegram` | `external`
+
+**Response:**
+```json
+{
+  "data": { "success": true }
+}
+```
+
+#### `POST /api/process/agent-log_phase`
+
+Log a phase start/end to an agent log file.
+
+**Request (start):**
+```json
+{
+  "params": {
+    "issueNumber": 43,
+    "phase": "Telegram Approval",
+    "type": "start",
+    "source": "webhook"
+  }
+}
+```
+
+**Request (end):**
+```json
+{
+  "params": {
+    "issueNumber": 43,
+    "phase": "Telegram Approval",
+    "type": "end",
+    "source": "webhook",
+    "result": "success"
+  }
+}
+```
+
+**Results:** `success` | `failed` | `skipped`
+
+### Direct Function Calls (Server-Side)
+
+For code running on the server (like the Telegram webhook handler), use the logging functions directly:
+
+```typescript
+import {
+    logWebhookAction,
+    logWebhookPhaseStart,
+    logWebhookPhaseEnd,
+    logGitHubActionEvent,
+    logExternalError,
+} from '@/agents/lib/logging';
+
+// Log a webhook action
+logWebhookAction(43, 'approved', 'Feature request approved by admin', {
+    approvedBy: 'admin@example.com',
+});
+// Output: **[HH:MM:SS]** [LOG:WEBHOOK] ✅ approved: Feature request approved by admin
+
+// Log GitHub Action event
+logGitHubActionEvent(43, 'deploy_started', 'Deployment triggered', {
+    commit: 'abc123',
+    environment: 'production',
+});
+// Output: **[HH:MM:SS]** [LOG:ACTION] 🚀 deploy_started: Deployment triggered
+
+// Log phase start
+logWebhookPhaseStart(43, 'PR Merge', 'telegram');
+// Output: ## [LOG:TELEGRAM] 📥 PR Merge
+
+// Log phase end
+logWebhookPhaseEnd(43, 'PR Merge', 'success', 'telegram');
+// Output: ### [LOG:TELEGRAM] Phase Result
+
+// Log external error
+logExternalError(43, 'webhook', 'Failed to merge PR');
+// Output: **[HH:MM:SS]** [LOG:ERROR] ❌ webhook Error:
+```
+
+### Searching External Events
+
+```bash
+# Find all webhook events
+Grep pattern="\[LOG:WEBHOOK\]" path="agent-logs/issue-43.md"
+
+# Find all GitHub Action events
+Grep pattern="\[LOG:ACTION\]" path="agent-logs/issue-43.md"
+
+# Find all Telegram events
+Grep pattern="\[LOG:TELEGRAM\]" path="agent-logs/issue-43.md"
+
+# Find all external events
+Grep pattern="\[LOG:WEBHOOK\]\|\[LOG:ACTION\]\|\[LOG:TELEGRAM\]" path="agent-logs/issue-43.md"
+
+# Find approvals
+Grep pattern="\[LOG:WEBHOOK\].*approv" path="agent-logs/issue-43.md"
+
+# Find merges
+Grep pattern="\[LOG:WEBHOOK\].*merge\|\[LOG:TELEGRAM\].*merge" path="agent-logs/issue-43.md"
+```
+
+---
+
 ## Related Files
 
 - `src/agents/lib/logging/logger.ts` - Logger functions
 - `src/agents/lib/logging/writer.ts` - File writing utilities
 - `src/agents/lib/logging/cost-summary.ts` - Cost tracking
 - `src/agents/lib/logging/types.ts` - TypeScript types
+- `src/apis/agent-log/` - External logging API endpoint
+- `src/pages/api/telegram-webhook.ts` - Telegram webhook (uses logging)
 - `.claude/commands/workflow-review.md` - Workflow reviewer skill
 
 ---

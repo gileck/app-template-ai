@@ -81,3 +81,13 @@ export interface PhaseData {
     totalTokens: number;
     totalCost: number;
 }
+
+// =============================================================================
+// External Event Logging Types
+// =============================================================================
+// Re-export from API types to maintain single source of truth
+
+export type {
+    ExternalLogSource,
+    ExternalLogEvent,
+} from '@/apis/agent-log/types';

@@ -47,6 +47,9 @@ Use Grep to find problems WITHOUT reading full content.
 | Token usage | `\[LOG:TOKENS\]` |
 | Status changes | `\[LOG:STATUS\]` |
 | GitHub actions | `\[LOG:GITHUB\]` |
+| Webhook events | `\[LOG:WEBHOOK\]` |
+| GitHub Action events | `\[LOG:ACTION\]` |
+| Telegram events | `\[LOG:TELEGRAM\]` |
 | Summary | `\[LOG:SUMMARY\]` |
 
 ```bash
