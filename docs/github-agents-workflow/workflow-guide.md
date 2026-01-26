@@ -330,9 +330,9 @@ When implementation is complete:
 | Routing notification | Click **📋 Stay in Backlog** | Status → Backlog, workflow pauses |
 | Design PR notification | Click **Approve & Merge** | PR auto-merges, advances to next phase |
 | Design PR notification | Click **Request Changes** | Workflow pauses, manual intervention needed |
-| Implementation PR ready | Wait for review | PR Review Agent runs (cron) |
-| Review complete | Click **Merge PR** | Squash merge → marks Done |
-| Review complete | Click **Request Changes** | Admin comments explaining changes needed |
+| Implementation PR created | Click **View PR** (notification) | PR Review Agent will review automatically (cron) |
+| PR review approved | Click **Merge** | Squash merge → marks Done |
+| PR review approved | Click **Request Changes** | Admin comments explaining changes needed |
 | Item in Backlog | Manually move in Projects | Status updates, agent may trigger |
 
 ## Alternative Workflows

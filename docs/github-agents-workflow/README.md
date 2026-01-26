@@ -68,7 +68,8 @@ Complete guide to the AI-powered feature request and bug fix workflow using GitH
 **[Telegram Integration](./telegram-integration.md)** - Telegram notifications and buttons
 - Approval buttons (features and bugs)
 - Design PR approval (Approve & Merge, Request Changes)
-- Implementation PR approval
+- Implementation PR notifications (View PR button, reviewed by PR Review agent)
+- PR Review agent approval (Merge, Request Changes)
 - Routing notifications (choose starting phase)
 - Callback webhook architecture
 - Setting up Telegram webhook
