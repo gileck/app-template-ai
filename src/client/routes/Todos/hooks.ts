@@ -203,29 +203,33 @@ export function useUpdateTodo() {
             return response.data?.todo;
         },
         onMutate: async (variables) => {
+            // Cancel outgoing refetches for both list and single todo
             await queryClient.cancelQueries({ queryKey: todosQueryKey });
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
+            await queryClient.cancelQueries({ queryKey: todoQueryKey(variables.todoId) });
 
-            // Optimistic update
+            // Snapshot previous values for rollback
+            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
+            const previousTodo = queryClient.getQueryData<GetTodoResponse>(todoQueryKey(variables.todoId));
+
+            // Build the update object with proper type handling for dueDate
+            const updates: Partial<TodoItemClient> = {
+                updatedAt: new Date().toISOString(),
+            };
+
+            // Copy over defined fields, converting null to undefined for dueDate
+            if (variables.title !== undefined) {
+                updates.title = variables.title;
+            }
+            if (variables.completed !== undefined) {
+                updates.completed = variables.completed;
+            }
+            if (variables.dueDate !== undefined) {
+                updates.dueDate = variables.dueDate === null ? undefined : variables.dueDate;
+            }
+
+            // Optimistic update for list cache
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return old;
-
-                // Build the update object with proper type handling for dueDate
-                const updates: Partial<TodoItemClient> = {
-                    updatedAt: new Date().toISOString(),
-                };
-
-                // Copy over defined fields, converting null to undefined for dueDate
-                if (variables.title !== undefined) {
-                    updates.title = variables.title;
-                }
-                if (variables.completed !== undefined) {
-                    updates.completed = variables.completed;
-                }
-                if (variables.dueDate !== undefined) {
-                    updates.dueDate = variables.dueDate === null ? undefined : variables.dueDate;
-                }
-
                 return {
                     todos: old.todos.map((todo) =>
                         todo._id === variables.todoId
@@ -235,11 +239,26 @@ export function useUpdateTodo() {
                 };
             });
 
-            return { previousTodos };
+            // Optimistic update for single todo cache
+            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(variables.todoId), (old) => {
+                if (!old?.todo) return old;
+                return {
+                    todo: {
+                        ...old.todo,
+                        ...updates,
+                    }
+                };
+            });
+
+            return { previousTodos, previousTodo };
         },
-        onError: (_err, _variables, context) => {
+        onError: (_err, variables, context) => {
+            // Rollback both caches on error
             if (context?.previousTodos) {
                 queryClient.setQueryData(todosQueryKey, context.previousTodos);
+            }
+            if (context?.previousTodo) {
+                queryClient.setQueryData(todoQueryKey(variables.todoId), context.previousTodo);
             }
         },
         // Optimistic-only: never update from server response
@@ -263,10 +282,15 @@ export function useDeleteTodo() {
             return data.todoId;
         },
         onMutate: async (variables) => {
+            // Cancel outgoing refetches for both list and single todo
             await queryClient.cancelQueries({ queryKey: todosQueryKey });
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
+            await queryClient.cancelQueries({ queryKey: todoQueryKey(variables.todoId) });
 
-            // Optimistic update
+            // Snapshot previous values for rollback
+            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
+            const previousTodo = queryClient.getQueryData<GetTodoResponse>(todoQueryKey(variables.todoId));
+
+            // Optimistic update for list cache (remove from list)
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return old;
                 return {
@@ -274,11 +298,18 @@ export function useDeleteTodo() {
                 };
             });
 
-            return { previousTodos };
+            // Optimistic update for single todo cache (set to undefined to indicate deleted)
+            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(variables.todoId), undefined);
+
+            return { previousTodos, previousTodo };
         },
-        onError: (_err, _variables, context) => {
+        onError: (_err, variables, context) => {
+            // Rollback both caches on error
             if (context?.previousTodos) {
                 queryClient.setQueryData(todosQueryKey, context.previousTodos);
+            }
+            if (context?.previousTodo) {
+                queryClient.setQueryData(todoQueryKey(variables.todoId), context.previousTodo);
             }
         },
         // Optimistic-only: never update from server response
