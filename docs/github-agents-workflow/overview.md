@@ -36,6 +36,58 @@ The integration creates a complete pipeline using a 6-column workflow for **both
 - **Separate MongoDB collections**: `feature-requests` and `reports` collections (bugs need session logs, screenshots, diagnostics)
 - **Design documents as files**: Stored in `design-docs/issue-{N}/` with PR-based review workflow
 - **Artifact comments**: Track design docs and implementation PRs with status (pending → in-review → approved → merged)
+- **Complete workflow logging**: ALL phases and actions logged to `agent-logs/issue-{N}.md` with structured markers
+
+## Workflow Logging (CRITICAL)
+
+**EVERY workflow action MUST be logged to `agent-logs/issue-{N}.md`.**
+
+Logging is a crucial part of the workflow - it enables debugging, auditing, and the `/workflow-review` command to analyze agent behavior.
+
+### What Gets Logged
+
+| Source | Logged Events | Marker |
+|--------|---------------|--------|
+| **Agent Execution** | Phase start/end, prompts, tool calls, responses, tokens, errors | `[LOG:PHASE_START]`, `[LOG:TOOL_CALL]`, etc. |
+| **Telegram Webhook** | All admin actions (approve, route, merge, request changes) | `[LOG:TELEGRAM]` |
+| **GitHub Actions** | CI/CD events, deployments | `[LOG:ACTION]` |
+
+### Log File Structure
+
+Each issue has a dedicated log file:
+```
+agent-logs/
+├── issue-42.md    # Complete history for issue #42
+├── issue-43.md    # Complete history for issue #43
+└── ...
+```
+
+### Adding New Logging
+
+When adding new workflow functionality:
+
+1. **Import logging functions:**
+   ```typescript
+   import { logWebhookAction, logWebhookPhaseStart, logWebhookPhaseEnd } from '@/agents/lib/logging';
+   ```
+
+2. **Log phase boundaries:**
+   ```typescript
+   logWebhookPhaseStart(issueNumber, 'My New Phase', 'telegram');
+   // ... do work ...
+   logWebhookPhaseEnd(issueNumber, 'My New Phase', 'success', 'telegram');
+   ```
+
+3. **Log individual actions:**
+   ```typescript
+   logWebhookAction(issueNumber, 'action_name', 'Description of what happened', {
+       key: 'metadata',
+   });
+   ```
+
+4. **Use structured markers** - All logs must use `[LOG:TYPE]` markers for grep-based analysis.
+
+**See [agent-logging.md](./agent-logging.md) for complete logging documentation.**
 
 ## Architecture
 
@@ -164,4 +216,5 @@ When admin clicks "Request Changes":
 
 - **[setup-guide.md](./setup-guide.md)** - Step-by-step setup for GitHub Projects and environment
 - **[mongodb-github-status.md](./mongodb-github-status.md)** - Two-tier status tracking system
+- **[agent-logging.md](./agent-logging.md)** - Complete logging system documentation (CRITICAL)
 - **Main integration docs**: [../github-projects-integration.md](../github-projects-integration.md)
