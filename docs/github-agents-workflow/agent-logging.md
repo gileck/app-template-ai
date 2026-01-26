@@ -471,6 +471,25 @@ Grep pattern="\[LOG:WEBHOOK\].*merge\|\[LOG:TELEGRAM\].*merge" path="agent-logs/
 
 ---
 
+## Limitations
+
+### Webhook Logging on Vercel
+
+**Important:** The external logging functions (`logWebhookAction`, `logWebhookPhaseStart`, etc.) only work when running locally. On Vercel (serverless), these functions silently skip because:
+
+1. Agent log files (`agent-logs/issue-{N}.md`) are stored in the local git repository
+2. Vercel serverless functions don't have access to the local filesystem
+3. The `logExists()` check returns `false`, so logging is skipped
+
+**What this means:**
+- **Local agents** (run via `yarn agent:*`) → Full logging works
+- **Telegram webhooks on Vercel** → Logging is silently skipped
+- **GitHub Actions** → Can log if running in a checkout of the repo
+
+**Future improvement:** S3-based logging would enable unified logs from both local agents and Vercel webhooks, but the current setup provides sufficient debugging capability through local agent logs.
+
+---
+
 ## Related Files
 
 - `src/agents/lib/logging/logger.ts` - Logger functions
