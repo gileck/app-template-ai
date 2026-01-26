@@ -464,9 +464,9 @@ Part of #${issueNumber}
             // Log execution end
             logExecutionEnd(logCtx, {
                 success: true,
-                toolCallsCount: 0, // Will be logged by SDK adapter
-                totalTokens: 0, // Will be logged by SDK adapter
-                totalCost: 0, // Will be logged by SDK adapter
+                toolCallsCount: 0, // Not tracked in UsageStats
+                totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                totalCost: result.usage?.totalCostUSD ?? 0,
             });
 
             return { success: true };
