@@ -44,6 +44,30 @@ These markers enable the workflow reviewer (`/workflow-review`) to search logs p
 | `[LOG:ACTION]` | GitHub Action event | `[LOG:ACTION] deploy: Started deployment` |
 | `[LOG:TELEGRAM]` | Telegram-specific event | `[LOG:TELEGRAM] merge: PR #45 merged` |
 
+### Telegram Webhook Events (Automatic Logging)
+
+The Telegram webhook automatically logs ALL admin actions to the agent log files. This provides complete workflow traceability.
+
+| Admin Action | Log Entry | Details Captured |
+|--------------|-----------|------------------|
+| Approve feature request | `feature_approved` | Request ID, issue number, issue URL |
+| Approve bug report | `bug_approved` | Report ID, issue number, issue URL |
+| Route to phase | `routed` | Destination, target status |
+| Approve design | `design_approve` | Review status, phase transition |
+| Request design changes | `design_changes` | Review status |
+| Reject design | `design_reject` | Review status |
+| Merge design PR | `design_pr_merged` | PR number, commit title, branch deleted |
+| Merge implementation PR | `pr_merged` | PR number, commit title |
+| Request implementation changes | `implementation_changes_requested` | PR number, review status |
+| Multi-phase complete | `phase_complete` | Current/total phases, PR number |
+| All phases complete | `all_phases_complete` | Total phases |
+| Status to Done | `status_done` | Status, PR number |
+| MongoDB updated | `mongodb_updated` | Feature/bug ID |
+| Branch deleted | `branch_deleted` | Branch name |
+| Clarification received | `clarification_received` | Review status |
+| Phases initialized | `phases_initialized` | Phase list |
+| Status advanced | `status_advanced` | From → to status |
+
 ### Why Markers Matter
 
 **Before markers:**
