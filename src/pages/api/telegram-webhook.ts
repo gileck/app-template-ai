@@ -139,8 +139,8 @@ async function editMessageTextWithExtra(
     const emoji = ACTION_EMOJIS[action];
     const label = ACTION_LABELS[action];
 
-    // Append the action to the original message
-    const newText = `${originalText}\n\n${emoji} <b>${label}</b>${extraInfo}`;
+    // Append the action to the original message (escape originalText for HTML safety)
+    const newText = `${escapeHtml(originalText)}\n\n${emoji} <b>${label}</b>${extraInfo}`;
 
     await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
         method: 'POST',
@@ -172,7 +172,8 @@ async function editMessageWithResult(
     const emoji = success ? '✅' : '❌';
     const status = success ? 'Approved' : 'Error';
 
-    let newText = `${originalText}\n\n${emoji} <b>${status}</b>\n${resultMessage}`;
+    // Escape originalText for HTML safety
+    let newText = `${escapeHtml(originalText)}\n\n${emoji} <b>${status}</b>\n${resultMessage}`;
     if (linkUrl) {
         newText += `\n\n🔗 <a href="${linkUrl}">View GitHub Issue</a>`;
     }
@@ -444,7 +445,8 @@ async function editMessageWithRouting(
     originalText: string,
     destination: string
 ): Promise<void> {
-    const newText = `${originalText}\n\n✅ <b>Routed to: ${destination}</b>`;
+    // Escape originalText for HTML safety
+    const newText = `${escapeHtml(originalText)}\n\n✅ <b>Routed to: ${destination}</b>`;
 
     await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
         method: 'POST',
@@ -781,7 +783,7 @@ async function handleClarificationReceived(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
-                originalText + statusUpdate,
+                escapeHtml(originalText) + statusUpdate,
                 'HTML'
             );
         }
@@ -1081,7 +1083,7 @@ async function handleMergeCallback(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
-                originalText + statusUpdate,
+                escapeHtml(originalText) + statusUpdate,
                 'HTML'
             );
         }
@@ -1259,7 +1261,7 @@ async function handleDesignPRApproval(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
-                originalText + statusUpdate,
+                escapeHtml(originalText) + statusUpdate,
                 'HTML'
             );
         }
@@ -1334,7 +1336,7 @@ async function handleDesignPRRequestChanges(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
-                originalText + statusUpdate,
+                escapeHtml(originalText) + statusUpdate,
                 'HTML'
             );
         }
@@ -1403,7 +1405,7 @@ async function handleRequestChangesCallback(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
-                originalText + statusUpdate,
+                escapeHtml(originalText) + statusUpdate,
                 'HTML'
             );
         }
@@ -1839,17 +1841,17 @@ export default async function handler(
         // Edit message to show error details
         if (callback_query.message) {
             const originalText = callback_query.message.text || '';
-            const errorMarker = '⚠️ <b>Unknown Action</b>';
+            const errorMarkerPlainText = '⚠️ Unknown Action';
 
             // Prevent duplicate error messages if user clicks multiple times
-            if (originalText.includes(errorMarker)) {
+            if (originalText.includes(errorMarkerPlainText)) {
                 return res.status(200).json({ ok: true });
             }
 
             const errorDetails = [
                 '',
                 '━━━━━━━━━━━━━━━━━━━━',
-                errorMarker,
+                '⚠️ <b>Unknown Action</b>',
                 '',
                 `Received callback: <code>${escapeHtml(callbackData)}</code>`,
                 `Action parsed: <code>${escapeHtml(action)}</code>`,
@@ -1863,7 +1865,7 @@ export default async function handler(
                     botToken,
                     callback_query.message.chat.id,
                     callback_query.message.message_id,
-                    originalText + errorDetails,
+                    escapeHtml(originalText) + errorDetails,
                     'HTML'
                 );
             } catch (editError) {
