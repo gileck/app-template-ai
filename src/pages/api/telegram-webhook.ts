@@ -215,6 +215,16 @@ async function editMessageText(
 }
 
 /**
+ * Escape HTML special characters for Telegram HTML mode
+ */
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
  * Find project item by issue number
  */
 async function findItemByIssueNumber(
@@ -1702,8 +1712,56 @@ export default async function handler(
             return res.status(200).json({ ok: true });
         }
 
-        // Unknown action
-        await answerCallbackQuery(botToken, callback_query.id, 'Unknown action');
+        // Unknown action - log for debugging
+        console.error('Telegram webhook: Unknown action received', {
+            callbackData: callbackData,
+            action: action,
+            parts: parts,
+            partsLength: parts.length,
+            callbackQueryId: callback_query.id,
+            userId: callback_query.from.id,
+            username: callback_query.from.username,
+            messageId: callback_query.message?.message_id,
+            timestamp: new Date().toISOString(),
+        });
+
+        const truncatedData = callbackData.length > 50
+            ? `${callbackData.slice(0, 50)}...`
+            : callbackData;
+
+        await answerCallbackQuery(
+            botToken,
+            callback_query.id,
+            `⚠️ Unknown action: ${truncatedData}`
+        );
+
+        // Edit message to show error details
+        if (callback_query.message) {
+            const originalText = callback_query.message.text || '';
+            const errorDetails = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '⚠️ <b>Unknown Action</b>',
+                '',
+                `Received callback: <code>${escapeHtml(callbackData)}</code>`,
+                '',
+                'This action is not recognized by the webhook handler.',
+                'Please try again or contact support if the issue persists.',
+            ].join('\n');
+
+            try {
+                await editMessageText(
+                    botToken,
+                    callback_query.message.chat.id,
+                    callback_query.message.message_id,
+                    originalText + errorDetails,
+                    'HTML'
+                );
+            } catch (editError) {
+                console.error('Failed to edit message for unknown action:', editError);
+            }
+        }
+
         return res.status(200).json({ ok: true });
     } catch (error) {
         console.error('Telegram webhook error:', error);
