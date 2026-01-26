@@ -981,6 +981,22 @@ You have received feedback from two different reviewers with distinct roles:
 
 **Important**: Treat all feedback seriously. Both reviewers have HIGH priority in their respective domains.
 
+### When Reviewer Feedback Conflicts with Project Rules
+
+**Project docs and rules are the source of truth.** Claude reviewers may not be fully aware of all project-specific patterns documented in \`docs/\` and \`.cursor/rules/\`.
+
+If a reviewer suggests a change that **contradicts** project documentation:
+1. **Follow the project docs/rules** - they take precedence
+2. **Do NOT implement the conflicting suggestion**
+3. **Explain in your summary comment** why you did not address that point, citing the specific doc/rule
+
+Example:
+\`\`\`
+3. [Claude suggested moving toasts out of onSuccess] → **Not implemented** - per \`docs/react-query-mutations.md\`, toasts in onSuccess are explicitly allowed as "ephemeral UI feedback"
+\`\`\`
+
+The reviewer will see your explanation and understand the project convention in the next review cycle.
+
 ## Your Task
 
 1. Carefully read ALL feedback comments
