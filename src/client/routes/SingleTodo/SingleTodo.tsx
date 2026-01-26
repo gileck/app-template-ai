@@ -26,47 +26,10 @@ import { useTodo, useUpdateTodo, useDeleteTodo } from '../Todos/hooks';
 import { CelebrationEffect } from '../Todos/components/CelebrationEffect';
 import { DatePickerDialog } from '../Todos/components/DatePickerDialog';
 import { DeleteTodoDialog } from '../Todos/components/DeleteTodoDialog';
-import { formatDueDate, isToday, isOverdue } from '../Todos/utils/dateUtils';
+import { formatDueDate, isToday, isOverdue, formatRelativeTime } from '../Todos/utils/dateUtils';
 import { toast } from '@/client/components/ui/toast';
 import { prefersReducedMotion } from '../Todos/animations';
 import { logger } from '@/client/features/session-logs';
-
-/**
- * Format timestamp as relative time with absolute fallback
- */
-function formatRelativeTime(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    const formatAbsolute = (d: Date) => {
-        const thisYear = now.getFullYear();
-        const dateYear = d.getFullYear();
-        const month = d.toLocaleDateString('en-US', { month: 'short' });
-        const day = d.getDate();
-        const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-        if (dateYear === thisYear) {
-            return `${month} ${day} at ${time}`;
-        }
-        return `${month} ${day}, ${dateYear} at ${time}`;
-    };
-
-    if (diffMins < 1) {
-        return 'Just now';
-    } else if (diffMins < 60) {
-        return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
-    } else if (diffHours < 24) {
-        return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
-    } else if (diffDays === 1) {
-        return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
-    } else {
-        return formatAbsolute(date);
-    }
-}
 
 const SingleTodo = () => {
     const { routeParams, navigate } = useRouter();
@@ -247,14 +210,6 @@ const SingleTodo = () => {
         setEditTitle('');
     };
 
-    const handleEditKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSaveEdit();
-        } else if (e.key === 'Escape') {
-            handleCancelEdit();
-        }
-    };
-
     const handleDateSelect = (date: Date | undefined) => {
         const newDueDate = date?.toISOString() || null;
 
@@ -382,32 +337,44 @@ const SingleTodo = () => {
                                 {/* Title Display/Edit */}
                                 <div className="flex-1 min-w-0">
                                     {isEditingTitle ? (
-                                        <div className="space-y-3">
-                                            <div className="relative">
+                                        <form
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                handleSaveEdit();
+                                            }}
+                                            className="space-y-3"
+                                        >
+                                            <div className="relative pb-6">
                                                 <Input
                                                     value={editTitle}
                                                     onChange={(e) => setEditTitle(e.target.value)}
-                                                    onKeyDown={handleEditKeyPress}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Escape') {
+                                                            handleCancelEdit();
+                                                        }
+                                                    }}
                                                     disabled={isUpdating}
                                                     autoFocus
                                                     maxLength={maxTitleLength}
                                                     className="text-xl sm:text-2xl font-semibold border-2 focus:border-primary"
+                                                    aria-label="Todo title"
                                                 />
-                                                <span className="absolute -bottom-5 right-0 text-xs text-muted-foreground">
+                                                <span className="absolute bottom-1 right-0 text-xs text-muted-foreground">
                                                     {titleCharCount}/{maxTitleLength}
                                                 </span>
                                             </div>
-                                            <div className="flex gap-2 mt-6">
+                                            <div className="flex gap-2">
                                                 <Button
+                                                    type="submit"
                                                     variant="default"
                                                     size="sm"
-                                                    onClick={handleSaveEdit}
                                                     disabled={isUpdating || !editTitle.trim()}
                                                 >
                                                     <Save className="mr-2 h-4 w-4" />
                                                     Save
                                                 </Button>
                                                 <Button
+                                                    type="button"
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={handleCancelEdit}
@@ -417,7 +384,7 @@ const SingleTodo = () => {
                                                     Cancel
                                                 </Button>
                                             </div>
-                                        </div>
+                                        </form>
                                     ) : (
                                         <div>
                                             <h1
@@ -484,16 +451,6 @@ const SingleTodo = () => {
                                     Updated {formatRelativeTime(todoItem.updatedAt)}
                                 </span>
                             </div>
-
-                            {/* Completion date (only if completed) */}
-                            {todoItem.completed && todoItem.updatedAt && (
-                                <div className="flex items-center gap-2">
-                                    <Check className="h-4 w-4 flex-shrink-0 text-success" />
-                                    <span>
-                                        Completed {formatRelativeTime(todoItem.updatedAt)}
-                                    </span>
-                                </div>
-                            )}
                         </div>
 
                         {/* Action Buttons */}
