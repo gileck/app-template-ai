@@ -44,6 +44,9 @@
     "verify-production": "tsx scripts/verify-production.ts",
     "init-agents-copy": "tsx scripts/init-agents-copy-project.ts",
     "test-cursor-adapter": "tsx scripts/test-cursor-adapter.ts",
+    "test-gemini-adapter": "tsx scripts/test-gemini-adapter.ts",
+    "test-openai-codex-adapter": "tsx scripts/test-openai-codex-adapter.ts",
+    "test-all-adapters": "yarn test-cursor-adapter && yarn test-gemini-adapter && yarn test-openai-codex-adapter",
     "task": "tsx task-manager/tasks-cli.ts"
   },
   "dependencies": {

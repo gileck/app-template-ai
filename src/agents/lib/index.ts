@@ -13,6 +13,7 @@ import { getCurrentLogContext, logError } from './logging';
 import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
 import geminiAdapter from './adapters/gemini';
 import cursorAdapter from './adapters/cursor';
+import openaiCodexAdapter from './adapters/openai-codex';
 
 // Fallback library when primary library fails to initialize
 const FALLBACK_LIBRARY = 'claude-code-sdk';
@@ -36,6 +37,7 @@ const adapterInstances = new Map<string, AgentLibraryAdapter>([
     [claudeCodeSDKAdapter.name, claudeCodeSDKAdapter],
     [geminiAdapter.name, geminiAdapter],
     [cursorAdapter.name, cursorAdapter],
+    [openaiCodexAdapter.name, openaiCodexAdapter],
 ]);
 
 /**

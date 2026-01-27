@@ -41,12 +41,14 @@ export interface AgentsConfig {
  * Available libraries:
  * - 'claude-code-sdk' - Claude Code SDK (default, fully implemented)
  * - 'cursor' - Cursor CLI (requires cursor-agent CLI to be installed)
- * - 'gemini' - Google Gemini (stub, not yet implemented)
+ * - 'gemini' - Gemini CLI (requires @google/gemini-cli to be installed)
+ * - 'openai-codex' - OpenAI Codex CLI (requires @openai/codex to be installed)
  *
  * Available models:
  * - claude-code-sdk: 'sonnet', 'opus', 'haiku'
  * - cursor: 'opus-4.5', 'sonnet-4', etc.
- * - gemini: 'gemini-pro', 'gemini-ultra', etc.
+ * - gemini: 'gemini-2.5-pro', 'gemini-2.5-flash', etc.
+ * - openai-codex: 'gpt-5-codex', 'gpt-5', etc.
  *
  * To use a different library for a specific workflow, add it to workflowOverrides.
  */
@@ -72,7 +74,10 @@ export const agentsConfig: AgentsConfig = {
             model: 'opus-4.5',
         },
         'gemini': {
-            model: 'gemini-pro',
+            model: 'gemini-2.5-pro',
+        },
+        'openai-codex': {
+            model: 'gpt-5-codex',
         },
     },
 };

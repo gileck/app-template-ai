@@ -1,37 +1,25 @@
 /**
- * Gemini CLI Adapter
+ * OpenAI Codex CLI Adapter
  *
- * Adapter implementation for Google's Gemini CLI tool (@google/gemini-cli).
+ * Adapter implementation for OpenAI's Codex CLI tool (@openai/codex).
  *
  * Prerequisites:
- * - Install Gemini CLI: npm install -g @google/gemini-cli
- * - Authenticate: Set GEMINI_API_KEY or run `gemini` for interactive setup
+ * - Install Codex CLI: npm install -g @openai/codex or brew install --cask codex
+ * - Login: codex login (requires ChatGPT Plus/Pro subscription or API key)
  *
  * CLI Reference:
- * - gemini "<prompt>" - Run with prompt
- * - --output-format json|stream-json - Output format
- * - --yolo - Allow all tools (file read/write/shell)
- * - --allowed-tools <tools> - Restrict to specific tools
+ * - codex exec "<prompt>" - Run agent with prompt in non-interactive mode
+ * - --json - Output newline-delimited JSON events
+ * - --sandbox <mode> - Sandbox mode (read-only, workspace-write, danger-full-access)
+ * - --model <model> - Specify model (e.g., gpt-5-codex, gpt-5)
+ * - --ask-for-approval <mode> - When to ask for approval (always, on-request, never)
  *
- * Output Format (JSON):
- * {
- *   "response": "text response",
- *   "stats": {
- *     "models": {
- *       "gemini-2.5-flash": {
- *         "tokens": { "input": 8060, "output": 1, "total": 8077, "cached": 0 }
- *       }
- *     },
- *     "tools": { "totalCalls": 5 }
- *   }
- * }
- *
- * Streaming Output (stream-json):
- * {"type":"init","session_id":"uuid","model":"auto-gemini-2.5"}
- * {"type":"message","role":"assistant","content":"thinking...","delta":true}
- * {"type":"tool_use","tool_name":"read_file","parameters":{"path":"..."}}
- * {"type":"tool_result","tool_id":"id","status":"success","output":"..."}
- * {"type":"result","status":"success","stats":{"total_tokens":123}}
+ * Output Format (--json):
+ * {"type":"init","session_id":"uuid"}
+ * {"type":"message","role":"assistant","content":"thinking..."}
+ * {"type":"tool_use","tool":"read_file","path":"..."}
+ * {"type":"tool_result","status":"success"}
+ * {"type":"result","usage":{"input_tokens":100,"output_tokens":50}}
  */
 
 import { spawn } from 'child_process';
@@ -49,59 +37,46 @@ import { getModelForLibrary } from '../config';
 // CONSTANTS
 // ============================================================
 
-const GEMINI_CLI_COMMAND = 'gemini';
+const CODEX_CLI_COMMAND = 'codex';
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const PROJECT_ROOT = process.cwd();
 const DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes
 
-// Read-only tools for restricted mode
-const READ_ONLY_TOOLS = ['ReadFile', 'FindFiles', 'SearchText', 'ReadManyFiles', 'GlobTool', 'GrepTool'];
+// Sandbox modes
+const SANDBOX_READ_ONLY = 'read-only';
+const SANDBOX_WORKSPACE_WRITE = 'workspace-write';
 
 // ============================================================
 // TYPES
 // ============================================================
 
 /**
- * Gemini CLI stream event types
+ * OpenAI Codex CLI stream event types
  */
-interface GeminiStreamEvent {
+interface CodexStreamEvent {
     type: 'init' | 'message' | 'tool_use' | 'tool_result' | 'result' | 'error' | 'text';
     session_id?: string;
-    model?: string;
     role?: string;
     content?: string;
-    delta?: boolean;
-    tool_name?: string;
+    tool?: string;
     tool_id?: string;
-    parameters?: {
-        path?: string;
-        command?: string;
-        [key: string]: unknown;
-    };
+    path?: string;
+    input?: Record<string, unknown>;
     status?: string;
     output?: string;
     error?: string;
-    response?: string;
-    stats?: {
-        models?: Record<string, {
-            tokens?: {
-                input?: number;
-                output?: number;
-                total?: number;
-                cached?: number;
-            };
-        }>;
-        tools?: {
-            totalCalls?: number;
-        };
-        total_tokens?: number;
+    result?: string;
+    usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        total_cost_usd?: number;
     };
 }
 
 /**
- * Result from executing the Gemini CLI
+ * Result from executing the Codex CLI
  */
-interface GeminiExecutionResult {
+interface CodexExecutionResult {
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -109,21 +84,21 @@ interface GeminiExecutionResult {
 }
 
 // ============================================================
-// GEMINI ADAPTER
+// OPENAI CODEX ADAPTER
 // ============================================================
 
-class GeminiAdapter implements AgentLibraryAdapter {
-    readonly name = 'gemini';
+class OpenAICodexAdapter implements AgentLibraryAdapter {
+    readonly name = 'openai-codex';
 
     get model(): string {
-        return getModelForLibrary('gemini');
+        return getModelForLibrary('openai-codex');
     }
 
     readonly capabilities: AgentLibraryCapabilities = {
         streaming: true,
         fileRead: true,
         fileWrite: true,
-        webFetch: false, // Not exposed via CLI by default
+        webFetch: false, // Not exposed via CLI
         customTools: false, // Uses built-in tools
         timeout: true,
     };
@@ -131,20 +106,20 @@ class GeminiAdapter implements AgentLibraryAdapter {
     private initialized = false;
 
     async init(): Promise<void> {
-        // Verify gemini CLI is available
+        // Verify codex CLI is available
         try {
             const { exitCode, stderr } = await this.executeCommand(['--version'], {
                 timeout: 10000,
                 suppressOutput: true,
             });
             if (exitCode !== 0) {
-                throw new Error('CLI not installed (gemini --version failed)');
+                throw new Error('CLI not installed (codex --version failed)');
             }
             // Check for auth errors in stderr
-            if (stderr && stderr.toLowerCase().includes('not authenticated')) {
+            if (stderr && stderr.toLowerCase().includes('not logged in')) {
                 throw new Error(
-                    'Not authenticated. Set GEMINI_API_KEY environment variable or run: gemini (interactive setup)\n' +
-                    'Get API key from: https://aistudio.google.com/apikey'
+                    'Not authenticated. Run: codex login\n' +
+                    'Requires ChatGPT Plus/Pro subscription or API key'
                 );
             }
         } catch (error) {
@@ -156,46 +131,50 @@ class GeminiAdapter implements AgentLibraryAdapter {
             // Check for ENOENT (command not found)
             if (innerError.includes('ENOENT') || innerError.includes('not found')) {
                 throw new Error(
-                    'Gemini CLI not installed. Run: npm install -g @google/gemini-cli\n' +
-                    'Or visit: https://www.npmjs.com/package/@google/gemini-cli'
+                    'OpenAI Codex CLI not installed. Run: npm install -g @openai/codex\n' +
+                    'Or: brew install --cask codex\n' +
+                    'Visit: https://developers.openai.com/codex/cli/'
                 );
             }
-            throw new Error(`CLI not available (${innerError}). Run: npm install -g @google/gemini-cli`);
+            throw new Error(`CLI not available (${innerError}). Run: npm install -g @openai/codex`);
         }
 
-        // Test authentication with a simple query
+        // Test authentication status
         try {
-            const { exitCode, stderr } = await this.executeCommand(
-                ['--help'],
+            // Check login status (if the command exists)
+            const { stdout, stderr, exitCode } = await this.executeCommand(
+                ['login', 'status'],
                 { timeout: 10000, suppressOutput: true }
             );
 
-            // Check for auth-related errors
-            if (stderr && (
-                stderr.toLowerCase().includes('api key') ||
-                stderr.toLowerCase().includes('authentication') ||
-                stderr.toLowerCase().includes('unauthorized')
-            )) {
+            // Check for "not logged in" message
+            const output = (stdout + stderr).toLowerCase();
+            if (output.includes('not logged in') || output.includes('please login')) {
                 throw new Error(
-                    'Not authenticated. Set GEMINI_API_KEY environment variable or run: gemini (interactive setup)\n' +
-                    'Get API key from: https://aistudio.google.com/apikey'
+                    'Not authenticated. Run: codex login\n' +
+                    'Requires ChatGPT Plus/Pro subscription or API key'
                 );
             }
 
-            if (exitCode !== 0 && stderr) {
-                throw new Error(`CLI check failed: ${stderr}`);
+            // Non-zero exit code might indicate not logged in
+            if (exitCode !== 0 && !output.includes('logged in')) {
+                throw new Error(
+                    'Not authenticated. Run: codex login\n' +
+                    'Requires ChatGPT Plus/Pro subscription or API key'
+                );
             }
 
             this.initialized = true;
         } catch (error) {
-            // If auth check fails, propagate the error
+            // If auth check fails with auth error, propagate it
             if (error instanceof Error && (
                 error.message.includes('Not authenticated') ||
-                error.message.includes('api key')
+                error.message.includes('not logged in')
             )) {
                 throw error;
             }
-            // Otherwise, assume help command isn't the issue and proceed
+            // If "login status" command doesn't exist, proceed anyway
+            // Some versions might not have this subcommand
             this.initialized = true;
         }
     }
@@ -232,7 +211,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
         if (logCtx) {
             logPrompt(logCtx, prompt, {
                 model: this.model,
-                tools: allowWrite ? ['ReadFile', 'WriteFile', 'Shell'] : READ_ONLY_TOOLS,
+                tools: allowWrite ? ['read_file', 'write_file', 'shell'] : ['read_file'],
                 timeout,
             });
         }
@@ -269,8 +248,8 @@ class GeminiAdapter implements AgentLibraryAdapter {
 
                             if (event.type === 'tool_use') {
                                 toolCallCount++;
-                                const toolName = event.tool_name || 'unknown';
-                                const toolInput = event.parameters || {};
+                                const toolName = event.tool || 'unknown';
+                                const toolInput = event.input || {};
 
                                 // Log tool call
                                 if (logCtx) {
@@ -278,7 +257,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
                                 }
 
                                 // Track files examined
-                                const filePath = event.parameters?.path;
+                                const filePath = event.path;
                                 if (filePath && typeof filePath === 'string') {
                                     const relativePath = filePath.replace(PROJECT_ROOT + '/', '');
                                     if (!filesExamined.includes(relativePath)) {
@@ -295,8 +274,8 @@ class GeminiAdapter implements AgentLibraryAdapter {
                             }
 
                             if (event.type === 'result') {
-                                if (event.response) {
-                                    lastResult = event.response;
+                                if (event.result) {
+                                    lastResult = event.result;
                                 }
                             }
                         },
@@ -471,26 +450,29 @@ class GeminiAdapter implements AgentLibraryAdapter {
     }): string[] {
         const args: string[] = [];
 
+        // Use exec subcommand for non-interactive mode
+        args.push('exec');
+
         // Add prompt
         args.push(prompt);
 
-        // Output format: stream-json for streaming, json for non-streaming
-        args.push('--output-format', options.stream ? 'stream-json' : 'json');
+        // Always use JSON output for parsing
+        args.push('--json');
 
-        // Tool permissions
-        if (options.allowWrite) {
-            // --yolo allows all tools (file read/write/shell)
-            args.push('--yolo');
-        } else {
-            // Restrict to read-only tools
-            args.push('--allowed-tools', READ_ONLY_TOOLS.join(','));
-        }
+        // Sandbox mode based on write permissions
+        args.push('--sandbox', options.allowWrite ? SANDBOX_WORKSPACE_WRITE : SANDBOX_READ_ONLY);
+
+        // Specify model from config
+        args.push('--model', this.model);
+
+        // Don't ask for approval in non-interactive mode
+        args.push('--ask-for-approval', 'on-request');
 
         return args;
     }
 
     /**
-     * Execute Gemini CLI command
+     * Execute Codex CLI command
      */
     private async executeCommand(
         args: string[],
@@ -498,7 +480,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
             timeout?: number;
             suppressOutput?: boolean;
         } = {}
-    ): Promise<GeminiExecutionResult> {
+    ): Promise<CodexExecutionResult> {
         const { timeout = 30000, suppressOutput = false } = options;
 
         return new Promise((resolve) => {
@@ -507,7 +489,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
             let timedOut = false;
             let timeoutId: NodeJS.Timeout | null = null;
 
-            const proc = spawn(GEMINI_CLI_COMMAND, args, {
+            const proc = spawn(CODEX_CLI_COMMAND, args, {
                 cwd: PROJECT_ROOT,
                 env: { ...process.env },
                 stdio: ['pipe', 'pipe', 'pipe'],
@@ -574,9 +556,9 @@ class GeminiAdapter implements AgentLibraryAdapter {
         args: string[],
         options: {
             timeout?: number;
-            onEvent?: (event: GeminiStreamEvent) => void;
+            onEvent?: (event: CodexStreamEvent) => void;
         } = {}
-    ): Promise<GeminiExecutionResult> {
+    ): Promise<CodexExecutionResult> {
         const { timeout = 300000, onEvent } = options;
 
         return new Promise((resolve) => {
@@ -586,7 +568,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
             let timeoutId: NodeJS.Timeout | null = null;
             let buffer = '';
 
-            const proc = spawn(GEMINI_CLI_COMMAND, args, {
+            const proc = spawn(CODEX_CLI_COMMAND, args, {
                 cwd: PROJECT_ROOT,
                 env: { ...process.env },
                 stdio: ['pipe', 'pipe', 'pipe'],
@@ -665,7 +647,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
      */
     private tryParseStreamEvent(
         line: string,
-        onEvent?: (event: GeminiStreamEvent) => void
+        onEvent?: (event: CodexStreamEvent) => void
     ): void {
         if (!onEvent) return;
 
@@ -674,13 +656,13 @@ class GeminiAdapter implements AgentLibraryAdapter {
             if (parsed && typeof parsed === 'object') {
                 if ('type' in parsed) {
                     // Standard streaming event format
-                    onEvent(parsed as unknown as GeminiStreamEvent);
-                } else if ('response' in parsed) {
-                    // Final JSON output format (non-streaming)
+                    onEvent(parsed as unknown as CodexStreamEvent);
+                } else if ('result' in parsed) {
+                    // Final result format
                     onEvent({
                         type: 'result',
-                        response: parsed.response as string,
-                        stats: parsed.stats as GeminiStreamEvent['stats'],
+                        result: parsed.result as string,
+                        usage: parsed.usage as CodexStreamEvent['usage'],
                     });
                 }
             }
@@ -716,100 +698,59 @@ class GeminiAdapter implements AgentLibraryAdapter {
             return result;
         }
 
-        try {
-            // Try to parse as single JSON object
-            const parsed = JSON.parse(output) as GeminiStreamEvent;
+        // Parse line-by-line JSON events
+        const lines = output.split('\n');
+        const jsonLines: CodexStreamEvent[] = [];
 
-            // Extract response content
-            if (parsed.response) {
-                result.content = parsed.response;
+        for (const line of lines) {
+            if (line.trim().startsWith('{')) {
+                try {
+                    const event = JSON.parse(line.trim()) as CodexStreamEvent;
+                    jsonLines.push(event);
+                } catch {
+                    // Skip invalid JSON lines
+                }
+            }
+        }
+
+        // Extract data from parsed events
+        for (const event of jsonLines) {
+            // Extract result content
+            if (event.type === 'result' && event.result) {
+                result.content = event.result;
+            }
+            if (event.type === 'message' && event.content) {
+                // Keep track of last message content
+                result.content = event.content;
             }
 
-            // Extract usage stats from nested models structure
-            if (parsed.stats?.models) {
-                let totalInput = 0;
-                let totalOutput = 0;
-
-                for (const modelStats of Object.values(parsed.stats.models)) {
-                    const tokens = modelStats.tokens;
-                    if (tokens) {
-                        totalInput += tokens.input || 0;
-                        totalOutput += tokens.output || 0;
-                    }
+            // Count tool calls and track files
+            if (event.type === 'tool_use') {
+                result.toolCalls++;
+                const path = event.path;
+                if (path && typeof path === 'string') {
+                    result.files.push(path.replace(PROJECT_ROOT + '/', ''));
                 }
+            }
 
+            // Extract usage stats
+            if (event.usage) {
                 result.usage = {
-                    inputTokens: totalInput,
-                    outputTokens: totalOutput,
+                    inputTokens: event.usage.input_tokens || 0,
+                    outputTokens: event.usage.output_tokens || 0,
                     cacheReadInputTokens: 0,
                     cacheCreationInputTokens: 0,
-                    totalCostUSD: 0, // CLI doesn't provide cost
+                    totalCostUSD: event.usage.total_cost_usd || 0,
                 };
             }
-
-            // Extract tool call count
-            if (parsed.stats?.tools?.totalCalls) {
-                result.toolCalls = parsed.stats.tools.totalCalls;
-            }
-
-            return result;
-        } catch {
-            // Not valid JSON, try line-by-line parsing
-            const lines = output.split('\n');
-            const jsonLines: GeminiStreamEvent[] = [];
-
-            for (const line of lines) {
-                if (line.trim().startsWith('{')) {
-                    try {
-                        const event = JSON.parse(line.trim()) as GeminiStreamEvent;
-                        jsonLines.push(event);
-                    } catch {
-                        // Skip invalid JSON lines
-                    }
-                }
-            }
-
-            // Extract data from parsed events
-            for (const event of jsonLines) {
-                if (event.type === 'result' && event.response) {
-                    result.content = event.response;
-                }
-                if (event.type === 'tool_use') {
-                    result.toolCalls++;
-                    const path = event.parameters?.path;
-                    if (path && typeof path === 'string') {
-                        result.files.push(path.replace(PROJECT_ROOT + '/', ''));
-                    }
-                }
-                if (event.stats?.models) {
-                    let totalInput = 0;
-                    let totalOutput = 0;
-
-                    for (const modelStats of Object.values(event.stats.models)) {
-                        const tokens = modelStats.tokens;
-                        if (tokens) {
-                            totalInput += tokens.input || 0;
-                            totalOutput += tokens.output || 0;
-                        }
-                    }
-
-                    result.usage = {
-                        inputTokens: totalInput,
-                        outputTokens: totalOutput,
-                        cacheReadInputTokens: 0,
-                        cacheCreationInputTokens: 0,
-                        totalCostUSD: 0,
-                    };
-                }
-            }
-
-            // If no content found, use raw output
-            if (!result.content && output.trim()) {
-                result.content = output.trim();
-            }
-
-            return result;
         }
+
+        // If no content found, use raw output
+        if (!result.content && output.trim()) {
+            result.content = output.trim();
+        }
+
+        return result;
     }
 
     /**
@@ -822,26 +763,15 @@ class GeminiAdapter implements AgentLibraryAdapter {
             for (const line of lines) {
                 if (line.trim().startsWith('{')) {
                     try {
-                        const parsed = JSON.parse(line.trim()) as GeminiStreamEvent;
+                        const parsed = JSON.parse(line.trim()) as CodexStreamEvent;
 
-                        if (parsed.stats?.models) {
-                            let totalInput = 0;
-                            let totalOutput = 0;
-
-                            for (const modelStats of Object.values(parsed.stats.models)) {
-                                const tokens = modelStats.tokens;
-                                if (tokens) {
-                                    totalInput += tokens.input || 0;
-                                    totalOutput += tokens.output || 0;
-                                }
-                            }
-
+                        if (parsed.usage) {
                             return {
-                                inputTokens: totalInput,
-                                outputTokens: totalOutput,
+                                inputTokens: parsed.usage.input_tokens || 0,
+                                outputTokens: parsed.usage.output_tokens || 0,
                                 cacheReadInputTokens: 0,
                                 cacheCreationInputTokens: 0,
-                                totalCostUSD: 0,
+                                totalCostUSD: parsed.usage.total_cost_usd || 0,
                             };
                         }
                     } catch {
@@ -857,5 +787,5 @@ class GeminiAdapter implements AgentLibraryAdapter {
 }
 
 // Export singleton instance
-const geminiAdapter = new GeminiAdapter();
-export default geminiAdapter;
+const openaiCodexAdapter = new OpenAICodexAdapter();
+export default openaiCodexAdapter;

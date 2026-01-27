@@ -29,8 +29,9 @@ src/agents/
 │   ├── index.ts                  # Factory: getAgentLibrary()
 │   └── adapters/
 │       ├── claude-code-sdk.ts    # Claude Code SDK implementation
-│       ├── gemini.ts             # Google Gemini stub
-│       └── cursor.ts             # Cursor AI implementation
+│       ├── gemini.ts             # Google Gemini CLI implementation
+│       ├── cursor.ts             # Cursor CLI implementation
+│       └── openai-codex.ts       # OpenAI Codex CLI implementation
 ├── shared/                       # Workflow logic (unchanged)
 │   ├── prompts.ts                # Library-agnostic
 │   ├── notifications.ts          # Library-agnostic
@@ -207,24 +208,57 @@ export const agentsConfig: AgentsConfig = {
 - Files examined tracking
 - Slash command support (requires `useSlashCommands: true`)
 
-### 2. Google Gemini
+### 2. Google Gemini CLI
 
 **Name:** `gemini`
 
-**Status:** 🚧 Stub (not yet implemented)
+**Status:** ✅ Fully implemented
 
-**Planned Capabilities:**
-- Streaming: ✅ Yes
-- File Read: ❓ To be determined
-- File Write: ❓ To be determined
-- Web Fetch: ✅ Yes
-- Custom Tools: ❓ To be determined
+**Capabilities:**
+- Streaming: ✅ Yes (via `--output-format stream-json`)
+- File Read: ✅ Yes (ReadFile, FindFiles, SearchText, etc.)
+- File Write: ✅ Yes (WriteFile, Shell with `--yolo`)
+- Web Fetch: ❌ Not exposed via CLI
+- Custom Tools: ❌ Uses built-in tools
 - Timeout: ✅ Yes
 
-**Implementation Notes:**
-- Will use Google Gemini API
-- Needs API key configuration
-- Output parsing already compatible (uses same markdown/JSON extraction)
+**Configuration:**
+```typescript
+export const agentsConfig: AgentsConfig = {
+    defaultLibrary: 'gemini',
+    // Or per-workflow:
+    workflowOverrides: {
+        'product-design': 'gemini',
+    },
+    libraryModels: {
+        'gemini': {
+            model: 'gemini-2.5-pro',  // or 'gemini-2.5-flash'
+        },
+    },
+};
+```
+
+**Prerequisites:**
+1. Install Gemini CLI:
+   ```bash
+   npm install -g @google/gemini-cli
+   ```
+2. Authenticate:
+   ```bash
+   export GEMINI_API_KEY=your_api_key
+   # Or run `gemini` for interactive setup
+   ```
+
+**CLI Flags Used:**
+| Option | CLI Flag |
+|--------|----------|
+| `prompt` | Command argument |
+| `allowWrite` | `--yolo` |
+| `!allowWrite` | `--allowed-tools ReadFile,FindFiles,...` |
+| `stream` | `--output-format stream-json` |
+| `!stream` | `--output-format json` |
+
+**Documentation:** [docs/agent-library-gemini.md](./agent-library-gemini.md)
 
 ### 3. Cursor AI
 
@@ -279,6 +313,68 @@ export const agentsConfig: AgentsConfig = {
 - Timeout handling via process termination
 - Files examined tracking from tool_use events
 - Usage statistics extraction (when available)
+
+### 4. OpenAI Codex CLI
+
+**Name:** `openai-codex`
+
+**Status:** ✅ Fully implemented
+
+**Capabilities:**
+- Streaming: ✅ Yes (via `--json` flag)
+- File Read: ✅ Yes
+- File Write: ✅ Yes (with sandbox controls)
+- Web Fetch: ❌ No
+- Custom Tools: ❌ Uses built-in tools
+- Timeout: ✅ Yes
+
+**Configuration:**
+```typescript
+export const agentsConfig: AgentsConfig = {
+    defaultLibrary: 'openai-codex',
+    // Or per-workflow:
+    workflowOverrides: {
+        'implementation': 'openai-codex',
+    },
+    libraryModels: {
+        'openai-codex': {
+            model: 'gpt-5-codex',  // or 'gpt-5'
+        },
+    },
+};
+```
+
+**Prerequisites:**
+1. Install Codex CLI:
+   ```bash
+   npm install -g @openai/codex
+   # Or: brew install --cask codex
+   ```
+2. Login (requires ChatGPT Plus/Pro or API key):
+   ```bash
+   codex login
+   ```
+
+**CLI Flags Used:**
+| Option | CLI Flag |
+|--------|----------|
+| `prompt` | `exec "<prompt>"` |
+| `allowWrite` | `--sandbox workspace-write` |
+| `!allowWrite` | `--sandbox read-only` |
+| `stream` | `--json` |
+| `model` | `--model gpt-5-codex` |
+| `approval` | `--ask-for-approval on-request` |
+
+**Features:**
+- Full integration with `codex exec` command
+- JSON output parsing for structured results
+- Sandbox modes for file access control
+- Streaming support with real-time event parsing
+- Progress indicators with spinner
+- Timeout handling via process termination
+- Files examined tracking from tool_use events
+
+**Documentation:** [docs/agent-library-openai-codex.md](./agent-library-openai-codex.md)
 
 ---
 
@@ -635,6 +731,8 @@ await disposeAllAdapters();
 - `src/agents/lib/index.ts` - Factory function
 - `src/agents/lib/adapters/claude-code-sdk.ts` - Claude implementation
 - `src/agents/lib/adapters/cursor.ts` - Cursor CLI implementation
+- `src/agents/lib/adapters/gemini.ts` - Gemini CLI implementation
+- `src/agents/lib/adapters/openai-codex.ts` - OpenAI Codex CLI implementation
 
 ### Workflow Files
 - `src/agents/core-agents/productDesignAgent/index.ts` - Product design workflow
@@ -644,11 +742,15 @@ await disposeAllAdapters();
 
 ### Test Scripts
 - `scripts/test-cursor-adapter.ts` - Test script for Cursor adapter
+- `scripts/test-gemini-adapter.ts` - Test script for Gemini adapter
+- `scripts/test-openai-codex-adapter.ts` - Test script for OpenAI Codex adapter
 
 ### Documentation
 - `CLAUDE.md` - Project guidelines (includes agent library section)
 - `docs/github-projects-integration.md` - GitHub Projects workflow
 - `docs/agent-library-abstraction.md` - This document
+- `docs/agent-library-gemini.md` - Gemini CLI adapter documentation
+- `docs/agent-library-openai-codex.md` - OpenAI Codex CLI adapter documentation
 
 ---
 
@@ -689,7 +791,8 @@ The agent library abstraction provides:
 **Available Adapters:**
 - `claude-code-sdk` - Claude Code SDK (default, fully implemented)
 - `cursor` - Cursor CLI (fully implemented)
-- `gemini` - Google Gemini (stub, not yet implemented)
+- `gemini` - Google Gemini CLI (fully implemented) - [Documentation](./agent-library-gemini.md)
+- `openai-codex` - OpenAI Codex CLI (fully implemented) - [Documentation](./agent-library-openai-codex.md)
 
 **Default Setup:** Works out of the box with Claude Code SDK
 
