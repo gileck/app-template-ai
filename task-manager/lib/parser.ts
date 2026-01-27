@@ -79,6 +79,9 @@ export function serializeTask(task: Task): string {
     if (task.completionCommit) {
         lines.push(`completionCommit: ${task.completionCommit}`);
     }
+    if (task.planFile) {
+        lines.push(`planFile: ${task.planFile}`);
+    }
     lines.push('---');
     lines.push('');
 
@@ -180,6 +183,9 @@ function parseFrontmatter(text: string): TaskMetadata {
                 break;
             case 'completionCommit':
                 metadata.completionCommit = value;
+                break;
+            case 'planFile':
+                metadata.planFile = value;
                 break;
         }
     }

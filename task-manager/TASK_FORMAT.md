@@ -145,6 +145,13 @@ Additional context or comments
 - **Required:** No (optional for completed tasks)
 - **Set by:** User when marking task as done
 
+#### planFile
+- **Type:** String (file path)
+- **Required:** No
+- **Format:** Path to implementation plan file (e.g., `task-manager/plans/task-5-plan.md`)
+- **Set by:** `/plan-task` command or manually
+- **Usage:** When present, `/start-task` will use this plan instead of creating a new one
+
 ### Markdown Body (Optional Sections)
 
 #### Summary

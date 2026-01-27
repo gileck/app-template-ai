@@ -33,6 +33,8 @@ export interface TaskMetadata {
     dateCompleted?: string;
     /** Git commit hash where task was completed */
     completionCommit?: string;
+    /** Path to implementation plan file (e.g., task-manager/plans/task-5-plan.md) */
+    planFile?: string;
 }
 
 /**

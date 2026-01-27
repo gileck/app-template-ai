@@ -6,6 +6,7 @@ size: M
 complexity: Medium
 status: TODO
 dateAdded: 2026-01-27
+planFile: task-manager/plans/task-18-plan.md
 ---
 
 # Task 18: Enable Local Testing in Implementor Agent with yarn dev
