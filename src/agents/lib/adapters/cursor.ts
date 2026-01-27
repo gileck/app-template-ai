@@ -102,15 +102,15 @@ class CursorAdapter implements AgentLibraryAdapter {
                 suppressOutput: true,
             });
             if (exitCode !== 0) {
-                throw new Error('cursor-agent command returned non-zero exit code');
+                throw new Error('CLI not installed (cursor-agent --version failed)');
             }
         } catch (error) {
-            throw new Error(
-                `Cursor CLI not available. Please install it:\n` +
-                `  curl https://cursor.com/install -fsS | bash\n` +
-                `Then login: cursor-agent login\n` +
-                `Error: ${error instanceof Error ? error.message : String(error)}`
-            );
+            const innerError = error instanceof Error ? error.message : String(error);
+            // Check if it's our own error or a spawn error
+            if (innerError.includes('CLI not installed')) {
+                throw error;
+            }
+            throw new Error(`CLI not installed (${innerError}). Run: curl https://cursor.com/install -fsS | bash`);
         }
 
         // Verify authentication status
@@ -120,15 +120,12 @@ class CursorAdapter implements AgentLibraryAdapter {
                 suppressOutput: true,
             });
             if (stdout.toLowerCase().includes('not logged in')) {
-                throw new Error(
-                    `Cursor CLI not authenticated. Please login:\n` +
-                    `  cursor-agent login`
-                );
+                throw new Error('Not authenticated. Run: cursor-agent login');
             }
             this.initialized = true;
         } catch (error) {
             // If status check fails with auth error, throw it
-            if (error instanceof Error && error.message.includes('not authenticated')) {
+            if (error instanceof Error && error.message.includes('Not authenticated')) {
                 throw error;
             }
             // Otherwise, assume status command isn't available and proceed

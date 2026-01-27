@@ -31,7 +31,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
     private initialized = false;
 
     async init(): Promise<void> {
-        throw new Error('Gemini adapter not yet implemented. Use "claude-code-sdk" instead.');
+        throw new Error('Not implemented yet');
     }
 
     isInitialized(): boolean {
