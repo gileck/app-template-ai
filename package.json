@@ -22,6 +22,7 @@
     "investigate-bugs": "tsx scripts/investigate-bugs.ts",
     "design-features": "tsx scripts/design-features.ts",
     "github-workflows-agent": "tsx src/agents/index.ts",
+    "agent:product-dev": "tsx src/agents/core-agents/productDevelopmentAgent/index.ts",
     "agent:product-design": "tsx src/agents/core-agents/productDesignAgent/index.ts",
     "agent:tech-design": "tsx src/agents/core-agents/technicalDesignAgent/index.ts",
     "agent:implement": "tsx src/agents/core-agents/implementAgent/index.ts",

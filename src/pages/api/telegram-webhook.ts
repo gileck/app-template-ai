@@ -479,7 +479,9 @@ async function handleFeatureRouting(
     }
 
     // Map destination to GitHub Project status
+    // Note: 'product-dev' is only for features, bugs skip this phase
     const statusMap: Record<string, string> = {
+        'product-dev': STATUSES.productDevelopment,
         'product-design': STATUSES.productDesign,
         'tech-design': STATUSES.techDesign,
         'implementation': STATUSES.implementation,
@@ -503,6 +505,7 @@ async function handleFeatureRouting(
 
     // Acknowledge callback
     const destinationLabels: Record<string, string> = {
+        'product-dev': 'Product Development',
         'product-design': 'Product Design',
         'tech-design': 'Technical Design',
         'implementation': 'Ready for Development',
@@ -1120,7 +1123,7 @@ Run <code>yarn agent:implement</code> to continue.`;
 /**
  * Handle design PR approval callback
  * Callback format: "design_approve:prNumber:issueNumber:type"
- * where type is "product" or "tech"
+ * where type is "product-dev", "product", or "tech"
  *
  * Actions:
  * 1. Merge the design PR (squash)
@@ -1133,21 +1136,26 @@ async function handleDesignPRApproval(
     callbackQuery: TelegramCallbackQuery,
     prNumber: number,
     issueNumber: number,
-    designType: 'product' | 'tech'
+    designType: 'product-dev' | 'product' | 'tech'
 ): Promise<{ success: boolean; error?: string }> {
     try {
         const adapter = getProjectManagementAdapter();
         await adapter.init();
 
         // Log phase start
-        const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+        const designLabel = designType === 'product-dev'
+            ? 'Product Development'
+            : designType === 'product'
+                ? 'Product Design'
+                : 'Technical Design';
         if (logExists(issueNumber)) {
             logWebhookPhaseStart(issueNumber, `${designLabel} PR Merge`, 'telegram');
         }
 
         // 1. Generate commit message for design PR
-        const commitTitle = `docs: ${designType} design for issue #${issueNumber}`;
-        const commitBody = `Approved ${designType} design document.\n\nPart of #${issueNumber}`;
+        const docType = designType === 'product-dev' ? 'product development' : designType;
+        const commitTitle = `docs: ${docType} for issue #${issueNumber}`;
+        const commitBody = `Approved ${docType} document.\n\nPart of #${issueNumber}`;
 
         // 2. Merge the design PR
         await adapter.mergePullRequest(prNumber, commitTitle, commitBody);
@@ -1160,20 +1168,31 @@ async function handleDesignPRApproval(
             });
         }
 
-        // 3. Update artifact comment on issue
-        const isProductDesign = designType === 'product';
-        await updateDesignArtifact(adapter, issueNumber, {
-            type: isProductDesign ? 'product-design' : 'tech-design',
-            path: getDesignDocLink(issueNumber, designType),
-            status: 'approved',
-            lastUpdated: new Date().toISOString().split('T')[0],
-            prNumber,
-        });
-        console.log(`Telegram webhook: updated design artifact for issue #${issueNumber}`);
+        // 3. Update artifact comment on issue (only for product/tech, not product-dev)
+        // Product Development documents don't need artifact tracking - they're just context for Product Design
+        if (designType !== 'product-dev') {
+            const isProductDesign = designType === 'product';
+            await updateDesignArtifact(adapter, issueNumber, {
+                type: isProductDesign ? 'product-design' : 'tech-design',
+                path: getDesignDocLink(issueNumber, designType),
+                status: 'approved',
+                lastUpdated: new Date().toISOString().split('T')[0],
+                prNumber,
+            });
+            console.log(`Telegram webhook: updated design artifact for issue #${issueNumber}`);
+        }
 
         // 4. Advance status to next phase
-        const nextPhase = designType === 'product' ? STATUSES.techDesign : STATUSES.implementation;
-        const nextPhaseLabel = designType === 'product' ? 'Tech Design' : 'Implementation';
+        const nextPhase = designType === 'product-dev'
+            ? STATUSES.productDesign
+            : designType === 'product'
+                ? STATUSES.techDesign
+                : STATUSES.implementation;
+        const nextPhaseLabel = designType === 'product-dev'
+            ? 'Product Design'
+            : designType === 'product'
+                ? 'Tech Design'
+                : 'Implementation';
 
         // Find and update the project item
         const item = await findItemByIssueNumber(adapter, issueNumber);
@@ -1280,7 +1299,7 @@ async function handleDesignPRApproval(
 /**
  * Handle design PR request changes callback
  * Callback format: "design_changes:prNumber:issueNumber:type"
- * where type is "product" or "tech"
+ * where type is "product-dev", "product", or "tech"
  *
  * Actions:
  * 1. Update review status to "Request Changes"
@@ -1291,7 +1310,7 @@ async function handleDesignPRRequestChanges(
     callbackQuery: TelegramCallbackQuery,
     prNumber: number,
     issueNumber: number,
-    designType: 'product' | 'tech'
+    designType: 'product-dev' | 'product' | 'tech'
 ): Promise<{ success: boolean; error?: string }> {
     try {
         const adapter = getProjectManagementAdapter();
@@ -1307,7 +1326,11 @@ async function handleDesignPRRequestChanges(
         await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.requestChanges);
 
         // Log the request changes action
-        const designLabel = designType === 'product' ? 'Product Design' : 'Technical Design';
+        const designLabel = designType === 'product-dev'
+            ? 'Product Development'
+            : designType === 'product'
+                ? 'Product Design'
+                : 'Technical Design';
         if (logExists(issueNumber)) {
             logWebhookAction(issueNumber, 'design_changes_requested', `Changes requested on ${designLabel} PR #${prNumber}`, {
                 prNumber,
@@ -1745,9 +1768,9 @@ export default async function handler(
         if (action === 'design_approve' && parts.length === 4) {
             const prNumber = parsed.getInt(1);
             const issueNumber = parsed.getInt(2);
-            const designType = parsed.getString(3).toLowerCase() as 'product' | 'tech';
+            const designType = parsed.getString(3).toLowerCase() as 'product-dev' | 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || !['product-dev', 'product', 'tech'].includes(designType)) {
                 console.error('Telegram webhook: Invalid design_approve callback data', {
                     callbackData,
                     prNumber,
@@ -1784,9 +1807,9 @@ export default async function handler(
         if (action === 'design_changes' && parts.length === 4) {
             const prNumber = parsed.getInt(1);
             const issueNumber = parsed.getInt(2);
-            const designType = parsed.getString(3).toLowerCase() as 'product' | 'tech';
+            const designType = parsed.getString(3).toLowerCase() as 'product-dev' | 'product' | 'tech';
 
-            if (!prNumber || !issueNumber || !['product', 'tech'].includes(designType)) {
+            if (!prNumber || !issueNumber || !['product-dev', 'product', 'tech'].includes(designType)) {
                 console.error('Telegram webhook: Invalid design_changes callback data', {
                     callbackData,
                     prNumber,

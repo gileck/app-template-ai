@@ -1,29 +1,35 @@
 #!/usr/bin/env tsx
 /**
- * Product Design Agent
+ * Product Development Agent
  *
- * Generates Product Design documents for GitHub Project items.
+ * OPTIONAL phase that transforms vague feature ideas into concrete product specifications.
+ * Generates Product Development documents (PDD) that focus on WHAT to build and WHY,
+ * not HOW it looks (that's Product Design) or how to implement (that's Tech Design).
+ *
  * Creates PRs with design files instead of updating issue body directly.
  *
- * Flow A (New Design):
- *   - Fetches items in "Product Design" status with empty Review Status
- *   - Generates product design using Claude (read-only mode)
+ * Flow A (New Document):
+ *   - Fetches items in "Product Development" status with empty Review Status
+ *   - Generates product development document using Claude (read-only mode)
  *   - Creates branch, writes design file, creates PR
  *   - Sends Telegram notification with Approve & Merge buttons
  *   - Sets Review Status to "Waiting for Review"
  *
  * Flow B (Address Feedback):
- *   - Fetches items in "Product Design" with Review Status = "Request Changes"
+ *   - Fetches items in "Product Development" with Review Status = "Request Changes"
  *   - Reads admin feedback comments
- *   - Revises product design based on feedback
+ *   - Revises product development document based on feedback
  *   - Updates existing design file and PR
  *   - Sets Review Status back to "Waiting for Review"
  *
+ * IMPORTANT: This phase is OPTIONAL and only for features, not bugs.
+ * Bugs skip directly to Technical Design (or Implementation).
+ *
  * Usage:
- *   yarn agent:product-design                    # Process all pending
- *   yarn agent:product-design --id <item-id>     # Process specific item
- *   yarn agent:product-design --dry-run          # Preview without saving
- *   yarn agent:product-design --stream           # Stream Claude output
+ *   yarn agent:product-dev                    # Process all pending
+ *   yarn agent:product-dev --id <item-id>     # Process specific item
+ *   yarn agent:product-dev --dry-run          # Preview without saving
+ *   yarn agent:product-dev --stream           # Stream Claude output
  */
 
 import '../../shared/loadEnv';
@@ -49,18 +55,18 @@ import {
     notifyBatchComplete,
     notifyAgentStarted,
     // Prompts
-    buildProductDesignPrompt,
-    buildProductDesignRevisionPrompt,
-    buildProductDesignClarificationPrompt,
+    buildProductDevelopmentPrompt,
+    buildProductDevelopmentRevisionPrompt,
+    buildProductDevelopmentClarificationPrompt,
     // Types
     type CommonCLIOptions,
     type UsageStats,
-    type ProductDesignOutput,
+    type ProductDevelopmentOutput,
     // Utils
     extractClarification,
     handleClarificationRequest,
     // Output schemas
-    PRODUCT_DESIGN_OUTPUT_FORMAT,
+    PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
     // Agent Identity
     addAgentPrefix,
 } from '../../shared';
@@ -201,27 +207,26 @@ async function processItem(
 
     const issueNumber = content.number!;
     console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
-    console.log(`  Mode: ${mode === 'new' ? 'New Design' : mode === 'feedback' ? 'Address Feedback' : 'Clarification'}`);
+    console.log(`  Mode: ${mode === 'new' ? 'New Document' : mode === 'feedback' ? 'Address Feedback' : 'Clarification'}`);
 
-    // Check if this is a bug - skip by default
+    // Check if this is a bug - Product Development is for features only
     const issueType = getIssueType(content.labels);
     if (issueType === 'bug') {
-        console.log(`  ⏭️  Skipping bug #${issueNumber} - bugs bypass Product Design phase`);
-        console.log('  📌 Reason: Most bugs don\'t need product design (they need technical fixes)');
-        console.log('  💡 If this bug requires UX/UI redesign, admin can manually move it to Product Design');
-        return { success: false, error: 'Bug reports skip Product Design by default' };
+        console.log(`  Skipping bug #${issueNumber} - Product Development is for features only`);
+        console.log('  Bugs should go directly to Technical Design or Implementation');
+        return { success: false, error: 'Bug reports skip Product Development phase' };
     }
 
     // Get library and model for logging
-    const library = getLibraryForWorkflow('product-design');
-    const model = await getModelForWorkflow('product-design');
+    const library = getLibraryForWorkflow('product-dev');
+    const model = await getModelForWorkflow('product-dev');
 
     // Create log context
     const logCtx = createLogContext({
         issueNumber,
-        workflow: 'product-design',
-        phase: 'Product Design',
-        mode: mode === 'new' ? 'New design' : mode === 'feedback' ? 'Address feedback' : 'Clarification',
+        workflow: 'product-dev',
+        phase: 'Product Development',
+        mode: mode === 'new' ? 'New document' : mode === 'feedback' ? 'Address feedback' : 'Clarification',
         issueTitle: content.title,
         issueType,
         currentStatus: item.status,
@@ -235,7 +240,7 @@ async function processItem(
 
         // Send "work started" notification
         if (!options.dryRun) {
-            await notifyAgentStarted('Product Design', content.title, issueNumber, mode, issueType);
+            await notifyAgentStarted('Product Development', content.title, issueNumber, mode, issueType);
         }
 
         // Save original branch to return to later
@@ -255,37 +260,31 @@ async function processItem(
                 console.log(`  Found ${issueComments.length} comment(s) on issue`);
             }
 
-            // Check for existing design in file (for idempotency)
-            const existingDesign = readDesignDoc(issueNumber, 'product');
-
-            // Check for Product Development Document (PDD) if this feature went through that phase
-            const productDevelopmentDoc = readDesignDoc(issueNumber, 'product-dev');
-            if (productDevelopmentDoc) {
-                console.log('  Found Product Development Document (PDD) - will use as context');
-            }
+            // Check for existing document in file (for idempotency)
+            const existingDocument = readDesignDoc(issueNumber, 'product-dev');
 
             let prompt: string;
 
             if (mode === 'new') {
-                // Flow A: New design
-                // Idempotency check: Skip if design file already exists
-                if (existingDesign) {
-                    console.log('  ⚠️  Product design file already exists - skipping to avoid duplication');
-                    console.log('  If you want to regenerate, use feedback mode or manually remove the existing design');
-                    return { success: false, error: 'Product design file already exists (idempotency check)' };
+                // Flow A: New document
+                // Idempotency check: Skip if document file already exists
+                if (existingDocument) {
+                    console.log('  Product development document already exists - skipping to avoid duplication');
+                    console.log('  If you want to regenerate, use feedback mode or manually remove the existing document');
+                    return { success: false, error: 'Product development document already exists (idempotency check)' };
                 }
-                prompt = buildProductDesignPrompt(content, productDevelopmentDoc, issueComments);
+                prompt = buildProductDevelopmentPrompt(content, issueComments);
             } else if (mode === 'feedback') {
                 // Flow B: Address feedback
-                if (!existingDesign) {
-                    return { success: false, error: 'No existing product design found to revise' };
+                if (!existingDocument) {
+                    return { success: false, error: 'No existing product development document found to revise' };
                 }
 
                 if (issueComments.length === 0) {
                     return { success: false, error: 'No feedback comments found' };
                 }
 
-                prompt = buildProductDesignRevisionPrompt(content, existingDesign, issueComments);
+                prompt = buildProductDevelopmentRevisionPrompt(content, existingDocument, issueComments);
             } else {
                 // Flow C: Continue after clarification
                 const clarification = issueComments[issueComments.length - 1];
@@ -294,7 +293,7 @@ async function processItem(
                     return { success: false, error: 'No clarification comment found' };
                 }
 
-                prompt = buildProductDesignClarificationPrompt(
+                prompt = buildProductDevelopmentClarificationPrompt(
                     { title: content.title, number: issueNumber, body: content.body, labels: content.labels },
                     issueComments,
                     clarification
@@ -304,9 +303,9 @@ async function processItem(
             // Run the agent
             console.log('');
             const progressLabel = mode === 'new'
-                ? 'Generating product design'
+                ? 'Generating product development document'
                 : mode === 'feedback'
-                ? 'Revising product design'
+                ? 'Revising product development document'
                 : 'Continuing with clarification';
 
             const result = await runAgent({
@@ -315,14 +314,14 @@ async function processItem(
                 verbose: options.verbose,
                 timeout: options.timeout,
                 progressLabel,
-                workflow: 'product-design',
-                outputFormat: PRODUCT_DESIGN_OUTPUT_FORMAT,
+                workflow: 'product-dev',
+                outputFormat: PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
             });
 
             if (!result.success || !result.content) {
                 const error = result.error || 'No content generated';
                 if (!options.dryRun) {
-                    await notifyAgentError('Product Design', content.title, issueNumber, error);
+                    await notifyAgentError('Product Development', content.title, issueNumber, error);
                 }
                 return { success: false, error };
             }
@@ -330,47 +329,47 @@ async function processItem(
             // Check if agent needs clarification
             const clarificationRequest = extractClarification(result.content);
             if (clarificationRequest) {
-                console.log('  🤔 Agent needs clarification');
+                console.log('  Agent needs clarification');
                 return await handleClarificationRequest(
                     adapter,
                     { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },
                     issueNumber,
                     clarificationRequest,
-                    'Product Design',
+                    'Product Development',
                     content.title,
                     issueType,
                     options,
-                    'product-design'
+                    'product-dev'
                 );
             }
 
             // Extract structured output (with fallback to markdown extraction)
-            let design: string;
+            let document: string;
             let comment: string | undefined;
 
-            const structuredOutput = result.structuredOutput as ProductDesignOutput | undefined;
+            const structuredOutput = result.structuredOutput as ProductDevelopmentOutput | undefined;
             if (structuredOutput) {
-                design = structuredOutput.design;
+                document = structuredOutput.document;
                 comment = structuredOutput.comment;
-                console.log(`  Design generated: ${design.length} chars (structured output)`);
+                console.log(`  Document generated: ${document.length} chars (structured output)`);
             } else {
                 // Fallback: extract markdown from text output
                 const extracted = extractMarkdown(result.content);
                 if (!extracted) {
-                    const error = 'Could not extract design document from output';
+                    const error = 'Could not extract product development document from output';
                     if (!options.dryRun) {
-                        await notifyAgentError('Product Design', content.title, issueNumber, error);
+                        await notifyAgentError('Product Development', content.title, issueNumber, error);
                     }
                     return { success: false, error };
                 }
-                design = extracted;
-                console.log(`  Design generated: ${design.length} chars (fallback extraction)`);
+                document = extracted;
+                console.log(`  Document generated: ${document.length} chars (fallback extraction)`);
             }
 
-            console.log(`  Preview: ${design.slice(0, 100).replace(/\n/g, ' ')}...`);
+            console.log(`  Preview: ${document.slice(0, 100).replace(/\n/g, ' ')}...`);
 
             if (options.dryRun) {
-                console.log('  [DRY RUN] Would write design to:', getDesignDocRelativePath(issueNumber, 'product'));
+                console.log('  [DRY RUN] Would write document to:', getDesignDocRelativePath(issueNumber, 'product-dev'));
                 console.log('  [DRY RUN] Would create/update PR');
                 console.log('  [DRY RUN] Would set Review Status to Waiting for Review');
                 if (comment) {
@@ -389,7 +388,7 @@ async function processItem(
             }
 
             // Generate branch name and determine if we're updating existing PR
-            const branchName = existingPR?.branchName || generateDesignBranchName(issueNumber, 'product');
+            const branchName = existingPR?.branchName || generateDesignBranchName(issueNumber, 'product-dev');
             const isExistingBranch = existingPR || branchExistsLocally(branchName);
 
             // Checkout or create branch
@@ -407,14 +406,14 @@ async function processItem(
                 checkoutBranch(branchName, true);
             }
 
-            // Write design file
-            const designPath = writeDesignDoc(issueNumber, 'product', design);
-            console.log(`  Written design to: ${designPath}`);
+            // Write document file
+            const documentPath = writeDesignDoc(issueNumber, 'product-dev', document);
+            console.log(`  Written document to: ${documentPath}`);
 
             // Commit changes
             const commitMessage = mode === 'new'
-                ? `docs: add product design for issue #${issueNumber}`
-                : `docs: update product design for issue #${issueNumber}`;
+                ? `docs: add product development document for issue #${issueNumber}`
+                : `docs: update product development document for issue #${issueNumber}`;
             commitChanges(commitMessage);
             console.log(`  Committed: ${commitMessage}`);
 
@@ -437,13 +436,15 @@ async function processItem(
                 console.log(`  Updated existing PR #${prNumber}`);
             } else {
                 // Create new PR
-                const prTitle = `docs: product design for issue #${issueNumber}`;
-                const prBody = `Design document for issue #${issueNumber}
+                const prTitle = `docs: product development for issue #${issueNumber}`;
+                const prBody = `Product Development document for issue #${issueNumber}
+
+This document defines WHAT to build and WHY.
 
 Part of #${issueNumber}
 
 ---
-*Generated by Product Design Agent*`;
+*Generated by Product Development Agent*`;
 
                 const defaultBranch = getDefaultBranch();
                 const prResult = await adapter.createPullRequest(branchName, defaultBranch, prTitle, prBody);
@@ -455,17 +456,17 @@ Part of #${issueNumber}
 
             // Post summary comment on PR (if available)
             if (comment) {
-                const prefixedComment = addAgentPrefix('product-design', comment);
+                const prefixedComment = addAgentPrefix('product-dev', comment);
                 await adapter.addPRComment(prNumber, prefixedComment);
                 console.log('  Summary comment posted on PR');
-                logGitHubAction(logCtx, 'comment', 'Posted design summary comment on PR');
+                logGitHubAction(logCtx, 'comment', 'Posted document summary comment on PR');
             }
 
             // Return to original branch
             checkoutBranch(originalBranch);
             console.log(`  Returned to branch: ${originalBranch}`);
 
-            // Update review status (status stays at "Product Design")
+            // Update review status (status stays at "Product Development")
             if (adapter.hasReviewStatusField()) {
                 await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.waitingForReview);
                 console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
@@ -474,7 +475,7 @@ Part of #${issueNumber}
             logGitHubAction(logCtx, 'issue_updated', `Set Review Status to ${REVIEW_STATUSES.waitingForReview}`);
 
             // Send Telegram notification with merge buttons
-            await notifyDesignPRReady('product', content.title, issueNumber, prNumber, mode === 'feedback', issueType, comment);
+            await notifyDesignPRReady('product-dev', content.title, issueNumber, prNumber, mode === 'feedback', issueType, comment);
             console.log('  Telegram notification sent');
 
             // Log execution end
@@ -509,7 +510,7 @@ Part of #${issueNumber}
             });
 
             if (!options.dryRun) {
-                await notifyAgentError('Product Design', content.title, issueNumber, errorMsg);
+                await notifyAgentError('Product Development', content.title, issueNumber, errorMsg);
             }
             return { success: false, error: errorMsg };
         }
@@ -520,8 +521,8 @@ async function main(): Promise<void> {
     const program = new Command();
 
     program
-        .name('product-design')
-        .description('Generate Product Design documents for GitHub Project items')
+        .name('product-development')
+        .description('Generate Product Development documents for GitHub Project items (OPTIONAL phase for features)')
         .option('--id <itemId>', 'Process a specific project item by ID')
         .option('--limit <number>', 'Limit number of items to process', parseInt)
         .option('--timeout <seconds>', 'Timeout per item in seconds', parseInt)
@@ -541,7 +542,8 @@ async function main(): Promise<void> {
     };
 
     console.log('\n========================================');
-    console.log('  Product Design Agent');
+    console.log('  Product Development Agent');
+    console.log('  (OPTIONAL phase for vague feature ideas)');
     console.log('========================================');
     console.log(`  Timeout: ${options.timeout}s per item`);
     if (options.dryRun) {
@@ -570,44 +572,44 @@ async function main(): Promise<void> {
         let mode: 'new' | 'feedback' | 'clarification';
         let existingPR: { prNumber: number; branchName: string } | undefined;
 
-        if (item.status === STATUSES.productDesign && !item.reviewStatus) {
+        if (item.status === STATUSES.productDevelopment && !item.reviewStatus) {
             mode = 'new';
-        } else if (item.status === STATUSES.productDesign && item.reviewStatus === REVIEW_STATUSES.requestChanges) {
+        } else if (item.status === STATUSES.productDevelopment && item.reviewStatus === REVIEW_STATUSES.requestChanges) {
             mode = 'feedback';
             // Find existing PR for feedback mode
             const issueNumber = item.content?.number;
             if (issueNumber) {
                 existingPR = await adapter.findOpenPRForIssue(issueNumber) || undefined;
             }
-        } else if (item.status === STATUSES.productDesign && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
+        } else if (item.status === STATUSES.productDevelopment && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
             mode = 'clarification';
-        } else if (item.status === STATUSES.productDesign && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
-            console.log('  ⏳ Waiting for clarification from admin');
+        } else if (item.status === STATUSES.productDevelopment && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
+            console.log('  Waiting for clarification from admin');
             console.log('  Skipping this item (admin needs to respond and click "Clarification Received")');
             process.exit(0);
         } else {
             console.error(`Item is not in a processable state.`);
             console.error(`  Status: ${item.status}`);
             console.error(`  Review Status: ${item.reviewStatus}`);
-            console.error(`  Expected: "${STATUSES.productDesign}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", or "${REVIEW_STATUSES.clarificationReceived}"`);
+            console.error(`  Expected: "${STATUSES.productDevelopment}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", or "${REVIEW_STATUSES.clarificationReceived}"`);
             process.exit(1);
         }
 
         itemsToProcess.push({ item, mode, existingPR });
     } else {
-        // Flow A: Fetch items ready for new design (Product Design status with empty Review Status)
-        console.log(`\nFetching items in "${STATUSES.productDesign}" with empty Review Status...`);
-        const allProductDesignItems = await adapter.listItems({ status: STATUSES.productDesign, limit: options.limit || 50 });
-        const newItems = allProductDesignItems.filter((item) => !item.reviewStatus);
+        // Flow A: Fetch items ready for new document (Product Development status with empty Review Status)
+        console.log(`\nFetching items in "${STATUSES.productDevelopment}" with empty Review Status...`);
+        const allProductDevItems = await adapter.listItems({ status: STATUSES.productDevelopment, limit: options.limit || 50 });
+        const newItems = allProductDevItems.filter((item) => !item.reviewStatus);
         for (const item of newItems) {
             itemsToProcess.push({ item, mode: 'new' });
         }
-        console.log(`  Found ${newItems.length} item(s) for new design`);
+        console.log(`  Found ${newItems.length} item(s) for new document`);
 
-        // Flow B: Fetch items needing revision (Product Design status with Request Changes)
+        // Flow B: Fetch items needing revision (Product Development status with Request Changes)
         if (adapter.hasReviewStatusField()) {
             console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.requestChanges}"...`);
-            const feedbackItems = allProductDesignItems.filter(
+            const feedbackItems = allProductDevItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
             );
             for (const item of feedbackItems) {
@@ -623,7 +625,7 @@ async function main(): Promise<void> {
 
             // Flow C: Fetch items with clarification received
             console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.clarificationReceived}"...`);
-            const clarificationItems = allProductDesignItems.filter(
+            const clarificationItems = allProductDevItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.clarificationReceived
             );
             for (const item of clarificationItems) {
@@ -694,7 +696,7 @@ async function main(): Promise<void> {
 
     // Send batch completion notification
     if (!options.dryRun && results.processed > 1) {
-        await notifyBatchComplete('Product Design', results.processed, results.succeeded, results.failed);
+        await notifyBatchComplete('Product Development', results.processed, results.succeeded, results.failed);
     }
 }
 
