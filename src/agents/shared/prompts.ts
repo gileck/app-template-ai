@@ -1159,7 +1159,7 @@ ${productDesign}
         ? `\n**Stack Trace:**\n\`\`\`\n${diagnostics.stackTrace}\n\`\`\``
         : '';
 
-    return `You are analyzing a BUG REPORT and creating a Technical Design for the fix.${productDesign ? ' A Product Design has been approved that addresses the UX/UI aspects of this bug.' : ''}
+    return `You are analyzing a BUG REPORT and creating a Technical Design document that will guide the implementation agent to fix this bug.${productDesign ? ' A Product Design has been approved that addresses the UX/UI aspects of this bug.' : ''}
 
 IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
 
@@ -1177,73 +1177,142 @@ ${productDesignSection}## Bug Diagnostics
 ${diagnostics.errorMessage ? `**Error Message:** ${diagnostics.errorMessage}\n` : ''}${diagnostics.route ? `**Route:** ${diagnostics.route}\n` : ''}${diagnostics.networkStatus ? `**Network Status:** ${diagnostics.networkStatus}\n` : ''}${diagnostics.browserInfo ? `**Browser:** ${diagnostics.browserInfo.userAgent}
 **Viewport:** ${diagnostics.browserInfo.viewport.width}x${diagnostics.browserInfo.viewport.height}\n` : ''}${stackTraceSection}${sessionLogsSection}
 
-## Your Task
+---
 
-Analyze this bug and create a Technical Design for the fix:
+## CRITICAL: Bug Fix Design Process
 
-**Required sections:**
-1. **Root Cause Analysis** - What's causing this bug? Be specific.
-2. **Affected Components** - Which files/modules are involved?
-3. **Fix Approach** - How should this be fixed? Provide clear steps.
-4. **Files to Create/Modify** - List files with specific changes needed
+For bug fixes, you MUST follow these steps IN ORDER. Do not skip steps.
+
+### Step 1: INVESTIGATE - Find the Root Cause (Required - Cannot Skip)
+
+Before designing ANY fix, you MUST:
+1. **Trace the exact failure path** - Use stack trace, logs, and code inspection
+2. **Identify what input/state triggers the bug** - What condition causes the failure?
+3. **Find the actual root cause** - The specific code that behaves incorrectly
+
+**What counts as "root cause" (be this specific):**
+- "The handler expects \`parts[1]\` to be a valid integer, but whitespace in the callback data causes \`parseInt\` to return \`NaN\`"
+- "The validation \`!val\` incorrectly rejects \`0\` as invalid when \`0\` is a legitimate value"
+- "The comparison uses \`message.text\` (plain text) against an HTML-formatted string, so it never matches"
+
+**What is NOT root cause (these are symptoms or secondary concerns):**
+- "Unknown action error appears" ← This is the SYMPTOM, not the cause
+- "Error handling is missing" ← This is observability improvement, not root cause
+- "Logging should be added" ← This helps debugging but doesn't explain WHY the bug occurs
+
+### Step 2: SCOPE - Check for Similar Patterns (Required)
+
+After identifying the root cause, you MUST check if the same pattern exists elsewhere:
+1. **Search for similar code** - Use Grep to find similar patterns in the codebase
+2. **List ALL affected locations** - A partial fix that only fixes 2 of 13 similar handlers is incomplete
+3. **Note the scope** - "This bug affects N locations that all need the same fix"
+
+**Example**: If a bug is in the \`design_approve\` handler's parsing logic, check ALL handlers in that file for the same parsing pattern. If 13 handlers have the same vulnerable code, ALL 13 must be fixed.
+
+### Step 3: DESIGN - Plan the Fix (Only after Steps 1-2)
+
+Now design the fix:
+1. **Primary: Fix the root cause** - The main goal
+2. **Primary: Fix ALL similar patterns** - If found in Step 2
+3. **Secondary: Improve error handling** - Helps future debugging, but is NOT the primary fix
+
+**Important distinction:**
+- Adding logging/error messages is valuable for OBSERVABILITY but does not FIX the bug
+- The implementation agent needs to know WHAT CODE TO CHANGE to make the bug stop happening
+- "Add better error logging" is a secondary improvement, not the fix
+
+---
+
+## Required Output Sections
+
+Your Technical Design document MUST include:
+
+1. **Root Cause Analysis** (from Step 1)
+   - What exact code path fails?
+   - What input/condition triggers it?
+   - Why does the current code not handle it correctly?
+
+2. **Scope Assessment** (from Step 2)
+   - How many similar patterns exist? List them.
+   - Which files/locations need the same fix?
+
+3. **Fix Approach** (from Step 3)
+   - Specific code changes to fix the root cause
+   - Changes to ALL affected locations (not just the one mentioned in the bug report)
+
+4. **Files to Modify**
+   - Complete list with specific changes for each file
 
 **Optional sections (include when relevant):**
-- **Testing Strategy** - How to verify the fix and prevent regression
-- **Risk Assessment** - Any side effects or edge cases to consider
-- **Implementation Notes** - Complex logic that needs explanation
+- **Testing Strategy** - How to verify the fix
+- **Risk Assessment** - Side effects or edge cases
+- **Secondary Improvements** - Error handling/logging improvements (clearly marked as secondary)
 
-## Research Strategy
-
-1. Use the stack trace and session logs to identify where the error occurs
-2. Read the affected files to understand the current implementation
-3. Look for similar patterns in the codebase
-4. Consider edge cases that might trigger this bug
+---
 
 ## Output Format
 
 Provide your response as structured JSON with these fields:
-- **design**: Complete Technical Design document in markdown format (same structure as shown in example below)
-- **comment**: High-level implementation plan for the fix to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+- **design**: Complete Technical Design document in markdown format (structure shown below)
+- **comment**: High-level summary for GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
-Example design structure:
+**Example design structure:**
 
 \`\`\`markdown
 # Bug Fix: [Issue Title]
 
 ## Root Cause Analysis
 
-The error occurs in \`ComponentName.tsx\` when [specific condition]. The code assumes [incorrect assumption], but [actual situation].
+**The Bug:** [One sentence describing what goes wrong]
 
-## Affected Components
+**Root Cause:** The error occurs in \`telegram-webhook.ts\` at line 1650 when parsing callback data. The code uses:
+\`\`\`typescript
+const issueNumber = parseInt(parts[1], 10);
+\`\`\`
+This fails when \`parts[1]\` contains whitespace (e.g., " 123") because \`parseInt\` returns \`NaN\`, causing the validation \`!issueNumber\` to incorrectly reject valid data.
 
-- \`src/client/routes/RouteName/ComponentName.tsx\` - Contains the buggy logic
-- \`src/client/hooks/useHook.ts\` - Needs null check added
+**Trigger Condition:** Callback data with leading/trailing whitespace in numeric fields.
+
+## Scope Assessment
+
+**Similar patterns found:** 13 handlers in \`telegram-webhook.ts\` use the same parsing pattern:
+- \`design_approve\` (line 1650)
+- \`design_changes\` (line 1680)
+- \`merge\` (line 1594) ← Mentioned in bug report
+- \`approve_request\` (line 1432)
+- ... [list all 13]
+
+**All 13 handlers need the same fix applied.**
 
 ## Fix Approach
 
-1. Add null/undefined check in ComponentName before accessing property
-2. Add loading state handling in useHook
-3. Update error boundary to catch this specific error
+### Primary Fix (Root Cause)
+1. Add \`.trim()\` to all parsed values: \`parseInt(parts[1]?.trim() || '', 10)\`
+2. Add explicit \`isNaN()\` check: \`if (isNaN(issueNumber) || isNaN(prNumber))\`
+3. Apply to ALL 13 handlers, not just the one mentioned
+
+### Secondary Improvements (Observability)
+4. Add error logging when validation fails (helps future debugging)
+5. Improve error message shown to user
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| \`src/client/routes/RouteName/ComponentName.tsx\` | Add null check: \`if (!data?.property) return <LoadingState />\` |
-| \`src/client/hooks/useHook.ts\` | Add early return if data is null |
+| \`src/pages/api/telegram-webhook.ts\` | Update ALL 13 handlers with defensive parsing (.trim(), isNaN check) |
 
 ## Testing Strategy
 
-1. Reproduce the bug by [specific steps]
-2. Verify fix by [verification steps]
-3. Test edge case: [edge case description]
+1. Test with callback data containing whitespace
+2. Test with callback data containing invalid numbers
+3. Verify all 13 handlers reject malformed data gracefully
 \`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
-Now explore the codebase and create the Technical Design for this bug fix.`;
+Now explore the codebase, find the root cause, check for similar patterns, and create the Technical Design for this bug fix.`;
 }
 
 /**
@@ -1402,12 +1471,31 @@ The admin has requested changes. Please address ALL of the following feedback:
 
 ${feedbackSection}
 
+---
+
+## REMINDER: Bug Fix Design Principles
+
+When revising, ensure your design still follows these principles:
+
+1. **Root Cause is Identified** - The design must explain WHAT specific code causes the bug and WHY
+   - "The bug occurs because X" not just "add error handling"
+
+2. **Scope is Complete** - If similar patterns exist, ALL must be listed for fixing
+   - If feedback says "you only fixed 2 of 13 handlers", find and list ALL 13
+
+3. **Fix vs Observability** - The primary fix addresses the root cause; logging/error handling is secondary
+   - Primary: "Add .trim() to prevent whitespace parsing issues"
+   - Secondary: "Add error logging for debugging"
+
+---
+
 ## Your Task
 
 1. Carefully read and understand all feedback comments
-2. Re-analyze the bug if needed (diagnostics are still available)
-3. Research any areas mentioned in the feedback
+2. If feedback indicates incomplete root cause analysis → Re-investigate the code
+3. If feedback indicates incomplete scope → Use Grep to find ALL similar patterns
 4. Revise the Technical Design to address ALL feedback points
+5. Ensure the revised design follows the bug fix principles above
 
 ## Output Format
 
