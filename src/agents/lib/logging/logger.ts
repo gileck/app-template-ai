@@ -65,13 +65,19 @@ export function logExecutionStart(ctx: LogContext): void {
         ? `**Current Status:** ${ctx.currentStatus}${ctx.currentReviewStatus ? ` | **Review Status:** ${ctx.currentReviewStatus}` : ''}\n`
         : '';
 
-    // Build library line if library info is available
-    const libraryLine = ctx.library ? `**Library:** ${ctx.library}\n` : '';
+    // Build library and model line if info is available
+    const libraryInfo = ctx.library
+        ? ctx.model
+            ? `**Library:** ${ctx.library} | **Model:** ${ctx.model}\n`
+            : `**Library:** ${ctx.library}\n`
+        : ctx.model
+            ? `**Model:** ${ctx.model}\n`
+            : '';
 
     const content = `## [LOG:PHASE_START] Phase: ${ctx.phase}
 
 **Agent:** ${ctx.workflow}
-${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}${libraryLine}${statusLine}**Started:** ${formatTime(ctx.startTime)}
+${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}${libraryInfo}${statusLine}**Started:** ${formatTime(ctx.startTime)}
 
 `;
 

@@ -15,6 +15,8 @@ export interface LogContext {
     currentReviewStatus?: string | null;
     /** Agent library used for this execution (e.g., 'claude-code-sdk', 'cursor', 'gemini') */
     library?: string;
+    /** LLM model used for this execution (e.g., 'sonnet', 'opus-4.5', 'gemini-pro') */
+    model?: string;
 }
 
 /**

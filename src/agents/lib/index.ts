@@ -109,6 +109,17 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 }
 
 /**
+ * Get the model name for a specific workflow
+ *
+ * @param workflow - Workflow name (optional)
+ * @returns Model name used by the library for this workflow
+ */
+export async function getModelForWorkflow(workflow?: WorkflowName): Promise<string> {
+    const library = await getAgentLibrary(workflow);
+    return library.model;
+}
+
+/**
  * Dispose all adapter instances
  */
 export async function disposeAllAdapters(): Promise<void> {

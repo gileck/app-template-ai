@@ -41,6 +41,17 @@ export function getLibraryForWorkflow(workflow?: WorkflowName): string {
 }
 
 /**
+ * Get the model configured for a specific library
+ *
+ * @param libraryName - Library name (e.g., 'claude-code-sdk', 'cursor')
+ * @returns Model name configured for this library, or 'unknown' if not configured
+ */
+export function getModelForLibrary(libraryName: string): string {
+    const libraryConfig = agentsConfig.libraryModels[libraryName];
+    return libraryConfig?.model ?? 'unknown';
+}
+
+/**
  * Cached configuration instance
  */
 let cachedConfig: AgentLibraryConfig | null = null;

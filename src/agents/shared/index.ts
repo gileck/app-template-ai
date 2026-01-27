@@ -74,6 +74,7 @@ export {
     runAgent,
     getAgentLibrary,
     getLibraryForWorkflow,
+    getModelForWorkflow,
     extractMarkdown,
     extractJSON,
     extractReview,

@@ -6,6 +6,7 @@
  */
 
 import type { AgentLibraryAdapter, AgentLibraryCapabilities, AgentRunOptions, AgentRunResult } from '../types';
+import { getModelForLibrary } from '../config';
 
 // ============================================================
 // GEMINI ADAPTER (STUB)
@@ -13,6 +14,11 @@ import type { AgentLibraryAdapter, AgentLibraryCapabilities, AgentRunOptions, Ag
 
 class GeminiAdapter implements AgentLibraryAdapter {
     readonly name = 'gemini';
+
+    get model(): string {
+        return getModelForLibrary('gemini');
+    }
+
     readonly capabilities: AgentLibraryCapabilities = {
         streaming: true,
         fileRead: false, // To be determined

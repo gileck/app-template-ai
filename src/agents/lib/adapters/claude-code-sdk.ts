@@ -7,6 +7,7 @@
 import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage } from '@anthropic-ai/claude-agent-sdk';
 import { agentConfig } from '../../shared/config';
 import type { AgentLibraryAdapter, AgentLibraryCapabilities, AgentRunOptions, AgentRunResult } from '../types';
+import { getModelForLibrary } from '../config';
 import {
     getCurrentLogContext,
     logPrompt,
@@ -37,6 +38,10 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
         customTools: true,
         timeout: true,
     };
+
+    get model(): string {
+        return getModelForLibrary('claude-code-sdk');
+    }
 
     private initialized = false;
 
@@ -101,7 +106,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
         const logCtx = getCurrentLogContext();
         if (logCtx) {
             logPrompt(logCtx, prompt, {
-                model: agentConfig.claude.model,
+                model: this.model,
                 tools: allowedTools,
                 timeout,
             });
@@ -113,7 +118,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                 options: {
                     allowedTools,
                     cwd: PROJECT_ROOT,
-                    model: agentConfig.claude.model,
+                    model: this.model as 'sonnet' | 'opus' | 'haiku',
                     maxTurns: agentConfig.claude.maxTurns,
                     permissionMode: 'bypassPermissions',
                     allowDangerouslySkipPermissions: true,

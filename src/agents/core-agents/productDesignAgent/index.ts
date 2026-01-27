@@ -41,6 +41,7 @@ import {
     // Claude
     runAgent,
     getLibraryForWorkflow,
+    getModelForWorkflow,
     extractMarkdown,
     // Notifications
     notifyDesignPRReady,
@@ -211,6 +212,10 @@ async function processItem(
         return { success: false, error: 'Bug reports skip Product Design by default' };
     }
 
+    // Get library and model for logging
+    const library = getLibraryForWorkflow('product-design');
+    const model = await getModelForWorkflow('product-design');
+
     // Create log context
     const logCtx = createLogContext({
         issueNumber,
@@ -221,7 +226,8 @@ async function processItem(
         issueType,
         currentStatus: item.status,
         currentReviewStatus: item.reviewStatus,
-        library: getLibraryForWorkflow('product-design'),
+        library,
+        model,
     });
 
     return runWithLogContext(logCtx, async () => {

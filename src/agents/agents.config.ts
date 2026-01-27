@@ -1,8 +1,8 @@
 /**
  * Agents Configuration
  *
- * Single source of truth for agent library selection.
- * Modify this file to configure which library each workflow uses.
+ * Single source of truth for agent library and model selection.
+ * Modify this file to configure which library and model each workflow uses.
  */
 
 import type { WorkflowName } from './lib/types';
@@ -12,6 +12,14 @@ import type { WorkflowName } from './lib/types';
 // ============================================================
 
 /**
+ * Model configuration for a specific library
+ */
+export interface LibraryModelConfig {
+    /** Default model for this library */
+    model: string;
+}
+
+/**
  * Configuration structure for agents
  */
 export interface AgentsConfig {
@@ -19,6 +27,8 @@ export interface AgentsConfig {
     defaultLibrary: string;
     /** Per-workflow library overrides */
     workflowOverrides: Partial<Record<WorkflowName, string>>;
+    /** Model configuration per library */
+    libraryModels: Record<string, LibraryModelConfig>;
 }
 
 // ============================================================
@@ -33,6 +43,11 @@ export interface AgentsConfig {
  * - 'cursor' - Cursor CLI (requires cursor-agent CLI to be installed)
  * - 'gemini' - Google Gemini (stub, not yet implemented)
  *
+ * Available models:
+ * - claude-code-sdk: 'sonnet', 'opus', 'haiku'
+ * - cursor: 'opus-4.5', 'sonnet-4', etc.
+ * - gemini: 'gemini-pro', 'gemini-ultra', etc.
+ *
  * To use a different library for a specific workflow, add it to workflowOverrides.
  */
 export const agentsConfig: AgentsConfig = {
@@ -42,9 +57,22 @@ export const agentsConfig: AgentsConfig = {
     // Per-workflow overrides
     // Uncomment to use different libraries for specific workflows
     workflowOverrides: {
-        // 'product-design': 'claude-code-sdk',
+        'product-design': 'cursor',
         // 'tech-design': 'claude-code-sdk',
-        // 'implementation': 'cursor',
+        'implementation': 'cursor',
         // 'pr-review': 'claude-code-sdk',
+    },
+
+    // Model configuration per library
+    libraryModels: {
+        'claude-code-sdk': {
+            model: 'sonnet',
+        },
+        'cursor': {
+            model: 'opus-4.5',
+        },
+        'gemini': {
+            model: 'gemini-pro',
+        },
     },
 };

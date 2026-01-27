@@ -25,6 +25,7 @@ import {
     logToolCall,
     logTokenUsage,
 } from '../logging';
+import { getModelForLibrary } from '../config';
 
 // ============================================================
 // CONSTANTS
@@ -34,12 +35,6 @@ const CURSOR_CLI_COMMAND = 'cursor-agent';
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const PROJECT_ROOT = process.cwd();
 const DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes
-
-/**
- * Default model for Cursor CLI
- * Claude Opus 4.5 - Anthropic's flagship model for coding and agentic tasks
- */
-const DEFAULT_MODEL = 'opus-4.5';
 
 // ============================================================
 // TYPES
@@ -83,6 +78,11 @@ interface CursorExecutionResult {
 
 class CursorAdapter implements AgentLibraryAdapter {
     readonly name = 'cursor';
+
+    get model(): string {
+        return getModelForLibrary('cursor');
+    }
+
     readonly capabilities: AgentLibraryCapabilities = {
         streaming: true,
         fileRead: true,
@@ -403,8 +403,8 @@ class CursorAdapter implements AgentLibraryAdapter {
         // Use -p (print) for non-interactive mode
         args.push('-p');
 
-        // Specify model
-        args.push('--model', DEFAULT_MODEL);
+        // Specify model from config
+        args.push('--model', this.model);
 
         // Output format: stream-json for streaming, json for non-streaming
         args.push('--output-format', options.stream ? 'stream-json' : 'json');

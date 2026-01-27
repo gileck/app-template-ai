@@ -97,6 +97,9 @@ export interface AgentLibraryAdapter {
     /** Library name (e.g., "claude-code-sdk", "cursor", "gemini") */
     readonly name: string;
 
+    /** LLM model used by this adapter (e.g., "sonnet", "opus-4.5", "gemini-pro") */
+    readonly model: string;
+
     /** Library capabilities */
     readonly capabilities: AgentLibraryCapabilities;
 
