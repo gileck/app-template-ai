@@ -865,3 +865,32 @@ const notificationPrefs = {
 - `src/server/telegram/types.ts` - Add NotificationLevel enum
 - `src/agents/shared/config.ts` - Add notification preferences
 - `src/agents/lib/logging/index.ts` - Tag notifications with severity
+
+---
+
+## 15. Telegram Button UX Improvements
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **Low** | Low | S | TODO |
+
+**Date Added:** 2026-01-26
+
+**Summary:** Small UX improvements to Telegram interactive buttons: add loading state feedback and keep View PR/Issue buttons visible after actions.
+
+**Details:**
+
+1. **Loading state for buttons:**
+   - Buttons take several seconds to respond (merge, request changes)
+   - Add loading indicator/feedback when button is pressed
+   - Could use Telegram's `answerCallbackQuery` with "Processing..." or edit message to show loading state
+
+2. **Persistent View buttons:**
+   - Currently View PR / View Issue buttons may disappear after taking an action
+   - Keep these navigation buttons visible even after Merge/Request Changes is clicked
+   - User should always be able to quickly jump to the PR or Issue from any message
+
+**Files to Modify:**
+- `src/server/telegram/index.ts` - Update callback handlers for loading states
+- `src/server/telegram/bot.ts` - Ensure View buttons persist after actions
+- `src/agents/shared/notifications.ts` - Update message templates if needed
