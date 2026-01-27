@@ -44,7 +44,8 @@ const DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes
  * Cursor CLI stream event types
  */
 interface CursorStreamEvent {
-    type: 'start' | 'text' | 'tool_use' | 'tool_result' | 'result' | 'error';
+    type: 'system' | 'user' | 'assistant' | 'start' | 'text' | 'tool_use' | 'tool_result' | 'result' | 'error';
+    subtype?: string;       // For system events (e.g., 'init')
     content?: string;
     name?: string;          // Tool name for tool_use events
     path?: string;          // File path for read_file tool
@@ -59,6 +60,16 @@ interface CursorStreamEvent {
         input_tokens?: number;
         output_tokens?: number;
         total_cost_usd?: number;
+    };
+    // For assistant/user message events (--stream-partial-output)
+    message?: {
+        role?: string;
+        content?: Array<{
+            type: string;
+            text?: string;
+            name?: string;      // Tool name
+            input?: Record<string, unknown>; // Tool input
+        }>;
     };
 }
 
@@ -410,6 +421,11 @@ class CursorAdapter implements AgentLibraryAdapter {
         // Output format: stream-json for streaming, json for non-streaming
         args.push('--output-format', options.stream ? 'stream-json' : 'json');
 
+        // Enable partial output streaming for real-time text output
+        if (options.stream) {
+            args.push('--stream-partial-output');
+        }
+
         // Plan mode for read-only exploration (overrides allowWrite)
         if (options.planMode) {
             args.push('--mode=plan');
@@ -604,6 +620,24 @@ class CursorAdapter implements AgentLibraryAdapter {
         try {
             const event = JSON.parse(line) as CursorStreamEvent;
             if (event && typeof event === 'object' && 'type' in event) {
+                // Transform assistant message events to text events for easier handling
+                if (event.type === 'assistant' && event.message?.content) {
+                    for (const block of event.message.content) {
+                        if (block.type === 'text' && block.text) {
+                            // Emit as text event
+                            onEvent({ type: 'text', content: block.text, session_id: event.session_id });
+                        } else if (block.type === 'tool_use' && block.name) {
+                            // Emit as tool_use event
+                            onEvent({
+                                type: 'tool_use',
+                                name: block.name,
+                                input: block.input,
+                                session_id: event.session_id,
+                            });
+                        }
+                    }
+                    return;
+                }
                 onEvent(event);
             }
         } catch {
