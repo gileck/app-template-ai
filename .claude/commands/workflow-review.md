@@ -168,7 +168,7 @@ The workflow architecture:
 
 **1. First: Update Project Docs/Rules** (preferred solution)
    - Is there a missing pattern in `docs/` that should be documented?
-   - Should `CLAUDE.md` or `.cursor/rules/` be updated?
+   - Should `CLAUDE.md` or `.ai/skills/` be updated?
    - Example: Missing "multi-cache update" pattern in `docs/react-query-mutations.md`
 
 **2. Second: Verify the Pipeline Worked**
@@ -190,7 +190,7 @@ The workflow architecture:
 **Checklist for each finding:**
 
 - [ ] Can this be fixed by updating a doc in `docs/`?
-- [ ] Can this be fixed by updating `CLAUDE.md` or `.cursor/rules/`?
+- [ ] Can this be fixed by updating `CLAUDE.md` or `.ai/skills/`?
 - [ ] Did tech design include the relevant docs? (check log for "related files")
 - [ ] Is this a universal principle (applies to all features)?
 - [ ] Would adding to prompt make it bloated/unmaintainable?

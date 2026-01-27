@@ -155,7 +155,7 @@ Customize the type scale:
 ## 🔗 Related Guidelines
 
 This implementation follows the guidelines defined in:
-- `.cursor/rules/ui-design-guidelines.mdc` - Complete UI design system documentation with advanced implementation guidelines
+- `.ai/skills/ui-design-guidelines/SKILL.md` - Complete UI design system documentation with advanced implementation guidelines
 - iOS Human Interface Guidelines (HIG) - Dynamic system colors and interaction patterns
 - Web Content Accessibility Guidelines (WCAG) - AA compliance with enhanced VoiceOver support
 - Modern CSS best practices - Performance optimization and internationalization support

@@ -571,13 +571,13 @@ This ensures:
 The agent checks compliance with:
 ```markdown
 **IMPORTANT**: Check compliance with project guidelines in `.cursor/rules/`:
-- TypeScript guidelines (`.cursor/rules/typescript-guidelines.mdc`)
-- React patterns (`.cursor/rules/react-component-organization.mdc`, `.cursor/rules/react-hook-organization.mdc`)
-- State management (`.cursor/rules/state-management-guidelines.mdc`)
-- UI/UX patterns (`.cursor/rules/ui-design-guidelines.mdc`, `.cursor/rules/shadcn-usage.mdc`)
-- File organization (`.cursor/rules/feature-based-structure.mdc`)
-- API patterns (`.cursor/rules/client-server-communications.mdc`)
-- Comprehensive checklist (`.cursor/rules/app-guidelines-checklist.mdc`)
+- TypeScript guidelines (`.ai/skills/typescript-guidelines/SKILL.md`)
+- React patterns (`.ai/skills/react-component-organization/SKILL.md`, `.ai/skills/react-hook-organization/SKILL.md`)
+- State management (`.ai/skills/state-management-guidelines/SKILL.md`)
+- UI/UX patterns (`.ai/skills/ui-design-guidelines/SKILL.md`, `.ai/skills/shadcn-usage/SKILL.md`)
+- File organization (`.ai/skills/feature-based-structure/SKILL.md`)
+- API patterns (`.ai/skills/client-server-communications/SKILL.md`)
+- Comprehensive checklist (`.ai/skills/app-guidelines-checklist/SKILL.md`)
 ```
 
 ### Phase-Specific Checks (Multi-Phase)
