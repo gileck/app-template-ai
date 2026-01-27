@@ -34,6 +34,7 @@ import {
     type ProjectItem,
     // Claude
     runAgent,
+    getLibraryForWorkflow,
     // Notifications
     notifyPRReviewComplete,
     notifyPRReadyToMerge,
@@ -231,6 +232,7 @@ async function processItem(
         issueType,
         currentStatus: item.status,
         currentReviewStatus: item.reviewStatus,
+        library: getLibraryForWorkflow('pr-review'),
     });
 
     return runWithLogContext(logCtx, async () => {

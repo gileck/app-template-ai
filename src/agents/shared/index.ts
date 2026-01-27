@@ -73,6 +73,7 @@ export {
 export {
     runAgent,
     getAgentLibrary,
+    getLibraryForWorkflow,
     extractMarkdown,
     extractJSON,
     extractReview,

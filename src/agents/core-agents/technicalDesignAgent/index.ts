@@ -41,6 +41,7 @@ import {
     type ProjectItem,
     // Claude
     runAgent,
+    getLibraryForWorkflow,
     extractMarkdown,
     extractProductDesign,
     // Notifications
@@ -226,6 +227,7 @@ async function processItem(
         issueType,
         currentStatus: item.status,
         currentReviewStatus: item.reviewStatus,
+        library: getLibraryForWorkflow('tech-design'),
     });
 
     return runWithLogContext(logCtx, async () => {

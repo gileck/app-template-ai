@@ -13,6 +13,8 @@ export interface LogContext {
     currentStatus?: string | null;
     /** Current review status when agent started */
     currentReviewStatus?: string | null;
+    /** Agent library used for this execution (e.g., 'claude-code-sdk', 'cursor', 'gemini') */
+    library?: string;
 }
 
 /**
