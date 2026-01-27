@@ -7,7 +7,15 @@
 
 import type { AgentLibraryAdapter, WorkflowName, AgentRunOptions, AgentRunResult } from './types';
 import { getLibraryForWorkflow } from './config';
-import { getCurrentLogContext, logError, logInfo } from './logging';
+import {
+    getCurrentLogContext,
+    logError,
+    logExecutionStart,
+    logExecutionEnd,
+    logPrompt,
+    logTokenUsage,
+    type LogContext,
+} from './logging';
 
 // Import adapters directly
 import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
@@ -234,13 +242,23 @@ async function runImplementationPlanSubagent(
 ): Promise<{ plan: string | null; error?: string }> {
     const usesPlanMode = library.capabilities.planMode === true;
     const planMechanism = usesPlanMode ? '--mode=plan' : 'read-only tools';
+    const tools = usesPlanMode ? ['plan-mode'] : ['Read', 'Glob', 'Grep', 'WebFetch'];
 
     console.log(`  📋 Running Plan subagent (${library.name}, ${planMechanism})...`);
 
-    // Log to issue log if context is available
-    const logCtx = getCurrentLogContext();
-    if (logCtx) {
-        logInfo(logCtx, `Plan Subagent started (library: ${library.name}, mechanism: ${planMechanism})`, '📋');
+    // Get parent log context and create plan subagent context
+    const parentCtx = getCurrentLogContext();
+    const planCtx: LogContext | null = parentCtx ? {
+        ...parentCtx,
+        phase: 'Plan Subagent',
+        startTime: new Date(),
+        library: library.name,
+        model: library.model,
+    } : null;
+
+    // Log execution start for plan subagent phase
+    if (planCtx) {
+        logExecutionStart(planCtx);
     }
 
     const planPrompt = `You are a technical planning agent. Your task is to create a detailed, step-by-step implementation plan.
@@ -284,6 +302,15 @@ Example:
 
 Now explore the codebase and create the implementation plan.`;
 
+    // Log the prompt
+    if (planCtx) {
+        logPrompt(planCtx, planPrompt, {
+            model: library.model,
+            tools,
+            timeout: 120,
+        });
+    }
+
     try {
         // Use planMode if library supports it (cursor), otherwise use read-only tools (claude-code-sdk)
         const result = await library.run({
@@ -301,25 +328,67 @@ Now explore the codebase and create the implementation plan.`;
             progressLabel: 'Creating implementation plan',
         });
 
+        // Log token usage if available
+        if (planCtx && result.usage) {
+            logTokenUsage(planCtx, {
+                inputTokens: result.usage.inputTokens,
+                outputTokens: result.usage.outputTokens,
+                cost: result.usage.totalCostUSD,
+            });
+        }
+
+        // Calculate totals for summary
+        const totalTokens = result.usage
+            ? result.usage.inputTokens + result.usage.outputTokens
+            : 0;
+        const totalCost = result.usage?.totalCostUSD || 0;
+        const toolCallsCount = result.filesExamined?.length || 0;
+
         if (result.success && result.content) {
             console.log('  ✅ Plan subagent completed');
-            if (logCtx) {
-                logInfo(logCtx, `Plan Subagent completed successfully (${result.durationSeconds}s)`, '✅');
+
+            // Log execution end with success
+            if (planCtx) {
+                logExecutionEnd(planCtx, {
+                    success: true,
+                    toolCallsCount,
+                    totalTokens,
+                    totalCost,
+                });
             }
+
             return { plan: result.content };
         }
 
         const errorMsg = result.error || 'No plan generated';
-        if (logCtx) {
-            logInfo(logCtx, `Plan Subagent completed without plan: ${errorMsg}`, '⚠️');
+
+        // Log execution end with failure
+        if (planCtx) {
+            logError(planCtx, errorMsg, false);
+            logExecutionEnd(planCtx, {
+                success: false,
+                toolCallsCount,
+                totalTokens,
+                totalCost,
+            });
         }
+
         return { plan: null, error: errorMsg };
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.warn(`  ⚠️ Plan subagent failed: ${errorMsg}`);
-        if (logCtx) {
-            logError(logCtx, `Plan Subagent failed: ${errorMsg}`, false);
+
+        // Log error and execution end
+        if (planCtx) {
+            logError(planCtx, errorMsg, false);
+            logExecutionEnd(planCtx, {
+                success: false,
+                toolCallsCount: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            });
         }
+
         return { plan: null, error: errorMsg };
     }
 }
