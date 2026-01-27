@@ -13,7 +13,14 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { query, type SDKResultMessage, type SDKSystemInitMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, type SDKResultMessage, type SDKSystemMessage } from '@anthropic-ai/claude-agent-sdk';
+
+// Type for MCP server status in init message
+interface MCPServerStatus {
+    name: string;
+    status: string;
+    error?: string;
+}
 
 // Port will be detected from dev server output
 let DEV_SERVER_PORT = 3000;
@@ -207,9 +214,9 @@ Report your findings in this format:
         })) {
             // Check MCP server status on init
             if (message.type === 'system' && message.subtype === 'init') {
-                const initMsg = message as SDKSystemInitMessage;
+                const initMsg = message as SDKSystemMessage & { mcp_servers?: MCPServerStatus[] };
                 if (initMsg.mcp_servers) {
-                    const playwrightServer = initMsg.mcp_servers.find(s => s.name === 'playwright');
+                    const playwrightServer = initMsg.mcp_servers.find((s: MCPServerStatus) => s.name === 'playwright');
                     if (playwrightServer) {
                         mcpStatus = playwrightServer.status;
                         console.log(`  MCP Server: ${mcpStatus === 'connected' ? '✅ Connected' : '❌ ' + mcpStatus}`);

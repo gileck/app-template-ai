@@ -65,14 +65,22 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
             progressLabel = 'Processing',
             useSlashCommands = false,
             outputFormat,
+            mcpServers,
+            additionalTools,
+            maxTurns,
         } = options;
 
         // Determine allowed tools
         const readOnlyTools = ['Read', 'Glob', 'Grep', 'WebFetch'];
         const writeTools = ['Edit', 'Write', 'Bash'];
-        const allowedTools = customTools || (allowWrite
+        let allowedTools = customTools || (allowWrite
             ? [...readOnlyTools, ...writeTools]
             : readOnlyTools);
+
+        // Add additional tools if specified
+        if (additionalTools && additionalTools.length > 0) {
+            allowedTools = [...allowedTools, ...additionalTools];
+        }
 
         const startTime = Date.now();
         let lastResult = '';
@@ -119,12 +127,13 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     allowedTools,
                     cwd: PROJECT_ROOT,
                     model: this.model as 'sonnet' | 'opus' | 'haiku',
-                    maxTurns: agentConfig.claude.maxTurns,
+                    maxTurns: maxTurns ?? agentConfig.claude.maxTurns,
                     permissionMode: 'bypassPermissions',
                     allowDangerouslySkipPermissions: true,
                     abortController,
                     ...(useSlashCommands ? { settingSources: ['project'] as const } : {}),
                     ...(outputFormat ? { outputFormat } : {}),
+                    ...(mcpServers ? { mcpServers } : {}),
                 },
             })) {
                 const elapsed = Math.floor((Date.now() - startTime) / 1000);

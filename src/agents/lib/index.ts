@@ -430,6 +430,7 @@ export type {
     AgentRunOptions,
     AgentRunResult,
     WorkflowName,
+    MCPServerConfig,
 } from './types';
 
 // Re-export configuration functions
@@ -513,3 +514,19 @@ export {
     deleteDesignDoc,
     deleteIssueDesignDir,
 } from './design-files';
+
+// Re-export dev server management utilities
+export {
+    startDevServer,
+    waitForServer,
+    stopDevServer,
+    getRandomPort,
+    type DevServerState,
+    type StartDevServerOptions,
+} from './devServer';
+
+// Re-export Playwright MCP configuration
+export {
+    PLAYWRIGHT_MCP_CONFIG,
+    PLAYWRIGHT_TOOLS,
+} from './playwright-mcp';

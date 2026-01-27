@@ -41,6 +41,15 @@ export interface AgentLibraryCapabilities {
 }
 
 /**
+ * MCP Server configuration
+ */
+export interface MCPServerConfig {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+}
+
+/**
  * Options for running an agent
  */
 export interface AgentRunOptions {
@@ -69,6 +78,12 @@ export interface AgentRunOptions {
     };
     /** Run in plan mode (read-only exploration to create implementation plan) */
     planMode?: boolean;
+    /** MCP servers to connect to (e.g., Playwright MCP for browser automation) */
+    mcpServers?: Record<string, MCPServerConfig>;
+    /** Additional tools to allow (added to default tools) */
+    additionalTools?: string[];
+    /** Maximum number of agent turns (overrides default) */
+    maxTurns?: number;
 }
 
 /**

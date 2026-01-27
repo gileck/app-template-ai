@@ -11,7 +11,14 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { query, type SDKResultMessage, type SDKSystemInitMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, type SDKResultMessage, type SDKSystemMessage } from '@anthropic-ai/claude-agent-sdk';
+
+// Type for MCP server status in init message
+interface MCPServerStatus {
+    name: string;
+    status: string;
+    error?: string;
+}
 
 // MCP Server configuration for Playwright (headless mode)
 // Using official @playwright/mcp package from Microsoft (locally installed)
@@ -139,18 +146,18 @@ Provide a brief summary of what you found on the page, proving that Playwright M
         })) {
             // Check MCP server status on init
             if (message.type === 'system' && message.subtype === 'init') {
-                const initMsg = message as SDKSystemInitMessage;
+                const initMsg = message as SDKSystemMessage & { mcp_servers?: MCPServerStatus[] };
                 console.log('  Init message received');
                 if (initMsg.mcp_servers) {
                     console.log(`  MCP servers: ${JSON.stringify(initMsg.mcp_servers, null, 2)}`);
-                    const playwrightServer = initMsg.mcp_servers.find(s => s.name === 'playwright');
+                    const playwrightServer = initMsg.mcp_servers.find((s: MCPServerStatus) => s.name === 'playwright');
                     if (playwrightServer) {
                         mcpStatus = playwrightServer.status;
                         console.log(`  MCP Server Status: ${mcpStatus}`);
                         if (mcpStatus !== 'connected') {
                             console.log(`  ⚠ Playwright MCP server not connected: ${playwrightServer.status}`);
-                            if ('error' in playwrightServer) {
-                                console.log(`  Error: ${(playwrightServer as { error?: string }).error}`);
+                            if (playwrightServer.error) {
+                                console.log(`  Error: ${playwrightServer.error}`);
                             }
                         }
                     }
