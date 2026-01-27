@@ -31,6 +31,7 @@ import {
     logTokenUsage,
 } from '../logging';
 import { getModelForLibrary } from '../config';
+import { calculateCost } from '../pricing';
 
 // ============================================================
 // CONSTANTS
@@ -731,12 +732,15 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
 
             // Extract usage stats
             if (event.usage) {
+                const inputTokens = event.usage.input_tokens || 0;
+                const outputTokens = event.usage.output_tokens || 0;
+                const providedCost = event.usage.total_cost_usd || 0;
                 result.usage = {
-                    inputTokens: event.usage.input_tokens || 0,
-                    outputTokens: event.usage.output_tokens || 0,
+                    inputTokens,
+                    outputTokens,
                     cacheReadInputTokens: 0,
                     cacheCreationInputTokens: 0,
-                    totalCostUSD: event.usage.total_cost_usd || 0,
+                    totalCostUSD: providedCost > 0 ? providedCost : calculateCost(this.model, inputTokens, outputTokens),
                 };
             }
         }
@@ -762,12 +766,15 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
                         const parsed = JSON.parse(line.trim()) as CodexStreamEvent;
 
                         if (parsed.usage) {
+                            const inputTokens = parsed.usage.input_tokens || 0;
+                            const outputTokens = parsed.usage.output_tokens || 0;
+                            const providedCost = parsed.usage.total_cost_usd || 0;
                             return {
-                                inputTokens: parsed.usage.input_tokens || 0,
-                                outputTokens: parsed.usage.output_tokens || 0,
+                                inputTokens,
+                                outputTokens,
                                 cacheReadInputTokens: 0,
                                 cacheCreationInputTokens: 0,
-                                totalCostUSD: parsed.usage.total_cost_usd || 0,
+                                totalCostUSD: providedCost > 0 ? providedCost : calculateCost(this.model, inputTokens, outputTokens),
                             };
                         }
                     } catch {

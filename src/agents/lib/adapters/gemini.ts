@@ -44,6 +44,7 @@ import {
     logTokenUsage,
 } from '../logging';
 import { getModelForLibrary } from '../config';
+import { calculateCost } from '../pricing';
 
 // ============================================================
 // CONSTANTS
@@ -743,7 +744,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
                     outputTokens: totalOutput,
                     cacheReadInputTokens: 0,
                     cacheCreationInputTokens: 0,
-                    totalCostUSD: 0, // CLI doesn't provide cost
+                    totalCostUSD: calculateCost(this.model, totalInput, totalOutput),
                 };
             }
 
@@ -798,7 +799,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
                         outputTokens: totalOutput,
                         cacheReadInputTokens: 0,
                         cacheCreationInputTokens: 0,
-                        totalCostUSD: 0,
+                        totalCostUSD: calculateCost(this.model, totalInput, totalOutput),
                     };
                 }
             }
@@ -841,7 +842,7 @@ class GeminiAdapter implements AgentLibraryAdapter {
                                 outputTokens: totalOutput,
                                 cacheReadInputTokens: 0,
                                 cacheCreationInputTokens: 0,
-                                totalCostUSD: 0,
+                                totalCostUSD: calculateCost(this.model, totalInput, totalOutput),
                             };
                         }
                     } catch {
