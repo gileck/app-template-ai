@@ -154,6 +154,280 @@ PR Review Approved → Ready to Merge (null/pending) → Admin Approves → Impl
 
 ---
 
+## 16. Add Product Development Phase to Workflow
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **High** | Medium | L | TODO |
+
+**Date Added:** 2026-01-27
+
+**Summary:** Add a Product Development phase before Tech Design for vague features that need planning, back-and-forth discussion, and brainstorming to create a full PDD (Product Design Document).
+
+**Details:**
+
+Currently, features go from "Backlog" directly to "Product Design" or "Tech Design" phases. However, some feature requests are too vague and need more upfront planning and exploration:
+
+- **Input:** Vague idea or high-level requirement (e.g., "improve UX", "add analytics")
+- **Output:** Full PDD with product requirements, user stories, design mockups, success metrics
+- **Process:** Interactive brainstorming, clarification questions, alternative exploration
+
+This phase sits before Product Design and handles features that are:
+- Too vague for immediate design work
+- Require stakeholder alignment on direction
+- Need exploration of multiple approaches
+- Have unclear scope or requirements
+
+**Implementation Notes:**
+
+1. **New Workflow Phase:**
+   - Add "Product Development" status between "Backlog" and "Product Design"
+   - Admin can route approved feature requests to this phase for vague features
+   - Phase output is a comprehensive PDD document stored in `design-docs/issue-{N}/product-development.md`
+
+2. **Product Development Agent:**
+   - Interactive agent that asks clarifying questions
+   - Explores use cases, user personas, business value
+   - Proposes 2-3 approaches with trade-offs
+   - Generates structured PDD following template
+   - Creates PR with document for admin review
+
+3. **PDD Template Structure:**
+   ```markdown
+   # Product Development Document - Issue #{N}
+
+   ## Problem Statement
+   ## Target Users & Use Cases
+   ## Proposed Solutions (2-3 options)
+   ## Recommended Approach
+   ## Success Metrics
+   ## Out of Scope
+   ## Open Questions
+   ```
+
+4. **Workflow Integration:**
+   - Admin reviews/approves PDD via PR
+   - After PDD merge → status advances to "Product Design" phase
+   - Product Design agent reads PDD as input
+
+**Files to Create:**
+- `src/agents/core-agents/productDevelopmentAgent/` - New agent
+- `src/agents/core-agents/productDevelopmentAgent/index.ts` - Agent logic
+- `src/agents/core-agents/productDevelopmentAgent/createProductDevelopmentAgentPrompt.ts` - Prompts
+- `design-docs/templates/product-development-template.md` - PDD template
+
+**Files to Modify:**
+- `src/server/project-management/types.ts` - Add "Product Development" status
+- `src/agents/core-agents/productDesignAgent/index.ts` - Read PDD if exists
+- `scripts/github-workflows-agent.ts` - Add product development agent execution
+- `docs/github-agents-workflow/workflow-guide.md` - Document new phase
+
+**Dependencies:**
+- Task #11 must be completed (design docs in source code with PR workflow)
+
+---
+
+## 17. Add QA Verification Step Using Playwright MCP
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **High** | Medium | M | TODO |
+
+**Date Added:** 2026-01-27
+
+**Summary:** Add automated QA step after PR merge that uses Playwright MCP to navigate to the deployed app and verify the feature/bug fix works as expected.
+
+**Details:**
+
+Currently, there's no automated verification that merged features actually work in production. This task adds a QA verification step that:
+
+- Runs after PR is merged and deployed (post-merge webhook)
+- Uses Playwright MCP to interact with the deployed application
+- Verifies the feature request or bug fix works as described
+- Reports results to GitHub issue and Telegram
+
+**Use Cases:**
+- **Feature verification:** Navigate to new feature, interact with UI, verify expected behavior
+- **Bug fix verification:** Reproduce original bug scenario, verify it's fixed
+- **Regression detection:** Basic smoke tests to catch obvious breaks
+
+**Implementation Notes:**
+
+1. **QA Agent:**
+   - New agent that runs after successful deployment
+   - Reads feature requirements or bug report from GitHub issue
+   - Generates Playwright test script based on requirements
+   - Executes test using Playwright MCP tools
+   - Captures screenshots/errors if test fails
+
+2. **Verification Workflow:**
+   ```
+   PR Merged → Vercel Deploy Successful → QA Agent Triggered
+     → Run Playwright Tests → Post Results to Issue
+     → If Pass: Status → "Done"
+     → If Fail: Status → "QA Failed" + Telegram Alert
+   ```
+
+3. **Test Script Generation:**
+   - Agent reads issue description to understand what to test
+   - Generates step-by-step test plan
+   - Uses Playwright MCP tools: navigate, click, type, screenshot, assertions
+   - Example test: "Navigate to /todos, click Add Todo, enter text, verify it appears in list"
+
+4. **Results Reporting:**
+   - Add comment to GitHub issue with test results
+   - Include screenshots showing before/after states
+   - If failure: detailed error logs and failure screenshots
+   - Send Telegram notification with pass/fail status
+
+**Files to Create:**
+- `src/agents/core-agents/qaVerificationAgent/` - New agent
+- `src/agents/core-agents/qaVerificationAgent/index.ts` - Agent logic
+- `src/agents/core-agents/qaVerificationAgent/createQaAgentPrompt.ts` - Test generation prompts
+- `.github/workflows/on-deploy-success.yml` - Trigger QA after deployment
+
+**Files to Modify:**
+- `src/server/project-management/types.ts` - Add "QA Failed" status if needed
+- `scripts/github-workflows-agent.ts` - Add QA agent execution
+- `docs/github-agents-workflow/workflow-guide.md` - Document QA phase
+
+**Notes:**
+- Playwright MCP tools are already available (mcp__plugin_playwright_playwright__*)
+- Tests should be simple happy-path verification, not comprehensive E2E tests
+- Consider adding retry logic for flaky tests (network issues, slow loads)
+
+---
+
+## 18. Enable Local Testing in Implementor Agent with yarn dev
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **High** | Medium | M | TODO |
+
+**Date Added:** 2026-01-27
+
+**Summary:** Enable the implementor agent to run `yarn dev` locally and use Playwright MCP to test the implementation before creating a PR, catching issues earlier in the workflow.
+
+**Details:**
+
+Currently, the implementor agent creates PRs without testing the changes locally. This leads to:
+- Issues discovered during PR review (wasted review cycles)
+- Bugs that could be caught with basic manual testing
+- No verification that the implementation actually works
+
+This task enables the agent to:
+- Start local dev server (`yarn dev`)
+- Use Playwright MCP to interact with the running app
+- Test the implementation matches requirements
+- Fix issues before creating PR
+
+**Implementation Notes:**
+
+1. **Local Dev Server Management:**
+   - Use Bash tool to run `yarn dev` in background
+   - Wait for server to be ready (check for "ready" log or port availability)
+   - Keep server running during testing
+   - Clean up (kill process) after testing
+
+2. **Test Execution:**
+   - Agent generates simple test script based on implementation
+   - Uses Playwright MCP to navigate to localhost:3000
+   - Performs basic interactions to verify feature works
+   - Takes screenshots to confirm UI matches expectations
+
+3. **Workflow Integration:**
+   ```
+   Implementation Complete → Start yarn dev → Run Local Tests
+     → If Pass: Create PR
+     → If Fail: Fix Issues → Retry Tests → Create PR
+   ```
+
+4. **Test Examples:**
+   - Feature: "Add dark mode toggle"
+     - Test: Navigate to settings, click theme toggle, verify colors change
+   - Bug fix: "Fix login redirect"
+     - Test: Click login, enter credentials, verify redirects to /dashboard
+
+5. **Configuration:**
+   - Add flag to enable/disable local testing: `--test-locally` (default: enabled)
+   - Set reasonable timeout for dev server startup (2 minutes)
+   - Limit test retry attempts (max 2 retries if test fails)
+
+**Files to Modify:**
+- `src/agents/core-agents/implementAgent/index.ts` - Add local testing step
+- `src/agents/core-agents/implementAgent/createImplementAgentPrompt.ts` - Add testing instructions
+- `src/agents/shared/config.ts` - Add local testing configuration options
+- `scripts/github-workflows-agent.ts` - Add --no-local-test flag for CI/CD
+
+**Dependencies:**
+- Requires Playwright MCP to be available (already integrated)
+
+**Risks/Blockers:**
+- Dev server may fail to start (port conflicts, missing deps)
+- Tests may be flaky on slow systems
+- Need to handle environment-specific issues (localhost vs production URLs)
+
+**Notes:**
+- This is similar to Task #17 (QA verification) but runs earlier (before PR)
+- Keep tests simple - focus on happy path verification
+- Consider sharing test generation logic between this and Task #17
+
+---
+
+## 19. Add OpenAI Codex to Agent Library as Optional Provider
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **Medium** | Medium | M | TODO |
+
+**Date Added:** 2026-01-27
+
+**Summary:** Add OpenAI Codex as an optional agent library provider in the agent-lib abstraction layer, with configuration and testing.
+
+**Files to Modify:**
+- `src/agents/lib/adapters/openai-adapter.ts` - Create new OpenAI adapter (new file)
+- `src/agents/lib/adapters/index.ts` - Export OpenAI adapter
+- `src/agents/shared/config.ts` - Add OpenAI configuration options
+- `src/agents/shared/types.ts` - Update types to support OpenAI models
+- `scripts/test-agent-providers.ts` - Add OpenAI testing script (new file)
+- `docs/agent-library-abstraction.md` - Document OpenAI integration
+
+**Notes:**
+- OpenAI Codex should be optional (enabled via env var: `OPENAI_API_KEY`)
+- Follow the same adapter pattern as Claude Code SDK adapter
+- Support model selection: `gpt-4`, `gpt-3.5-turbo`, etc.
+- Include cost tracking similar to Claude adapter
+- Add basic testing to verify the adapter works with OpenAI API
+
+---
+
+## 20. Refactor Task Management: Split tasks.md into Individual Task Files
+
+| Priority | Complexity | Size | Status |
+|----------|------------|------|--------|
+| **Medium** | Medium | M | TODO |
+
+**Date Added:** 2026-01-27
+
+**Summary:** Reorganize task management by splitting the monolithic tasks.md into individual task files (one per task) in a tasks/ folder, with a summary tasks.md listing all tasks with minimal required information.
+
+**Files to Modify:**
+- `task-manager/tasks.md` - Convert to task index/list with links to individual files
+- `task-manager/tasks/` - Create new folder for individual task files (new folder)
+- `task-manager/tasks/task-{N}.md` - Individual task files (new files for each task)
+- `task-manager/TASK_FORMAT.md` - Update to reflect new structure
+- `scripts/migrate-tasks.ts` - Create migration script to split existing tasks (new file)
+- Any scripts that read tasks.md - Update to handle new structure
+
+**Notes:**
+- New structure allows easier editing, linking, and version control per task
+- Summary tasks.md should show: task number, title, priority, size, status (table format)
+- Each task-{N}.md contains full task details (current format)
+- Maintain backward compatibility during migration
+- Update /add-task, /start-task, and /task-list skills to work with new structure
+
+---
+
 ## 4. Add Agent Retry Logic for Transient Failures
 
 | Priority | Complexity | Size |
