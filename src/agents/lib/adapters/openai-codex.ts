@@ -12,7 +12,6 @@
  * - --json - Output newline-delimited JSON events
  * - --sandbox <mode> - Sandbox mode (read-only, workspace-write, danger-full-access)
  * - --model <model> - Specify model (e.g., gpt-5-codex, gpt-5)
- * - --ask-for-approval <mode> - When to ask for approval (always, on-request, never)
  *
  * Output Format (--json):
  * {"type":"init","session_id":"uuid"}
@@ -464,9 +463,6 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
 
         // Specify model from config
         args.push('--model', this.model);
-
-        // Don't ask for approval in non-interactive mode
-        args.push('--ask-for-approval', 'on-request');
 
         return args;
     }
