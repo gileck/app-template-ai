@@ -103,6 +103,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/mcp": "^0.0.55",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie": "^1.0.0",
