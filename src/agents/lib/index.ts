@@ -197,8 +197,7 @@ export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult
 
     // For implementation workflow with libraries that support plan mode, run Plan subagent first
     // This creates a detailed implementation plan before the main implementation
-    const supportsPlanMode = library.capabilities.planMode ||
-        library.name === 'claude-code-sdk'; // claude-code-sdk has implicit plan support via read-only mode
+    const supportsPlanMode = library.capabilities.planMode === true;
 
     const shouldRunPlanSubagent =
         planConfig.enabled &&

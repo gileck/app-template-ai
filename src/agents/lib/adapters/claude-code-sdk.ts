@@ -37,6 +37,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
         webFetch: true,
         customTools: true,
         timeout: true,
+        planMode: true, // Supports plan mode via read-only tools
     };
 
     get model(): string {
