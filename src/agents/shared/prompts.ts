@@ -474,7 +474,7 @@ Provide your response as structured JSON with these fields:
   "order": 1,                    // Phase number (1, 2, 3, etc.)
   "name": "Database Schema",     // Short phase name
   "description": "...",          // What this phase implements
-  "files": ["src/...", "docs/...", ".cursor/rules/..."],  // Source files to modify + relevant docs
+  "files": ["src/...", "docs/...", ".ai/skills/..."],  // Source files to modify + relevant docs
   "estimatedSize": "S"           // S or M (never L/XL for a single phase)
 }
 \`\`\`
@@ -484,14 +484,14 @@ The \`files\` array should include BOTH:
 1. **Source files to create/modify** - The actual implementation files (e.g., \`src/apis/...\`, \`src/client/...\`)
 2. **Relevant documentation** - Docs the implementor should read before implementing this phase:
    - \`docs/\` files for detailed patterns (e.g., \`docs/mongodb-usage.md\`, \`docs/theming.md\`)
-   - \`.cursor/rules/\` files for coding guidelines (e.g., \`.cursor/rules/state-management-guidelines.mdc\`)
+   - \`.ai/skills/\` files for coding guidelines (e.g., \`.ai/skills/state-management-guidelines/SKILL.md\`)
 
 Select docs based on what the phase touches:
-- Database work → \`docs/mongodb-usage.md\`, \`.cursor/rules/mongodb-usage.mdc\`
-- API endpoints → \`docs/api-endpoint-format.md\`, \`.cursor/rules/client-server-communications.mdc\`
-- UI components → \`docs/theming.md\`, \`.cursor/rules/react-component-organization.mdc\`, \`.cursor/rules/shadcn-usage.mdc\`
-- State management → \`docs/state-management.md\`, \`.cursor/rules/state-management-guidelines.mdc\`
-- Authentication → \`docs/authentication.md\`, \`.cursor/rules/user-access.mdc\`
+- Database work → \`docs/mongodb-usage.md\`, \`.ai/skills/mongodb-usage/SKILL.md\`
+- API endpoints → \`docs/api-endpoint-format.md\`, \`.ai/skills/client-server-communications/SKILL.md\`
+- UI components → \`docs/theming.md\`, \`.ai/skills/react-component-organization/SKILL.md\`, \`.ai/skills/shadcn-usage/SKILL.md\`
+- State management → \`docs/state-management.md\`, \`.ai/skills/state-management-guidelines/SKILL.md\`
+- Authentication → \`docs/authentication.md\`, \`.ai/skills/user-access/SKILL.md\`
 - Offline/PWA → \`docs/offline-pwa-support.md\`, \`docs/react-query-mutations.md\`
 
 Keep the design concise. A small feature might only need a short list of files. A large feature needs more detail.
@@ -598,7 +598,7 @@ This feature will be split into 3 PRs:
       "src/server/database/collections/users.ts",
       "src/server/database/collections/sessions.ts",
       "docs/mongodb-usage.md",
-      ".cursor/rules/mongodb-usage.mdc"
+      ".ai/skills/mongodb-usage/SKILL.md"
     ],
     "estimatedSize": "S"
   },
@@ -610,7 +610,7 @@ This feature will be split into 3 PRs:
       "src/apis/auth/types.ts",
       "src/apis/auth/handlers/login.ts",
       "docs/api-endpoint-format.md",
-      ".cursor/rules/client-server-communications.mdc"
+      ".ai/skills/client-server-communications/SKILL.md"
     ],
     "estimatedSize": "M"
   },
@@ -621,8 +621,8 @@ This feature will be split into 3 PRs:
     "files": [
       "src/client/features/auth/components/LoginForm.tsx",
       "docs/theming.md",
-      ".cursor/rules/react-component-organization.mdc",
-      ".cursor/rules/shadcn-usage.mdc"
+      ".ai/skills/react-component-organization/SKILL.md",
+      ".ai/skills/shadcn-usage/SKILL.md"
     ],
     "estimatedSize": "M"
   }
@@ -838,26 +838,26 @@ Implement the feature as specified in ${implementationSource}:
 
 If this is a multi-phase feature, the phase's \`files\` list contains TWO types of files:
 1. **Source files to create/modify** - Files in \`src/\` that you will implement
-2. **Relevant documentation** - Files in \`docs/\` and \`.cursor/rules/\` that you should READ FIRST
+2. **Relevant documentation** - Files in \`docs/\` and \`.ai/skills/\` that you should READ FIRST
 
 **CRITICAL**: Before implementing, identify and READ all documentation files from the phase's file list. These were specifically selected by the tech design as relevant to this phase's implementation.
 
 ## Implementation Guidelines
 
-**CRITICAL**: Before implementing, read the project guidelines in \`.cursor/rules/\`:
-- \`.cursor/rules/typescript-guidelines.mdc\` - TypeScript coding standards
-- \`.cursor/rules/react-component-organization.mdc\` - Component structure and patterns
-- \`.cursor/rules/react-hook-organization.mdc\` - Custom hook patterns
-- \`.cursor/rules/state-management-guidelines.mdc\` - Zustand and React Query usage
-- \`.cursor/rules/feature-based-structure.mdc\` - File organization by feature
-- \`.cursor/rules/ui-design-guidelines.mdc\` - UI/UX patterns
-- \`.cursor/rules/shadcn-usage.mdc\` - shadcn/ui component usage
-- \`.cursor/rules/theming-guidelines.mdc\` - **CRITICAL** Theming and color usage
-- \`.cursor/rules/client-server-communications.mdc\` - API patterns
-- \`.cursor/rules/mongodb-usage.mdc\` - Database operations (if applicable)
-- \`.cursor/rules/app-guidelines-checklist.mdc\` - Comprehensive checklist
+**CRITICAL**: Before implementing, read the project guidelines in \`.ai/skills/\`:
+- \`.ai/skills/typescript-guidelines/SKILL.md\` - TypeScript coding standards
+- \`.ai/skills/react-component-organization/SKILL.md\` - Component structure and patterns
+- \`.ai/skills/react-hook-organization/SKILL.md\` - Custom hook patterns
+- \`.ai/skills/state-management-guidelines/SKILL.md\` - Zustand and React Query usage
+- \`.ai/skills/feature-based-structure/SKILL.md\` - File organization by feature
+- \`.ai/skills/ui-design-guidelines/SKILL.md\` - UI/UX patterns
+- \`.ai/skills/shadcn-usage/SKILL.md\` - shadcn/ui component usage
+- \`.ai/skills/theming-guidelines/SKILL.md\` - **CRITICAL** Theming and color usage
+- \`.ai/skills/client-server-communications/SKILL.md\` - API patterns
+- \`.ai/skills/mongodb-usage/SKILL.md\` - Database operations (if applicable)
+- \`.ai/skills/app-guidelines-checklist/SKILL.md\` - Comprehensive checklist
 
-**THEMING (Read \`docs/theming.md\` and \`.cursor/rules/theming-guidelines.mdc\` before styling)**:
+**THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` before styling)**:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
 - **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
 - For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
@@ -960,7 +960,7 @@ ${reviewComments || 'No PR review comments'}
 You have received feedback from two different reviewers with distinct roles:
 
 **1. PR Review Agent** (author: "Agent (PR Review)")
-- **Focus**: Project-specific guidelines compliance from \`.cursor/rules/\`
+- **Focus**: Project-specific guidelines compliance from \`.ai/skills/\`
 - **Checks**: TypeScript patterns, React patterns, state management, file organization, API structure
 - **Priority**: HIGH - These are project standards that MUST be followed
 - **Expertise**: This project's architecture and coding conventions
@@ -985,7 +985,7 @@ You have received feedback from two different reviewers with distinct roles:
 
 ### When Reviewer Feedback Conflicts with Project Rules
 
-**Project docs and rules are the source of truth.** Claude reviewers may not be fully aware of all project-specific patterns documented in \`docs/\` and \`.cursor/rules/\`.
+**Project docs and rules are the source of truth.** Claude reviewers may not be fully aware of all project-specific patterns documented in \`docs/\` and \`.ai/skills/\`.
 
 If a reviewer suggests a change that **contradicts** project documentation:
 1. **Follow the project docs/rules** - they take precedence
@@ -1008,9 +1008,9 @@ The reviewer will see your explanation and understand the project convention in 
 
 ## Guidelines
 
-**Follow project guidelines in \`.cursor/rules/\`** (same as initial implementation)
+**Follow project guidelines in \`.ai/skills/\`** (same as initial implementation)
 
-**THEMING (Read \`docs/theming.md\` and \`.cursor/rules/theming-guidelines.mdc\` if fixing styling issues)**:
+**THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` if fixing styling issues)**:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
 - **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
 - For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
@@ -1023,7 +1023,7 @@ Key principles:
 - Keep changes focused on the feedback
 - Don't add extra features or refactoring
 - Test your changes make sense in context
-- Follow TypeScript, React, and state management patterns from \`.cursor/rules/\`
+- Follow TypeScript, React, and state management patterns from \`.ai/skills/\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
@@ -1397,7 +1397,7 @@ Implement the bug fix as specified in ${implementationSource}:
 
 ## Implementation Guidelines
 
-**Follow project guidelines in \`.cursor/rules/\`** (TypeScript, React, state management patterns)
+**Follow project guidelines in \`.ai/skills/\`** (TypeScript, React, state management patterns)
 
 Key principles for bug fixes:
 - **Be minimal**: Bug fixes should change as little code as possible

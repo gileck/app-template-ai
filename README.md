@@ -122,7 +122,7 @@ The sync system will:
 │   └── shared/              # Shared types and utilities
 ├── scripts/                 # Build and utility scripts
 ├── docs/                    # Documentation
-└── .cursor/rules/          # Cursor AI rules
+└── .ai/skills/          # Project Rules
 ```
 
 ## Key Documentation

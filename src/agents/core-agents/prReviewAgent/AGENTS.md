@@ -570,7 +570,7 @@ This ensures:
 
 The agent checks compliance with:
 ```markdown
-**IMPORTANT**: Check compliance with project guidelines in `.cursor/rules/`:
+**IMPORTANT**: Check compliance with project guidelines in `.ai/skills/`:
 - TypeScript guidelines (`.ai/skills/typescript-guidelines/SKILL.md`)
 - React patterns (`.ai/skills/react-component-organization/SKILL.md`, `.ai/skills/react-hook-organization/SKILL.md`)
 - State management (`.ai/skills/state-management-guidelines/SKILL.md`)
@@ -1049,7 +1049,7 @@ rm -f ${LOCKFILE}
 - **PR Merge Flow:** `docs/github-projects-integration.md#pr-merge-flow-admin-approval`
 - **Multi-PR workflow:** `docs/github-projects-integration.md#multi-pr-workflow-lxl-features`
 - **Phase architecture:** `docs/github-projects-integration.md#phase-storage--retrieval`
-- **Project guidelines:** `.cursor/rules/`
+- **Project guidelines:** `.ai/skills/`
 - **Phase utilities:** `src/agents/lib/phases.ts`
 - **Commit message utilities:** `src/agents/lib/commitMessage.ts`
 - **Telegram webhook handlers:** `src/pages/api/telegram-webhook.ts`
