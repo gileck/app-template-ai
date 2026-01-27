@@ -92,6 +92,7 @@ import {
 import {
     PLAYWRIGHT_MCP_CONFIG,
     PLAYWRIGHT_TOOLS,
+    isPlaywrightMCPAvailable,
     startDevServer,
     stopDevServer,
     type DevServerState,
@@ -633,7 +634,19 @@ ${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have alrea
         }
 
         // Determine if local testing is enabled for this run
-        const enableLocalTesting = agentConfig.localTesting.enabled && !options.skipLocalTest && mode === 'new';
+        // Check: config enabled + not skipped + new mode + Playwright MCP available
+        const playwrightAvailable = isPlaywrightMCPAvailable();
+        const enableLocalTesting = agentConfig.localTesting.enabled &&
+            !options.skipLocalTest &&
+            mode === 'new' &&
+            playwrightAvailable;
+
+        if (agentConfig.localTesting.enabled && !options.skipLocalTest && mode === 'new' && !playwrightAvailable) {
+            const mcpWarning = 'Local testing disabled: @playwright/mcp not installed. To enable: yarn add -D @playwright/mcp';
+            console.log(`  ⚠️ ${mcpWarning}`);
+            // Log to issue logger (non-fatal)
+            logError(logCtx, mcpWarning, false);
+        }
 
         // Start dev server for local testing (if enabled)
         let devServer: DevServerState | null = null;
@@ -646,21 +659,22 @@ ${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have alrea
                 });
 
                 // Add local testing instructions with the dev server URL
+                // Language is deliberately soft - if MCP tools fail, agent can still complete
                 const localTestContext = `
 
-## LOCAL TESTING (Required Before Completing)
+## LOCAL TESTING (Optional but Recommended)
 
-A dev server is already running at: **${devServer.url}**
+A dev server is running at: **${devServer.url}**
 
-After implementing the feature and running \`yarn checks\`, you MUST verify your implementation works using the Playwright MCP tools:
+After implementing the feature and running \`yarn checks\`, try to verify your implementation using Playwright MCP tools if they are available:
 
 1. **Navigate to the app**: Use \`mcp__playwright__browser_navigate\` to go to ${devServer.url}
-2. **Take a snapshot**: Use \`mcp__playwright__browser_snapshot\` to see the page
-3. **Test the feature**: Interact with the feature you just implemented
+2. **Take a snapshot**: Use \`mcp__playwright__browser_snapshot\` to see the page structure
+3. **Test the feature**: Interact with the feature you implemented
 4. **Verify it works**: Confirm the expected behavior occurs
 5. **Close browser**: Use \`mcp__playwright__browser_close\` when done
 
-**Playwright MCP Tools Available:**
+**Playwright MCP Tools (if available):**
 - \`mcp__playwright__browser_navigate\` - Navigate to URLs
 - \`mcp__playwright__browser_snapshot\` - Capture page DOM/accessibility tree
 - \`mcp__playwright__browser_click\` - Click elements
@@ -671,13 +685,17 @@ After implementing the feature and running \`yarn checks\`, you MUST verify your
 - The dev server is already running - do NOT run \`yarn dev\`
 - The browser runs in headless mode (no visible window)
 - Focus on happy-path verification only
-- If tests fail, fix the issue and re-test before completing
-- Include test results in your PR summary
+- **If MCP tools fail or are unavailable, proceed without local testing** - this is not a blocker
+- If you can test and it passes, include test results in your PR summary
+- If you cannot test (tools unavailable), mention that in PR summary
 `;
                 prompt = prompt + localTestContext;
             } catch (error) {
-                console.log(`  ⚠️ Failed to start dev server: ${error instanceof Error ? error.message : String(error)}`);
+                const devServerError = `Failed to start dev server: ${error instanceof Error ? error.message : String(error)}`;
+                console.log(`  ⚠️ ${devServerError}`);
                 console.log('  Continuing without local testing...');
+                // Log to issue logger (non-fatal - implementation continues)
+                logError(logCtx, `Local testing skipped: ${devServerError}`, false);
             }
         }
 

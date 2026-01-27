@@ -8,6 +8,9 @@
  * Using npx causes timeouts during MCP server startup.
  */
 
+import { existsSync } from 'fs';
+import { join } from 'path';
+
 /**
  * MCP Server configuration for Playwright (headless mode)
  *
@@ -33,3 +36,14 @@ export const PLAYWRIGHT_MCP_CONFIG = {
  * - browser_close: Close browser and cleanup
  */
 export const PLAYWRIGHT_TOOLS = ['mcp__playwright__*'];
+
+/**
+ * Check if Playwright MCP is available (package installed)
+ *
+ * @param cwd Working directory to check (defaults to process.cwd())
+ * @returns true if @playwright/mcp is installed
+ */
+export function isPlaywrightMCPAvailable(cwd: string = process.cwd()): boolean {
+    const mcpCliPath = join(cwd, 'node_modules', '@playwright', 'mcp', 'cli.js');
+    return existsSync(mcpCliPath);
+}

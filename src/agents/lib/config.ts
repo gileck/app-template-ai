@@ -6,7 +6,7 @@
  */
 
 import type { AgentLibraryConfig, WorkflowName } from './types';
-import { agentsConfig } from '../agents.config';
+import { agentsConfig, type PlanSubagentConfig } from '../agents.config';
 
 // ============================================================
 // CONFIGURATION LOADER
@@ -71,4 +71,13 @@ export function getAgentLibraryConfig(): AgentLibraryConfig {
  */
 export function clearConfigCache(): void {
     cachedConfig = null;
+}
+
+/**
+ * Get Plan Subagent configuration
+ *
+ * @returns Plan Subagent config with enabled flag and timeout
+ */
+export function getPlanSubagentConfig(): PlanSubagentConfig {
+    return agentsConfig.planSubagent;
 }

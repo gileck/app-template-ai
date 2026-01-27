@@ -20,6 +20,16 @@ export interface LibraryModelConfig {
 }
 
 /**
+ * Plan Subagent configuration
+ */
+export interface PlanSubagentConfig {
+    /** Enable Plan Subagent for implementation workflow (default: true) */
+    enabled: boolean;
+    /** Timeout in seconds for plan generation (default: 120) */
+    timeout: number;
+}
+
+/**
  * Configuration structure for agents
  */
 export interface AgentsConfig {
@@ -29,6 +39,8 @@ export interface AgentsConfig {
     workflowOverrides: Partial<Record<WorkflowName, string>>;
     /** Model configuration per library */
     libraryModels: Record<string, LibraryModelConfig>;
+    /** Plan Subagent configuration */
+    planSubagent: PlanSubagentConfig;
 }
 
 // ============================================================
@@ -79,5 +91,12 @@ export const agentsConfig: AgentsConfig = {
         'openai-codex': {
             model: 'gpt-5-codex',
         },
+    },
+
+    // Plan Subagent configuration
+    // Runs before implementation to create detailed step-by-step plans
+    planSubagent: {
+        enabled: true,    // Set to false to disable Plan Subagent
+        timeout: 120,     // 2 minutes for plan generation
     },
 };

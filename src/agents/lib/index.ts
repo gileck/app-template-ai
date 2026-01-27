@@ -6,7 +6,7 @@
  */
 
 import type { AgentLibraryAdapter, WorkflowName, AgentRunOptions, AgentRunResult } from './types';
-import { getLibraryForWorkflow } from './config';
+import { getLibraryForWorkflow, getPlanSubagentConfig } from './config';
 import {
     getCurrentLogContext,
     logError,
@@ -16,6 +16,7 @@ import {
     logTokenUsage,
     type LogContext,
 } from './logging';
+import { buildPlanSubagentPrompt } from './prompts/plan-subagent-prompt';
 
 // Import adapters directly
 import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
@@ -192,14 +193,21 @@ export async function getAgentLibrary(workflow?: WorkflowName): Promise<AgentLib
  */
 export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult> {
     const library = await getAgentLibrary(options.workflow);
+    const planConfig = getPlanSubagentConfig();
 
     // For implementation workflow with libraries that support plan mode, run Plan subagent first
     // This creates a detailed implementation plan before the main implementation
     const supportsPlanMode = library.capabilities.planMode ||
         library.name === 'claude-code-sdk'; // claude-code-sdk has implicit plan support via read-only mode
 
-    if (options.workflow === 'implementation' && supportsPlanMode && options.allowWrite) {
-        const planResult = await runImplementationPlanSubagent(library, options);
+    const shouldRunPlanSubagent =
+        planConfig.enabled &&
+        options.workflow === 'implementation' &&
+        supportsPlanMode &&
+        options.allowWrite;
+
+    if (shouldRunPlanSubagent) {
+        const planResult = await runImplementationPlanSubagent(library, options, planConfig.timeout);
         if (planResult.plan) {
             // Augment the prompt with the detailed implementation plan
             const enhancedPrompt = `${options.prompt}
@@ -234,11 +242,13 @@ Follow the plan above while implementing. Adjust as needed based on actual code 
  *
  * @param library - The agent library adapter
  * @param options - Original agent run options
+ * @param timeout - Timeout in seconds for plan generation
  * @returns Plan result with the generated plan
  */
 async function runImplementationPlanSubagent(
     library: AgentLibraryAdapter,
-    options: AgentRunOptions
+    options: AgentRunOptions,
+    timeout: number
 ): Promise<{ plan: string | null; error?: string }> {
     const usesPlanMode = library.capabilities.planMode === true;
     const planMechanism = usesPlanMode ? '--mode=plan' : 'read-only tools';
@@ -261,53 +271,15 @@ async function runImplementationPlanSubagent(
         logExecutionStart(planCtx);
     }
 
-    const planPrompt = `You are a technical planning agent. Your task is to create a detailed, step-by-step implementation plan.
-
-## Context
-
-You will be implementing a feature or fixing a bug. The following information describes what needs to be done:
-
-${options.prompt}
-
----
-
-## Your Task
-
-1. **Explore the codebase** to understand:
-   - Existing patterns and conventions
-   - Files that will need to be created or modified
-   - Dependencies and imports needed
-   - Test patterns if tests are required
-
-2. **Create a detailed implementation plan** with numbered steps:
-   - Each step should be specific and actionable
-   - Include exact file paths where changes are needed
-   - Describe what code to add/modify at each location
-   - Order steps so dependencies are created before they're used
-   - Include a final step to run yarn checks
-
-## Output Format
-
-Output ONLY the implementation plan as a numbered list. Do not include any other text.
-
-Example:
-1. Create types file at \`src/apis/feature/types.ts\` with FeatureParams and FeatureResponse interfaces
-2. Create handler at \`src/apis/feature/handlers/get.ts\` that queries the database
-3. Add API route at \`src/pages/api/process/feature_get.ts\` connecting to the handler
-4. Create React hook at \`src/client/features/feature/useFeature.ts\` that calls the API
-5. Export hook from \`src/client/features/feature/index.ts\`
-6. Add component at \`src/client/routes/Feature/index.tsx\` that uses the hook
-7. Add route in \`src/client/routes/index.ts\`
-8. Run yarn checks to verify no errors
-
-Now explore the codebase and create the implementation plan.`;
+    // Build the plan prompt using the dedicated prompt builder
+    const planPrompt = buildPlanSubagentPrompt(options.prompt);
 
     // Log the prompt
     if (planCtx) {
         logPrompt(planCtx, planPrompt, {
             model: library.model,
             tools,
-            timeout: 120,
+            timeout,
         });
     }
 
@@ -324,7 +296,7 @@ Now explore the codebase and create the implementation plan.`;
             allowWrite: false,
             stream: false,
             verbose: false,
-            timeout: 120, // 2 minutes for planning
+            timeout,
             progressLabel: 'Creating implementation plan',
         });
 
@@ -342,6 +314,7 @@ Now explore the codebase and create the implementation plan.`;
             ? result.usage.inputTokens + result.usage.outputTokens
             : 0;
         const totalCost = result.usage?.totalCostUSD || 0;
+        // Use files examined as a proxy for tool calls (not tracked directly)
         const toolCallsCount = result.filesExamined?.length || 0;
 
         if (result.success && result.content) {
@@ -529,4 +502,5 @@ export {
 export {
     PLAYWRIGHT_MCP_CONFIG,
     PLAYWRIGHT_TOOLS,
+    isPlaywrightMCPAvailable,
 } from './playwright-mcp';
