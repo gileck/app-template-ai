@@ -47,7 +47,7 @@
     "test-cursor-adapter": "tsx scripts/test-cursor-adapter.ts",
     "test-gemini-adapter": "tsx scripts/test-gemini-adapter.ts",
     "test-openai-codex-adapter": "tsx scripts/test-openai-codex-adapter.ts",
-    "test-all-adapters": "yarn test-cursor-adapter && yarn test-gemini-adapter && yarn test-openai-codex-adapter",
+    "test-all-adapters": "tsx scripts/test-all-adapters.ts",
     "task": "tsx task-manager/tasks-cli.ts"
   },
   "dependencies": {
