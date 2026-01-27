@@ -137,6 +137,10 @@ For each red flag found:
   - Only flag as inefficiency if the same file is read 3+ times within ONE agent's execution.
 - [ ] Large token counts for simple tasks? (`Grep pattern="\[LOG:TOKENS\]"` or check Summary table)
 - [ ] Redundant Grep/Glob patterns? (`Grep pattern="\[LOG:TOOL_CALL\].*Grep\|\[LOG:TOOL_CALL\].*Glob"`)
+- [ ] MCP startup delays? (Implementation phase with local testing)
+  - Look for long gap between phase start and first `mcp__playwright__` tool call
+  - If first Playwright tool takes >30s after phase start, MCP server startup may be slow
+  - Check for `[LOG:ERROR]` with MCP or Playwright-related messages
 
 ### Workflow
 - [ ] Phase transitions correct? (`Grep pattern="\[LOG:PHASE_START\]\|\[LOG:PHASE_END\]"`)
