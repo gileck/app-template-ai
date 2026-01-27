@@ -7,7 +7,7 @@
 
 import type { AgentLibraryAdapter, WorkflowName, AgentRunOptions, AgentRunResult } from './types';
 import { getLibraryForWorkflow } from './config';
-import { getCurrentLogContext, logError } from './logging';
+import { getCurrentLogContext, logError, logInfo } from './logging';
 
 // Import adapters directly
 import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
@@ -232,7 +232,16 @@ async function runImplementationPlanSubagent(
     library: AgentLibraryAdapter,
     options: AgentRunOptions
 ): Promise<{ plan: string | null; error?: string }> {
-    console.log('  📋 Running Plan subagent for detailed implementation planning...');
+    const usesPlanMode = library.capabilities.planMode === true;
+    const planMechanism = usesPlanMode ? '--mode=plan' : 'read-only tools';
+
+    console.log(`  📋 Running Plan subagent (${library.name}, ${planMechanism})...`);
+
+    // Log to issue log if context is available
+    const logCtx = getCurrentLogContext();
+    if (logCtx) {
+        logInfo(logCtx, `Plan Subagent started (library: ${library.name}, mechanism: ${planMechanism})`, '📋');
+    }
 
     const planPrompt = `You are a technical planning agent. Your task is to create a detailed, step-by-step implementation plan.
 
@@ -277,8 +286,6 @@ Now explore the codebase and create the implementation plan.`;
 
     try {
         // Use planMode if library supports it (cursor), otherwise use read-only tools (claude-code-sdk)
-        const usesPlanMode = library.capabilities.planMode === true;
-
         const result = await library.run({
             prompt: planPrompt,
             // For libraries with plan mode (cursor): use planMode flag
@@ -296,13 +303,23 @@ Now explore the codebase and create the implementation plan.`;
 
         if (result.success && result.content) {
             console.log('  ✅ Plan subagent completed');
+            if (logCtx) {
+                logInfo(logCtx, `Plan Subagent completed successfully (${result.durationSeconds}s)`, '✅');
+            }
             return { plan: result.content };
         }
 
-        return { plan: null, error: result.error || 'No plan generated' };
+        const errorMsg = result.error || 'No plan generated';
+        if (logCtx) {
+            logInfo(logCtx, `Plan Subagent completed without plan: ${errorMsg}`, '⚠️');
+        }
+        return { plan: null, error: errorMsg };
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         console.warn(`  ⚠️ Plan subagent failed: ${errorMsg}`);
+        if (logCtx) {
+            logError(logCtx, `Plan Subagent failed: ${errorMsg}`, false);
+        }
         return { plan: null, error: errorMsg };
     }
 }

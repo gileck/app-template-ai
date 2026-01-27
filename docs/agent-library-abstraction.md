@@ -207,6 +207,7 @@ export const agentsConfig: AgentsConfig = {
 - Usage statistics (tokens, cost)
 - Files examined tracking
 - Slash command support (requires `useSlashCommands: true`)
+- **Plan Mode Support:** Uses read-only tools (`Read`, `Glob`, `Grep`, `WebFetch`) to explore codebase and generate implementation plans
 
 ### 2. Google Gemini CLI
 
@@ -273,6 +274,7 @@ export const agentsConfig: AgentsConfig = {
 - Web Fetch: ❌ No
 - Custom Tools: ❌ No (uses Cursor's built-in tools)
 - Timeout: ✅ Yes
+- **Plan Mode: ✅ Yes** (via `--mode=plan`)
 
 **Configuration:**
 ```typescript
@@ -301,14 +303,16 @@ export const agentsConfig: AgentsConfig = {
 |--------|----------|
 | `prompt` | Command argument |
 | `allowWrite` | `--force` |
-| `stream` | `--stream-partial-output` |
+| `stream` | `--stream-partial-output --output-format stream-json` |
+| `!stream` | `--output-format json` |
+| `planMode` | `--mode=plan` |
 | `timeout` | Process timeout |
-| `outputFormat` | `--output-format json` |
 
 **Features:**
 - Full integration with `cursor-agent` CLI
 - JSON output parsing for structured results
-- Streaming support with real-time event parsing
+- **Real-time streaming** with `--stream-partial-output` for live text output
+- **Plan mode** with `--mode=plan` for read-only codebase exploration
 - Progress indicators with spinner
 - Timeout handling via process termination
 - Files examined tracking from tool_use events
@@ -375,6 +379,115 @@ export const agentsConfig: AgentsConfig = {
 - Files examined tracking from tool_use events
 
 **Documentation:** [docs/agent-library-openai-codex.md](./agent-library-openai-codex.md)
+
+---
+
+## Plan Mode and Plan Subagent
+
+The agent library supports **Plan Mode** for detailed implementation planning before coding.
+
+### Overview
+
+Plan mode enables AI agents to explore the codebase and create detailed implementation plans without making changes. This is used automatically by the Implementation Agent workflow.
+
+### How It Works
+
+When `runAgent()` is called with `workflow: 'implementation'` and `allowWrite: true`, it automatically:
+
+1. **Runs a Plan Subagent** - Explores the codebase in read-only mode
+2. **Generates a detailed plan** - Step-by-step implementation instructions
+3. **Augments the prompt** - Adds the plan to the main implementation prompt
+4. **Runs implementation** - Main agent follows the detailed plan
+
+This two-step process is **fully encapsulated** - calling code doesn't need to know about it.
+
+### Library-Specific Implementation
+
+| Library | Plan Mechanism | How It Works |
+|---------|---------------|--------------|
+| `claude-code-sdk` | Read-only tools | Runs with `allowedTools: ['Read', 'Glob', 'Grep', 'WebFetch']` |
+| `cursor` | `--mode=plan` flag | Uses built-in plan mode for codebase exploration |
+| `gemini`, `openai-codex` | Not supported | Uses high-level plan from tech design only |
+
+### Plan Subagent Behavior
+
+**For claude-code-sdk:**
+```typescript
+// Internally runs:
+await library.run({
+    prompt: planPrompt,
+    allowedTools: ['Read', 'Glob', 'Grep', 'WebFetch'],
+    allowWrite: false,
+    timeout: 120, // 2 minutes
+});
+```
+
+**For cursor:**
+```typescript
+// Internally runs with --mode=plan flag:
+await library.run({
+    prompt: planPrompt,
+    planMode: true,
+    allowWrite: false,
+    timeout: 120,
+});
+```
+
+### Using Plan Mode Directly
+
+You can also use plan mode directly for custom planning tasks:
+
+```typescript
+import { runAgent } from '@/agents/lib';
+
+// With cursor (uses --mode=plan)
+const result = await runAgent({
+    prompt: 'Create a plan for refactoring the auth module',
+    workflow: 'implementation',
+    planMode: true,
+    allowWrite: false,
+});
+
+// With claude-code-sdk (uses read-only tools)
+const result = await runAgent({
+    prompt: 'Create a plan for refactoring the auth module',
+    workflow: 'implementation',
+    allowedTools: ['Read', 'Glob', 'Grep', 'WebFetch'],
+    allowWrite: false,
+});
+```
+
+### Plan Output Format
+
+The Plan Subagent generates a numbered list of implementation steps:
+
+```markdown
+1. Create types file at `src/apis/feature/types.ts` with interfaces
+2. Create handler at `src/apis/feature/handlers/get.ts`
+3. Add API route at `src/pages/api/process/feature_get.ts`
+4. Create React hook at `src/client/features/feature/useFeature.ts`
+5. Export hook from `src/client/features/feature/index.ts`
+6. Add component at `src/client/routes/Feature/index.tsx`
+7. Run yarn checks to verify no errors
+```
+
+### Configuration
+
+Plan mode is **automatically enabled** for implementation workflow. No configuration needed.
+
+To disable (not recommended):
+```typescript
+// Plan subagent only runs when:
+// - workflow === 'implementation'
+// - library supports planMode OR is claude-code-sdk
+// - allowWrite === true
+```
+
+### Timeout and Error Handling
+
+- Plan subagent has a **2-minute timeout**
+- If planning fails, implementation proceeds without the detailed plan
+- Errors are logged but don't fail the overall workflow
 
 ---
 

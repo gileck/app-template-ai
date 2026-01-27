@@ -239,6 +239,23 @@ export function logGitHubAction(
 }
 
 /**
+ * Log info message
+ */
+export function logInfo(
+    ctx: LogContext,
+    message: string,
+    emoji = 'ℹ️'
+): void {
+    const timestamp = formatTime(new Date());
+
+    const content = `**[${timestamp}]** [LOG:INFO] ${emoji} ${message}
+
+`;
+
+    appendToLog(ctx.issueNumber, content);
+}
+
+/**
  * Log error
  */
 export function logError(
