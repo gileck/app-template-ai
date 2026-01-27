@@ -4,8 +4,11 @@ title: Add OpenAI Codex to Agent Library as Optional Provider
 priority: Medium
 size: M
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-01-27
+dateUpdated: 2026-01-27
+dateCompleted: 2026-01-27
+commitHash: 7176182b4c28bb7c2f4dc73d2a1d01a545574590
 ---
 
 # Task 19: Add OpenAI Codex to Agent Library as Optional Provider

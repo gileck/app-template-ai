@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 20
-- **Open:** 8
+- **Open:** 7
 - **In Progress:** 0
-- **Done:** 12
+- **Done:** 13
 
 ---
 
-## 📋 Open Tasks (8)
+## 📋 Open Tasks (7)
 
 ### 🟠 High Priority
 
@@ -31,7 +31,6 @@
 | 4 | Add Agent Retry Logic for Transient Failures | M | Mid |
 | 5 | Add Stale Item Detection Workflow | M | Mid |
 | 6 | Add PR Size Validation Enforcement | S | Low |
-| 19 | Add OpenAI Codex to Agent Library as Optional Provider | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -39,10 +38,15 @@
 |---|-------|------|------------|
 | 15 | Telegram Button UX Improvements | S | Low |
 
-## ✅ Completed Tasks (12)
+## 🔄 In Progress (0)
+
+_No tasks currently in progress._
+
+## ✅ Completed Tasks (13)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 19 | ~~Add OpenAI Codex to Agent Library as Optional Provider~~ | 2026-01-27 | `7176182` |
 | 20 | ~~Refactor Task Management: Split tasks.md into Individual Task Files~~ | 2026-01-27 | `3997cc7` |
 | 14 | ~~Fix Issue Parsing Summary Section in Issue Log File~~ | Unknown | - |
 | 13 | ~~Improve PR Reviewer Commit Message Generation~~ | Unknown | - |
