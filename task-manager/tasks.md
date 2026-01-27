@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 20
-- **Open:** 10
+- **Open:** 9
 - **In Progress:** 0
-- **Done:** 10
+- **Done:** 11
 
 ---
 
-## 📋 Open Tasks (10)
+## 📋 Open Tasks (9)
 
 ### 🟠 High Priority
 
@@ -33,7 +33,6 @@
 | 6 | Add PR Size Validation Enforcement | S | Low |
 | 9 | Workflow Review Slash Command | M | Mid |
 | 19 | Add OpenAI Codex to Agent Library as Optional Provider | M | Medium |
-| 20 | Refactor Task Management: Split tasks.md into Individual Task Files | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -41,10 +40,11 @@
 |---|-------|------|------------|
 | 15 | Telegram Button UX Improvements | S | Low |
 
-## ✅ Completed Tasks (10)
+## ✅ Completed Tasks (11)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 20 | ~~Refactor Task Management: Split tasks.md into Individual Task Files~~ | 2026-01-27 | `3997cc7` |
 | 14 | ~~Fix Issue Parsing Summary Section in Issue Log File~~ | Unknown | - |
 | 13 | ~~Improve PR Reviewer Commit Message Generation~~ | Unknown | - |
 | 12 | ~~Improve Telegram Messages~~ | 2026-01-25 | `fd4af46` |

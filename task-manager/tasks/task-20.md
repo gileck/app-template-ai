@@ -4,8 +4,11 @@ title: "Refactor Task Management: Split tasks.md into Individual Task Files"
 priority: Medium
 size: M
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-01-27
+dateUpdated: 2026-01-27
+dateCompleted: 2026-01-27
+completionCommit: 3997cc7
 ---
 
 # Task 20: Refactor Task Management: Split tasks.md into Individual Task Files
