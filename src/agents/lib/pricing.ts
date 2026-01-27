@@ -17,6 +17,10 @@ export interface ModelPricing {
  */
 export const MODEL_PRICING: Record<string, ModelPricing> = {
     // Gemini models
+    'gemini-3-flash-preview': {
+        inputPer1kTokens: 0.0001,    // $0.10 per 1M (estimate)
+        outputPer1kTokens: 0.0004,   // $0.40 per 1M (estimate)
+    },
     'gemini-2.5-pro': {
         inputPer1kTokens: 0.00025,   // $0.25 per 1M
         outputPer1kTokens: 0.001,    // $1.00 per 1M
