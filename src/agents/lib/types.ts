@@ -36,6 +36,8 @@ export interface AgentLibraryCapabilities {
     customTools: boolean;
     /** Supports timeout configuration */
     timeout: boolean;
+    /** Supports plan mode for creating implementation plans */
+    planMode?: boolean;
 }
 
 /**
@@ -65,6 +67,8 @@ export interface AgentRunOptions {
         type: 'json_schema';
         schema: Record<string, unknown>;
     };
+    /** Run in plan mode (read-only exploration to create implementation plan) */
+    planMode?: boolean;
 }
 
 /**

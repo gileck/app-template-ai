@@ -174,12 +174,137 @@ export async function getAgentLibrary(workflow?: WorkflowName): Promise<AgentLib
  *
  * This is the main entry point for running agents with the abstraction layer.
  *
+ * For implementation workflows with libraries that support plan mode (claude-code-sdk, cursor),
+ * this function internally runs a Plan subagent before the main implementation to create a
+ * detailed implementation plan. This is fully encapsulated - callers don't need to know
+ * about the two-step process.
+ *
  * @param options - Agent run options
  * @returns Agent run result
  */
 export async function runAgent(options: AgentRunOptions): Promise<AgentRunResult> {
     const library = await getAgentLibrary(options.workflow);
+
+    // For implementation workflow with libraries that support plan mode, run Plan subagent first
+    // This creates a detailed implementation plan before the main implementation
+    const supportsPlanMode = library.capabilities.planMode ||
+        library.name === 'claude-code-sdk'; // claude-code-sdk has implicit plan support via read-only mode
+
+    if (options.workflow === 'implementation' && supportsPlanMode && options.allowWrite) {
+        const planResult = await runImplementationPlanSubagent(library, options);
+        if (planResult.plan) {
+            // Augment the prompt with the detailed implementation plan
+            const enhancedPrompt = `${options.prompt}
+
+---
+
+## Detailed Implementation Plan (from codebase exploration)
+
+The following plan was created by exploring the codebase. Follow these steps to implement the feature:
+
+${planResult.plan}
+
+---
+
+Follow the plan above while implementing. Adjust as needed based on actual code you encounter.`;
+            return library.run({ ...options, prompt: enhancedPrompt });
+        }
+        // If plan generation failed, proceed without it
+        console.log('  ⚠️ Plan subagent did not generate a plan, proceeding without it');
+    }
+
     return library.run(options);
+}
+
+/**
+ * Run a Plan subagent to create a detailed implementation plan
+ *
+ * This is an internal function used by runAgent for implementation workflows.
+ * It uses the library's plan mode if supported (cursor --mode=plan), or falls
+ * back to read-only tools (claude-code-sdk) to explore the codebase and
+ * generate a step-by-step implementation plan.
+ *
+ * @param library - The agent library adapter
+ * @param options - Original agent run options
+ * @returns Plan result with the generated plan
+ */
+async function runImplementationPlanSubagent(
+    library: AgentLibraryAdapter,
+    options: AgentRunOptions
+): Promise<{ plan: string | null; error?: string }> {
+    console.log('  📋 Running Plan subagent for detailed implementation planning...');
+
+    const planPrompt = `You are a technical planning agent. Your task is to create a detailed, step-by-step implementation plan.
+
+## Context
+
+You will be implementing a feature or fixing a bug. The following information describes what needs to be done:
+
+${options.prompt}
+
+---
+
+## Your Task
+
+1. **Explore the codebase** to understand:
+   - Existing patterns and conventions
+   - Files that will need to be created or modified
+   - Dependencies and imports needed
+   - Test patterns if tests are required
+
+2. **Create a detailed implementation plan** with numbered steps:
+   - Each step should be specific and actionable
+   - Include exact file paths where changes are needed
+   - Describe what code to add/modify at each location
+   - Order steps so dependencies are created before they're used
+   - Include a final step to run yarn checks
+
+## Output Format
+
+Output ONLY the implementation plan as a numbered list. Do not include any other text.
+
+Example:
+1. Create types file at \`src/apis/feature/types.ts\` with FeatureParams and FeatureResponse interfaces
+2. Create handler at \`src/apis/feature/handlers/get.ts\` that queries the database
+3. Add API route at \`src/pages/api/process/feature_get.ts\` connecting to the handler
+4. Create React hook at \`src/client/features/feature/useFeature.ts\` that calls the API
+5. Export hook from \`src/client/features/feature/index.ts\`
+6. Add component at \`src/client/routes/Feature/index.tsx\` that uses the hook
+7. Add route in \`src/client/routes/index.ts\`
+8. Run yarn checks to verify no errors
+
+Now explore the codebase and create the implementation plan.`;
+
+    try {
+        // Use planMode if library supports it (cursor), otherwise use read-only tools (claude-code-sdk)
+        const usesPlanMode = library.capabilities.planMode === true;
+
+        const result = await library.run({
+            prompt: planPrompt,
+            // For libraries with plan mode (cursor): use planMode flag
+            // For libraries without (claude-code-sdk): use read-only tools
+            ...(usesPlanMode
+                ? { planMode: true }
+                : { allowedTools: ['Read', 'Glob', 'Grep', 'WebFetch'] }
+            ),
+            allowWrite: false,
+            stream: false,
+            verbose: false,
+            timeout: 120, // 2 minutes for planning
+            progressLabel: 'Creating implementation plan',
+        });
+
+        if (result.success && result.content) {
+            console.log('  ✅ Plan subagent completed');
+            return { plan: result.content };
+        }
+
+        return { plan: null, error: result.error || 'No plan generated' };
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.warn(`  ⚠️ Plan subagent failed: ${errorMsg}`);
+        return { plan: null, error: errorMsg };
+    }
 }
 
 /**

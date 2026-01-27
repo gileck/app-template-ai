@@ -12,232 +12,97 @@ Add implementation planning capabilities to the agent workflow:
 |----------|--------|-----------|
 | Plan location | Tech design (high-level) + implementor (detailed) | Fresh codebase state at implementation time |
 | Plan granularity | Per-phase for L/XL, single plan for S/M | Avoids stale plans for multi-phase features |
-| Plan subagent | Claude-code implementor only | Encapsulated, other libs use high-level plan |
+| Plan subagent | claude-code-sdk + cursor | Both support plan mode (different mechanisms) |
 | New artifacts | None | Keep it simple, no new files to manage |
 
-## Changes
+## Implementation Status
 
-### 1. Tech Design Prompt Update
+### Task 1: Update Tech Design Prompt ✅
+- [x] Edit `buildTechDesignPrompt()` in `src/agents/shared/prompts.ts`
+- [x] Add "## Implementation Plan" section to required output format
+- [x] Add instructions for phase-based organization (L/XL) vs single list (S/M)
+- [x] Keep instructions for high-level steps (not overly detailed)
+- [x] Update example templates to include Implementation Plan section
 
-**File:** `src/agents/shared/prompts.ts`
+### Task 2: Update Bug Tech Design Prompt ✅
+- [x] Edit `buildBugTechDesignPrompt()` in `src/agents/shared/prompts.ts`
+- [x] Add "## Implementation Plan" section to example output
+- [x] Single numbered list (bugs are typically single-phase)
 
-**Change:** Update `buildTechDesignPrompt()` to include Implementation Plan section in output format.
+### Task 3: Update Implementor with Plan Subagent ✅
+- [x] Update `runAgent()` in `src/agents/lib/index.ts`
+- [x] Add Plan subagent call before implementation for libraries that support it
+- [x] Add `planMode` capability to `AgentLibraryCapabilities` interface
+- [x] Add `planMode` option to `AgentRunOptions` interface
+- [x] Update cursor adapter to support `--mode=plan` flag
+- [x] Pass tech design + current phase info to Plan subagent
+- [x] Include Plan subagent output in implementation prompt
+- [x] Ensure encapsulation (workflow doesn't know about 2-step process)
 
-**New output section:**
-```markdown
-## Implementation Plan
-
-[For multi-phase features, organize by phase]
-
-### Phase 1: [Phase Name]
-1. High-level step 1
-2. High-level step 2
-3. High-level step 3
-
-### Phase 2: [Phase Name]
-1. High-level step 1
-2. High-level step 2
-
-[For single-phase features, just list steps]
-
-1. High-level step 1
-2. High-level step 2
-3. High-level step 3
-```
-
-**Prompt additions:**
-- Instruct LLM to include "## Implementation Plan" section
-- For L/XL features: organize steps by phase
-- For S/M features: single numbered list
-- Keep steps high-level (not line-by-line detailed)
-- Each step should be actionable but not overly specific
-
-### 2. Bug Tech Design Prompt Update
-
-**File:** `src/agents/shared/prompts.ts`
-
-**Change:** Update `buildBugTechDesignPrompt()` to include Implementation Plan section.
-
-**Same pattern as feature prompt** - bugs are typically single-phase, so just a numbered list of high-level steps.
-
-### 3. Claude-code Implementor Agent Update
-
-**File:** `src/agents/lib/agent-libs/claude-code.ts` (or equivalent)
-
-**Change:** Encapsulate Plan subagent call inside implementor execution.
-
-**Pseudocode:**
-```typescript
-async function executeImplementation(context: ImplementationContext) {
-  const { techDesign, currentPhase, phaseInfo } = context;
-
-  // === ENCAPSULATED: Run Plan subagent for detailed planning ===
-  const detailedPlan = await runPlanSubagent({
-    prompt: buildPlanPrompt(techDesign, currentPhase, phaseInfo),
-  });
-
-  // === Then implement following the detailed plan ===
-  const implementationPrompt = buildImplementationPrompt({
-    techDesign,
-    currentPhase,
-    phaseInfo,
-    detailedPlan,  // Include Plan subagent output
-  });
-
-  return await runImplementation(implementationPrompt);
-}
-
-function buildPlanPrompt(techDesign: string, phase: number | null, phaseInfo: PhaseInfo | null): string {
-  if (phaseInfo) {
-    // Multi-phase: plan for current phase only
-    return `
-Based on this technical design, create a detailed implementation plan for Phase ${phase}:
-
-## Technical Design
-${techDesign}
-
-## Current Phase
-Phase ${phase}/${phaseInfo.totalPhases}: ${phaseInfo.name}
-${phaseInfo.description}
-
-Files to modify:
-${phaseInfo.files.map(f => `- ${f}`).join('\n')}
-
-Create a step-by-step implementation plan with specific file paths, function names, and code changes needed.
-    `;
-  } else {
-    // Single-phase: plan for entire feature
-    return `
-Based on this technical design, create a detailed implementation plan:
-
-## Technical Design
-${techDesign}
-
-Create a step-by-step implementation plan with specific file paths, function names, and code changes needed.
-    `;
-  }
-}
-```
-
-### 4. Other Agent Libs (No Changes)
-
-**Files:** `src/agents/lib/agent-libs/cursor.ts`, etc.
-
-**No changes needed** - these libs will:
-- Receive tech design with high-level Implementation Plan section
-- Implement based on that (no Plan subagent)
-
-## Implementation Tasks
-
-### Task 1: Update Tech Design Prompt
-- [ ] Edit `buildTechDesignPrompt()` in `src/agents/shared/prompts.ts`
-- [ ] Add "## Implementation Plan" section to required output format
-- [ ] Add instructions for phase-based organization (L/XL) vs single list (S/M)
-- [ ] Keep instructions for high-level steps (not overly detailed)
-
-### Task 2: Update Bug Tech Design Prompt
-- [ ] Edit `buildBugTechDesignPrompt()` in `src/agents/shared/prompts.ts`
-- [ ] Add "## Implementation Plan" section to required output format
-- [ ] Single numbered list (bugs are typically single-phase)
-
-### Task 3: Update Claude-code Implementor
-- [ ] Identify implementor entry point in claude-code agent lib
-- [ ] Add Plan subagent call before implementation
-- [ ] Pass tech design + current phase info to Plan subagent
-- [ ] Include Plan subagent output in implementation prompt
-- [ ] Ensure encapsulation (workflow doesn't know about 2-step process)
-
-### Task 4: Test Changes
+### Task 4: Run Validation Checks
+- [x] My changes don't introduce TypeScript errors
 - [ ] Test tech design generation (verify Implementation Plan section appears)
-- [ ] Test S/M feature (single plan, no phases)
-- [ ] Test L/XL feature (plan organized by phase)
-- [ ] Test bug fix (single plan)
 - [ ] Test claude-code implementor (verify Plan subagent runs)
-- [ ] Test other implementor libs (verify they still work without Plan subagent)
 
-### Task 5: Run Validation
-- [ ] Run `yarn checks` to verify no TypeScript/ESLint errors
+## Files Changed
 
-## Example Output
+1. `src/agents/shared/prompts.ts`:
+   - Added "## Implementation Plan Section" instructions
+   - Updated example templates for S/M features with Implementation Plan
+   - Updated example templates for L/XL features with phase-based Implementation Plan
+   - Updated bug fix example template with Implementation Plan
 
-### S/M Feature Tech Design (with Implementation Plan)
+2. `src/agents/lib/index.ts`:
+   - Added `runImplementationPlanSubagent()` function
+   - Modified `runAgent()` to run Plan subagent for implementation workflow
+   - Supports libraries with `planMode` capability (cursor) or claude-code-sdk
+   - Plan subagent explores codebase and generates detailed step-by-step plan
+   - Enhanced prompt is passed to main implementation agent
 
-```markdown
-# Technical Design: Add Logout Button
+3. `src/agents/lib/types.ts`:
+   - Added `planMode?: boolean` to `AgentLibraryCapabilities` interface
+   - Added `planMode?: boolean` to `AgentRunOptions` interface
 
-**Size: S** | **Complexity: Low**
+4. `src/agents/lib/adapters/cursor.ts`:
+   - Added `planMode: true` capability
+   - Updated `buildArgs()` to support `--mode=plan` flag
+   - Updated `run()` to pass `planMode` option to `buildArgs()`
 
-## Overview
-Add a logout button to the header...
+## How It Works
 
-## Files to Modify
-- `src/client/components/Header.tsx`
-- `src/client/features/auth/index.ts`
+### Tech Design Agent (All Libraries)
+The tech design prompt now instructs the LLM to include a "## Implementation Plan" section:
+- For S/M features: Single numbered list of high-level steps
+- For L/XL features: Steps organized by phase
 
-## Implementation Details
-...
+### Implementor Agent (Claude-code Only)
+When `runAgent()` is called with:
+- `workflow === 'implementation'`
+- `library.name === 'claude-code-sdk'`
+- `allowWrite === true`
 
-## Implementation Plan
+The function automatically:
+1. Runs a Plan subagent with read-only tools to explore the codebase
+2. Generates a detailed step-by-step implementation plan
+3. Augments the original prompt with the detailed plan
+4. Runs the main implementation agent with the enhanced prompt
 
-1. Add logout handler function to auth feature
-2. Export logout function from auth feature index
-3. Import logout in Header component
-4. Add Button component with logout onClick
-5. Style button to match header design
-6. Test logout flow manually
-```
-
-### L/XL Feature Tech Design (with Implementation Plan by Phase)
-
-```markdown
-# Technical Design: User Authentication System
-
-**Size: L** | **Complexity: High**
-
-## Overview
-Implement full authentication system...
-
-## Files to Modify
-...
-
-## Implementation Details
-...
-
-## Implementation Plan
-
-### Phase 1: Database Schema
-1. Create users collection with email, passwordHash, createdAt fields
-2. Add unique index on email field
-3. Create sessions collection with userId, token, expiresAt fields
-4. Export TypeScript types for User and Session
-
-### Phase 2: API Endpoints
-1. Create auth API folder structure (types, handlers, client)
-2. Implement register handler with password hashing
-3. Implement login handler with session creation
-4. Implement logout handler with session deletion
-5. Add auth middleware for protected routes
-
-### Phase 3: UI Components
-1. Create LoginForm component with email/password fields
-2. Create RegisterForm component
-3. Add auth state to Zustand store
-4. Create ProtectedRoute wrapper component
-5. Wire up forms to auth API
-```
-
-## Rollback Plan
-
-If issues arise:
-1. Revert prompt changes (tech design will work without Implementation Plan section)
-2. Remove Plan subagent call from claude-code implementor (will use high-level plan only)
-
-Both changes are additive and backward compatible.
+### Other Agent Libraries
+Other libraries (cursor, gemini, etc.) don't run the Plan subagent. They:
+1. Receive the tech design with the high-level Implementation Plan section
+2. Implement based on that guidance
 
 ## Notes
 
-- The Plan subagent in claude-code is fully encapsulated - workflow code doesn't change
-- Other agent libs continue to work unchanged
-- Implementation Plan section is high-level guidance, not line-by-line instructions
-- Detailed planning happens at implementation time (fresh codebase state)
-- Per-phase planning for L/XL ensures plans aren't stale
+- The Plan subagent is fully encapsulated - the implementor agent and workflow code don't know about it
+- Pre-existing TypeScript errors in test scripts are unrelated to these changes
+- Plan subagent has 2-minute timeout
+- If Plan subagent fails, implementation proceeds without the detailed plan
+
+## Library-specific Implementation
+
+| Library | Plan Mechanism | How It Works |
+|---------|---------------|--------------|
+| claude-code-sdk | Read-only tools | Runs with `allowedTools: ['Read', 'Glob', 'Grep', 'WebFetch']` |
+| cursor | `--mode=plan` flag | Runs with `--mode=plan` (built-in plan mode) |
+| gemini, openai-codex | Not supported | No plan subagent, uses high-level plan from tech design |

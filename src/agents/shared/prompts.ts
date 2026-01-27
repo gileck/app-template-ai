@@ -786,6 +786,60 @@ Select docs based on what the phase touches:
 
 Keep the design concise. A small feature might only need a short list of files. A large feature needs more detail.
 
+## Implementation Plan Section (REQUIRED)
+
+Your technical design MUST include a "## Implementation Plan" section with high-level, actionable steps.
+
+**For S/M features (single-phase):**
+- Provide a single numbered list of implementation steps
+- Each step should be a clear, actionable task
+- Include file paths and what to do with them
+- Order steps so each builds on the previous
+
+**For L/XL features (multi-phase):**
+- Organize steps by phase
+- Each phase should have its own numbered list
+- Steps within a phase should be self-contained
+
+**Step guidelines:**
+- Keep steps high-level (not line-by-line detailed)
+- Each step should be actionable: "Create X", "Add Y to Z", "Update W"
+- Include relevant file paths
+- Order steps logically (dependencies first)
+
+Example Implementation Plan for S/M feature:
+\`\`\`markdown
+## Implementation Plan
+
+1. Create auth types file at \`src/apis/auth/types.ts\`
+2. Create login handler at \`src/apis/auth/handlers/login.ts\`
+3. Add API route at \`src/pages/api/process/auth_login.ts\`
+4. Create useLogin hook in \`src/client/features/auth/hooks.ts\`
+5. Update auth feature exports in \`src/client/features/auth/index.ts\`
+6. Run yarn checks to verify
+\`\`\`
+
+Example Implementation Plan for L/XL feature:
+\`\`\`markdown
+## Implementation Plan
+
+### Phase 1: Database Schema
+1. Create users collection at \`src/server/database/collections/users.ts\`
+2. Add indexes for email field
+3. Export types from collection file
+
+### Phase 2: API Endpoints
+1. Create auth types at \`src/apis/auth/types.ts\`
+2. Create login handler at \`src/apis/auth/handlers/login.ts\`
+3. Create register handler at \`src/apis/auth/handlers/register.ts\`
+4. Add API routes in \`src/pages/api/process/\`
+
+### Phase 3: UI Components
+1. Create LoginForm component at \`src/client/features/auth/LoginForm.tsx\`
+2. Create auth store at \`src/client/features/auth/store.ts\`
+3. Add route in \`src/client/routes/index.ts\`
+\`\`\`
+
 Example for a SMALL feature (S):
 
 \`\`\`markdown
@@ -801,6 +855,13 @@ Add logout menu item that calls existing auth API and redirects.
 |------|---------|
 | \`src/client/components/UserMenu.tsx\` | Add logout menu item with onClick handler |
 | \`src/client/features/auth/hooks.ts\` | Add useLogout hook (calls auth/logout API) |
+
+## Implementation Plan
+
+1. Create useLogout hook in \`src/client/features/auth/hooks.ts\`
+2. Export hook from \`src/client/features/auth/index.ts\`
+3. Add logout menu item to UserMenu.tsx with onClick calling useLogout
+4. Run yarn checks to verify
 \`\`\`
 
 Example for a MEDIUM/LARGE feature:
@@ -839,6 +900,15 @@ interface FeatureDocument {
 
 ## Implementation Notes (if needed)
 [Only for complex logic]
+
+## Implementation Plan
+
+1. Create types file at \`src/apis/feature-name/types.ts\`
+2. Create handler at \`src/apis/feature-name/handlers/create.ts\`
+3. Add API route at \`src/pages/api/process/feature-name_create.ts\`
+4. Create main component at \`src/client/routes/FeatureName/index.tsx\`
+5. Add route in \`src/client/routes/index.ts\`
+6. Run yarn checks to verify
 \`\`\`
 
 Example for a LARGE feature (L/XL) with phases:
@@ -875,6 +945,31 @@ This feature will be split into 3 PRs:
 
 ## Files to Modify
 [List all modifications across all phases]
+
+## Implementation Plan
+
+### Phase 1: Database & Models
+1. Create users collection at \`src/server/database/collections/users.ts\`
+2. Add User interface with email, passwordHash, createdAt fields
+3. Create sessions collection at \`src/server/database/collections/sessions.ts\`
+4. Add indexes for email and session token
+5. Export types from collection files
+
+### Phase 2: API Endpoints
+1. Create auth types at \`src/apis/auth/types.ts\`
+2. Create login handler at \`src/apis/auth/handlers/login.ts\`
+3. Create register handler at \`src/apis/auth/handlers/register.ts\`
+4. Create logout handler at \`src/apis/auth/handlers/logout.ts\`
+5. Add API routes in \`src/pages/api/process/\`
+6. Test endpoints with curl or API client
+
+### Phase 3: UI Components
+1. Create auth store at \`src/client/features/auth/store.ts\`
+2. Create LoginForm component at \`src/client/features/auth/LoginForm.tsx\`
+3. Create RegisterForm component at \`src/client/features/auth/RegisterForm.tsx\`
+4. Create ProtectedRoute wrapper at \`src/client/features/auth/ProtectedRoute.tsx\`
+5. Add routes in \`src/client/routes/index.ts\`
+6. Wire up forms to auth APIs
 \`\`\`
 
 **phases JSON output for L/XL example:**
@@ -1596,6 +1691,16 @@ This fails when \`parts[1]\` contains whitespace (e.g., " 123") because \`parseI
 1. Test with callback data containing whitespace
 2. Test with callback data containing invalid numbers
 3. Verify all 13 handlers reject malformed data gracefully
+
+## Implementation Plan
+
+1. Open \`src/pages/api/telegram-webhook.ts\`
+2. Find all 13 handlers that use parseInt for callback parsing
+3. Update each handler to use \`.trim()\` on parsed values
+4. Add \`isNaN()\` check after parseInt in each handler
+5. Add error logging for debugging when validation fails
+6. Run yarn checks to verify no type errors
+7. Test the affected handlers manually
 \`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}

@@ -90,6 +90,7 @@ class CursorAdapter implements AgentLibraryAdapter {
         webFetch: false, // Cursor CLI does not support web fetch
         customTools: false, // Cursor uses its own tool set
         timeout: true,
+        planMode: true, // Cursor supports --mode=plan
     };
 
     private initialized = false;
@@ -144,6 +145,7 @@ class CursorAdapter implements AgentLibraryAdapter {
             stream = false,
             timeout = DEFAULT_TIMEOUT_SECONDS,
             progressLabel = 'Processing',
+            planMode = false,
         } = options;
 
         const startTime = Date.now();
@@ -158,6 +160,7 @@ class CursorAdapter implements AgentLibraryAdapter {
         const args = this.buildArgs(prompt, {
             allowWrite,
             stream,
+            planMode,
         });
 
         // Log prompt if context is available
@@ -394,6 +397,7 @@ class CursorAdapter implements AgentLibraryAdapter {
     private buildArgs(prompt: string, options: {
         allowWrite?: boolean;
         stream?: boolean;
+        planMode?: boolean;
     }): string[] {
         const args = [prompt];
 
@@ -406,8 +410,11 @@ class CursorAdapter implements AgentLibraryAdapter {
         // Output format: stream-json for streaming, json for non-streaming
         args.push('--output-format', options.stream ? 'stream-json' : 'json');
 
-        // Allow write operations
-        if (options.allowWrite) {
+        // Plan mode for read-only exploration (overrides allowWrite)
+        if (options.planMode) {
+            args.push('--mode=plan');
+        } else if (options.allowWrite) {
+            // Allow write operations (only if not in plan mode)
             args.push('--force');
         }
 
