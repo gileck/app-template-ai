@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 20
-- **Open:** 9
+- **Open:** 8
 - **In Progress:** 0
-- **Done:** 11
+- **Done:** 12
 
 ---
 
-## 📋 Open Tasks (9)
+## 📋 Open Tasks (8)
 
 ### 🟠 High Priority
 
@@ -31,7 +31,6 @@
 | 4 | Add Agent Retry Logic for Transient Failures | M | Mid |
 | 5 | Add Stale Item Detection Workflow | M | Mid |
 | 6 | Add PR Size Validation Enforcement | S | Low |
-| 9 | Workflow Review Slash Command | M | Mid |
 | 19 | Add OpenAI Codex to Agent Library as Optional Provider | M | Medium |
 
 ### 🟢 Low Priority
@@ -40,7 +39,7 @@
 |---|-------|------|------------|
 | 15 | Telegram Button UX Improvements | S | Low |
 
-## ✅ Completed Tasks (11)
+## ✅ Completed Tasks (12)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
@@ -50,6 +49,7 @@
 | 12 | ~~Improve Telegram Messages~~ | 2026-01-25 | `fd4af46` |
 | 11 | ~~Move Design Documents to Source Code with PR-Based Workflow~~ | Unknown | - |
 | 10 | ~~Add Cost Budgeting and Alerts~~ | Unknown | - |
+| 9 | ~~Workflow Review Slash Command~~ | 2026-01-27 | `edc9a7f` |
 | 8 | ~~Tech Design: Include Relevant Docs per Phase/File~~ | Unknown | - |
 | 7 | ~~Add Automatic Branch Cleanup After PR Merge~~ | Unknown | - |
 | 3 | ~~Add "Ready to Merge" Status with Admin Approval Gate~~ | 2026-01-24 | `b79fca0` |
