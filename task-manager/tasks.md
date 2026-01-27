@@ -8,19 +8,18 @@
 ## Summary
 
 - **Total Tasks:** 20
-- **Open:** 7
+- **Open:** 6
 - **In Progress:** 0
-- **Done:** 13
+- **Done:** 14
 
 ---
 
-## 📋 Open Tasks (7)
+## 📋 Open Tasks (6)
 
 ### 🟠 High Priority
 
 | # | Title | Size | Complexity |
 |---|-------|------|------------|
-| 16 | Add Product Development Phase to Workflow | L | Medium |
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 18 | Enable Local Testing in Implementor Agent with yarn dev | M | Medium |
 
@@ -38,16 +37,13 @@
 |---|-------|------|------------|
 | 15 | Telegram Button UX Improvements | S | Low |
 
-## 🔄 In Progress (0)
-
-_No tasks currently in progress._
-
-## ✅ Completed Tasks (13)
+## ✅ Completed Tasks (14)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
-| 19 | ~~Add OpenAI Codex to Agent Library as Optional Provider~~ | 2026-01-27 | `7176182` |
 | 20 | ~~Refactor Task Management: Split tasks.md into Individual Task Files~~ | 2026-01-27 | `3997cc7` |
+| 19 | ~~Add OpenAI Codex to Agent Library as Optional Provider~~ | 2026-01-27 | - |
+| 16 | ~~Add Product Development Phase to Workflow~~ | 2026-01-27 | - |
 | 14 | ~~Fix Issue Parsing Summary Section in Issue Log File~~ | Unknown | - |
 | 13 | ~~Improve PR Reviewer Commit Message Generation~~ | Unknown | - |
 | 12 | ~~Improve Telegram Messages~~ | 2026-01-25 | `fd4af46` |
