@@ -732,6 +732,31 @@ Create a Technical Design document. The size of your output should match the com
 2. **Overview** - Brief technical approach (1-2 sentences for small features)
 3. **Files to Create/Modify** - List of files with brief description of changes
 
+## Size Estimation Criteria
+
+Use these criteria to determine the appropriate size. **Size is about total effort, NOT about which layers are touched.** A feature needing schema + API + UI is completely normal for M size.
+
+**S (Small)** - Few hours of work
+- Simple, focused change
+- Examples: Add button, fix styling, update text, add field to existing form
+
+**M (Medium)** - 1-2 days of work (SINGLE PR)
+- Standard feature with straightforward implementation
+- Can include: new collection, CRUD APIs, new route with components
+- Examples: Add notes feature (collection + 4 endpoints + list/form UI), new settings page, simple entity management
+
+**L (Large)** - 3-5 days of work (REQUIRES PHASES)
+- Complex feature with significant logic or many edge cases
+- Multiple interconnected components with complex state
+- Examples: Advanced filtering/search system, complex multi-step wizard, feature with extensive validation rules
+
+**XL (Epic)** - Week+ of work (REQUIRES PHASES)
+- Major new capability or system
+- Significant architectural decisions
+- Examples: Real-time collaboration, complex integrations, major workflow system
+
+**Key insight:** A feature with schema + API + UI is typically M size (single PR). Only split into phases when the TOTAL work is genuinely large, not because it touches multiple layers.
+
 **Optional sections (include only when relevant):**
 - **Data Model** - Only if new collections or schema changes needed
 - **API Changes** - Only if new endpoints or modifications needed
@@ -753,6 +778,41 @@ If the feature is L or XL:
 2. Each phase should be a complete, testable unit of work
 3. Order phases so earlier phases don't depend on later ones
 4. Include the phases in your structured output
+
+**Phase Breakdown Strategy:**
+
+**IMPORTANT:** Do NOT split by layer (database → API → UI). A typical M-size feature includes all layers in ONE PR.
+
+Only split into phases when the feature is genuinely L/XL. When you do split, split by **complexity levels** - each phase delivers a WORKING end-to-end feature, just at increasing sophistication.
+
+**Phase split by complexity (CORRECT approach):**
+- **Phase 1: Foundation** - Simple working version (basic schema + basic API + basic UI). Not production-polished, but functional end-to-end.
+- **Phase 2: Add Complexity** - Richer fields, more endpoints, better UI, handle more cases
+- **Phase 3: More Complexity** - Advanced features, edge cases, polish, optimizations
+
+**Bad phase split (by layer - DON'T DO THIS):**
+- Phase 1: Just database schema - nothing works yet
+- Phase 2: Just API endpoints - still nothing usable
+- Phase 3: Just UI - finally works
+
+**Example: Notifications System (L/XL)**
+
+| Phase | Schema | API | UI | What Works |
+|-------|--------|-----|-----|------------|
+| 1: Foundation | Basic fields (message, read, createdAt) | list, markRead | Simple list | User can see and mark notifications |
+| 2: Add Complexity | Add types, priority, actions | filtering, markAllRead, delete | Filters, actions, badges | Richer notification experience |
+| 3: Advanced | Add channels, preferences | real-time, preferences API | Real-time updates, settings | Full-featured system |
+
+Each phase is independently mergeable, deployable, and delivers increasing value.
+
+**Example: When to use phases vs single PR**
+
+| Feature | Size | Phases? | Reasoning |
+|---------|------|---------|-----------|
+| Notes feature (collection + CRUD + UI) | M | No | Standard pattern, 1-2 days work |
+| User preferences page | M | No | Straightforward settings UI |
+| Complex notifications with types, real-time, preferences | L | Yes | High complexity, split by sophistication |
+| Multi-step workflow builder | XL | Yes | Very complex, needs incremental delivery |
 
 **IMPORTANT**: Only include phases for L/XL features. For S/M features, do NOT include phases - they will be implemented in a single PR.
 
@@ -1241,6 +1301,32 @@ If this is a multi-phase feature, the phase's \`files\` list contains TWO types 
 2. **Relevant documentation** - Files in \`docs/\` and \`.ai/skills/\` that you should READ FIRST
 
 **CRITICAL**: Before implementing, identify and READ all documentation files from the phase's file list. These were specifically selected by the tech design as relevant to this phase's implementation.
+
+## When to Stop vs Proceed (Decision Guide)
+
+When implementing, you may encounter situations where you're unsure whether to proceed or ask for clarification.
+
+**PROCEED WITHOUT ASKING when:**
+- The tech design is clear and specific about what to do
+- You're following existing codebase patterns (use them as a template)
+- The decision is purely technical with no user-visible impact (e.g., naming a variable)
+- Multiple valid approaches exist but all achieve the same outcome
+- The answer can be determined by reading the codebase
+
+**STOP AND ASK FOR CLARIFICATION when:**
+- Requirements are ambiguous or contradict each other
+- The tech design mentions features/APIs that don't exist
+- You're unsure which of several approaches the admin prefers (when they have different UX/behavior)
+- You discover the scope is larger than expected (design missed something significant)
+- You find a bug in existing code that's unrelated to this task
+
+**Decision Examples:**
+- "Add a button" but design doesn't specify text/icon → **Proceed** - use existing button patterns in codebase
+- Design says "use UserService" but no UserService exists → **Stop** - ask if it should be created or use different approach
+- Two valid state management approaches → **Proceed** - follow project guidelines (server=RQ, client=Zustand)
+- Feature needs data that doesn't exist in the schema → **Stop** - ask about schema changes (impacts other features)
+- Existing code uses deprecated pattern → **Proceed** - follow new patterns, don't fix existing code
+- Task requires modifying shared component used elsewhere → **Stop** - ask about scope (might affect other features)
 
 ## Implementation Guidelines
 
