@@ -357,7 +357,7 @@
 .todo-checkbox-mobile::before {
     content: '';
     position: absolute;
-    inset: -0.5rem; /* 8px touch extension in all directions = 40px total touch area */
+    inset: -0.625rem; /* 10px touch extension in all directions = 44px total touch area (WCAG compliant) */
 }
 
 .todo-checkbox-mobile:hover {

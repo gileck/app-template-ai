@@ -24,16 +24,30 @@ import {
 import { useTodoPreferencesStore } from '../store';
 
 export function TodoControls() {
-    const sortBy = useTodoPreferencesStore((state) => state.sortBy);
-    const uncompletedFirst = useTodoPreferencesStore((state) => state.uncompletedFirst);
-    const hideCompleted = useTodoPreferencesStore((state) => state.hideCompleted);
-    const dueDateFilter = useTodoPreferencesStore((state) => state.dueDateFilter);
-    const filtersExpanded = useTodoPreferencesStore((state) => state.filtersExpanded);
-    const setSortBy = useTodoPreferencesStore((state) => state.setSortBy);
-    const setUncompletedFirst = useTodoPreferencesStore((state) => state.setUncompletedFirst);
-    const setHideCompleted = useTodoPreferencesStore((state) => state.setHideCompleted);
-    const setDueDateFilter = useTodoPreferencesStore((state) => state.setDueDateFilter);
-    const setFiltersExpanded = useTodoPreferencesStore((state) => state.setFiltersExpanded);
+    // Combined selector for better performance - single subscription reduces re-render checks
+    const {
+        sortBy,
+        uncompletedFirst,
+        hideCompleted,
+        dueDateFilter,
+        filtersExpanded,
+        setSortBy,
+        setUncompletedFirst,
+        setHideCompleted,
+        setDueDateFilter,
+        setFiltersExpanded,
+    } = useTodoPreferencesStore((state) => ({
+        sortBy: state.sortBy,
+        uncompletedFirst: state.uncompletedFirst,
+        hideCompleted: state.hideCompleted,
+        dueDateFilter: state.dueDateFilter,
+        filtersExpanded: state.filtersExpanded,
+        setSortBy: state.setSortBy,
+        setUncompletedFirst: state.setUncompletedFirst,
+        setHideCompleted: state.setHideCompleted,
+        setDueDateFilter: state.setDueDateFilter,
+        setFiltersExpanded: state.setFiltersExpanded,
+    }));
 
     // Calculate active filter count for badge
     const activeFilterCount = useMemo(() => {
