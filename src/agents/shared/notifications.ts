@@ -38,10 +38,36 @@ interface InlineKeyboardMarkup {
 }
 
 /**
- * Get the owner's Telegram chat ID from app.config.js
+ * Parse a chat ID string that may include a topic thread ID.
+ * Format: "chatId" or "chatId:threadId"
  */
-function getOwnerChatId(): string | null {
-    return appConfig.ownerTelegramChatId || null;
+function parseChatId(chatIdString: string): { chatId: string; threadId?: number } {
+    const lastColonIndex = chatIdString.lastIndexOf(':');
+
+    if (lastColonIndex <= 0) {
+        return { chatId: chatIdString };
+    }
+
+    const potentialThreadId = chatIdString.slice(lastColonIndex + 1);
+
+    if (/^\d+$/.test(potentialThreadId)) {
+        return {
+            chatId: chatIdString.slice(0, lastColonIndex),
+            threadId: parseInt(potentialThreadId, 10)
+        };
+    }
+
+    return { chatId: chatIdString };
+}
+
+/**
+ * Get the owner's Telegram chat ID from app.config.js
+ * Returns parsed chat ID and optional thread ID for topic-based groups
+ */
+function getOwnerChatId(): { chatId: string; threadId?: number } | null {
+    const rawChatId = appConfig.ownerTelegramChatId;
+    if (!rawChatId) return null;
+    return parseChatId(rawChatId);
 }
 
 /**
@@ -123,17 +149,19 @@ async function sendToAdmin(
         return { success: false, error: 'Missing bot token' };
     }
 
-    const chatId = getOwnerChatId();
-    if (!chatId) {
+    const parsedChatId = getOwnerChatId();
+    if (!parsedChatId) {
         console.warn('  Telegram notification skipped: ownerTelegramChatId not configured');
         return { success: false, error: 'Owner chat ID not configured' };
     }
+
+    const { chatId, threadId } = parsedChatId;
 
     const MAX_RETRIES = 3;
     const RETRY_DELAY_MS = 3000; // 3 seconds
 
     // Log which chat ID is being used (helpful for debugging)
-    const chatIdDisplay = chatId.length > 20 ? `${chatId.slice(0, 20)}...` : chatId;
+    const chatIdDisplay = threadId ? `${chatId}:${threadId}` : chatId;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
@@ -143,6 +171,11 @@ async function sendToAdmin(
                 parse_mode: 'HTML',
                 disable_web_page_preview: true,
             };
+
+            // Add thread ID for topic-based supergroups
+            if (threadId) {
+                body.message_thread_id = threadId;
+            }
 
             if (replyMarkup) {
                 body.reply_markup = replyMarkup;
