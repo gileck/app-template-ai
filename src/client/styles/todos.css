@@ -357,7 +357,11 @@
 .todo-checkbox-mobile::before {
     content: '';
     position: absolute;
-    inset: -0.625rem; /* 10px touch extension in all directions = 44px total touch area (WCAG compliant) */
+    /* Extend touch target vertically only to avoid overlap with adjacent elements */
+    top: -0.625rem;
+    bottom: -0.625rem;
+    left: -0.25rem;
+    right: -0.25rem;
 }
 
 .todo-checkbox-mobile:hover {
@@ -512,12 +516,6 @@
 
     /* === Todo Item === */
     /* Mobile checkbox is defined separately as .todo-checkbox-mobile */
-
-    /* === Stats === */
-    /* Note: Stats use larger text on mobile (24px) vs desktop (20px) for better readability at arm's length */
-    .todo-stats-mobile .grid {
-        gap: 1rem;
-    }
 
     /* === Typography === */
     .todo-gradient-text {

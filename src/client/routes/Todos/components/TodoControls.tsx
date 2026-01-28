@@ -170,6 +170,8 @@ export function TodoControls() {
                     variant="ghost"
                     onClick={() => setFiltersExpanded(!filtersExpanded)}
                     className="w-full h-12 justify-between px-0 hover:bg-transparent"
+                    aria-expanded={filtersExpanded}
+                    aria-controls="mobile-filter-controls"
                 >
                     <span className="flex items-center gap-2 text-base font-medium">
                         Filters & Sort
@@ -188,6 +190,7 @@ export function TodoControls() {
 
                 {/* Collapsible content */}
                 <div
+                    id="mobile-filter-controls"
                     className={`todo-controls-collapsible ${
                         filtersExpanded ? 'todo-controls-expanded' : 'todo-controls-collapsed'
                     }`}
@@ -234,7 +237,7 @@ export function TodoControls() {
                                 htmlFor="uncompleted-first-desktop"
                                 className="text-sm font-medium cursor-pointer"
                             >
-                                Uncompleted First
+                                Show uncompleted first
                             </Label>
                         </div>
                         <div className="flex items-center gap-3">
@@ -247,7 +250,7 @@ export function TodoControls() {
                                 htmlFor="hide-completed-desktop"
                                 className="text-sm font-medium cursor-pointer"
                             >
-                                Hide Completed
+                                Hide completed
                             </Label>
                         </div>
                     </div>
@@ -271,7 +274,7 @@ export function TodoControls() {
                             onClick={() => setDueDateFilter('today')}
                             className="h-9"
                         >
-                            Due Today
+                            Today
                         </Button>
                         <Button
                             variant={dueDateFilter === 'week' ? 'default' : 'outline'}
@@ -279,7 +282,7 @@ export function TodoControls() {
                             onClick={() => setDueDateFilter('week')}
                             className="h-9"
                         >
-                            Due This Week
+                            This Week
                         </Button>
                         <Button
                             variant={dueDateFilter === 'overdue' ? 'destructive' : 'outline'}
@@ -295,7 +298,7 @@ export function TodoControls() {
                             onClick={() => setDueDateFilter('none')}
                             className="h-9"
                         >
-                            No Due Date
+                            No Date
                         </Button>
                     </div>
                 </div>
