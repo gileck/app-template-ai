@@ -7,10 +7,10 @@
 
 ## Summary
 
-- **Total Tasks:** 31
+- **Total Tasks:** 32
 - **Open:** 11
 - **In Progress:** 0
-- **Done:** 20
+- **Done:** 21
 
 ---
 
@@ -23,7 +23,6 @@
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
 | 28 | Issue Workflow Configuration Page from Telegram | XL | High |
-| 30 | Telegram Interactive Clarification Flow for Agents | L | High |
 
 ### 🟡 Medium Priority
 
@@ -34,6 +33,7 @@
 | 6 | Add PR Size Validation Enforcement | S | Low |
 | 23 | Workflow Source Code Audit Command | M | Medium |
 | 24 | Standalone Task Creation Agent | L | Medium |
+| 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -42,11 +42,12 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (20)
+## ✅ Completed Tasks (21)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
 | 31 | ~~Remove Legacy MongoDB Design Fields (productDesign/techDesign)~~ | 2026-01-28 | - |
+| 30 | ~~Telegram Interactive Clarification Flow for Agents~~ | 2026-01-28 | - |
 | 29 | ~~Disable Plan Mode When Addressing PR Feedback~~ | 2026-01-28 | `a0a531e` |
 | 27 | ~~Fix PR Descriptions and Commit Messages~~ | 2026-01-28 | - |
 | 26 | ~~Standardize Telegram Messages and Commit Summaries~~ | 2026-01-28 | - |
