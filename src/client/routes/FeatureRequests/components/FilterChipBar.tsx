@@ -2,8 +2,24 @@
  * FilterChipBar Component
  *
  * Multi-select filter chip bar for feature requests list.
- * - Mobile: Shows a compact "Filters" button that opens a bottom sheet
- * - Desktop: Shows horizontal scrolling filter chips
+ *
+ * Responsive behavior:
+ * - Mobile (<sm, 640px): Shows compact "Filters" button that opens MobileFilterSheet
+ * - Desktop (≥sm, 640px): Shows horizontal scrolling filter chips with separators
+ *
+ * Filter categories:
+ * - Status: active, waiting_for_review, in_progress, blocked, done, new
+ * - Priority: critical, high, medium, low (with color dots matching PriorityBadge)
+ * - GitHub: has_issue, has_pr, no_link
+ * - Activity: recent, stale
+ *
+ * Features:
+ * - Multi-select support (can select multiple filters across categories)
+ * - Active filter count badge on mobile button
+ * - "Clear All" button when filters are active
+ * - Visual separators between filter categories on desktop
+ *
+ * @see MobileFilterSheet - Bottom sheet component for mobile filter selection
  */
 
 import { useState } from 'react';

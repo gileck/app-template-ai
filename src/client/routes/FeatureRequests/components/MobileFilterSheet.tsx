@@ -1,8 +1,26 @@
 /**
  * MobileFilterSheet Component
  *
- * Bottom sheet drawer for mobile filter selection.
+ * Bottom sheet drawer for mobile filter selection on feature requests list.
  * Groups filters into collapsible sections for better mobile UX.
+ *
+ * Responsive behavior:
+ * - Only rendered on mobile (<sm breakpoint, 640px)
+ * - Opens from bottom with 85vh max height
+ * - Scrollable content with sticky footer actions
+ *
+ * Filter categories:
+ * - Status: active, waiting_for_review, in_progress, blocked, done, new
+ * - Priority: critical, high, medium, low (with color dots matching PriorityBadge)
+ * - GitHub: has_issue, has_pr, no_link (collapsed by default)
+ * - Activity: recent, stale (collapsed by default)
+ *
+ * iOS PWA support:
+ * - Uses useIOSKeyboardOffset hook to handle iOS keyboard overlay
+ * - Sheet content transforms up when keyboard opens (future-proofing for text inputs)
+ *
+ * @see FilterChipBar - Parent component that controls when this sheet opens
+ * @see docs/ios-pwa-fixes.md - iOS keyboard handling documentation
  */
 
 import { useState } from 'react';
@@ -22,6 +40,7 @@ import {
     CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/client/lib/utils';
+import { useIOSKeyboardOffset } from '@/client/lib/hooks';
 import type { FeatureRequestPriority } from '@/apis/feature-requests/types';
 
 interface MobileFilterSheetProps {
@@ -126,6 +145,8 @@ export function MobileFilterSheet({
     onToggleActivityFilter,
     onClearAll,
 }: MobileFilterSheetProps) {
+    const keyboardOffset = useIOSKeyboardOffset();
+
     const totalActiveFilters =
         statusFilters.length +
         priorityFilters.length +
@@ -136,7 +157,15 @@ export function MobileFilterSheet({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl px-4 pb-8 pt-4">
+            <SheetContent
+                side="bottom"
+                className="max-h-[85vh] overflow-y-auto rounded-t-xl px-4 pb-8 pt-4"
+                style={{
+                    // Push sheet up when iOS keyboard is open (future-proofing for text inputs)
+                    transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
+                    transition: 'transform 0.1s ease-out',
+                }}
+            >
                 <SheetHeader className="pb-4">
                     <div className="flex items-center justify-between">
                         <SheetTitle className="flex items-center gap-2">
