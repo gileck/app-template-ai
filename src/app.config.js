@@ -12,5 +12,5 @@ export const appConfig = {
     // If not set, uses the hardcoded fallback below
     ownerTelegramChatId: process.env.AGENT_TELEGRAM_CHAT_ID ||
                           process.env.ownerTelegramChatId ||
-                          '-5197577462'  // Fallback for legacy setups
+                          '-1003829878375:2'  // Fallback (includes topic thread ID)
 };
