@@ -215,11 +215,16 @@ What notification channels should be supported initially?
 [✅ Clarification Received]
 ```
 
-The "ANSWER QUESTIONS" button opens an interactive web UI (`/clarify/:issueNumber`) where you can:
-- See the full question with context
-- Select from pre-defined options
-- Provide a custom answer if needed
-- Submit directly (auto-posts to GitHub, updates status)
+The "ANSWER QUESTIONS" button opens an interactive wizard UI (`/clarify/:issueNumber?token=...`) with:
+- **Wizard flow**: One question at a time with progress indicator
+- **Options**: Radio buttons with pre-defined choices (✅ recommended, ⚠️ alternatives)
+- **"Other" option**: Text area for custom responses
+- **Additional notes**: Optional context for any answer
+- **Preview step**: Review all answers before submitting
+- **Edit capability**: Go back to change any answer
+- **Auto-submit**: Posts formatted answer to GitHub, updates status to "Clarification Received"
+
+The page is a public, full-screen route (no authentication required, no header/navbar).
 
 ### 2. GitHub Activity Notifications (GitHub Channel)
 

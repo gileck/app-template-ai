@@ -13,8 +13,9 @@ import { GitHubProjectsAdapter } from '../src/server/project-management/adapters
 import { STATUSES, REVIEW_STATUSES } from '../src/server/project-management/config';
 import { notifyAgentNeedsClarification } from '../src/agents/shared/notifications';
 
+// Test content with MULTIPLE questions, each with multiple options
 const TEST_CLARIFICATION_CONTENT = `## Context
-The feature request asks to "add user notifications" but doesn't specify the notification channels or triggers.
+The feature request asks to "add user notifications" but doesn't specify several important details.
 
 ## Question
 What notification channels should be supported initially?
@@ -36,15 +37,74 @@ What notification channels should be supported initially?
    - Users must be in the app to see them
    - Good starting point for MVP
 
+⚠️ Option 4: All channels (Email + Push + In-app)
+   - Most comprehensive
+   - Highest implementation effort
+   - Best user experience
+
 ## Recommendation
-I recommend Option 1 (Email only) because it provides reliable delivery with minimal complexity. We can add push notifications in a future iteration once the core notification system is working.
+I recommend Option 1 (Email only) because it provides reliable delivery with minimal complexity.
 
 ## How to Respond
-Please respond with one of:
-- "Option 1" (with optional modifications: "Option 1, but also add X")
-- "Option 2"
-- "Option 3"
-- Or provide a different approach`;
+Please respond with one of the options above.
+
+## Context
+The notification system needs a storage strategy for notification history.
+
+## Question
+How long should notifications be retained?
+
+## Options
+
+✅ Option 1: 30 days
+   - Standard retention period
+   - Balances storage with user needs
+   - Easy to implement
+
+⚠️ Option 2: 7 days
+   - Minimal storage requirements
+   - May frustrate users who want history
+   - Good for MVP
+
+⚠️ Option 3: 90 days
+   - Longer history for reference
+   - More storage needed
+   - Good for business users
+
+## Recommendation
+I recommend Option 1 (30 days) as it's a common industry standard.
+
+## How to Respond
+Please respond with one of the options above.
+
+## Context
+Notifications can be triggered by various events. We need to define the initial set.
+
+## Question
+Which notification triggers should be implemented first?
+
+## Options
+
+✅ Option 1: Task assignments only
+   - Single use case to start
+   - Clear value proposition
+   - Easy to test
+
+⚠️ Option 2: Task assignments + Due date reminders
+   - Two common use cases
+   - More valuable for users
+   - Moderate complexity
+
+⚠️ Option 3: All triggers (assignments, due dates, comments, status changes)
+   - Comprehensive from day one
+   - Higher implementation effort
+   - May be overwhelming for users initially
+
+## Recommendation
+I recommend Option 2 because task assignments and due date reminders are the most commonly requested features.
+
+## How to Respond
+Please respond with one of the options above.`;
 
 async function main() {
     console.log('🧪 Testing Clarification Flow\n');

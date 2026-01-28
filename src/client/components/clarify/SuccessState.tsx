@@ -13,15 +13,15 @@ interface SuccessStateProps {
 
 export function SuccessState({ issueNumber }: SuccessStateProps) {
     return (
-        <Card className="border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30">
+        <Card>
             <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center space-y-4">
-                    <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
+                    <CheckCircle className="h-12 w-12 text-primary" />
                     <div className="space-y-2">
-                        <h2 className="text-xl font-semibold text-green-700 dark:text-green-300">
+                        <h2 className="text-xl font-semibold text-foreground">
                             Answer Submitted!
                         </h2>
-                        <p className="text-green-600 dark:text-green-400">
+                        <p className="text-muted-foreground">
                             Your clarification has been posted to Issue #{issueNumber}.
                         </p>
                         <p className="text-sm text-muted-foreground">

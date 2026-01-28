@@ -22,6 +22,7 @@ import { Home } from './Home';
 import { AIChat } from './AIChat';
 import { Todos } from './Todos';
 import { SingleTodo } from './SingleTodo';
+import { Clarify } from './Clarify';
 
 export const routes = createRoutes({
   // Template routes (settings, profile, admin, etc.)
@@ -32,6 +33,9 @@ export const routes = createRoutes({
   '/ai-chat': AIChat,
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
+
+  // Clarification page (public, full-screen - no header/navbar)
+  '/clarify/:issueNumber': { component: Clarify, public: true, fullScreen: true },
 
   // Add more project routes here:
   // '/my-page': MyPage,

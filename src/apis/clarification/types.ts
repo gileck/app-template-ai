@@ -85,6 +85,8 @@ export interface QuestionAnswer {
     selectedOption: string;
     /** Custom text if "Other" was selected */
     customText?: string;
+    /** Optional additional notes/context for any answer */
+    additionalNotes?: string;
 }
 
 /**

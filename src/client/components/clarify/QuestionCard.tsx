@@ -5,7 +5,7 @@
  * Supports a recommended option highlight and "Other" custom input.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ParsedQuestion, QuestionAnswer } from '@/apis/clarification/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
 import { Label } from '@/client/components/ui/label';
@@ -35,6 +35,18 @@ export function QuestionCard({
     const [contextOpen, setContextOpen] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form state for textarea input
     const [otherText, setOtherText] = useState(answer?.customText || '');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form state for notes
+    const [additionalNotes, setAdditionalNotes] = useState(answer?.additionalNotes || '');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for showing notes field
+    const [showNotes, setShowNotes] = useState(!!answer?.additionalNotes);
+
+    // Reset local state when question changes (wizard navigation)
+    useEffect(() => {
+        setOtherText(answer?.customText || '');
+        setAdditionalNotes(answer?.additionalNotes || '');
+        setShowNotes(!!answer?.additionalNotes);
+        setContextOpen(false);
+    }, [questionIndex, answer?.customText, answer?.additionalNotes]);
 
     const selectedValue = answer?.selectedOption || '';
 
@@ -44,11 +56,13 @@ export function QuestionCard({
                 questionIndex,
                 selectedOption: 'Other',
                 customText: otherText,
+                additionalNotes: additionalNotes || undefined,
             });
         } else {
             onAnswerChange({
                 questionIndex,
                 selectedOption: value,
+                additionalNotes: additionalNotes || undefined,
             });
         }
     };
@@ -60,8 +74,37 @@ export function QuestionCard({
                 questionIndex,
                 selectedOption: 'Other',
                 customText: text,
+                additionalNotes: additionalNotes || undefined,
             });
         }
+    };
+
+    const handleNotesChange = (text: string) => {
+        setAdditionalNotes(text);
+        if (selectedValue) {
+            onAnswerChange({
+                questionIndex,
+                selectedOption: selectedValue,
+                customText: selectedValue === 'Other' ? otherText : undefined,
+                additionalNotes: text || undefined,
+            });
+        }
+    };
+
+    const toggleNotes = () => {
+        if (showNotes) {
+            // Clearing notes
+            setAdditionalNotes('');
+            if (selectedValue) {
+                onAnswerChange({
+                    questionIndex,
+                    selectedOption: selectedValue,
+                    customText: selectedValue === 'Other' ? otherText : undefined,
+                    additionalNotes: undefined,
+                });
+            }
+        }
+        setShowNotes(!showNotes);
     };
 
     return (
@@ -107,11 +150,11 @@ export function QuestionCard({
                                 htmlFor={`q${questionIndex}-opt${optionIndex}`}
                                 className="flex-1 cursor-pointer space-y-1"
                             >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span>{option.emoji}</span>
-                                    <span className="font-medium">{option.label}</span>
+                                    <span className="font-medium text-foreground">{option.label}</span>
                                     {option.isRecommended && (
-                                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">
                                             Recommended
                                         </span>
                                     )}
@@ -133,7 +176,7 @@ export function QuestionCard({
                     <div
                         className={`flex items-start space-x-3 p-3 rounded-md border transition-colors ${
                             selectedValue === 'Other'
-                                ? 'border-primary bg-primary/5'
+                                ? 'border-primary'
                                 : 'border-border hover:border-muted-foreground/50'
                         }`}
                     >
@@ -147,26 +190,48 @@ export function QuestionCard({
                             className="flex-1 cursor-pointer space-y-2"
                         >
                             <span className="font-medium">Other</span>
-                            {selectedValue === 'Other' && (
-                                <Textarea
-                                    placeholder="Enter your custom response..."
-                                    value={otherText}
-                                    onChange={(e) => handleOtherTextChange(e.target.value)}
-                                    className="min-h-[80px]"
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                            )}
                         </Label>
                     </div>
+                    {/* Textarea outside the clickable area for better UX */}
+                    {selectedValue === 'Other' && (
+                        <Textarea
+                            placeholder="Enter your custom response..."
+                            value={otherText}
+                            onChange={(e) => handleOtherTextChange(e.target.value)}
+                            className="min-h-[100px] mt-2"
+                            autoFocus
+                        />
+                    )}
                 </RadioGroup>
+
+                {/* Add notes toggle (only show when an option is selected) */}
+                {selectedValue && selectedValue !== 'Other' && (
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={toggleNotes}
+                            className="text-sm text-primary hover:text-primary/80 transition-colors"
+                        >
+                            {showNotes ? '− Remove additional notes' : '+ Add additional notes'}
+                        </button>
+                        {showNotes && (
+                            <Textarea
+                                placeholder="Add any clarifications or context for your answer..."
+                                value={additionalNotes}
+                                onChange={(e) => handleNotesChange(e.target.value)}
+                                className="min-h-[80px]"
+                            />
+                        )}
+                    </div>
+                )}
 
                 {/* Recommendation banner */}
                 {question.recommendation && (
-                    <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-md p-3 text-sm">
-                        <div className="font-medium text-blue-700 dark:text-blue-400 mb-1">
+                    <div className="bg-muted border border-border rounded-md p-3 text-sm">
+                        <div className="font-medium text-foreground mb-1">
                             💡 Agent&apos;s Recommendation
                         </div>
-                        <div className="text-blue-600 dark:text-blue-300">
+                        <div className="text-muted-foreground">
                             {question.recommendation}
                         </div>
                     </div>

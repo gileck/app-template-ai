@@ -137,13 +137,15 @@ function parseOptions(optionsSection: string): ParsedOption[] {
     const options: ParsedOption[] = [];
 
     // Split by emoji markers (✅ or ⚠️ at start of line)
-    const optionBlocks = optionsSection.split(/(?=^[✅⚠️])/m);
+    // Use alternation instead of character class for proper Unicode handling
+    const optionBlocks = optionsSection.split(/(?=^(?:✅|⚠️))/m);
 
     for (const block of optionBlocks) {
         if (!block.trim()) continue;
 
         // Match the option header: emoji + "Option N:" + label
-        const headerMatch = block.match(/^([✅⚠️])\s*Option\s*\d+:\s*(.+?)(?:\n|$)/);
+        // Use alternation for proper Unicode emoji matching
+        const headerMatch = block.match(/^(✅|⚠️)\s*Option\s*\d+:\s*(.+?)(?:\n|$)/);
         if (!headerMatch) continue;
 
         const emoji = headerMatch[1];
@@ -175,6 +177,9 @@ function parseOptions(optionsSection: string): ParsedOption[] {
 /**
  * Format answers for posting as a GitHub comment.
  *
+ * The format is designed to be easily understood by AI agents when they
+ * continue work after receiving clarification.
+ *
  * @param answers - Array of question answers
  * @param questions - Original parsed questions (for context)
  * @returns Formatted markdown comment
@@ -192,21 +197,29 @@ export function formatAnswerForGitHub(
         const question = questions[answer.questionIndex];
         if (!question) continue;
 
-        // Add the question
-        lines.push(`**Q:** ${question.question}`);
+        // Add the question for context
+        lines.push(`**Question:** ${question.question}`);
         lines.push('');
 
-        // Add the answer
+        // Add the selected answer
         if (answer.selectedOption === 'Other' && answer.customText) {
-            lines.push(`**A:** ${answer.customText}`);
+            lines.push(`**Answer:** Custom response: ${answer.customText}`);
         } else {
-            lines.push(`**A:** ${answer.selectedOption}`);
+            // Include the full option label (e.g., "Email only")
+            lines.push(`**Answer:** ${answer.selectedOption}`);
         }
+
+        // Add additional notes if provided
+        if (answer.additionalNotes?.trim()) {
+            lines.push('');
+            lines.push(`**Additional notes:** ${answer.additionalNotes.trim()}`);
+        }
+
         lines.push('');
     }
 
     lines.push('---');
-    lines.push('_Answer provided via clarification UI._');
+    lines.push('_Clarification provided via interactive UI. Continue with the selected option(s)._');
 
     return lines.join('\n');
 }
@@ -228,10 +241,10 @@ export function isClarificationComment(body: string): boolean {
 
 /**
  * Extract the clarification content from a comment body.
- * Removes the header and footer added by handleClarificationRequest.
+ * Removes the header, footer, and "How to Respond" sections added by handleClarificationRequest.
  *
  * @param body - Full comment body
- * @returns Just the clarification content
+ * @returns Just the clarification content (Context, Question, Options, Recommendation)
  */
 export function extractClarificationFromComment(body: string): string {
     // Remove agent prefix if present (e.g., "[🎨 Product Design Agent]")
@@ -240,6 +253,11 @@ export function extractClarificationFromComment(body: string): string {
 
     // Remove the "## 🤔 Agent Needs Clarification" header
     content = content.replace(/## 🤔 Agent Needs Clarification\s*/g, '');
+
+    // Remove ALL "## How to Respond" sections (may appear after each question)
+    // Match from "## How to Respond" until the next "## Context" or end of string
+    // Using [\s\S] instead of . with 's' flag for ES5 compatibility
+    content = content.replace(/## How to Respond[\s\S]*?(?=## Context|---|$)/g, '');
 
     // Remove the footer
     // Using [\s\S] instead of . with 's' flag for ES5 compatibility

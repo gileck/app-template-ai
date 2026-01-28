@@ -1,8 +1,8 @@
 /**
  * Clarify Page Component
  *
- * Main page content for answering agent clarification questions.
- * Fetches clarification data and handles form submission.
+ * Wizard-style flow for answering agent clarification questions.
+ * Shows one question at a time with progress indicator and preview step.
  */
 
 import { useState } from 'react';
@@ -12,8 +12,9 @@ import { getClarification, submitAnswer } from '@/apis/clarification/client';
 import { QuestionCard } from './QuestionCard';
 import { SuccessState } from './SuccessState';
 import { Button } from '@/client/components/ui/button';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Pencil } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/client/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
 
 interface ClarifyPageProps {
     issueNumber: number;
@@ -25,6 +26,8 @@ export function ClarifyPage({ issueNumber, token }: ClarifyPageProps) {
     const [answers, setAnswers] = useState<Map<number, QuestionAnswer>>(new Map());
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for form submission status
     const [submitted, setSubmitted] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral wizard step state
+    const [currentStep, setCurrentStep] = useState(0);
 
     // Fetch clarification data
     const {
@@ -60,6 +63,8 @@ export function ClarifyPage({ issueNumber, token }: ClarifyPageProps) {
         },
         onSuccess: () => {
             setSubmitted(true);
+            // Scroll to top to show success state
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
     });
 
@@ -75,18 +80,42 @@ export function ClarifyPage({ issueNumber, token }: ClarifyPageProps) {
         submitMutation.mutate();
     };
 
-    // Check if all questions are answered
     const clarification = clarificationResponse?.clarification;
+    const totalQuestions = clarification?.questions.length ?? 0;
+    const isPreviewStep = currentStep === totalQuestions;
+    const totalSteps = totalQuestions + 1; // questions + preview
+
+    // Check if current question is answered
+    const currentAnswered = answers.has(currentStep);
+    const currentAnswer = answers.get(currentStep);
+    const currentOtherValid = currentAnswer?.selectedOption !== 'Other' ||
+        (currentAnswer?.customText?.trim() ?? '').length > 0;
+    const canProceed = currentAnswered && currentOtherValid;
+
+    // Check if all questions are answered (for preview step)
     const allAnswered = clarification?.questions.every(
         (_, index) => answers.has(index)
     ) ?? false;
-
-    // Check if "Other" answers have text
     const otherAnswersValid = Array.from(answers.values()).every(
         (answer) => answer.selectedOption !== 'Other' || (answer.customText?.trim() ?? '').length > 0
     );
-
     const canSubmit = allAnswered && otherAnswersValid && !submitMutation.isPending;
+
+    const goNext = () => {
+        if (currentStep < totalQuestions) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const goBack = () => {
+        if (currentStep > 0) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const goToQuestion = (index: number) => {
+        setCurrentStep(index);
+    };
 
     // Loading state
     if (isLoading) {
@@ -159,12 +188,12 @@ export function ClarifyPage({ issueNumber, token }: ClarifyPageProps) {
         );
     }
 
-    // Main form
+    // Main wizard form
     return (
         <div className="p-4 pb-24 max-w-2xl mx-auto space-y-4">
             {/* Header */}
             <div className="space-y-1">
-                <h1 className="text-xl font-bold">
+                <h1 className="text-xl font-bold text-foreground">
                     Issue #{issueNumber}
                 </h1>
                 <p className="text-muted-foreground">
@@ -172,50 +201,146 @@ export function ClarifyPage({ issueNumber, token }: ClarifyPageProps) {
                 </p>
             </div>
 
-            {/* Questions */}
-            <div className="space-y-4">
-                {clarification.questions.map((question, index) => (
-                    <QuestionCard
+            {/* Progress indicator */}
+            <div className="flex items-center justify-center gap-2">
+                {Array.from({ length: totalSteps }).map((_, index) => (
+                    <button
                         key={index}
-                        question={question}
-                        questionIndex={index}
-                        answer={answers.get(index)}
-                        onAnswerChange={handleAnswerChange}
+                        onClick={() => index < totalQuestions ? goToQuestion(index) : undefined}
+                        disabled={index === totalQuestions && !allAnswered}
+                        className={`h-2 rounded-full transition-all ${
+                            index === currentStep
+                                ? 'w-8 bg-primary'
+                                : index < currentStep || answers.has(index)
+                                ? 'w-2 bg-primary/60 hover:bg-primary/80 cursor-pointer'
+                                : 'w-2 bg-muted'
+                        } ${index === totalQuestions ? 'cursor-default' : ''}`}
+                        aria-label={index < totalQuestions ? `Question ${index + 1}` : 'Preview'}
                     />
                 ))}
             </div>
+            <p className="text-center text-sm text-muted-foreground">
+                {isPreviewStep ? 'Review & Submit' : `Question ${currentStep + 1} of ${totalQuestions}`}
+            </p>
 
-            {/* Submit error */}
-            {submitMutation.error && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Submission Failed</AlertTitle>
-                    <AlertDescription>
-                        {submitMutation.error.message}
-                    </AlertDescription>
-                </Alert>
+            {/* Current question or preview */}
+            {isPreviewStep ? (
+                // Preview step
+                <div className="space-y-4">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base text-foreground">Review Your Answers</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {clarification.questions.map((question, index) => {
+                                const answer = answers.get(index);
+                                const displayAnswer = answer?.selectedOption === 'Other'
+                                    ? answer.customText
+                                    : answer?.selectedOption;
+                                return (
+                                    <div
+                                        key={index}
+                                        className="flex items-start justify-between gap-3 p-3 rounded-md bg-muted/50"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-foreground">
+                                                {question.question}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                {displayAnswer || 'Not answered'}
+                                            </p>
+                                            {answer?.additionalNotes && (
+                                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                                    Note: {answer.additionalNotes}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => goToQuestion(index)}
+                                            className="shrink-0"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                        </CardContent>
+                    </Card>
+
+                    {/* Submit error */}
+                    {submitMutation.error && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Submission Failed</AlertTitle>
+                            <AlertDescription>
+                                {submitMutation.error.message}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
+            ) : (
+                // Question step
+                <QuestionCard
+                    question={clarification.questions[currentStep]}
+                    questionIndex={currentStep}
+                    answer={answers.get(currentStep)}
+                    onAnswerChange={handleAnswerChange}
+                />
             )}
 
-            {/* Submit button (fixed at bottom on mobile) */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t sm:static sm:p-0 sm:bg-transparent sm:border-0">
-                <Button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    className="w-full"
-                    size="lg"
-                >
-                    {submitMutation.isPending ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Submitting...
-                        </>
-                    ) : (
-                        'Submit Answer'
+            {/* Navigation buttons (fixed at bottom on mobile) */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
+                <div className="max-w-2xl mx-auto flex gap-3">
+                    {/* Back button */}
+                    {currentStep > 0 && (
+                        <Button
+                            variant="outline"
+                            onClick={goBack}
+                            className="flex-1"
+                            size="lg"
+                        >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Back
+                        </Button>
                     )}
-                </Button>
-                {!allAnswered && (
+
+                    {/* Next / Submit button */}
+                    {isPreviewStep ? (
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                            className="flex-1"
+                            size="lg"
+                        >
+                            {submitMutation.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Submitting...
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Submit Answers
+                                </>
+                            )}
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={goNext}
+                            disabled={!canProceed}
+                            className="flex-1"
+                            size="lg"
+                        >
+                            {currentStep === totalQuestions - 1 ? 'Review' : 'Next'}
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                    )}
+                </div>
+                {!isPreviewStep && !canProceed && (
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                        Please answer all questions to continue
+                        Please select an answer to continue
                     </p>
                 )}
             </div>

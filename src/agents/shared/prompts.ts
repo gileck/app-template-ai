@@ -48,19 +48,13 @@ If you encounter ANY ambiguity, uncertainty, or missing information that prevent
 
 ## Recommendation
 I recommend Option 1 because [clear reasoning].
-
-## How to Respond
-Please respond with one of:
-- "Option 1" (with optional modifications: "Option 1, but also add X")
-- "Option 2" (with optional modifications)
-- "New Option: [describe completely new approach]"
 \`\`\`
 
 When you output a clarification request:
 - The system will post it as a comment on the GitHub issue
-- Admin will be notified via Telegram
+- Admin will be notified via Telegram with an interactive UI link
 - Your work will pause until admin responds
-- Admin will respond with "Option X" or "New Option: [details]"
+- Admin will select an option or provide a custom response via the UI
 - You will be re-invoked with the admin's clear answer
 
 Examples of when to ask for clarification:

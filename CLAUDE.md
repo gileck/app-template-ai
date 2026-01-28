@@ -313,6 +313,29 @@ Adding routes and keeping navigation menus in sync.
 - `src/client/routes/index.ts` - Route definitions
 - `src/client/components/NavLinks.tsx` - Navigation menus (navItems, menuItems)
 
+**Route Configuration Options:**
+
+```typescript
+// Simple route (requires auth, shows header/navbar)
+'/my-page': MyComponent,
+
+// Route with options
+'/share/:id': {
+  component: SharePage,
+  public: true,      // No authentication required
+  fullScreen: true,  // Renders without header/navbar
+},
+
+// Admin-only route (automatic for /admin/* paths)
+'/admin/reports': AdminReports,
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `public` | `false` | Skip authentication (for share pages, public forms) |
+| `fullScreen` | `false` | Render without header/navbar (for focused UIs) |
+| `adminOnly` | `false` | Require admin privileges (automatic for `/admin/*`) |
+
 **When Adding a New Route:**
 1. Add the route component in `src/client/routes/[RouteName]/`
 2. Register it in `src/client/routes/index.ts`
@@ -325,6 +348,7 @@ Adding routes and keeping navigation menus in sync.
 - `/not-found` - fallback route
 - `/profile` - accessed via avatar in header
 - Public share pages - accessed via direct links
+- Full-screen pages (e.g., `/clarify/:issueNumber`) - accessed via external links
 - Auth callback routes - redirect-only
 
 **Rules:** [.ai/skills/pages-and-routing-guidelines/SKILL.md](.ai/skills/pages-and-routing-guidelines/SKILL.md)

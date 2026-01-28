@@ -68,23 +68,38 @@ When an issue description is unclear or incomplete, agents can request clarifica
 
 ### Interactive Clarification UI
 
-The clarification page (`/clarify/:issueNumber?token=...`) provides:
+The clarification page (`/clarify/:issueNumber?token=...`) provides a wizard-style interface for answering agent questions.
 
-- **Structured Questions**: Parsed from agent's comment with clear context
-- **Radio Options**: Pre-defined choices with pros/cons listed
-- **Recommendation Badge**: Agent's recommended option highlighted
-- **"Other" Option**: Text area for custom responses
-- **Mobile-Friendly**: Touch-optimized, works on phone from Telegram
+**Wizard Flow:**
+1. **One question at a time** - Focused view, less overwhelming
+2. **Progress indicator** - Dots showing current position and answered questions
+3. **Back/Next navigation** - Step through questions freely
+4. **Preview step** - Review all answers before submitting
+5. **Edit capability** - Click pencil icon or progress dots to change any answer
+
+**Features:**
+- **Structured Questions**: Parsed from agent's comment with collapsible context
+- **Radio Options**: Pre-defined choices with emoji indicators (✅ recommended, ⚠️ alternatives)
+- **Option Details**: Bullet points showing pros/cons for each option
+- **Recommendation Banner**: Agent's recommendation highlighted with reasoning
+- **"Other" Option**: Text area for completely custom responses
+- **Additional Notes**: Optional notes field for any answer (adds context without changing selection)
+- **Mobile-Optimized**: Full-screen layout, touch-friendly, fixed bottom navigation
 
 **URL Format:**
 ```
 https://your-app.vercel.app/clarify/45?token=abc123
 ```
 
+**Route Configuration:**
+- Path: `/clarify/:issueNumber`
+- Public route (no authentication required)
+- Full-screen mode (no header/navbar)
+
 **Security:**
-- Token-based access (8-char hash of issue number + secret)
-- No authentication required (link is the auth)
-- Token validated server-side before showing data
+- Token-based access (8-char SHA256 hash of issue number + JWT_SECRET)
+- Token validated server-side before showing data or accepting submissions
+- Submissions only allowed when issue is in "Waiting for Clarification" status
 
 ### Example Clarification Flow
 
@@ -132,14 +147,32 @@ Phase: Tech Design
 ```
 
 **Admin clicks "ANSWER QUESTIONS":**
-- Opens web UI with parsed question
+- Opens wizard UI showing first question
+- Progress dots show "Question 1 of 1"
 - Selects "Option 1: Email only"
-- Clicks "Submit Answer"
+- Optionally clicks "+ Add additional notes" to provide context
+- Clicks "Next" → sees Preview step
+- Reviews answer, can click pencil to edit
+- Clicks "Submit Answers"
+
+**Answer Posted to GitHub:**
+```markdown
+## ✅ Clarification Provided
+
+**Question:** What notification channels should be supported initially?
+
+**Answer:** Email only
+
+**Additional notes:** Start simple, we can add push notifications in v2.
+
+---
+_Clarification provided via interactive UI. Continue with the selected option(s)._
+```
 
 **Result:**
-- Comment posted to GitHub with answer
+- Comment posted to GitHub with structured Q/A format
 - Review Status → "Clarification Received"
-- Agent continues on next run
+- Agent continues on next workflow run with clear answer
 
 ### Clarification Best Practices
 
