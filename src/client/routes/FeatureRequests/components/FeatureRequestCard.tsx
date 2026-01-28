@@ -148,7 +148,22 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
 
                             <PriorityBadge priority={request.priority} />
 
-                            {/* Metadata icon row - hidden on very small screens when collapsed */}
+                            {/* GitHub issue link - always visible on small screens */}
+                            {request.githubIssueUrl && (
+                                <a
+                                    href={request.githubIssueUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="xs:hidden flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                                    title={`GitHub Issue #${request.githubIssueNumber}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>#{request.githubIssueNumber}</span>
+                                </a>
+                            )}
+
+                            {/* Metadata icon row - hidden on very small screens */}
                             <div className="hidden xs:flex sm:flex">
                                 <MetadataIconRow request={request} />
                             </div>
