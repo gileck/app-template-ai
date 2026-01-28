@@ -718,6 +718,8 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
                 allowWrite: true, // Enable write mode
                 workflow: 'implementation',
                 outputFormat: IMPLEMENTATION_OUTPUT_FORMAT,
+                // Only use plan mode for new implementations, not for feedback/clarification
+                shouldUsePlanMode: mode === 'new',
                 // Add Playwright MCP for local testing (only if dev server is running)
                 ...(devServer ? {
                     mcpServers: PLAYWRIGHT_MCP_CONFIG,
