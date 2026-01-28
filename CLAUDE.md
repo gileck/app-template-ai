@@ -860,18 +860,42 @@ Key documents:
 
 ## Vercel CLI Tool
 
-CLI for managing Vercel deployments. Requires `VERCEL_TOKEN` in `.env`.
+CLI for managing Vercel deployments and environment variables. Requires `VERCEL_TOKEN` in `.env`.
 
 **Key Commands:**
 ```bash
 yarn vercel-cli list --target production
 yarn vercel-cli logs --deployment dpl_xxx
-yarn vercel-cli env:push --overwrite
+yarn vercel-cli env                          # List env vars
+yarn vercel-cli env:sync                     # Sync .env.local to Vercel (recommended)
+yarn vercel-cli env:sync --dry-run           # Preview what would be synced
+yarn vercel-cli env:set --name VAR --value "value" --target production,preview
 ```
 
 **Key Points:**
 - Run `vercel link` first to auto-detect project
 - Use `--cloud-proxy` flag in Claude Code cloud environment
+
+### Environment Variable Management
+
+**⚠️ CRITICAL: NEVER use `npx vercel env add` with piped input!**
+
+```bash
+# ❌ WRONG - `echo` adds trailing newline that corrupts the value
+echo "$value" | npx vercel env add MY_VAR production --force
+
+# ✅ CORRECT - Use yarn vercel-cli which uses the API directly
+yarn vercel-cli env:sync                     # Sync all from .env.local
+yarn vercel-cli env:set --name MY_VAR --value "$value" --target production
+```
+
+**Why:** The `echo` command adds a trailing `\n` to output. When piped to `vercel env add`, this newline becomes part of the stored value, causing string comparisons to fail silently.
+
+**`env:sync` behavior:**
+- Syncs all variables from `.env.local` to Vercel
+- Most variables → all environments (production, preview, development)
+- `PREVIEW_USER_ID` → preview environment only
+- Excludes local-only vars: `TEST_*`, `VERCEL_OIDC_TOKEN`
 
 **Docs:** [docs/vercel-cli-guide.md](docs/vercel-cli-guide.md)
 **Rules:** [.ai/skills/vercel-cli-usage/SKILL.md](.ai/skills/vercel-cli-usage/SKILL.md)
