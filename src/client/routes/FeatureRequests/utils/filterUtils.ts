@@ -36,6 +36,10 @@ export function filterByGitHubStatus(
             switch (filter) {
                 case 'active':
                     // Active = not Done or Rejected
+                    // Check BOTH DB status and GitHub status to handle stale cache
+                    if (request.status === 'done' || request.status === 'rejected') {
+                        return false;
+                    }
                     return !['done', 'rejected'].includes(effectiveStatus.toLowerCase());
 
                 case 'waiting_for_review':

@@ -375,6 +375,54 @@ export function useGitHubStatus(requestId: string | null, enabled: boolean = tru
 }
 
 /**
+ * Hook to fetch GitHub Project statuses for multiple feature requests
+ * Used by the list view to get all statuses for filtering
+ */
+export function useBatchGitHubStatuses(requestIds: string[]) {
+    return useQuery({
+        queryKey: ['github-statuses-batch', requestIds],
+        queryFn: async () => {
+            if (requestIds.length === 0) return {};
+
+            // Fetch all statuses in parallel
+            const results = await Promise.allSettled(
+                requestIds.map(async (requestId) => {
+                    const result = await getGitHubStatus({ requestId });
+                    return { requestId, data: result.data };
+                })
+            );
+
+            // Build map from results, handling errors gracefully
+            const statusMap: Record<string, { status: string; reviewStatus: string | null } | undefined> = {};
+
+            results.forEach((result, index) => {
+                const requestId = requestIds[index];
+                if (result.status === 'fulfilled' && !result.value.data.error) {
+                    statusMap[requestId] = {
+                        status: result.value.data.status || '',
+                        reviewStatus: result.value.data.reviewStatus || null,
+                    };
+                }
+                // On error, don't add to map - will fall back to DB status
+            });
+
+            return statusMap;
+        },
+        enabled: requestIds.length > 0,
+        staleTime: 30000, // 30 seconds
+        refetchOnWindowFocus: true,
+        // Handle rate limit errors gracefully
+        retry: (failureCount, error) => {
+            // Don't retry on rate limit errors
+            if (error instanceof Error && error.message.includes('rate limit')) {
+                return false;
+            }
+            return failureCount < 2;
+        },
+    });
+}
+
+/**
  * Hook to fetch available GitHub Project statuses
  */
 export function useGitHubStatuses() {
