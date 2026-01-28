@@ -1,9 +1,3 @@
----
-name: workflow-audit
-description: Audit the GitHub Agents Workflow source code and documentation for consistency and compliance
-disable-model-invocation: true
----
-
 # GitHub Agents Workflow Audit
 
 This command performs a comprehensive audit of the GitHub Agents Workflow system, including:
