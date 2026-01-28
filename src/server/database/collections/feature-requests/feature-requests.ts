@@ -422,8 +422,6 @@ export const updateGitHubFields = async (
         githubIssueUrl?: string;
         githubIssueNumber?: number;
         githubProjectItemId?: string;
-        githubProjectStatus?: string;
-        githubReviewStatus?: string;
         githubPrUrl?: string;
         githubPrNumber?: number;
     }

@@ -60,8 +60,6 @@ export function toFeatureRequestClient(doc: FeatureRequestDocument): FeatureRequ
         githubIssueUrl: doc.githubIssueUrl,
         githubIssueNumber: doc.githubIssueNumber,
         githubProjectItemId: doc.githubProjectItemId,
-        githubProjectStatus: doc.githubProjectStatus,
-        githubReviewStatus: doc.githubReviewStatus,
         githubPrUrl: doc.githubPrUrl,
         githubPrNumber: doc.githubPrNumber,
         createdAt: doc.createdAt.toISOString(),
