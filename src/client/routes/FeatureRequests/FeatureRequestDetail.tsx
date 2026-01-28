@@ -14,7 +14,6 @@ import { useFeatureRequestDetail, useGitHubStatus, useGitHubIssueDetails } from 
  * - Description (expanded by default)
  * - GitHub Issue Details (expanded if exists)
  * - Comments (collapsed by default)
- * - Design Documents (collapsed, only if exists)
  * - Admin Notes (collapsed)
  */
 export function FeatureRequestDetail() {
@@ -88,9 +87,6 @@ export function FeatureRequestDetail() {
     }
 
     const hasGitHubIssue = !!request.githubIssueUrl;
-    const hasProductDesign = !!request.productDesign?.content;
-    const hasTechDesign = !!request.techDesign?.content;
-    const hasDesignDocuments = hasProductDesign || hasTechDesign;
     const commentsCount = request.comments?.length || 0;
 
     return (
@@ -306,59 +302,6 @@ export function FeatureRequestDetail() {
                         </div>
                     )}
                 </CollapsibleSection>
-
-                {/* Design Documents Section - Collapsed by default, only if exists */}
-                {hasDesignDocuments && (
-                    <CollapsibleSection title="Design Documents" defaultExpanded={false}>
-                        <div className="space-y-4">
-                            {hasProductDesign && request.productDesign && (
-                                <div className="space-y-2">
-                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                        <h4 className="text-sm font-semibold">Product Design</h4>
-                                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <span className="text-muted-foreground">
-                                                Status: {request.productDesign.reviewStatus.replace(/_/g, ' ')}
-                                            </span>
-                                            {request.productDesign.iterations > 0 && (
-                                                <span className="text-muted-foreground">
-                                                    | Iteration: {request.productDesign.iterations}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="rounded-md border bg-muted/30 p-3 sm:p-4">
-                                        <pre className="whitespace-pre-wrap text-xs font-mono leading-relaxed overflow-x-auto">
-                                            {request.productDesign.content}
-                                        </pre>
-                                    </div>
-                                </div>
-                            )}
-
-                            {hasTechDesign && request.techDesign && (
-                                <div className="space-y-2">
-                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                        <h4 className="text-sm font-semibold">Technical Design</h4>
-                                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <span className="text-muted-foreground">
-                                                Status: {request.techDesign.reviewStatus.replace(/_/g, ' ')}
-                                            </span>
-                                            {request.techDesign.iterations > 0 && (
-                                                <span className="text-muted-foreground">
-                                                    | Iteration: {request.techDesign.iterations}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="rounded-md border bg-muted/30 p-3 sm:p-4">
-                                        <pre className="whitespace-pre-wrap text-xs font-mono leading-relaxed overflow-x-auto">
-                                            {request.techDesign.content}
-                                        </pre>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </CollapsibleSection>
-                )}
 
                 {/* Admin Notes Section - Collapsed by default, always visible */}
                 <CollapsibleSection title="Admin Notes" defaultExpanded={false}>

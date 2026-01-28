@@ -9,7 +9,6 @@ import {
     getFeatureRequests,
     getFeatureRequest,
     updateFeatureRequestStatus,
-    updateDesignReviewStatus,
     updatePriority,
     deleteFeatureRequest,
     addAdminComment,
@@ -26,8 +25,6 @@ import type {
     GetFeatureRequestsRequest,
     FeatureRequestStatus,
     FeatureRequestPriority,
-    DesignPhaseType,
-    DesignReviewStatus,
     CreateFeatureRequestRequest,
 } from '@/apis/feature-requests/types';
 import { useQueryDefaults } from '@/client/query';
@@ -104,71 +101,6 @@ export function useUpdateFeatureRequestStatus() {
             toast.error('Failed to update status');
         },
         onSuccess: () => {},
-        onSettled: () => {},
-    });
-}
-
-export function useUpdateDesignReviewStatus() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async ({
-            requestId,
-            phase,
-            reviewStatus,
-            adminComments,
-        }: {
-            requestId: string;
-            phase: DesignPhaseType;
-            reviewStatus: DesignReviewStatus;
-            adminComments?: string;
-        }) => {
-            const result = await updateDesignReviewStatus({
-                requestId,
-                phase,
-                reviewStatus,
-                adminComments,
-            });
-            if (result.data.error) {
-                throw new Error(result.data.error);
-            }
-            return result.data.featureRequest;
-        },
-        onMutate: async ({ requestId, phase, reviewStatus }) => {
-            await queryClient.cancelQueries({ queryKey: featureRequestsBaseQueryKey });
-            const previous = queryClient.getQueriesData({ queryKey: featureRequestsBaseQueryKey });
-
-            queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
-                if (!Array.isArray(old)) return old;
-                return old.map((request) => {
-                    if (request._id !== requestId) return request;
-                    const designKey = phase === 'product' ? 'productDesign' : 'techDesign';
-                    return {
-                        ...request,
-                        [designKey]: {
-                            ...request[designKey],
-                            reviewStatus,
-                        },
-                    };
-                });
-            });
-
-            return { previous };
-        },
-        onError: (_err, _variables, context) => {
-            if (!context?.previous) return;
-            for (const [key, data] of context.previous) {
-                queryClient.setQueryData(key, data);
-            }
-            toast.error('Failed to update design review status');
-        },
-        onSuccess: (_data, { reviewStatus }) => {
-            if (reviewStatus === 'approved') {
-                toast.success('Design approved');
-            } else if (reviewStatus === 'rejected') {
-                toast.success('Design rejected with feedback');
-            }
-        },
         onSettled: () => {},
     });
 }

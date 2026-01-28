@@ -2,9 +2,6 @@ import {
     FeatureRequestClient,
     FeatureRequestStatus,
     FeatureRequestPriority,
-    DesignReviewStatus,
-    DesignPhaseType,
-    DesignPhaseClient,
     FeatureRequestCommentClient,
 } from '@/server/database/collections/feature-requests/types';
 
@@ -79,32 +76,6 @@ export interface UpdateFeatureRequestStatusRequest {
 }
 
 export interface UpdateFeatureRequestStatusResponse {
-    featureRequest?: FeatureRequestClient;
-    error?: string;
-}
-
-// Update design review status (approve/reject)
-export interface UpdateDesignReviewStatusRequest {
-    requestId: string;
-    phase: DesignPhaseType;
-    reviewStatus: DesignReviewStatus;
-    adminComments?: string;
-}
-
-export interface UpdateDesignReviewStatusResponse {
-    featureRequest?: FeatureRequestClient;
-    error?: string;
-}
-
-// Update design content (used by agent)
-export interface UpdateDesignContentRequest {
-    requestId: string;
-    phase: DesignPhaseType;
-    content: string;
-    reviewStatus?: DesignReviewStatus;
-}
-
-export interface UpdateDesignContentResponse {
     featureRequest?: FeatureRequestClient;
     error?: string;
 }
@@ -261,8 +232,5 @@ export type {
     FeatureRequestClient,
     FeatureRequestStatus,
     FeatureRequestPriority,
-    DesignReviewStatus,
-    DesignPhaseType,
-    DesignPhaseClient,
     FeatureRequestCommentClient,
 };
