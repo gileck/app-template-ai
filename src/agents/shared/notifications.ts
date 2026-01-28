@@ -132,6 +132,9 @@ async function sendToAdmin(
     const MAX_RETRIES = 3;
     const RETRY_DELAY_MS = 3000; // 3 seconds
 
+    // Log which chat ID is being used (helpful for debugging)
+    const chatIdDisplay = chatId.length > 20 ? `${chatId.slice(0, 20)}...` : chatId;
+
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const body: Record<string, unknown> = {
@@ -160,13 +163,13 @@ async function sendToAdmin(
             return { success: true };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`  Telegram notification attempt ${attempt}/${MAX_RETRIES} failed:`, errorMessage);
+            console.error(`  Telegram notification attempt ${attempt}/${MAX_RETRIES} failed (chat_id: ${chatIdDisplay}):`, errorMessage);
 
             if (attempt < MAX_RETRIES) {
                 console.log(`  Retrying in ${RETRY_DELAY_MS / 1000} seconds...`);
                 await sleep(RETRY_DELAY_MS);
             } else {
-                console.error('  All retry attempts exhausted. Telegram notification not sent.');
+                console.error(`  All retry attempts exhausted. Telegram notification not sent. (chat_id: ${chatIdDisplay})`);
                 return { success: false, error: errorMessage };
             }
         }
