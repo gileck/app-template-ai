@@ -111,11 +111,11 @@ export function filterByPriority(
 /**
  * Filter by GitHub linkage
  *
- * Options: has_issue, has_pr, no_link
+ * Options: has_issue, no_link
  */
 export function filterByGitHubLinkage(
     requests: FeatureRequestClient[],
-    githubFilters: ('has_issue' | 'has_pr' | 'no_link')[]
+    githubFilters: ('has_issue' | 'no_link')[]
 ): FeatureRequestClient[] {
     // If no GitHub filters active, show all
     if (githubFilters.length === 0) {
@@ -128,11 +128,8 @@ export function filterByGitHubLinkage(
                 case 'has_issue':
                     return !!request.githubIssueUrl;
 
-                case 'has_pr':
-                    return !!request.githubPrUrl;
-
                 case 'no_link':
-                    return !request.githubIssueUrl && !request.githubPrUrl;
+                    return !request.githubIssueUrl;
 
                 default:
                     return false;
@@ -189,7 +186,7 @@ export function applyAllFilters(
     filters: {
         statusFilters: string[];
         priorityFilters: FeatureRequestPriority[];
-        githubFilters: ('has_issue' | 'has_pr' | 'no_link')[];
+        githubFilters: ('has_issue' | 'no_link')[];
         activityFilters: ('recent' | 'stale')[];
     },
     githubStatusMap: Record<string, GetGitHubStatusResponse | undefined>

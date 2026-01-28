@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, User, FileText, ExternalLink, GitPullRequest, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/client/components/ui/button';
 import { Card, CardContent } from '@/client/components/ui/card';
 import { useRouter } from '@/client/router';
@@ -149,17 +149,6 @@ export function FeatureRequestDetail() {
                             <ExternalLink className="h-3.5 w-3.5" />
                             <span>Issue #{request.githubIssueNumber}</span>
                         </a>
-                        {request.githubPrUrl && (
-                            <a
-                                href={request.githubPrUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors sm:px-3 sm:text-sm"
-                            >
-                                <GitPullRequest className="h-3.5 w-3.5" />
-                                <span>PR #{request.githubPrNumber}</span>
-                            </a>
-                        )}
                     </div>
                 )}
 
@@ -256,17 +245,6 @@ export function FeatureRequestDetail() {
                                     <ExternalLink className="h-4 w-4" />
                                     View on GitHub
                                 </a>
-                                {request.githubPrUrl && (
-                                    <a
-                                        href={request.githubPrUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                                    >
-                                        <GitPullRequest className="h-4 w-4" />
-                                        View Pull Request
-                                    </a>
-                                )}
                             </div>
                         </div>
                     </CollapsibleSection>

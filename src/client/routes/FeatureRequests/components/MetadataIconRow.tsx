@@ -1,4 +1,4 @@
-import { User, ExternalLink, GitPullRequest, Clock, Calendar } from 'lucide-react';
+import { User, ExternalLink, Clock, Calendar } from 'lucide-react';
 import type { FeatureRequestClient } from '@/apis/feature-requests/types';
 
 interface MetadataIconRowProps {
@@ -54,21 +54,6 @@ export function MetadataIconRow({ request }: MetadataIconRowProps) {
                 >
                     <ExternalLink className="h-3.5 w-3.5" />
                     <span className="text-xs">#{request.githubIssueNumber}</span>
-                </a>
-            )}
-
-            {/* GitHub PR link - compact display */}
-            {request.githubPrUrl && (
-                <a
-                    href={request.githubPrUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 hover:text-primary transition-colors"
-                    title={`Pull Request #${request.githubPrNumber}`}
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <GitPullRequest className="h-3.5 w-3.5" />
-                    <span className="text-xs">#{request.githubPrNumber}</span>
                 </a>
             )}
 

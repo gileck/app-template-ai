@@ -12,7 +12,7 @@ import {
     DropdownMenuSubTrigger,
 } from '@/client/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
-import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, ExternalLink, GitPullRequest, Loader2, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, ExternalLink, Loader2, RotateCcw } from 'lucide-react';
 import { StatusBadge, PriorityBadge, GitHubStatusBadge } from './StatusBadge';
 import { StatusIndicatorStrip } from './StatusIndicatorStrip';
 import { MetadataIconRow } from './MetadataIconRow';
@@ -284,32 +284,19 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
                     </div>
 
                     {/* GitHub Integration Section */}
-                    {(request.githubIssueUrl || request.githubPrUrl) && (
+                    {request.githubIssueUrl && (
                         <div className="space-y-2 rounded-lg border-l-2 border-l-primary/20 bg-primary/5 p-3">
                             <h4 className="text-sm font-medium">GitHub Integration</h4>
                             <div className="flex flex-wrap gap-2 text-sm">
-                                {request.githubIssueUrl && (
-                                    <a
-                                        href={request.githubIssueUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors sm:px-3 sm:text-sm"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        <span>Issue #{request.githubIssueNumber}</span>
-                                    </a>
-                                )}
-                                {request.githubPrUrl && (
-                                    <a
-                                        href={request.githubPrUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors sm:px-3 sm:text-sm"
-                                    >
-                                        <GitPullRequest className="h-3.5 w-3.5" />
-                                        <span>PR #{request.githubPrNumber}</span>
-                                    </a>
-                                )}
+                                <a
+                                    href={request.githubIssueUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors sm:px-3 sm:text-sm"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>Issue #{request.githubIssueNumber}</span>
+                                </a>
                             </div>
                         </div>
                     )}

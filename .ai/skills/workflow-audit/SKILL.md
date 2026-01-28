@@ -61,9 +61,10 @@ This is a **comprehensive audit**. Before starting, understand:
 6. [pending] Phase 3.4: Audit Main Entry Point (index.ts)
 7. [pending] Phase 3.5: Audit Prompt Quality (CRITICAL)
 8. [pending] Phase 3.6: Audit E2E Workflow (phases, artifacts, communication)
-9. [pending] Phase 4: Documentation Audit
-10. [pending] Phase 5: Doc-Code Consistency Check
-11. [pending] Phase 6: Generate Final Audit Report
+9. [pending] Phase 3.7: Audit Telegram Webhooks (status updates, actions)
+10. [pending] Phase 4: Documentation Audit
+11. [pending] Phase 5: Doc-Code Consistency Check
+12. [pending] Phase 6: Generate Final Audit Report
 ```
 
 ---
@@ -89,6 +90,7 @@ Phase 3: Systematic Code Review
     | - 3.4: Main Entry & Config
     | - 3.5: Prompt Quality (CRITICAL)
     | - 3.6: E2E Workflow (phases, artifacts)
+    | - 3.7: Telegram Webhooks (status updates)
     v
 Phase 4: Documentation Audit
     | - Completeness
@@ -1042,6 +1044,226 @@ Can you understand what's happening?
 
 ---
 
+### 3.7: Telegram Webhooks Audit
+
+Telegram webhooks handle critical workflow actions: approvals, rejections, merges, and routing. Issues here can break the entire workflow or leave items in inconsistent states.
+
+**Primary locations**:
+- `src/pages/api/telegram/` - Webhook API routes
+- `src/server/telegram/` - Telegram utilities
+- `src/agents/shared/notifications.ts` - Notification functions
+
+#### 3.7.1: Webhook Discovery
+
+```bash
+# Find all Telegram webhook handlers
+find src -path "*telegram*" -name "*.ts" | head -20
+
+# Find callback query handlers
+grep -r "callback_query\|callbackQuery\|callback_data" src --include="*.ts" | head -20
+
+# Find inline button definitions
+grep -r "inline_keyboard\|InlineKeyboard" src --include="*.ts" | head -20
+```
+
+**Create webhook inventory:**
+
+| Webhook/Handler | Location | Actions Handled | Status |
+|-----------------|----------|-----------------|--------|
+| | | | |
+
+#### 3.7.2: Quick Action Buttons Audit
+
+Telegram messages include inline buttons for quick actions. Verify all buttons:
+
+##### Approval Flow Buttons
+
+| Button | Action | Status Update | Status |
+|--------|--------|---------------|--------|
+| Approve | Approve feature/bug | new → in_progress | |
+| Reject | Reject feature/bug | new → rejected | |
+| Route to Product Design | Skip to product design | Update GitHub column | |
+| Route to Tech Design | Skip to tech design | Update GitHub column | |
+
+##### PR Action Buttons
+
+| Button | Action | Status Update | Status |
+|--------|--------|---------------|--------|
+| Merge PR | Merge the PR | in_progress → done (or next phase) | |
+| Request Changes | Flag for revision | Stays in PR Review | |
+| View PR | Open PR in browser | None | |
+
+##### Other Action Buttons
+
+| Button | Action | Status Update | Status |
+|--------|--------|---------------|--------|
+| View Issue | Open issue in browser | None | |
+| Re-run Agent | Trigger agent re-run | None | |
+| | | | |
+
+#### 3.7.3: Callback Handler Verification
+
+For each callback action, verify:
+
+```typescript
+// Expected pattern for callback handlers
+async function handleCallback(callbackData: string, chatId: number, messageId: number) {
+    try {
+        // 1. Parse callback data
+        const { action, itemId, ...params } = parseCallbackData(callbackData);
+
+        // 2. Validate permissions
+        if (!isAuthorized(chatId)) {
+            return sendError('Unauthorized');
+        }
+
+        // 3. Perform action
+        const result = await performAction(action, itemId, params);
+
+        // 4. Update message (remove buttons or show result)
+        await updateMessage(chatId, messageId, result);
+
+        // 5. Send confirmation
+        await answerCallbackQuery(queryId, 'Action completed');
+
+    } catch (error) {
+        // 6. Error handling
+        await answerCallbackQuery(queryId, 'Error: ' + error.message);
+        await notifyError(error);
+    }
+}
+```
+
+| Check | Status |
+|-------|--------|
+| Callback data is parsed safely | |
+| Actions are validated before execution | |
+| Authorization is checked | |
+| Message is updated after action | |
+| Callback query is answered (prevents loading state) | |
+| Errors are handled gracefully | |
+| Errors don't leave inconsistent state | |
+
+#### 3.7.4: Status Update Actions
+
+These are CRITICAL - wrong status updates break the workflow.
+
+```bash
+# Find all status update calls in webhook handlers
+grep -r "updateStatus\|setStatus\|STATUSES" src/pages/api/telegram --include="*.ts"
+grep -r "updateStatus\|setStatus\|STATUSES" src/server/telegram --include="*.ts"
+```
+
+| Action | MongoDB Update | GitHub Project Update | Both Synced? | Status |
+|--------|----------------|----------------------|--------------|--------|
+| Approve | new → in_progress | Backlog → [routed column] | | |
+| Reject | new → rejected | Remove from board? | | |
+| Merge PR | in_progress → done | PR Review → Done | | |
+| Route to Product Design | (none?) | → Product Design | | |
+| Route to Tech Design | (none?) | → Tech Design | | |
+
+| Check | Status |
+|-------|--------|
+| MongoDB and GitHub are BOTH updated | |
+| Updates are atomic (both succeed or both fail) | |
+| Failure in one doesn't leave other inconsistent | |
+| Status values match constants in code | |
+
+#### 3.7.5: Webhook Security
+
+| Check | Status |
+|-------|--------|
+| Webhook validates Telegram signature/token | |
+| Only authorized chat IDs can trigger actions | |
+| Callback data cannot be spoofed | |
+| No sensitive data in callback payloads | |
+| Rate limiting in place | |
+
+#### 3.7.6: Message Formatting
+
+Verify notification messages are clear and consistent:
+
+```bash
+# Find message formatting
+grep -r "sendMessage\|editMessageText" src --include="*.ts" -A5 | head -50
+```
+
+| Check | Status |
+|-------|--------|
+| Messages include item title/number | |
+| Messages include relevant links | |
+| Messages are not too long | |
+| Markdown/HTML formatting is valid | |
+| Emojis used consistently | |
+| Error messages are clear | |
+
+#### 3.7.7: Button State Management
+
+After an action, buttons should be updated:
+
+| Check | Status |
+|-------|--------|
+| Buttons removed after action taken | |
+| Or buttons disabled/updated to show state | |
+| No stale buttons that trigger duplicate actions | |
+| Loading states shown during action | |
+
+#### 3.7.8: Error Scenarios
+
+| Scenario | Expected Behavior | Implemented? | Status |
+|----------|-------------------|--------------|--------|
+| Invalid callback data | Error message, no action | | |
+| Item already processed | Inform user, no duplicate action | | |
+| GitHub API failure | Error message, rollback MongoDB if needed | | |
+| MongoDB failure | Error message, don't update GitHub | | |
+| Network timeout | Retry logic or clear error | | |
+| Unauthorized user | Reject action, log attempt | | |
+| Malformed message | Graceful error, don't crash | | |
+
+#### 3.7.9: Webhook Logging
+
+| Check | Status |
+|-------|--------|
+| All webhook calls are logged | |
+| Callback actions are logged with context | |
+| Errors are logged with full details | |
+| Sensitive data not logged (tokens, etc.) | |
+| Logs help debug issues | |
+
+#### 3.7.10: Multi-Phase Feature Handling
+
+For L/XL features with multiple phases:
+
+| Check | Status |
+|-------|--------|
+| Merge button knows current phase | |
+| After merge, next phase is triggered (not marked done) | |
+| Final phase merge marks item as done | |
+| Phase info shown in messages | |
+
+#### 3.7.11: Webhook Testing
+
+| Check | Status |
+|-------|--------|
+| Webhooks can be tested locally (ngrok, etc.) | |
+| Test commands/buttons available | |
+| Dry-run mode for testing actions | |
+
+#### 3.7.12: Telegram Webhook Summary
+
+| Aspect | Score (1-5) | Notes |
+|--------|-------------|-------|
+| Button Coverage | | |
+| Status Update Accuracy | | |
+| Error Handling | | |
+| Security | | |
+| Message Clarity | | |
+| State Management | | |
+| Logging | | |
+| **Overall Webhook Score** | | |
+
+---
+
 ## Phase 4: Documentation Audit
 
 ### 4.1: Completeness Check
@@ -1197,6 +1419,7 @@ Use this template for the final report:
 | Library Abstractions | X | X | X | XX% |
 | Prompt Quality | X | X | X | XX% |
 | E2E Workflow | X | X | X | XX% |
+| Telegram Webhooks | X | X | X | XX% |
 | Documentation | X | X | X | XX% |
 | Doc-Code Sync | X | X | X | XX% |
 | **Total** | **X** | **X** | **X** | **XX%** |
@@ -1337,6 +1560,14 @@ Complete after ALL fixes are implemented:
 - [ ] Error recovery is in place
 - [ ] Notifications at all key points
 
+### Telegram Webhooks
+- [ ] All quick action buttons work correctly
+- [ ] Status updates are atomic (MongoDB + GitHub)
+- [ ] Error handling doesn't leave inconsistent state
+- [ ] Security validation in place
+- [ ] Messages updated after actions
+- [ ] Multi-phase merge handling correct
+
 ### Documentation
 - [ ] All CLI options documented
 - [ ] All status constants documented
@@ -1394,6 +1625,7 @@ Complete ALL items to finish the audit:
 - [ ] Audited configuration
 - [ ] Audited prompt quality (structure, clarity, completeness)
 - [ ] Audited E2E workflow (phases, artifacts, communication)
+- [ ] Audited Telegram webhooks (buttons, status updates, security)
 
 ### Phase 4: Documentation Audit
 - [ ] Checked completeness
@@ -1472,6 +1704,21 @@ Complete ALL items to finish the audit:
 | Missing notifications | Check notification calls | Add notifications at key points |
 | Race conditions | Check concurrent access | Add locking/idempotency |
 | Unclear phase boundaries | Check workflow code | Define clear transitions |
+
+### Telegram Webhook Violations
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Missing button handlers | Check callback handlers | Add missing handlers |
+| Status desync on action | Check both DB updates | Update MongoDB AND GitHub atomically |
+| No callback answer | Check answerCallbackQuery | Always answer to clear loading |
+| Stale buttons | Check message updates | Remove/update buttons after action |
+| Missing authorization | Check chat ID validation | Add authorization check |
+| No error handling | Check try/catch | Add proper error handling |
+| Duplicate actions | Check idempotency | Add duplicate detection |
+| Missing phase awareness | Check multi-phase handling | Pass phase info to handlers |
+| Unclear error messages | Check error responses | Improve error messaging |
+| No logging | Check webhook logs | Add comprehensive logging |
 
 ---
 

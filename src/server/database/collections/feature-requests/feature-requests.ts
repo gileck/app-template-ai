@@ -422,8 +422,6 @@ export const updateGitHubFields = async (
         githubIssueUrl?: string;
         githubIssueNumber?: number;
         githubProjectItemId?: string;
-        githubPrUrl?: string;
-        githubPrNumber?: number;
     }
 ): Promise<FeatureRequestDocument | null> => {
     const collection = await getFeatureRequestsCollection();
