@@ -4,9 +4,10 @@ title: Remove Legacy MongoDB Design Fields (productDesign/techDesign)
 priority: Medium
 size: M
 complexity: Low
-status: In Progress
+status: Done
 dateAdded: 2026-01-28
 dateUpdated: 2026-01-28
+dateCompleted: 2026-01-28
 ---
 
 # Task 31: Remove Legacy MongoDB Design Fields (productDesign/techDesign)

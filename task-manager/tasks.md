@@ -9,8 +9,8 @@
 
 - **Total Tasks:** 31
 - **Open:** 11
-- **In Progress:** 1
-- **Done:** 19
+- **In Progress:** 0
+- **Done:** 20
 
 ---
 
@@ -42,16 +42,11 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## 🔄 In Progress (1)
-
-| # | Title | Size | Priority |
-|---|-------|------|----------|
-| 31 | Remove Legacy MongoDB Design Fields (productDesign/techDesign) | M | **Medium** |
-
-## ✅ Completed Tasks (19)
+## ✅ Completed Tasks (20)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 31 | ~~Remove Legacy MongoDB Design Fields (productDesign/techDesign)~~ | 2026-01-28 | - |
 | 29 | ~~Disable Plan Mode When Addressing PR Feedback~~ | 2026-01-28 | `a0a531e` |
 | 27 | ~~Fix PR Descriptions and Commit Messages~~ | 2026-01-28 | - |
 | 26 | ~~Standardize Telegram Messages and Commit Summaries~~ | 2026-01-28 | - |
