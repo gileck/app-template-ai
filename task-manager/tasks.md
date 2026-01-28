@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 29
-- **Open:** 10
+- **Total Tasks:** 30
+- **Open:** 11
 - **In Progress:** 0
 - **Done:** 19
 
 ---
 
-## 📋 Open Tasks (10)
+## 📋 Open Tasks (11)
 
 ### 🟠 High Priority
 
@@ -23,6 +23,7 @@
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
 | 28 | Issue Workflow Configuration Page from Telegram | XL | High |
+| 30 | Telegram Interactive Clarification Flow for Agents | L | High |
 
 ### 🟡 Medium Priority
 
