@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 29
-- **Open:** 12
+- **Open:** 10
 - **In Progress:** 0
-- **Done:** 17
+- **Done:** 19
 
 ---
 
-## 📋 Open Tasks (12)
+## 📋 Open Tasks (10)
 
 ### 🟠 High Priority
 
@@ -33,8 +33,6 @@
 | 6 | Add PR Size Validation Enforcement | S | Low |
 | 23 | Workflow Source Code Audit Command | M | Medium |
 | 24 | Standalone Task Creation Agent | L | Medium |
-| 26 | Standardize Telegram Messages and Commit Summaries | M | Low |
-| 27 | Fix PR Descriptions and Commit Messages | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -43,11 +41,13 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (17)
+## ✅ Completed Tasks (19)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
 | 29 | ~~Disable Plan Mode When Addressing PR Feedback~~ | 2026-01-28 | `a0a531e` |
+| 27 | ~~Fix PR Descriptions and Commit Messages~~ | 2026-01-28 | - |
+| 26 | ~~Standardize Telegram Messages and Commit Summaries~~ | 2026-01-28 | - |
 | 21 | ~~Integrate Plan Subagent into Agent Workflow~~ | Unknown | - |
 | 20 | ~~Refactor Task Management: Split tasks.md into Individual Task Files~~ | 2026-01-27 | `3997cc7` |
 | 19 | ~~Add OpenAI Codex to Agent Library as Optional Provider~~ | 2026-01-27 | - |
