@@ -4,7 +4,7 @@ title: Issue Workflow Configuration Page from Telegram
 priority: High
 size: XL
 complexity: High
-status: Backlog
+status: TODO
 dateAdded: 2026-01-27
 dateUpdated: 2026-01-27
 ---

@@ -4,7 +4,7 @@ title: Phase PRs Target Issue Branch Instead of Master
 priority: High
 size: L
 complexity: High
-status: Backlog
+status: TODO
 dateAdded: 2026-01-27
 dateUpdated: 2026-01-27
 ---

@@ -4,7 +4,7 @@ title: Fix PR Descriptions and Commit Messages
 priority: Medium
 size: M
 complexity: Medium
-status: Backlog
+status: TODO
 dateAdded: 2026-01-27
 dateUpdated: 2026-01-27
 ---

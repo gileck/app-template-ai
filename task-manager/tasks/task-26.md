@@ -4,7 +4,7 @@ title: Standardize Telegram Messages and Commit Summaries
 priority: Medium
 size: M
 complexity: Low
-status: Backlog
+status: TODO
 dateAdded: 2026-01-27
 dateUpdated: 2026-01-27
 ---
