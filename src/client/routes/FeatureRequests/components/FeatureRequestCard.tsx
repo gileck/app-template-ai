@@ -148,20 +148,29 @@ export function FeatureRequestCard({ request }: FeatureRequestCardProps) {
 
                             <PriorityBadge priority={request.priority} />
 
-                            {/* GitHub issue link - always visible on small screens */}
-                            {request.githubIssueUrl && (
-                                <a
-                                    href={request.githubIssueUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="xs:hidden flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                                    title={`GitHub Issue #${request.githubIssueNumber}`}
-                                    onClick={(e) => e.stopPropagation()}
+                            {/* GitHub issue link and date - visible on small screens only */}
+                            <div className="xs:hidden flex items-center gap-1.5 text-xs text-muted-foreground">
+                                {request.githubIssueUrl && (
+                                    <a
+                                        href={request.githubIssueUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1 hover:text-primary transition-colors"
+                                        title={`GitHub Issue #${request.githubIssueNumber}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <span>#{request.githubIssueNumber}</span>
+                                    </a>
+                                )}
+                                <div
+                                    className="flex items-center gap-1"
+                                    title={`Created: ${new Date(request.createdAt).toLocaleString()}`}
                                 >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                    <span>#{request.githubIssueNumber}</span>
-                                </a>
-                            )}
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>{new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                            </div>
 
                             {/* Metadata icon row - hidden on very small screens */}
                             <div className="hidden xs:flex sm:flex">
