@@ -205,12 +205,39 @@ export interface GetGitHubIssueDetailsRequest {
     requestId: string;
 }
 
-export interface LinkedPullRequest {
-    number: number;
+// ============================================================
+// Artifact Types (parsed from GitHub issue artifact comments)
+// ============================================================
+
+export interface DesignDocArtifact {
+    type: 'product-dev' | 'product-design' | 'tech-design';
+    /** Human-readable label for display */
+    label: string;
+    /** Full URL to the design document on GitHub */
     url: string;
-    title: string;
-    state: 'OPEN' | 'CLOSED' | 'MERGED';
-    mergedAt?: string;
+    status: 'pending' | 'approved';
+    lastUpdated: string;
+    /** PR number that created/updated this design */
+    prNumber?: number;
+}
+
+export type ImplementationPhaseStatus = 'pending' | 'in-review' | 'approved' | 'changes-requested' | 'merged';
+
+export interface ImplementationPhaseArtifact {
+    phase: number;
+    totalPhases: number;
+    name: string;
+    status: ImplementationPhaseStatus;
+    prNumber?: number;
+    /** Full URL to the PR on GitHub */
+    prUrl?: string;
+}
+
+export interface IssueArtifacts {
+    /** Design documents (0-3: product-dev, product-design, tech-design) */
+    designDocs: DesignDocArtifact[];
+    /** Implementation PRs (0+ phases) */
+    implementationPhases: ImplementationPhaseArtifact[];
 }
 
 export interface GitHubIssueDetails {
@@ -219,7 +246,8 @@ export interface GitHubIssueDetails {
     body: string;
     url: string;
     state: 'OPEN' | 'CLOSED';
-    linkedPullRequests: LinkedPullRequest[];
+    /** Artifacts extracted from the agent artifact comment */
+    artifacts?: IssueArtifacts;
 }
 
 export interface GetGitHubIssueDetailsResponse {
