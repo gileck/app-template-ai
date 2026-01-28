@@ -225,17 +225,24 @@ export function FeatureRequestDetail() {
                                 )}
                             </div>
 
-                            {request.githubProjectStatus && (
-                                <div className="rounded-md bg-muted/50 p-2.5 sm:p-3">
-                                    <p className="text-xs text-muted-foreground">GitHub Project Status</p>
-                                    <p className="font-medium">{request.githubProjectStatus}</p>
+                            {isLoadingGitHubStatus && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>Loading GitHub status...</span>
                                 </div>
                             )}
 
-                            {request.githubReviewStatus && (
+                            {githubStatus?.status && (
+                                <div className="rounded-md bg-muted/50 p-2.5 sm:p-3">
+                                    <p className="text-xs text-muted-foreground">GitHub Project Status</p>
+                                    <p className="font-medium">{githubStatus.status}</p>
+                                </div>
+                            )}
+
+                            {githubStatus?.reviewStatus && (
                                 <div className="rounded-md bg-muted/50 p-2.5 sm:p-3">
                                     <p className="text-xs text-muted-foreground">Review Status</p>
-                                    <p className="font-medium">{request.githubReviewStatus}</p>
+                                    <p className="font-medium">{githubStatus.reviewStatus}</p>
                                 </div>
                             )}
 
