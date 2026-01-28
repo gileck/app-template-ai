@@ -56,9 +56,10 @@ This is a **comprehensive audit**. Before starting, understand:
 7. [pending] Phase 3.5: Audit Prompt Quality (CRITICAL)
 8. [pending] Phase 3.6: Audit E2E Workflow (phases, artifacts, communication)
 9. [pending] Phase 3.7: Audit Telegram Webhooks (status updates, actions)
-10. [pending] Phase 4: Documentation Audit
-11. [pending] Phase 5: Doc-Code Consistency Check
-12. [pending] Phase 6: Generate Final Audit Report
+10. [pending] Phase 3.8: Audit Clarification Flow (Telegram→UI→GitHub)
+11. [pending] Phase 4: Documentation Audit
+12. [pending] Phase 5: Doc-Code Consistency Check
+13. [pending] Phase 6: Generate Final Audit Report
 ```
 
 ---
@@ -85,6 +86,7 @@ Phase 3: Systematic Code Review
     | - 3.5: Prompt Quality (CRITICAL)
     | - 3.6: E2E Workflow (phases, artifacts)
     | - 3.7: Telegram Webhooks (status updates)
+    | - 3.8: Clarification Flow (Telegram→UI→GitHub)
     v
 Phase 4: Documentation Audit
     | - Completeness
@@ -1258,6 +1260,351 @@ For L/XL features with multiple phases:
 
 ---
 
+### 3.8: Agent Clarification Flow Audit
+
+When agents need clarification before proceeding, they trigger an interactive flow: agent posts question → Telegram notification → admin answers via web UI → answer posted to GitHub → agent continues.
+
+**Primary locations**:
+- `src/apis/clarification/` - API handlers for clarification flow
+- `src/client/components/clarify/` - UI components for answering questions
+- `src/client/routes/Clarify/` - Route component
+- `src/agents/shared/notifications.ts` - Telegram notification with ANSWER QUESTIONS button
+- `src/agents/shared/prompts.ts` - Clarification question format
+
+#### 3.8.1: Clarification API Discovery
+
+```bash
+# Find clarification API files
+ls -la src/apis/clarification/
+
+# Check API handlers
+ls -la src/apis/clarification/handlers/
+
+# Find token generation
+grep -r "generateClarificationToken\|validateClarificationToken" src --include="*.ts"
+```
+
+**Create API inventory:**
+
+| File | Purpose | Exports | Status |
+|------|---------|---------|--------|
+| types.ts | Type definitions | ParsedQuestion, QuestionAnswer, etc. | |
+| utils.ts | Token + parsing utilities | generateClarificationToken, parseClarificationContent | |
+| handlers/getClarification.ts | Fetch & parse clarification | | |
+| handlers/submitAnswer.ts | Post answer to GitHub | | |
+| server.ts | Register handlers | | |
+| client.ts | Client functions | | |
+
+#### 3.8.2: Token Security Audit
+
+Clarification URLs use tokens for basic security:
+
+```typescript
+// Expected pattern
+const token = generateClarificationToken(issueNumber);
+const url = `/clarify/${issueNumber}?token=${token}`;
+```
+
+| Check | Status |
+|-------|--------|
+| Token uses cryptographically secure hash (SHA256) | |
+| Token includes secret (JWT_SECRET or similar) | |
+| Token is validated server-side before showing data | |
+| Token is validated before accepting submissions | |
+| Invalid tokens return appropriate error | |
+| Tokens are not logged or exposed | |
+
+#### 3.8.3: Question Parsing Audit
+
+Agent clarification questions must be parsed from markdown:
+
+```bash
+# Check parsing logic
+grep -r "parseClarificationContent\|parseQuestion" src/apis/clarification --include="*.ts"
+```
+
+**Expected markdown format:**
+```markdown
+## Context
+[Background information]
+
+## Question
+[The actual question]
+
+## Options
+✅ Option 1: [Label]
+   - [Pro/con bullet]
+   - [Pro/con bullet]
+
+⚠️ Option 2: [Label]
+   - [Pro/con bullet]
+
+## Recommendation
+[Agent's recommendation with reasoning]
+```
+
+| Check | Status |
+|-------|--------|
+| Parses `## Context` section | |
+| Parses `## Question` section | |
+| Parses `## Options` with emoji markers (✅/⚠️) | |
+| Parses option bullets/details | |
+| Identifies recommended option | |
+| Parses `## Recommendation` section | |
+| Handles multiple questions in one comment | |
+| Handles missing sections gracefully | |
+| Handles malformed markdown | |
+
+#### 3.8.4: UI Components Audit
+
+```bash
+# List clarification UI components
+ls -la src/client/components/clarify/
+```
+
+**Component inventory:**
+
+| Component | Purpose | Status |
+|-----------|---------|--------|
+| ClarifyPage.tsx | Main wizard flow | |
+| QuestionCard.tsx | Single question display | |
+| SuccessState.tsx | Post-submission state | |
+
+**ClarifyPage Checklist:**
+
+| Check | Status |
+|-------|--------|
+| Fetches clarification data via API | |
+| Validates token on load | |
+| Shows loading state | |
+| Shows error state for invalid token | |
+| Shows error state for invalid status | |
+| Wizard flow (one question at a time) | |
+| Progress indicator shows current position | |
+| Progress dots are clickable for navigation | |
+| Back/Next navigation works | |
+| Preview step before submission | |
+| Edit capability from preview | |
+| Submit button disabled until all answered | |
+| Scroll to top on success | |
+| Mobile-friendly layout | |
+
+**QuestionCard Checklist:**
+
+| Check | Status |
+|-------|--------|
+| Shows context (collapsible) | |
+| Shows question text clearly | |
+| Radio options with proper styling | |
+| Shows emoji indicators (✅/⚠️) | |
+| Shows "Recommended" badge | |
+| Shows option bullets/details | |
+| "Other" option with textarea | |
+| Additional notes field | |
+| State resets when navigating between questions | |
+
+#### 3.8.5: Answer Formatting Audit
+
+Answers must be formatted for GitHub comment:
+
+```bash
+# Check answer formatting
+grep -r "formatAnswerForGitHub\|formatAnswers" src/apis/clarification --include="*.ts"
+```
+
+**Expected GitHub comment format:**
+```markdown
+## ✅ Clarification Provided
+
+**Question:** [Question text]
+
+**Answer:** [Selected option]
+
+**Additional notes:** [Optional notes]
+
+---
+_Clarification provided via interactive UI. Continue with the selected option(s)._
+```
+
+| Check | Status |
+|-------|--------|
+| Formats each question/answer pair | |
+| Includes question text | |
+| Includes selected answer | |
+| Includes additional notes if provided | |
+| Handles "Other" custom text answers | |
+| Handles multiple questions | |
+| Format is parseable by agent | |
+| Includes continuation instruction | |
+
+#### 3.8.6: Status Updates Audit
+
+Clarification flow involves status transitions:
+
+```
+Agent needs clarification → Status: "Waiting for Clarification"
+Admin submits answers → Status: "Clarification Received"
+Agent continues → Status: [next phase status]
+```
+
+| Check | Status |
+|-------|--------|
+| getClarification validates status is "Waiting for Clarification" | |
+| submitAnswer updates status to "Clarification Received" | |
+| Status update includes both MongoDB and GitHub | |
+| Invalid status returns appropriate error | |
+| Status update is atomic | |
+
+#### 3.8.7: Telegram Integration Audit
+
+When agent needs clarification, Telegram notification should include:
+
+```bash
+# Check notification function
+grep -r "notifyAgentNeedsClarification\|ANSWER QUESTIONS" src/agents/shared --include="*.ts"
+```
+
+**Expected Telegram message:**
+```
+🤔 Agent Needs Clarification
+
+Phase: [current phase]
+[Type badge]
+
+📋 [Issue title]
+🔗 Issue #[number]
+
+[💬 ANSWER QUESTIONS] ← URL button to /clarify/:issueNumber
+[📋 View Issue] ← URL button to GitHub issue
+[✅ Clarification Received] ← Callback button (fallback)
+```
+
+| Check | Status |
+|-------|--------|
+| Token generated for URL | |
+| URL button links to /clarify/:issueNumber?token=... | |
+| URL uses correct app domain | |
+| View Issue button links to GitHub | |
+| Fallback "Clarification Received" callback button exists | |
+| Message includes issue number and title | |
+| Message indicates current phase | |
+| Message indicates item type (feature/bug) | |
+
+#### 3.8.8: Route Configuration Audit
+
+The clarify route should be configured correctly:
+
+```bash
+# Check route configuration
+grep -r "clarify" src/client/routes/index.ts
+```
+
+| Check | Status |
+|-------|--------|
+| Route registered at `/clarify/:issueNumber` | |
+| Route marked as `public: true` (no auth required) | |
+| Route marked as `fullScreen: true` (no header/navbar) | |
+| Route component extracts issueNumber param | |
+| Route component extracts token from query string | |
+| Invalid params show appropriate error | |
+
+#### 3.8.9: Error Handling Audit
+
+| Scenario | Expected Behavior | Status |
+|----------|-------------------|--------|
+| Invalid token | Show error, don't load data | |
+| Expired/invalid issue | Show "not found" message | |
+| Wrong status (not waiting) | Show error, prevent submission | |
+| Network error on load | Show error with retry option | |
+| Network error on submit | Show error, allow retry | |
+| Already submitted | Prevent duplicate submission | |
+| Partial submission failure | Clear error, rollback state | |
+
+#### 3.8.10: Agent Prompt Audit
+
+Agent clarification questions should follow the expected format:
+
+```bash
+# Check clarification prompt format
+grep -r "clarification\|Clarification" src/agents/shared/prompts.ts
+```
+
+| Check | Status |
+|-------|--------|
+| Prompts instruct agents how to format questions | |
+| Format matches what parser expects | |
+| Options format with emojis specified | |
+| Recommendation format specified | |
+| No conflicting format instructions | |
+
+#### 3.8.11: E2E Flow Verification
+
+Trace the complete flow:
+
+```
+1. Agent detects need for clarification
+   → Posts GitHub comment with structured question
+   → Sets status to "Waiting for Clarification"
+   → Calls notifyAgentNeedsClarification()
+
+2. Telegram notification sent
+   → Admin sees "ANSWER QUESTIONS" button
+   → Clicks button, opens /clarify/:issueNumber?token=...
+
+3. Clarify page loads
+   → Validates token
+   → Fetches clarification data
+   → Parses questions from GitHub comment
+   → Renders wizard UI
+
+4. Admin answers questions
+   → Selects options
+   → Adds optional notes
+   → Reviews in preview step
+   → Clicks submit
+
+5. Answer submission
+   → Formats answers for GitHub
+   → Posts comment to issue
+   → Updates status to "Clarification Received"
+   → Shows success state
+
+6. Agent continues
+   → Reads admin's answer comment
+   → Incorporates clarifications
+   → Proceeds with workflow
+```
+
+| Step | Implemented? | Status |
+|------|--------------|--------|
+| Agent posts structured question | | |
+| Agent sets "Waiting" status | | |
+| Telegram notification sent | | |
+| Notification has URL button | | |
+| Page validates token | | |
+| Page fetches and parses questions | | |
+| Wizard UI works | | |
+| Submit posts to GitHub | | |
+| Submit updates status | | |
+| Success state shows | | |
+| Agent can parse answer | | |
+
+#### 3.8.12: Clarification Flow Summary
+
+| Aspect | Score (1-5) | Notes |
+|--------|-------------|-------|
+| Token Security | | |
+| Question Parsing | | |
+| UI Components | | |
+| Answer Formatting | | |
+| Status Updates | | |
+| Telegram Integration | | |
+| Error Handling | | |
+| E2E Flow | | |
+| **Overall Clarification Score** | | |
+
+---
+
 ## Phase 4: Documentation Audit
 
 ### 4.1: Completeness Check
@@ -1414,6 +1761,7 @@ Use this template for the final report:
 | Prompt Quality | X | X | X | XX% |
 | E2E Workflow | X | X | X | XX% |
 | Telegram Webhooks | X | X | X | XX% |
+| Clarification Flow | X | X | X | XX% |
 | Documentation | X | X | X | XX% |
 | Doc-Code Sync | X | X | X | XX% |
 | **Total** | **X** | **X** | **X** | **XX%** |
@@ -1562,6 +1910,17 @@ Complete after ALL fixes are implemented:
 - [ ] Messages updated after actions
 - [ ] Multi-phase merge handling correct
 
+### Clarification Flow
+- [ ] Token generation uses secure hash with secret
+- [ ] Token validated before showing data
+- [ ] Token validated before accepting submissions
+- [ ] Question parsing handles all expected formats
+- [ ] UI wizard flow works correctly
+- [ ] Answer format matches agent expectations
+- [ ] Status updates to "Clarification Received" on submit
+- [ ] Telegram notification has ANSWER QUESTIONS button
+- [ ] Full E2E flow works (agent→Telegram→UI→GitHub→agent)
+
 ### Documentation
 - [ ] All CLI options documented
 - [ ] All status constants documented
@@ -1620,6 +1979,7 @@ Complete ALL items to finish the audit:
 - [ ] Audited prompt quality (structure, clarity, completeness)
 - [ ] Audited E2E workflow (phases, artifacts, communication)
 - [ ] Audited Telegram webhooks (buttons, status updates, security)
+- [ ] Audited clarification flow (Telegram→UI→GitHub)
 
 ### Phase 4: Documentation Audit
 - [ ] Checked completeness
@@ -1713,6 +2073,22 @@ Complete ALL items to finish the audit:
 | Missing phase awareness | Check multi-phase handling | Pass phase info to handlers |
 | Unclear error messages | Check error responses | Improve error messaging |
 | No logging | Check webhook logs | Add comprehensive logging |
+
+### Clarification Flow Violations
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Weak token security | Check generateClarificationToken | Use SHA256 with secret |
+| Token not validated | Check API handlers | Validate before showing data/accepting submission |
+| Question parsing fails | Test with various question formats | Fix regex/parsing logic |
+| Missing emoji parsing | Check ✅/⚠️ handling | Use alternation `(✅\|⚠️)` not character class |
+| Status not checked | Check getClarification | Reject if not "Waiting for Clarification" |
+| Status not updated | Check submitAnswer | Update to "Clarification Received" |
+| Answer format wrong | Test agent parsing | Match expected format in prompts |
+| UI state not reset | Check QuestionCard useEffect | Reset state on questionIndex change |
+| No scroll to top | Check onSuccess callback | Add window.scrollTo |
+| Missing Telegram button | Check notifyAgentNeedsClarification | Add URL button with token |
+| Wrong app URL | Check getAppUrl usage | Use correct production URL |
 
 ---
 
