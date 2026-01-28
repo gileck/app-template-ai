@@ -25,10 +25,12 @@ interface TodoPreferencesState {
     uncompletedFirst: boolean;
     hideCompleted: boolean;
     dueDateFilter: TodoDueDateFilter;
+    filtersExpanded: boolean; // Ephemeral UI state - NOT persisted
     setSortBy: (sortBy: TodoSortBy) => void;
     setUncompletedFirst: (value: boolean) => void;
     setHideCompleted: (value: boolean) => void;
     setDueDateFilter: (filter: TodoDueDateFilter) => void;
+    setFiltersExpanded: (value: boolean) => void;
 }
 
 /**
@@ -42,12 +44,15 @@ export const useTodoPreferencesStore = createStore<TodoPreferencesState>({
         uncompletedFirst: false,
         hideCompleted: false,
         dueDateFilter: 'all',
+        filtersExpanded: false, // Ephemeral - defaults to collapsed on mobile
         setSortBy: (sortBy) => set({ sortBy }),
         setUncompletedFirst: (value) => set({ uncompletedFirst: value }),
         setHideCompleted: (value) => set({ hideCompleted: value }),
         setDueDateFilter: (filter) => set({ dueDateFilter: filter }),
+        setFiltersExpanded: (value) => set({ filtersExpanded: value }),
     }),
     persistOptions: {
+        // Note: filtersExpanded is intentionally NOT included - it's ephemeral UI state
         partialize: (state) => ({
             sortBy: state.sortBy,
             uncompletedFirst: state.uncompletedFirst,

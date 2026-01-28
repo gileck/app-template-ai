@@ -319,8 +319,9 @@ export function TodoItem({
 
                 {/* Mobile Layout */}
                 <div className="flex flex-col gap-3 sm:hidden todo-item-mobile">
+                    {/* Row 1: Checkbox + Title */}
                     <div className="todo-item-main-row">
-                        {/* Custom Checkbox */}
+                        {/* Custom Checkbox - 48px touch target */}
                         <button
                             className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
                             aria-checked={todo.completed}
@@ -335,7 +336,7 @@ export function TodoItem({
                         {/* Title or Edit Input */}
                         {isEditing ? (
                             <Input
-                                className="flex-1"
+                                className="flex-1 h-12 text-base"
                                 value={editTitle}
                                 onChange={(e) => setEditTitle(e.target.value)}
                                 onKeyDown={handleEditKeyPress}
@@ -353,12 +354,12 @@ export function TodoItem({
                         )}
                     </div>
 
-                    {/* Due Date Badge - Full width on mobile */}
+                    {/* Row 2: Due Date Badge (if applicable) */}
                     {todo.dueDate && !isEditing && (
-                        <div className="todo-item-due-badge-mobile">
+                        <div className="todo-item-due-badge-mobile pl-9">
                             <Badge
                                 variant={isDueDateOverdue ? 'destructive' : isDueDateToday ? 'default' : 'secondary'}
-                                className="text-xs"
+                                className="text-xs px-2 py-1"
                             >
                                 <Calendar className="mr-1 h-3 w-3" />
                                 {isDueDateToday ? 'Today' : isDueDateOverdue ? `Overdue - ${formatDueDate(todo.dueDate)}` : `Due ${formatDueDate(todo.dueDate)}`}
@@ -366,7 +367,7 @@ export function TodoItem({
                         </div>
                     )}
 
-                    {/* Action Buttons - Separate row on mobile */}
+                    {/* Row 3: Action Buttons */}
                     {isEditing ? (
                         <div className="todo-item-edit-actions-mobile">
                             <Button
@@ -385,11 +386,11 @@ export function TodoItem({
                                     disabled={isDisabled}
                                     className="h-12"
                                 >
-                                    <Save className="mr-1 h-4 w-4" />
+                                    <Save className="mr-2 h-4 w-4" />
                                     Save
                                 </Button>
                                 <Button variant="outline" onClick={handleCancelEdit} className="h-12">
-                                    <X className="mr-1 h-4 w-4" />
+                                    <X className="mr-2 h-4 w-4" />
                                     Cancel
                                 </Button>
                             </div>
@@ -400,9 +401,9 @@ export function TodoItem({
                                 variant="outline"
                                 onClick={handleViewTodo}
                                 title="View details"
-                                className="min-h-11 min-w-11"
+                                className="h-11 flex-1"
                             >
-                                <Eye className="mr-1 h-4 w-4" />
+                                <Eye className="mr-1.5 h-4 w-4" />
                                 View
                             </Button>
                             <Button
@@ -410,9 +411,9 @@ export function TodoItem({
                                 onClick={handleStartEdit}
                                 disabled={isDisabled}
                                 title="Edit"
-                                className="min-h-11 min-w-11"
+                                className="h-11 flex-1"
                             >
-                                <Pencil className="mr-1 h-4 w-4" />
+                                <Pencil className="mr-1.5 h-4 w-4" />
                                 Edit
                             </Button>
                             <Button
@@ -420,7 +421,7 @@ export function TodoItem({
                                 onClick={() => onDelete(todo)}
                                 disabled={isDisabled}
                                 title="Delete"
-                                className="min-h-11 min-w-11"
+                                className="h-11 w-11 flex-shrink-0 px-0"
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
