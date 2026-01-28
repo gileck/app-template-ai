@@ -7,9 +7,9 @@
 
 ## Summary
 
-- **Total Tasks:** 30
+- **Total Tasks:** 31
 - **Open:** 11
-- **In Progress:** 0
+- **In Progress:** 1
 - **Done:** 19
 
 ---
@@ -41,6 +41,12 @@
 |---|-------|------|------------|
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
+
+## 🔄 In Progress (1)
+
+| # | Title | Size | Priority |
+|---|-------|------|----------|
+| 31 | Remove Legacy MongoDB Design Fields (productDesign/techDesign) | M | **Medium** |
 
 ## ✅ Completed Tasks (19)
 

@@ -55,51 +55,85 @@ When agent runs with `clarificationReceived` status:
 - Reads the answers from issue comments
 - Continues workflow with the provided clarifications
 
+## What's Already Implemented (No Work Needed)
+
+The entire clarification flow already works end-to-end. Admin currently answers via GitHub issue comment.
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| Review statuses | `src/server/project-management/config.ts` | `waitingForClarification` and `clarificationReceived` exist |
+| Agent clarification output format | `src/agents/shared/prompts.ts` | `AMBIGUITY_INSTRUCTIONS` tells agents to use ` ```clarification ` blocks |
+| Clarification detection | `src/agents/shared/utils.ts` | `extractClarification()` parses agent output |
+| Comment to GitHub issue | `src/agents/shared/utils.ts` | `handleClarificationRequest()` posts questions to issue |
+| Status change to waitingForClarification | `src/agents/shared/utils.ts` | Part of `handleClarificationRequest()` |
+| Telegram notification with buttons | `src/agents/shared/notifications.ts` | `notifyAgentNeedsClarification()` sends message |
+| "Clarification Received" webhook handler | `src/pages/api/telegram-webhook.ts` | `handleClarificationReceived()` changes status |
+| Agent clarification mode | All agents in `src/agents/core-agents/*/index.ts` | All agents support `mode: 'clarification'` |
+| Continuation prompts | `src/agents/shared/prompts.ts` | `buildXxxClarificationPrompt()` for all 4 agents |
+
+**Current flow:** Agent asks → GitHub comment → Telegram notification → Admin answers via GitHub → Agent continues
+
+## What This Task Adds (New UX)
+
+Instead of writing markdown answers on GitHub, admin clicks a button and uses a dedicated form UI with clickable options.
+
+### Easy Changes (S - few hours)
+
+| Component | Effort | Notes |
+|-----------|--------|-------|
+| Change Telegram button URL | S | Modify `notifyAgentNeedsClarification()` to use URL button pointing to new UI |
+| New API endpoint for submitting answers | S | Create `POST /api/process/clarification_answer` - comments to issue + changes status |
+| Parse structured questions from clarification | S | Add parser to extract questions/options from agent's markdown output |
+
+### Medium Work (M - 1-2 days)
+
+| Component | Effort | Notes |
+|-----------|--------|-------|
+| Dedicated Clarification UI page | M | New route `/clarify/[issueNumber]`, fetch questions, render form, submit |
+| Question/Options format definition | M | Define exact parseable format - current format is human-readable but not machine-parseable |
+| Mobile-friendly question renderer | M | Component with radio buttons for options + text input for free text |
+| State management for answers | S-M | Track selections, handle free text, validation |
+
+### Effort Breakdown
+
+- **New UI page** (~40% of work) - `/clarify/[issueNumber]` with form components
+- **Question format parser** (~20% of work) - Extract questions/options from clarification text
+- **UI components** (~30% of work) - Question cards with radio options + free text
+- **API + wiring** (~10% of work) - New endpoint, Telegram button URL change
+
 ## Implementation Notes
 
-### Components to Build
+### Files to Create
 
-#### Backend
-- New API endpoint for submitting clarification answers
-- Parse agent output to detect clarification questions format
-- Telegram webhook handler for ANSWER_QUESTIONS callback
+- `src/client/routes/Clarify/index.tsx` - Main clarification page component
+- `src/client/routes/Clarify/components/QuestionCard.tsx` - Single question renderer
+- `src/client/routes/Clarify/hooks.ts` - Data fetching and submission hooks
+- `src/apis/clarification/` - New API domain for clarification operations
+- `src/agents/shared/clarificationParser.ts` - Parse questions/options from agent output
 
-#### Frontend
-- New dedicated page: `/clarify/[issueNumber]` or similar
-- Question renderer component (handles options + free text)
-- Answer submission logic
+### Files to Modify
 
-#### Agent Changes
-- Define standard output format for clarification questions
-- Add clarification detection to agent output parsing
-- Add clarificationReceived mode handling in agents
-
-#### Telegram
-- New button type for ANSWER_QUESTIONS
-- URL that opens the dedicated clarification UI
+- `src/agents/shared/notifications.ts` - Change button URL in `notifyAgentNeedsClarification()`
+- `src/agents/shared/prompts.ts` - Update `AMBIGUITY_INSTRUCTIONS` with machine-parseable format
+- `src/client/routes/index.ts` - Add new Clarify route
 
 ### Technical Considerations
+
 - The clarification UI should be simple and focused (not full admin panel)
-- Consider mobile-friendly design for quick Telegram → answer flow
-- Questions format should be parseable (consider JSON or structured markdown)
+- Mobile-first design for quick Telegram → answer flow
+- Questions format should be parseable (structured markdown with clear delimiters)
+- URL should include a token/signature for basic access control
 - Multiple questions per clarification request supported
-
-## Files to Modify
-
-- `src/agents/shared/prompts.ts` - Add clarification output format to agent prompts
-- `src/agents/shared/utils.ts` - Add clarification question parsing
-- `src/agents/auto-advance.ts` - Handle waitingForClarification status transition
-- `src/pages/api/telegram-webhook.ts` - Add ANSWER_QUESTIONS callback handler
-- `src/server/project-management/config.ts` - Already has waitingForClarification/clarificationReceived statuses
-- `src/client/routes/` - New ClarificationAnswer route and components
-- `src/apis/feature-requests/` - New API for submitting clarification answers
 
 ## Dependencies
 
-- Review statuses `waitingForClarification` and `clarificationReceived` already exist in config
+- Review statuses `waitingForClarification` and `clarificationReceived` already exist
+- `handleClarificationRequest()` and `notifyAgentNeedsClarification()` already work
+- All agents already support clarification mode
 
 ## Risks
 
-- Agent output parsing may need iteration to get the format right
+- Agent output format change may need iteration to get right (backward compatibility)
 - Mobile UX for the clarification UI needs careful design
-- Need to handle edge cases: multiple pending clarifications, expired clarification requests
+- URL security - should the page be publicly accessible or require auth?
+- Edge cases: expired clarification requests, multiple pending clarifications
