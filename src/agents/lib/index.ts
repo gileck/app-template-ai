@@ -12,7 +12,6 @@ import {
     logError,
     logExecutionStart,
     logExecutionEnd,
-    logPrompt,
     logTokenUsage,
     type LogContext,
 } from './logging';
@@ -261,7 +260,6 @@ async function runImplementationPlanSubagent(
 ): Promise<{ plan: string | null; error?: string }> {
     const usesPlanMode = library.capabilities.planMode === true;
     const planMechanism = usesPlanMode ? '--mode=plan' : 'read-only tools';
-    const tools = usesPlanMode ? ['plan-mode'] : ['Read', 'Glob', 'Grep', 'WebFetch'];
 
     console.log(`  📋 Running Plan subagent (${library.name}, ${planMechanism})...`);
 
@@ -283,14 +281,8 @@ async function runImplementationPlanSubagent(
     // Build the plan prompt using the dedicated prompt builder
     const planPrompt = buildPlanSubagentPrompt(options.prompt);
 
-    // Log the prompt
-    if (planCtx) {
-        logPrompt(planCtx, planPrompt, {
-            model: library.model,
-            tools,
-            timeout,
-        });
-    }
+    // NOTE: We don't call logPrompt here because the adapter will log it.
+    // The adapter logs with the correct model name and tools.
 
     try {
         // Use planMode if library supports it (cursor), otherwise use read-only tools (claude-code-sdk)

@@ -178,6 +178,17 @@ class CursorAdapter implements AgentLibraryAdapter {
         const filesExamined: string[] = [];
         let lastResult = '';
 
+        // Buffer for accumulating streaming text responses
+        let textBuffer = '';
+        const TEXT_BUFFER_FLUSH_SIZE = 500; // Flush after this many characters
+
+        const flushTextBuffer = () => {
+            if (textBuffer.trim() && logCtx) {
+                logTextResponse(logCtx, textBuffer.trim());
+            }
+            textBuffer = '';
+        };
+
         let spinnerInterval: NodeJS.Timeout | null = null;
         let spinnerFrame = 0;
 
@@ -194,7 +205,7 @@ class CursorAdapter implements AgentLibraryAdapter {
         const logCtx = getCurrentLogContext();
         if (logCtx) {
             logPrompt(logCtx, prompt, {
-                model: 'cursor-agent',
+                model: this.model,
                 tools: allowWrite ? ['read', 'write', 'edit', 'bash'] : ['read'],
                 timeout,
             });
@@ -222,15 +233,22 @@ class CursorAdapter implements AgentLibraryAdapter {
                             const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
                             if (event.type === 'text' && event.content) {
-                                // Log text response
-                                if (logCtx) {
-                                    logTextResponse(logCtx, event.content);
-                                }
-                                console.log(`    \x1b[90m${event.content}\x1b[0m`);
+                                // Buffer text responses instead of logging each one
+                                textBuffer += event.content;
                                 lastResult = event.content;
+
+                                // Flush if buffer is large enough
+                                if (textBuffer.length >= TEXT_BUFFER_FLUSH_SIZE) {
+                                    flushTextBuffer();
+                                }
+
+                                // Still show in console for real-time feedback
+                                console.log(`    \x1b[90m${event.content}\x1b[0m`);
                             }
 
                             if (event.type === 'tool_use') {
+                                // Flush text buffer before logging tool call
+                                flushTextBuffer();
                                 toolCallCount++;
                                 const toolName = event.name || 'unknown';
                                 const toolInput = event.input || {};
@@ -257,6 +275,8 @@ class CursorAdapter implements AgentLibraryAdapter {
                             }
 
                             if (event.type === 'result') {
+                                // Flush any remaining text before processing result
+                                flushTextBuffer();
                                 if (event.result) {
                                     lastResult = event.result;
                                 }
@@ -264,6 +284,9 @@ class CursorAdapter implements AgentLibraryAdapter {
                         },
                     }
                 );
+
+                // Flush any remaining text in buffer
+                flushTextBuffer();
 
                 const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
                 const usage = this.extractUsageFromResult(result.stdout);

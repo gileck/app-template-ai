@@ -42,13 +42,16 @@ Use Grep to find problems WITHOUT reading full content.
 | Errors | `\[LOG:ERROR\]\|\[LOG:FATAL\]` |
 | All phases | `\[LOG:PHASE_START\]` |
 | Phase results | `\[LOG:PHASE_END\]` |
+| Execution start/end | `\[LOG:EXECUTION_START\]\|\[LOG:EXECUTION_END\]` |
 | Tool calls | `\[LOG:TOOL_CALL\]` |
 | Tool results | `\[LOG:TOOL_RESULT\]` |
 | Token usage | `\[LOG:TOKENS\]` |
 | Status changes | `\[LOG:STATUS\]` |
 | GitHub actions | `\[LOG:GITHUB\]` |
 | Webhook events | `\[LOG:WEBHOOK\]` |
+| Webhook phase start/end | `\[LOG:WEBHOOK_START\]\|\[LOG:WEBHOOK_END\]` |
 | GitHub Action events | `\[LOG:ACTION\]` |
+| GitHub Action phase start/end | `\[LOG:ACTION_START\]\|\[LOG:ACTION_END\]` |
 | Telegram events | `\[LOG:TELEGRAM\]` |
 | Summary | `\[LOG:SUMMARY\]` |
 | Previous reviews | `\[LOG:REVIEW\]` |
@@ -309,7 +312,7 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 ### [LOG:PROMPT] Prompt
 **Model:** sonnet | **Tools:** Read, Glob, Grep, WebFetch | **Timeout:** 600s
 
-### Agent Execution
+### [LOG:EXECUTION_START] Agent Execution
 **[HH:MM:SS]** [LOG:TOOL_CALL] 🔧 Tool: [name] (ID: [id])
 **[HH:MM:SS]** [LOG:TOOL_RESULT] ✅ Result: [name] (ID: [id])
 **[HH:MM:SS]** [LOG:THINKING] 💭 Thinking: [content]
@@ -319,9 +322,16 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 **[HH:MM:SS]** [LOG:GITHUB] 🔀 pr_created: [details]
 **[HH:MM:SS]** [LOG:ERROR] ❌ Error: [message]
 **[HH:MM:SS]** [LOG:FATAL] ❌ Error: [message]
+### [LOG:EXECUTION_END] Agent Execution
 
-### [LOG:PHASE_END] Phase Result
-**Duration:** Xm Xs | **Tool calls:** N | **Tokens:** N | **Cost:** $X.XX
+---
+
+## [LOG:PHASE_END] Phase: [Product Design/Tech Design/Implement/PR Review]
+**Duration:** Xm Xs
+**Tool calls:** N
+**Tokens:** N
+**Cost:** $X.XX
+**Status:** ✅ Success
 
 ## [LOG:SUMMARY] Summary
 | Phase | Duration | Tools | Tokens | Cost |
@@ -332,7 +342,9 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 | Marker | Description |
 |--------|-------------|
 | `[LOG:PHASE_START]` | Beginning of a workflow phase |
-| `[LOG:PHASE_END]` | End of phase with result summary |
+| `[LOG:PHASE_END]` | End of phase with result summary (includes phase name) |
+| `[LOG:EXECUTION_START]` | Beginning of agent execution within a phase |
+| `[LOG:EXECUTION_END]` | End of agent execution within a phase |
 | `[LOG:PROMPT]` | Prompt sent to Claude API |
 | `[LOG:TOOL_CALL]` | Tool invocation |
 | `[LOG:TOOL_RESULT]` | Tool response |
@@ -345,6 +357,10 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 | `[LOG:FATAL]` | Fatal error |
 | `[LOG:SUMMARY]` | Final summary table |
 | `[LOG:REVIEW]` | Issue review section (added by /workflow-review) |
+| `[LOG:WEBHOOK_START]` | Webhook phase start |
+| `[LOG:WEBHOOK_END]` | Webhook phase end |
+| `[LOG:ACTION_START]` | GitHub Action phase start |
+| `[LOG:ACTION_END]` | GitHub Action phase end |
 
 ---
 
