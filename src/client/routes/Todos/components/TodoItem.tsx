@@ -320,23 +320,21 @@ export function TodoItem({
                 {/* Mobile Layout */}
                 <div className="flex flex-col gap-2 sm:hidden">
                     {/* Row 1: Checkbox + Title */}
-                    <div className="flex items-start gap-3">
-                        {/* Custom Checkbox - wrapped for 44px touch target */}
-                        <div className="todo-checkbox-wrapper">
-                            <button
-                                className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
-                                aria-checked={todo.completed}
-                                role="checkbox"
-                                onClick={handleToggleComplete}
-                                disabled={isDisabled}
-                                aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                            >
-                                {todo.completed && <Check className="h-4 w-4" />}
-                            </button>
-                        </div>
+                    <div className="flex items-start gap-2">
+                        {/* Custom Checkbox - touch-friendly with minimal visual gap */}
+                        <button
+                            className={`todo-checkbox-mobile ${todo.completed ? 'checked' : ''}`}
+                            aria-checked={todo.completed}
+                            role="checkbox"
+                            onClick={handleToggleComplete}
+                            disabled={isDisabled}
+                            aria-label={todo.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                        >
+                            {todo.completed && <Check className="h-4 w-4" />}
+                        </button>
 
                         {/* Title or Edit Input */}
-                        <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="flex-1 min-w-0 pt-1">
                             {isEditing ? (
                                 <Input
                                     className="h-12 text-base"
@@ -349,7 +347,7 @@ export function TodoItem({
                             ) : (
                                 <span
                                     className={`todo-item-title-mobile text-base leading-snug ${
-                                        todo.completed ? 'todo-completed-text' : ''
+                                        todo.completed ? 'todo-completed-text-mobile' : ''
                                     }`}
                                 >
                                     {todo.title}
@@ -360,7 +358,7 @@ export function TodoItem({
 
                     {/* Row 2: Due Date Badge (if applicable) */}
                     {todo.dueDate && !isEditing && (
-                        <div className="ml-10">
+                        <div className="ml-8">
                             <Badge
                                 variant={isDueDateOverdue ? 'destructive' : isDueDateToday ? 'default' : 'secondary'}
                                 className="text-xs px-2 py-0.5"
@@ -373,7 +371,7 @@ export function TodoItem({
 
                     {/* Row 3: Action Buttons */}
                     {isEditing ? (
-                        <div className="flex flex-col gap-2 ml-10">
+                        <div className="flex flex-col gap-2 ml-8">
                             <Button
                                 variant="outline"
                                 onClick={() => setDatePickerOpen(true)}
@@ -400,7 +398,7 @@ export function TodoItem({
                             </div>
                         </div>
                     ) : (
-                        <div className="flex gap-2 ml-10">
+                        <div className="flex gap-2 ml-8">
                             <Button
                                 variant="outline"
                                 size="sm"
