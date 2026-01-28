@@ -11,11 +11,13 @@ import { mergeApiHandlers } from "./registry";
 import { templateApiHandlers } from "./apis.template";
 import { chatApiHandlers } from "./chat/server";
 import { todosApiHandlers } from "./todos/server";
+import { clarificationApiHandlers } from "./clarification/server";
 
 export const apiHandlers = mergeApiHandlers(
   templateApiHandlers,
   chatApiHandlers,
-  todosApiHandlers
+  todosApiHandlers,
+  clarificationApiHandlers
   // Add project-specific API handlers here:
   // myApiHandlers,
 );

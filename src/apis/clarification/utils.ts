@@ -1,0 +1,249 @@
+/**
+ * Clarification Utility Functions
+ *
+ * Handles token generation/validation and parsing of
+ * clarification content from agent comments.
+ */
+
+import crypto from 'crypto';
+import type { ParsedQuestion, ParsedOption, QuestionAnswer } from './types';
+
+// ============================================================
+// TOKEN GENERATION & VALIDATION
+// ============================================================
+
+/**
+ * Generate a security token for a clarification URL.
+ * Uses SHA256 hash of issue number + JWT_SECRET.
+ *
+ * @param issueNumber - The GitHub issue number
+ * @returns 8-character hex token
+ */
+export function generateClarificationToken(issueNumber: number): string {
+    const secret = process.env.JWT_SECRET || 'fallback-secret-for-local-dev';
+    const data = `clarify-${issueNumber}-${secret}`;
+    return crypto.createHash('sha256').update(data).digest('hex').slice(0, 8);
+}
+
+/**
+ * Validate a clarification token.
+ *
+ * @param issueNumber - The GitHub issue number
+ * @param token - Token to validate
+ * @returns true if valid
+ */
+export function validateClarificationToken(issueNumber: number, token: string): boolean {
+    const expected = generateClarificationToken(issueNumber);
+    return token === expected;
+}
+
+// ============================================================
+// CLARIFICATION PARSING
+// ============================================================
+
+/**
+ * Parse clarification content from a GitHub comment into structured questions.
+ *
+ * Expected format (from agent prompts.ts):
+ * ```
+ * ## Context
+ * [Describe what's ambiguous or unclear]
+ *
+ * ## Question
+ * [Your specific question]
+ *
+ * ## Options
+ *
+ * ✅ Option 1: [Recommended option name]
+ *    - [Benefit/reason 1]
+ *    - [Benefit/reason 2]
+ *
+ * ⚠️ Option 2: [Non-recommended option name]
+ *    - [Drawback/reason 1]
+ *    - [Drawback/reason 2]
+ *
+ * ## Recommendation
+ * I recommend Option 1 because [clear reasoning].
+ * ```
+ *
+ * @param content - Raw clarification content
+ * @returns Array of parsed questions (usually just one, but supports multiple)
+ */
+export function parseClarificationContent(content: string): ParsedQuestion[] {
+    const questions: ParsedQuestion[] = [];
+
+    // Split by "## Context" to handle potential multiple questions
+    // (though typically there's just one per clarification request)
+    const contextSections = content.split(/(?=## Context)/);
+
+    for (const section of contextSections) {
+        if (!section.trim()) continue;
+
+        const question = parseSingleQuestion(section);
+        if (question) {
+            questions.push(question);
+        }
+    }
+
+    return questions;
+}
+
+/**
+ * Parse a single question section.
+ */
+function parseSingleQuestion(section: string): ParsedQuestion | null {
+    // Extract Context
+    const contextMatch = section.match(/## Context\s*([\s\S]*?)(?=## Question|$)/);
+    const context = contextMatch ? contextMatch[1].trim() : '';
+
+    // Extract Question
+    const questionMatch = section.match(/## Question\s*([\s\S]*?)(?=## Options|$)/);
+    const question = questionMatch ? questionMatch[1].trim() : '';
+
+    // Extract Options section
+    const optionsMatch = section.match(/## Options\s*([\s\S]*?)(?=## Recommendation|$)/);
+    const optionsSection = optionsMatch ? optionsMatch[1].trim() : '';
+    const options = parseOptions(optionsSection);
+
+    // Extract Recommendation
+    const recommendationMatch = section.match(/## Recommendation\s*([\s\S]*?)(?=## How to Respond|$)/);
+    const recommendation = recommendationMatch ? recommendationMatch[1].trim() : '';
+
+    // Must have at least a question and options
+    if (!question || options.length === 0) {
+        return null;
+    }
+
+    return {
+        context,
+        question,
+        options,
+        recommendation,
+    };
+}
+
+/**
+ * Parse options from the options section.
+ *
+ * Expected format:
+ * ✅ Option 1: Label here
+ *    - Bullet 1
+ *    - Bullet 2
+ *
+ * ⚠️ Option 2: Another label
+ *    - Bullet 1
+ */
+function parseOptions(optionsSection: string): ParsedOption[] {
+    const options: ParsedOption[] = [];
+
+    // Split by emoji markers (✅ or ⚠️ at start of line)
+    const optionBlocks = optionsSection.split(/(?=^[✅⚠️])/m);
+
+    for (const block of optionBlocks) {
+        if (!block.trim()) continue;
+
+        // Match the option header: emoji + "Option N:" + label
+        const headerMatch = block.match(/^([✅⚠️])\s*Option\s*\d+:\s*(.+?)(?:\n|$)/);
+        if (!headerMatch) continue;
+
+        const emoji = headerMatch[1];
+        const label = headerMatch[2].trim();
+        const isRecommended = emoji === '✅';
+
+        // Extract bullets (lines starting with "- " or "   - ")
+        const bullets: string[] = [];
+        const bulletMatches = block.matchAll(/^\s*-\s+(.+)$/gm);
+        for (const match of bulletMatches) {
+            bullets.push(match[1].trim());
+        }
+
+        options.push({
+            emoji,
+            label,
+            bullets,
+            isRecommended,
+        });
+    }
+
+    return options;
+}
+
+// ============================================================
+// ANSWER FORMATTING
+// ============================================================
+
+/**
+ * Format answers for posting as a GitHub comment.
+ *
+ * @param answers - Array of question answers
+ * @param questions - Original parsed questions (for context)
+ * @returns Formatted markdown comment
+ */
+export function formatAnswerForGitHub(
+    answers: QuestionAnswer[],
+    questions: ParsedQuestion[]
+): string {
+    const lines: string[] = [
+        '## ✅ Clarification Provided',
+        '',
+    ];
+
+    for (const answer of answers) {
+        const question = questions[answer.questionIndex];
+        if (!question) continue;
+
+        // Add the question
+        lines.push(`**Q:** ${question.question}`);
+        lines.push('');
+
+        // Add the answer
+        if (answer.selectedOption === 'Other' && answer.customText) {
+            lines.push(`**A:** ${answer.customText}`);
+        } else {
+            lines.push(`**A:** ${answer.selectedOption}`);
+        }
+        lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('_Answer provided via clarification UI._');
+
+    return lines.join('\n');
+}
+
+// ============================================================
+// COMMENT DETECTION
+// ============================================================
+
+/**
+ * Check if a comment is a clarification request from an agent.
+ *
+ * @param body - Comment body
+ * @returns true if this is a clarification comment
+ */
+export function isClarificationComment(body: string): boolean {
+    return body.includes('## 🤔 Agent Needs Clarification') ||
+           body.includes('🤔 Agent Needs Clarification');
+}
+
+/**
+ * Extract the clarification content from a comment body.
+ * Removes the header and footer added by handleClarificationRequest.
+ *
+ * @param body - Full comment body
+ * @returns Just the clarification content
+ */
+export function extractClarificationFromComment(body: string): string {
+    // Remove agent prefix if present (e.g., "[🎨 Product Design Agent]")
+    // Using [\s\S] instead of . with 's' flag for ES5 compatibility
+    let content = body.replace(/^\[[\s\S]*?\]\s*/, '');
+
+    // Remove the "## 🤔 Agent Needs Clarification" header
+    content = content.replace(/## 🤔 Agent Needs Clarification\s*/g, '');
+
+    // Remove the footer
+    // Using [\s\S] instead of . with 's' flag for ES5 compatibility
+    content = content.replace(/---\s*_Please respond with your answer[\s\S]*$/, '');
+
+    return content.trim();
+}
