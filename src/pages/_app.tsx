@@ -18,6 +18,7 @@ import {
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { useAllPersistedStoresHydrated } from '@/client/stores';
 import { markEvent, BOOT_PHASES } from '@/client/features/boot-performance';
+import { useRouter } from 'next/router';
 // Import preflight early to start /me call ASAP (side effect import)
 import '@/client/features/auth/preflight';
 
@@ -26,7 +27,33 @@ const RouterProvider = dynamic(() => import('@/client/router/index').then(module
 // Mark app mount as early as possible
 markEvent(BOOT_PHASES.APP_MOUNT);
 
-export default function App({ }: AppProps) {
+/**
+ * Standalone pages that bypass the main app shell.
+ * These pages handle their own providers and don't need auth, layout, etc.
+ */
+const STANDALONE_PAGE_PREFIXES = ['/clarify'];
+
+export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
+  // Check if this is a standalone page that should bypass the app shell
+  const isStandalonePage = STANDALONE_PAGE_PREFIXES.some(prefix =>
+    router.pathname.startsWith(prefix)
+  );
+
+  // Standalone pages render directly with just global styles
+  if (isStandalonePage) {
+    return (
+      <>
+        <Head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        </Head>
+        <Component {...pageProps} />
+      </>
+    );
+  }
+
+  // Regular app pages get the full shell
   return (
     <>
       <Head>
