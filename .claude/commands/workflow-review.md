@@ -51,6 +51,7 @@ Use Grep to find problems WITHOUT reading full content.
 | GitHub Action events | `\[LOG:ACTION\]` |
 | Telegram events | `\[LOG:TELEGRAM\]` |
 | Summary | `\[LOG:SUMMARY\]` |
+| Previous reviews | `\[LOG:REVIEW\]` |
 
 ```bash
 # Find errors (precise - no false positives from design docs)
@@ -121,6 +122,79 @@ For each red flag found:
 
 **Format**: Structured report with sections
 **Optional**: Offer to create task/issue for major findings
+
+## Step 6: Write Review to Issue Log File (REQUIRED)
+
+**CRITICAL: Always write the review findings to the issue log file after presenting results.**
+
+After completing the analysis, append an "Issue Review" section to the end of the agent log file (`agent-logs/issue-{N}.md`).
+
+**Actions:**
+1. Use the `Edit` tool to append the review section at the end of the log file
+2. The section should be added AFTER the Summary table
+
+**Format to append:**
+
+```markdown
+
+---
+
+## [LOG:REVIEW] Issue Review
+
+**Reviewed:** [ISO timestamp]
+**Reviewer:** workflow-review
+
+### Executive Summary
+- **Status**: [Completed/Failed/Partial]
+- **Total Cost**: $X.XX
+- **Duration**: Xm Xs
+- **Overall Assessment**: [Brief 1-2 sentence assessment]
+
+### Findings Summary
+
+| Severity | Count | Key Issues |
+|----------|-------|------------|
+| Critical | N | [Brief list or "None"] |
+| Warning | N | [Brief list or "None"] |
+| Info | N | [Brief list or "None"] |
+
+### Action Items
+
+> **Priority Legend:** 🔴 Critical (fix now) | 🟠 High (fix soon) | 🟡 Medium (should fix) | 🔵 Low (nice to have)
+
+#### 🔴 Critical
+- [ ] [Action item with specific file/location if applicable]
+
+#### 🟠 High Priority
+- [ ] [Action item]
+- [ ] [Action item]
+
+#### 🟡 Medium Priority
+- [ ] [Action item]
+
+#### 🔵 Low Priority
+- [ ] [Action item]
+
+### Systemic Improvements
+
+> Changes that would improve the agent workflow for ALL future issues.
+
+| Type | Target File | Recommendation |
+|------|-------------|----------------|
+| Doc Update | `docs/xyz.md` | [What to add/change] |
+| Rule Update | `.ai/skills/xyz/SKILL.md` | [What to add/change] |
+| Prompt Update | `src/agents/prompts/xyz.ts` | [What to add/change] |
+
+### Notes
+[Any additional context, observations, or follow-up recommendations]
+```
+
+**Important:**
+- Use checkboxes `- [ ]` for action items so they can be tracked
+- If no items in a severity category, write "None" or omit the section
+- Keep action items specific and actionable
+- Link to specific line numbers when referencing issues in the log
+- The `[LOG:REVIEW]` marker enables future grep searches for reviews
 
 ---
 
@@ -270,10 +344,13 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 | `[LOG:ERROR]` | Non-fatal error |
 | `[LOG:FATAL]` | Fatal error |
 | `[LOG:SUMMARY]` | Final summary table |
+| `[LOG:REVIEW]` | Issue review section (added by /workflow-review) |
 
 ---
 
 ## Example Output
+
+### Console Output (shown to user)
 
 ```
 ## Workflow Review: Issue #43
@@ -311,4 +388,55 @@ None found.
 1. [High] Update prompts to include common import patterns
 2. [Medium] Investigate within-phase redundant reads
 3. [Low] Add explicit phase transition logging
+
+✅ Review written to agent-logs/issue-43.md
+```
+
+### Written to Log File (appended to agent-logs/issue-43.md)
+
+```markdown
+---
+
+## [LOG:REVIEW] Issue Review
+
+**Reviewed:** 2026-01-28T10:30:00Z
+**Reviewer:** workflow-review
+
+### Executive Summary
+- **Status**: Completed
+- **Total Cost**: $2.45
+- **Duration**: 45m
+- **Overall Assessment**: Successful multi-phase feature implementation with minor efficiency improvements possible.
+
+### Findings Summary
+
+| Severity | Count | Key Issues |
+|----------|-------|------------|
+| Critical | 0 | None |
+| Warning | 2 | Redundant file reads, long thinking blocks |
+| Info | 3 | Minor optimizations |
+
+### Action Items
+
+> **Priority Legend:** 🔴 Critical (fix now) | 🟠 High (fix soon) | 🟡 Medium (should fix) | 🔵 Low (nice to have)
+
+#### 🟠 High Priority
+- [ ] Update implementation prompts to include common import patterns (reduces thinking overhead)
+
+#### 🟡 Medium Priority
+- [ ] Investigate redundant file reads in Tech Design phase (line 1245-1890)
+- [ ] Consider caching frequently-read files within agent sessions
+
+#### 🔵 Low Priority
+- [ ] Add explicit phase transition timing logs
+
+### Systemic Improvements
+
+| Type | Target File | Recommendation |
+|------|-------------|----------------|
+| Prompt Update | `src/agents/prompts/implement.ts` | Add common import examples section |
+| Doc Update | `docs/github-agents-workflow/efficiency.md` | Document expected vs redundant file reads |
+
+### Notes
+Multi-phase features (L/XL) naturally have more overhead due to independent agent sessions. The costs observed are within expected ranges for this feature size.
 ```
