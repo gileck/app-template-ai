@@ -192,6 +192,35 @@ PR: https://github.com/user/repo/pull/125
 Remaining phases: 2
 ```
 
+**Agent Needs Clarification:**
+```
+🤔 Agent Needs Clarification
+
+Phase: Tech Design
+✨ Feature
+
+📋 Add search functionality
+🔗 Issue #45
+
+Question:
+What notification channels should be supported initially?
+
+## Options
+✅ Option 1: Email only
+⚠️ Option 2: Email + Push notifications
+⚠️ Option 3: In-app only
+
+[💬 ANSWER QUESTIONS]
+[📋 View Issue]
+[✅ Clarification Received]
+```
+
+The "ANSWER QUESTIONS" button opens an interactive web UI (`/clarify/:issueNumber`) where you can:
+- See the full question with context
+- Select from pre-defined options
+- Provide a custom answer if needed
+- Submit directly (auto-posts to GitHub, updates status)
+
 ### 2. GitHub Activity Notifications (GitHub Channel)
 
 **New Issue:**
@@ -360,6 +389,20 @@ Quick actions allow admins to perform workflow operations with a single button c
 - Action: Updates review status to Changes Requested
 - Response: Confirmation + reminder to add explanation comment
 
+### Clarification Actions
+
+**Answer Questions (Interactive UI):**
+- Button: `[💬 ANSWER QUESTIONS]` on clarification notification
+- Action: Opens web UI at `/clarify/:issueNumber?token=...`
+- UI allows selecting from options or providing custom answer
+- Submit → posts answer to GitHub, sets status to "Clarification Received"
+
+**Mark Clarification Received (Fallback):**
+- Button: `[✅ Clarification Received]` on clarification notification
+- Action: Sets review status to "Clarification Received"
+- Use this if you answered manually in GitHub comment
+- Response: Confirmation message
+
 ## Action Flow Examples
 
 ### Complete Feature Approval Flow
@@ -504,6 +547,10 @@ action:param1:param2:...
 - `reject_design:45:123` - Reject design PR #123 for issue #45
 - `merge_pr:45:124` - Merge implementation PR #124 for issue #45
 - `request_changes:45:124` - Request changes on PR #124 for issue #45
+- `clarified:45` - Mark clarification received for issue #45
+
+**URL Buttons:**
+- `💬 ANSWER QUESTIONS` → Opens `/clarify/:issueNumber?token=...` (web UI for answering)
 
 ### Security
 
