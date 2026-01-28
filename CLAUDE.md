@@ -33,6 +33,28 @@ src/
 
 ---
 
+## Mobile-First Philosophy
+
+**CRITICAL: This is a mobile-first application.** All features and UI must be designed and implemented for mobile screens FIRST, especially small screens (~400px CSS width).
+
+**Key Requirements:**
+- **Design for 400px width first** - Then enhance for larger screens with `sm:`, `md:`, `lg:` modifiers
+- **Test on small screens** - Every feature must look good and be fully usable on mobile
+- **Touch-friendly** - Minimum touch targets of 44px, adequate spacing between interactive elements
+- **Bottom navigation priority** - Primary actions should be reachable with thumbs
+- **Avoid horizontal scrolling** - Content must fit within mobile viewport
+- **Consider thumb zones** - Place frequent actions in easy-reach areas
+
+**When implementing any UI:**
+1. Start with mobile layout (no responsive modifiers)
+2. Verify it works at 400px width
+3. Add `sm:` modifiers for tablet improvements
+4. Add `md:`/`lg:` modifiers for desktop enhancements
+
+**Rules:** [.ai/skills/ui-mobile-first-shadcn/SKILL.md](.ai/skills/ui-mobile-first-shadcn/SKILL.md)
+
+---
+
 ## State Management
 
 Dual-store architecture optimized for PWA with offline support.

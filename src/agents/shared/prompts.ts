@@ -446,14 +446,22 @@ Focus ONLY on:
 - How the feature behaves from a user perspective
 - UI/UX design decisions
 
+**CRITICAL - MOBILE-FIRST DESIGN:**
+This is a mobile-first application. ALL UI designs must prioritize small screens (~400px CSS width) first.
+- Design for 400px viewport width first, then describe enhancements for larger screens
+- Ensure all touch targets are at least 44px
+- Place primary actions in thumb-friendly zones (bottom of screen)
+- Avoid designs that require horizontal scrolling on mobile
+- See \`.ai/skills/ui-mobile-first-shadcn/SKILL.md\` for detailed mobile-first guidelines
+
 **Required sections:**
 1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
 2. **Overview** - Brief summary of what this feature does and why it's needed
-3. **UI/UX Design** - How the feature will look and behave
-   - Describe the interface elements
-   - User flow and interactions
+3. **UI/UX Design** - How the feature will look and behave (MOBILE-FIRST)
+   - Describe the interface elements for mobile (~400px) first
+   - User flow and interactions optimized for touch
    - Include error handling and loading states naturally within the flow
-   - Consider mobile/responsive needs if relevant
+   - Describe tablet/desktop enhancements separately if needed
 
 **Optional sections (include only when relevant):**
 - **User Stories** - Only for features where multiple user types or complex workflows need clarification
@@ -649,14 +657,21 @@ Focus ONLY on:
 - How the feature behaves from a user perspective
 - UI/UX design decisions
 
+**CRITICAL - MOBILE-FIRST DESIGN:**
+This is a mobile-first application. ALL UI designs must prioritize small screens (~400px CSS width) first.
+- Design for 400px viewport width first, then describe enhancements for larger screens
+- Ensure all touch targets are at least 44px
+- Place primary actions in thumb-friendly zones (bottom of screen)
+- See \`.ai/skills/ui-mobile-first-shadcn/SKILL.md\` for detailed mobile-first guidelines
+
 **Required sections:**
 1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days)
 2. **Overview** - Brief summary of what this feature does and why it's needed
-3. **UI/UX Design** - How the feature will look and behave
-   - Describe the interface elements
-   - User flow and interactions
+3. **UI/UX Design** - How the feature will look and behave (MOBILE-FIRST)
+   - Describe the interface elements for mobile (~400px) first
+   - User flow and interactions optimized for touch
    - Include error handling and loading states naturally within the flow
-   - Consider mobile/responsive needs if relevant
+   - Describe tablet/desktop enhancements separately if needed
 
 **Optional sections (include only when relevant):**
 - **User Stories** - Only for features where multiple user types or complex workflows need clarification
@@ -1230,6 +1245,7 @@ If this is a multi-phase feature, the phase's \`files\` list contains TWO types 
 ## Implementation Guidelines
 
 **CRITICAL**: Before implementing, read the project guidelines in \`.ai/skills/\`:
+- \`.ai/skills/ui-mobile-first-shadcn/SKILL.md\` - **CRITICAL** Mobile-first UI implementation
 - \`.ai/skills/typescript-guidelines/SKILL.md\` - TypeScript coding standards
 - \`.ai/skills/react-component-organization/SKILL.md\` - Component structure and patterns
 - \`.ai/skills/react-hook-organization/SKILL.md\` - Custom hook patterns
@@ -1241,6 +1257,12 @@ If this is a multi-phase feature, the phase's \`files\` list contains TWO types 
 - \`.ai/skills/client-server-communications/SKILL.md\` - API patterns
 - \`.ai/skills/mongodb-usage/SKILL.md\` - Database operations (if applicable)
 - \`.ai/skills/app-guidelines-checklist/SKILL.md\` - Comprehensive checklist
+
+**CRITICAL - MOBILE-FIRST:**
+This is a mobile-first application. ALL UI must be implemented for mobile (~400px CSS width) FIRST:
+- Write base styles for mobile, then add \`sm:\`, \`md:\`, \`lg:\` modifiers for larger screens
+- Ensure all touch targets are at least 44px
+- Test that UI works at 400px viewport width before adding responsive enhancements
 
 **THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` before styling)**:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
