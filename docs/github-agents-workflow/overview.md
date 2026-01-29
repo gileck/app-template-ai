@@ -18,6 +18,7 @@ The integration creates a complete pipeline using a 6-column workflow for **both
 6. **AI agent generates design/implementation**:
    - **Design agents**: Create PR with design file → Telegram notification with Approve/Reject buttons
    - **Implementation agent**: Create PR with code changes → Telegram notification with View PR button
+   - **Visual verification** (UI changes): Implementation agent verifies at 400px viewport before completing
 7. **Admin approves design PR** (via Telegram button) → PR auto-merged → status advances to next phase
 8. **PR Review agent reviews implementation PR** (cron) → generates commit message → Telegram notification with Merge button
 9. **Admin merges implementation PR** (via Telegram Merge button) → Telegram webhook marks item as Done
