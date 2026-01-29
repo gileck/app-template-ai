@@ -280,6 +280,8 @@ return <ItemList items={items} />;
 
 Common pitfalls that cause infinite re-renders.
 
+### Rule 1: Never Use Object Literals in Selector Fallbacks
+
 **CRITICAL:** Never return `{}` or `[]` literals in Zustand selector fallbacks. Create module-level constants for empty values.
 
 **The Bug:**
@@ -298,6 +300,30 @@ return usePlanDataStore((state) => {
     if (!planId) return EMPTY_DATA;
 });
 ```
+
+### Rule 2: Never Use Combined Object Selectors
+
+**CRITICAL:** Never return an object literal from a Zustand selector to extract multiple values. Use individual selectors instead.
+
+**The Bug:**
+```typescript
+// BAD: Object literal creates new reference every render → infinite loop
+const { sortBy, hideCompleted, setSortBy } = useMyStore((state) => ({
+    sortBy: state.sortBy,
+    hideCompleted: state.hideCompleted,
+    setSortBy: state.setSortBy,
+}));
+```
+
+**The Fix:**
+```typescript
+// GOOD: Individual selectors return stable primitive/function references
+const sortBy = useMyStore((state) => state.sortBy);
+const hideCompleted = useMyStore((state) => state.hideCompleted);
+const setSortBy = useMyStore((state) => state.setSortBy);
+```
+
+**Why:** The object literal `({...})` creates a new object on every render. Zustand's shallow equality check sees different references and triggers a re-render, which creates another new object, causing an infinite loop.
 
 **Docs:** [docs/react-rendering-guidelines.md](docs/react-rendering-guidelines.md)
 
