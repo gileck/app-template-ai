@@ -808,102 +808,25 @@ git branch -d fix/my-fix
 
 ---
 
-## Lock File Management (yarn.lock & package-lock.json)
+## Wixpress Registry Issues (Lock Files & ESLint)
 
-Special handling for lock files due to corporate network constraints.
+Handling npm package issues in Wix corporate network environment.
 
-**Problem:** Local development requires private npm registry (`npm.dev.wixpress.com`) because access to public npm is blocked. However, Vercel deployments need public registry URLs.
+**Summary:** The wixpress npm registry causes two related issues: (1) Lock files contain private URLs that shouldn't be committed, and (2) ESLint fails due to broken `@typescript-eslint` packages.
 
-**Solution - Skip-Worktree Flag:**
+**Key Points:**
+- Run `yarn setup-hooks` once after cloning (sets up skip-worktree for yarn.lock)
+- **Always use `yarn install`**, never `npm install`
+- If ESLint fails with `tsutils.iterateComments is not a function`, copy working `@typescript-eslint` packages from a project using public npm
 
-After running `yarn setup-hooks`, git ignores local changes to `yarn.lock` using the `--skip-worktree` flag. This means:
-- The committed `yarn.lock` (with public npm URLs) stays in the repo for Vercel
-- Local changes (with wixpress URLs) don't show in `git status`
-- You never accidentally commit wixpress registry URLs
-
-**Setup (run once after cloning):**
-
+**Quick Reference:**
 ```bash
-yarn setup-hooks  # Sets up git hooks AND marks yarn.lock as skip-worktree
+yarn setup-hooks              # Initial setup (run once)
+yarn install                  # Correct - use yarn
+git ls-files -v | grep ^S     # Check skip-worktree status
 ```
 
-This runs `git update-index --skip-worktree yarn.lock` which tells git to ignore local modifications.
-
-**Why skip-worktree instead of .gitignore?**
-- `.gitignore` only works for untracked files - yarn.lock is already tracked
-- We NEED yarn.lock in the repo with public URLs for Vercel deployments
-- `--skip-worktree` keeps the committed version while hiding local changes
-
-**Multi-Layer Protection:**
-
-| Layer | yarn.lock | package-lock.json |
-|-------|-----------|-------------------|
-| **Committed version** | ✅ Public npm registry (for Vercel) | ❌ Should not exist (project uses yarn) |
-| **Local changes** | Ignored via skip-worktree | Auto-removed by pre-commit hook |
-| **GitHub Action** | Blocks PRs with `npm.dev.wixpress.com` | Blocks PRs containing this file |
-
-**For Local Development:**
-
-When you run `yarn install` locally, yarn.lock updates with private Wix registry URLs. This is expected - the skip-worktree flag ensures these changes are invisible to git.
-
-**IMPORTANT - Use yarn, not npm:**
-
-This project uses Yarn. If you accidentally run `npm install`, it will create `package-lock.json` with private registry URLs. The pre-commit hook will automatically remove it, but always use:
-
-```bash
-yarn install  # ✅ Correct
-npm install   # ❌ Wrong - creates package-lock.json
-```
-
-**Pre-commit Hook Behavior:**
-
-The hook in `.githooks/pre-commit` automatically:
-1. Resets `yarn.lock` to HEAD (removes private registry URLs) - backup protection
-2. Removes `package-lock.json` if it exists (project uses yarn)
-
-**GitHub Action Protection:**
-
-The workflow `.github/workflows/validate-yarn-lock.yml` runs on all PRs that modify lock files:
-1. Fails if `package-lock.json` exists
-2. Fails if `yarn.lock` contains `npm.dev.wixpress.com`
-
-**When dependencies need updating (rare):**
-
-First, temporarily unset skip-worktree:
-```bash
-git update-index --no-skip-worktree yarn.lock
-```
-
-Then choose one option:
-- Option 1: Let CI/Vercel regenerate yarn.lock automatically
-- Option 2: Use a machine with public npm access to generate clean yarn.lock
-- Option 3: Manually clean private registry URLs before committing
-
-After committing, re-run `yarn setup-hooks` to restore skip-worktree.
-
-**To check skip-worktree status:**
-
-```bash
-git ls-files -v | grep ^S  # Files with 'S' prefix have skip-worktree set
-```
-
----
-
-## ESLint/TypeScript Wixpress Registry Issue
-
-Troubleshooting ESLint failures in Wix corporate network environment.
-
-**Problem:** ESLint fails with `tsutils.iterateComments is not a function` when the wixpress npm registry (`npm.dev.wixpress.com`) provides broken `@typescript-eslint` packages.
-
-**Root Cause:**
-- Wixpress registry contains version `8.52.0` of `@typescript-eslint/*` (doesn't exist on public npm)
-- This version uses deprecated `tsutils` package incompatible with TypeScript 5.x
-
-**Quick Fix:**
-1. Copy working `@typescript-eslint` packages from a project using public npm
-2. Reset `yarn.lock` before commits to avoid committing wixpress URLs
-
-**Docs:** [docs/eslint-typescript-wixpress-issue.md](docs/eslint-typescript-wixpress-issue.md)
+**Docs:** [docs/wixpress-registry-issues.md](docs/wixpress-registry-issues.md)
 
 ---
 
