@@ -210,6 +210,18 @@ function createInstructionsSection(): string {
 
 Review this PR and make your final decision. Provide your review decision (APPROVED or REQUEST_CHANGES) and detailed feedback.
 
+**CRITICAL: Project Docs Override Generic Best Practices**
+
+This project has specific patterns documented in \`docs/\` and \`.ai/skills/\` that may differ from generic best practices. These project-specific patterns exist for good reasons (e.g., to prevent known bugs).
+
+**You MUST:**
+1. READ the relevant project docs before suggesting changes
+2. FOLLOW project patterns even if they differ from common conventions
+3. If you disagree with a project pattern, note it as a **"suggestion for future consideration"** - NOT a required change
+4. NEVER request changes that contradict documented project guidelines
+
+**Example:** If project docs say "use individual Zustand selectors, not combined object selectors", do NOT request combining them even if that's a common pattern elsewhere.
+
 **IMPORTANT**: Check compliance with project guidelines in \`.ai/skills/\` (Only when relevant to code changes):
 - TypeScript guidelines (\`.ai/skills/typescript-guidelines/SKILL.md\`)
 - React patterns (\`.ai/skills/react-component-organization/SKILL.md\`, \`.ai/skills/react-hook-organization/SKILL.md\`)

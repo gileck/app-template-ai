@@ -4,6 +4,20 @@ This document covers common React rendering pitfalls that cause infinite loops, 
 
 ---
 
+> **⚠️ IMPORTANT FOR PR REVIEWERS**
+>
+> This project has specific Zustand selector patterns that **differ from common conventions**.
+> These patterns exist to prevent infinite re-render loops (React error #185).
+>
+> **DO NOT request changes to:**
+> - Split individual selectors into combined object selectors
+> - Return object literals `({...})` from selectors
+>
+> These patterns cause infinite loops in Zustand. If you see code using individual selectors,
+> it is correct for this project. See "Anti-Pattern 2" below for full explanation.
+
+---
+
 ## Zustand Selector Stability
 
 ### The Problem
@@ -46,6 +60,12 @@ export function useWeekWorkoutSets(planId: string | null, weekNumber: number) {
 ---
 
 ### Anti-Pattern 2: Combined Object Selectors (Destructuring Multiple Values)
+
+> **🚨 THIS PROJECT FORBIDS COMBINED SELECTORS**
+>
+> This is a project-specific rule. Even though combined selectors are common in tutorials and
+> other codebases, they cause **infinite re-render loops** in Zustand due to reference instability.
+> Individual selectors are **required** in this codebase.
 
 **CRITICAL:** Never use a selector that returns an object literal to extract multiple values at once. This is a common pattern in Redux that does NOT work safely in Zustand.
 

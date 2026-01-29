@@ -1344,6 +1344,41 @@ This is a mobile-first application. ALL UI must be implemented for mobile (~400p
 - Ensure all touch targets are at least 44px
 - Test that UI works at 400px viewport width before adding responsive enhancements
 
+## Visual Verification (REQUIRED for UI Changes)
+
+**CRITICAL**: If this PR includes ANY UI changes (new components, styling changes, layout modifications), you MUST visually verify the implementation before completing the task.
+
+**When to verify:**
+- Creating or modifying \`.tsx\` files with visual components
+- Changing styles, layouts, or responsive behavior
+- Adding new UI features or modifying existing ones
+
+**How to verify:**
+1. Use Playwright MCP (browser automation) to open the app at http://localhost:3000
+2. Navigate to the relevant page/component
+3. Resize browser to 400px width (mobile viewport)
+4. Take a screenshot to verify:
+   - Layout looks correct on mobile
+   - Touch targets are at least 44px
+   - No content overflow or horizontal scrolling
+   - Dark mode works if applicable (use \`prefers-color-scheme\` or toggle theme)
+   - Text is readable, spacing is appropriate
+
+**If Playwright MCP is unavailable:**
+- Set \`visualVerification.verified = false\`
+- Set \`visualVerification.skippedReason = "Playwright MCP not available"\`
+- The PR reviewer will need to manually verify visuals
+
+**If no UI changes:**
+- Omit the \`visualVerification\` field entirely from your output
+
+**Report in output:**
+Include the \`visualVerification\` object in your JSON output with:
+- \`verified\`: true/false - whether verification was performed
+- \`whatWasVerified\`: describe what you checked (e.g., "400px viewport, dark mode, touch targets")
+- \`skippedReason\`: if skipped, explain why
+- \`issuesFound\`: any issues found and fixed during verification
+
 **THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` before styling)**:
 - **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
 - **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
@@ -1376,6 +1411,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 After implementing, provide your response as structured JSON with these fields:
 - **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
 - **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+- **visualVerification** (only for UI changes): Object describing visual verification status
 
 Example prSummary format:
 \`\`\`markdown
@@ -1386,6 +1422,23 @@ Example prSummary format:
 - **[filename]**: [brief description of change]
 - **[filename]**: [brief description of change]
 [List the most important files changed - max 5-7 files]
+\`\`\`
+
+Example visualVerification (for UI changes):
+\`\`\`json
+{
+  "verified": true,
+  "whatWasVerified": "Tested at 400px viewport width, verified touch targets are 44px, checked dark mode compatibility",
+  "issuesFound": "Fixed checkbox spacing that was too tight on mobile"
+}
+\`\`\`
+
+Example visualVerification (when skipped):
+\`\`\`json
+{
+  "verified": false,
+  "skippedReason": "Playwright MCP not available - manual verification needed"
+}
 \`\`\`
 
 Begin implementing the feature now.`;
@@ -1586,6 +1639,7 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 - Use TypeScript with proper types
 - Use semantic color tokens (bg-background, not bg-white)
 - For state management, use React Query for server state and Zustand for client state
+- **For UI changes**: Visually verify at 400px viewport width before completing (see main implementation prompt for details)
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
@@ -1596,6 +1650,7 @@ ${AMBIGUITY_INSTRUCTIONS}
 After implementing, provide your response as structured JSON with these fields:
 - **prSummary**: Complete PR summary in markdown format with "## Summary" and "## Changes" sections (this will be used in PR description and squash merge commit)
 - **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+- **visualVerification** (only for UI changes): Object describing visual verification status
 
 Example prSummary format:
 \`\`\`markdown
