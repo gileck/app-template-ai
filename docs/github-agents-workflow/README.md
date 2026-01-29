@@ -76,6 +76,13 @@ Complete guide to the AI-powered feature request and bug fix workflow using GitH
 
 ### Reference & Troubleshooting
 
+**[Agent Library Abstraction](./agent-library-abstraction.md)** - Swappable AI provider architecture
+- Provider adapters (Claude Code, Gemini CLI, OpenAI Codex)
+- CLI abstraction layer
+- Prompt templates and builders
+- Environment configuration
+- Testing different AI providers
+
 **[Troubleshooting](./troubleshooting.md)** - Common issues and solutions
 - Token and permission errors
 - Agent timeouts
@@ -90,7 +97,6 @@ Complete guide to the AI-powered feature request and bug fix workflow using GitH
 - PR merge flow (admin approval)
 - Status update architecture (Telegram webhook as single source of truth)
 - GitHub Actions workflows
-- Agent library abstraction
 
 ## Quick Start
 

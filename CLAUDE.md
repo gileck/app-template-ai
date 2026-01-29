@@ -875,7 +875,7 @@ Key documents:
 - [Troubleshooting](docs/github-agents-workflow/troubleshooting.md) - Common issues
 
 **See also:**
-- [Agent Library Abstraction](docs/agent-library-abstraction.md)
+- [Agent Library Abstraction](docs/github-agents-workflow/agent-library-abstraction.md)
 - [Gemini CLI Adapter](src/agents/lib/adapters/GEMINI.md)
 - [OpenAI Codex CLI Adapter](src/agents/lib/adapters/OPENAI-CODEX.md)
 
