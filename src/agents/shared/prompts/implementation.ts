@@ -205,16 +205,56 @@ After implementing, provide your response as structured JSON with these fields:
 - **comment**: High-level summary of what you did to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 - **visualVerification** (only for UI changes): Object describing visual verification status
 
-Example prSummary format:
+### QUALITY REQUIREMENTS FOR OUTPUT
+
+Your prSummary and comment are what the admin and reviewers see - make them informative, not generic.
+
+**GOOD prSummary example:**
 \`\`\`markdown
 ## Summary
-[2-4 bullet points describing what was implemented and key decisions made]
+- Added todo filtering with priority/status/search filters stored in Zustand for persistence across sessions
+- Implemented collapsible filter panel (collapsed by default on mobile to save vertical space)
+- Used existing FilterChip pattern from ProfilePage for visual consistency
+- Memoized filtered results to avoid recalculating on every render
 
 ## Changes
-- **[filename]**: [brief description of change]
-- **[filename]**: [brief description of change]
-[List the most important files changed - max 5-7 files]
+- **store.ts**: Added filterState with sort, filter, and search preferences
+- **TodoFilters.tsx**: New component with collapsible filter UI using Accordion
+- **Todos.tsx**: Integrated filters, added useMemo for filtered list
+- **types.ts**: Added FilterState and SortOption types
 \`\`\`
+
+**BAD prSummary example (too generic, avoid this):**
+\`\`\`markdown
+## Summary
+- Implemented the feature as described in the issue
+
+## Changes
+- Updated files to add the feature
+\`\`\`
+
+**GOOD comment example:**
+\`\`\`
+Here's what I implemented:
+1. Created TodoFilters component with search input, priority dropdown, and status checkboxes
+2. Added Zustand store for filter persistence (filters survive page refresh)
+3. Integrated filters into Todos route with memoized filtering logic
+4. Used mobile-first approach: filters collapse into accordion on small screens
+\`\`\`
+
+**BAD comment example (too generic, avoid this):**
+\`\`\`
+Here's what I implemented:
+1. Added the feature
+2. Updated the files
+3. Made the changes work
+\`\`\`
+
+**Key principles for quality output:**
+- Explain WHY decisions were made, not just WHAT was done
+- Mention specific patterns used (Zustand, React Query, existing components)
+- Note any trade-offs or design choices
+- Reference specific file names and component names
 
 Example visualVerification (for UI changes):
 \`\`\`json
@@ -367,13 +407,32 @@ After making changes, provide your response as structured JSON with these fields
 - **prSummary**: Updated PR summary in markdown format with "## Summary" and "## Changes" sections
 - **comment**: High-level summary of what you changed to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
 
-Example comment format:
+### QUALITY REQUIREMENTS FOR FEEDBACK RESPONSE
+
+Your comment should clearly show HOW each feedback point was addressed. This helps reviewers quickly verify fixes.
+
+**GOOD comment format:**
+\`\`\`
+Here's how I addressed the feedback:
+1. [Mobile layout issue: buttons too close] → Added gap-3 spacing and min-h-[44px] for touch targets
+2. [Missing error handling in API call] → Added try/catch with toast notification on failure
+3. [Import should use @/ alias] → Changed relative import to @/client/components/ui/Button
+4. [Claude: potential XSS in user input] → Added sanitization with DOMPurify before rendering
+\`\`\`
+
+**BAD comment format (too vague, avoid this):**
 \`\`\`
 Here's what I changed:
-1. [Original feedback summary] → [What you changed to address it]
-2. [Original feedback summary] → [What you changed to address it]
-3. [Original feedback summary] → [What you changed to address it]
+1. Fixed the layout issue
+2. Added error handling
+3. Fixed imports
 \`\`\`
+
+**Key principles:**
+- Be specific about WHAT changed (file names, CSS classes, function names)
+- Show the before→after transformation
+- Reference specific reviewer feedback points
+- If you disagreed with feedback, explain WHY (citing project docs)
 
 Begin addressing the feedback now.`;
 }

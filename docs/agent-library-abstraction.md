@@ -33,7 +33,15 @@ src/agents/
 │       ├── cursor.ts             # Cursor CLI implementation
 │       └── openai-codex.ts       # OpenAI Codex CLI implementation
 ├── shared/                       # Workflow logic (unchanged)
-│   ├── prompts.ts                # Library-agnostic
+│   ├── prompts/                  # Prompt templates (split by phase)
+│   │   ├── index.ts              # Re-exports all prompts
+│   │   ├── shared-instructions.ts # Reusable instruction blocks
+│   │   ├── product-development.ts # Product development prompts
+│   │   ├── product-design.ts     # Product design prompts
+│   │   ├── technical-design.ts   # Technical design prompts
+│   │   ├── implementation.ts     # Implementation prompts
+│   │   ├── bug-fix.ts            # Bug fix prompts
+│   │   └── plan-subagent.ts      # Plan subagent prompt
 │   ├── notifications.ts          # Library-agnostic
 │   └── index.ts                  # Re-exports from lib/
 └── core-agents/                  # Agent workflows

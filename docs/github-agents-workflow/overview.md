@@ -128,7 +128,8 @@ When adding new workflow functionality:
 │  │ ├── config.ts         # Agent-specific config + re-exports       │  │
 │  │ ├── claude.ts         # Claude SDK utilities                     │  │
 │  │ ├── notifications.ts  # Telegram notifications                   │  │
-│  │ ├── prompts.ts        # Prompt templates                         │  │
+│  │ ├── prompts/          # Prompt templates (split by phase)        │  │
+│  │ │   ├── product-design.ts, technical-design.ts, etc.            │  │
 │  │ └── types.ts          # Agent-specific types                     │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
