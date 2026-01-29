@@ -814,17 +814,37 @@ Special handling for lock files due to corporate network constraints.
 
 **Problem:** Local development requires private npm registry (`npm.dev.wixpress.com`) because access to public npm is blocked. However, Vercel deployments need public registry URLs.
 
-**Solution - Multi-Layer Protection:**
+**Solution - Skip-Worktree Flag:**
+
+After running `yarn setup-hooks`, git ignores local changes to `yarn.lock` using the `--skip-worktree` flag. This means:
+- The committed `yarn.lock` (with public npm URLs) stays in the repo for Vercel
+- Local changes (with wixpress URLs) don't show in `git status`
+- You never accidentally commit wixpress registry URLs
+
+**Setup (run once after cloning):**
+
+```bash
+yarn setup-hooks  # Sets up git hooks AND marks yarn.lock as skip-worktree
+```
+
+This runs `git update-index --skip-worktree yarn.lock` which tells git to ignore local modifications.
+
+**Why skip-worktree instead of .gitignore?**
+- `.gitignore` only works for untracked files - yarn.lock is already tracked
+- We NEED yarn.lock in the repo with public URLs for Vercel deployments
+- `--skip-worktree` keeps the committed version while hiding local changes
+
+**Multi-Layer Protection:**
 
 | Layer | yarn.lock | package-lock.json |
 |-------|-----------|-------------------|
 | **Committed version** | ✅ Public npm registry (for Vercel) | ❌ Should not exist (project uses yarn) |
-| **Local changes** | Auto-reset by pre-commit hook | Auto-removed by pre-commit hook |
+| **Local changes** | Ignored via skip-worktree | Auto-removed by pre-commit hook |
 | **GitHub Action** | Blocks PRs with `npm.dev.wixpress.com` | Blocks PRs containing this file |
 
 **For Local Development:**
 
-When you run `yarn install` locally, yarn.lock will update with private Wix registry URLs. This is expected and safe - the pre-commit hook automatically resets it to the committed version.
+When you run `yarn install` locally, yarn.lock updates with private Wix registry URLs. This is expected - the skip-worktree flag ensures these changes are invisible to git.
 
 **IMPORTANT - Use yarn, not npm:**
 
@@ -838,7 +858,7 @@ npm install   # ❌ Wrong - creates package-lock.json
 **Pre-commit Hook Behavior:**
 
 The hook in `.githooks/pre-commit` automatically:
-1. Resets `yarn.lock` to HEAD (removes private registry URLs)
+1. Resets `yarn.lock` to HEAD (removes private registry URLs) - backup protection
 2. Removes `package-lock.json` if it exists (project uses yarn)
 
 **GitHub Action Protection:**
@@ -849,14 +869,22 @@ The workflow `.github/workflows/validate-yarn-lock.yml` runs on all PRs that mod
 
 **When dependencies need updating (rare):**
 
-Option 1: Let CI/Vercel regenerate yarn.lock automatically
-Option 2: Use a machine with public npm access to generate clean yarn.lock
-Option 3: Manually clean private registry URLs before committing
+First, temporarily unset skip-worktree:
+```bash
+git update-index --no-skip-worktree yarn.lock
+```
 
-**To bypass the hook (not recommended):**
+Then choose one option:
+- Option 1: Let CI/Vercel regenerate yarn.lock automatically
+- Option 2: Use a machine with public npm access to generate clean yarn.lock
+- Option 3: Manually clean private registry URLs before committing
+
+After committing, re-run `yarn setup-hooks` to restore skip-worktree.
+
+**To check skip-worktree status:**
 
 ```bash
-git commit --no-verify  # Use with extreme caution
+git ls-files -v | grep ^S  # Files with 'S' prefix have skip-worktree set
 ```
 
 ---

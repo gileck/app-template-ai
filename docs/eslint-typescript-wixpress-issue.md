@@ -82,24 +82,40 @@ yarn checks
 
 When running `yarn install` locally with the wixpress registry, `yarn.lock` gets populated with wixpress URLs and the broken 8.52.0 versions will be reinstalled, overwriting the working packages.
 
-### The Solution
+### The Solution: skip-worktree
 
-1. **Before every commit**, checkout `yarn.lock` to keep the clean version:
-   ```bash
-   git checkout yarn.lock
-   git add <other-files>
-   git commit -m "your message"
-   git push
-   ```
+Run `yarn setup-hooks` once after cloning. This marks `yarn.lock` with git's `--skip-worktree` flag:
 
-2. **After running `yarn install`** (which reinstalls broken packages), re-copy the working packages from another project.
+```bash
+yarn setup-hooks  # Run once after cloning
+```
 
-### Why Not .gitignore?
+This tells git to ignore local changes to `yarn.lock`, so:
+- Local `yarn.lock` can have wixpress URLs (won't show in `git status`)
+- Committed `yarn.lock` keeps public npm URLs (for Vercel)
+- You never accidentally commit wixpress URLs
+
+**After running `yarn install`** (which reinstalls broken packages), re-copy the working packages from another project.
+
+### Why skip-worktree instead of .gitignore?
 
 Adding `yarn.lock` to `.gitignore` was considered but rejected because:
-- Less reproducible builds
-- Different developers might get different package versions
-- Not a best practice for production projects
+- `.gitignore` only works for **untracked** files - `yarn.lock` is already tracked
+- We need `yarn.lock` in the repo with public npm URLs for Vercel deployments
+- `--skip-worktree` keeps the committed version while hiding local changes
+
+### To check or modify skip-worktree status
+
+```bash
+# Check which files have skip-worktree set
+git ls-files -v | grep ^S
+
+# Temporarily unset (if you need to update yarn.lock)
+git update-index --no-skip-worktree yarn.lock
+
+# Re-set after updating
+yarn setup-hooks
+```
 
 ## What Was Tried (Failed Attempts)
 
@@ -146,9 +162,15 @@ Configure network access to allow reaching `https://registry.npmjs.org/` for spe
 - `eslint.config.mjs` - ESLint configuration with full TypeScript support
 - `package.json` - TypeScript ^5.0.0
 - `tsconfig.json` - TypeScript configuration with `moduleResolution: "bundler"`
-- `yarn.lock` - Must be checked out before commits to avoid wixpress URLs
+- `yarn.lock` - Protected via skip-worktree (local changes ignored by git)
+- `scripts/hooks/setup-hooks.sh` - Sets up skip-worktree for yarn.lock
 
 ## Quick Reference
+
+### Initial setup (run once after cloning)
+```bash
+yarn setup-hooks  # Sets skip-worktree on yarn.lock
+```
 
 ### After `yarn install` (packages broken)
 ```bash
@@ -160,5 +182,6 @@ cp -r /path/to/working-project/node_modules/graphemer ./node_modules/
 
 ### Before committing
 ```bash
-git checkout yarn.lock
+# Nothing needed! skip-worktree ensures yarn.lock changes are invisible to git
+# Just commit your changes normally
 ```
