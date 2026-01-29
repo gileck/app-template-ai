@@ -167,25 +167,24 @@ export function Todos() {
                 </Button>
             </div>
 
-            {/* Mobile Header */}
-            <div className="mb-5 flex sm:hidden flex-col gap-3 todo-mobile-header">
+            {/* Mobile Header - Title left, icon-only refresh button right */}
+            <div className="mb-5 flex sm:hidden items-center justify-between todo-mobile-header">
                 <div className="flex items-center gap-2">
                     <h1 className="text-3xl font-bold todo-gradient-text">My Todos</h1>
                     {/* Background refresh indicator - shows when fetching with existing data */}
                     {isFetching && !isLoading && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                        </div>
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                 </div>
                 <Button
                     variant="outline"
+                    size="icon"
                     onClick={handleRefresh}
                     disabled={isFetching}
-                    className="h-12 w-full"
+                    className="h-12 w-12 flex-shrink-0"
+                    aria-label="Refresh todos"
                 >
-                    <RefreshCcw className={`mr-2 h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
-                    {isFetching ? 'Updating...' : 'Refresh'}
+                    <RefreshCcw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
                 </Button>
             </div>
 

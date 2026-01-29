@@ -318,11 +318,12 @@ export function TodoItem({
                 </div>
 
                 {/* Mobile Layout */}
-                <div className="flex flex-col gap-3 sm:hidden todo-item-mobile">
-                    <div className="todo-item-main-row">
-                        {/* Custom Checkbox */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                    {/* Row 1: Checkbox + Title */}
+                    <div className="flex items-start gap-2">
+                        {/* Custom Checkbox - touch-friendly with minimal visual gap */}
                         <button
-                            className={`todo-checkbox ${todo.completed ? 'checked' : ''}`}
+                            className={`todo-checkbox-mobile ${todo.completed ? 'checked' : ''}`}
                             aria-checked={todo.completed}
                             role="checkbox"
                             onClick={handleToggleComplete}
@@ -333,32 +334,34 @@ export function TodoItem({
                         </button>
 
                         {/* Title or Edit Input */}
-                        {isEditing ? (
-                            <Input
-                                className="flex-1"
-                                value={editTitle}
-                                onChange={(e) => setEditTitle(e.target.value)}
-                                onKeyDown={handleEditKeyPress}
-                                disabled={isDisabled}
-                                autoFocus
-                            />
-                        ) : (
-                            <span
-                                className={`todo-item-title text-base ${
-                                    todo.completed ? 'todo-completed-text' : ''
-                                }`}
-                            >
-                                {todo.title}
-                            </span>
-                        )}
+                        <div className="flex-1 min-w-0 pt-1">
+                            {isEditing ? (
+                                <Input
+                                    className="h-12 text-base"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    onKeyDown={handleEditKeyPress}
+                                    disabled={isDisabled}
+                                    autoFocus
+                                />
+                            ) : (
+                                <span
+                                    className={`todo-item-title-mobile text-base leading-snug ${
+                                        todo.completed ? 'todo-completed-text-mobile' : ''
+                                    }`}
+                                >
+                                    {todo.title}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Due Date Badge - Full width on mobile */}
+                    {/* Row 2: Due Date Badge (if applicable) */}
                     {todo.dueDate && !isEditing && (
-                        <div className="todo-item-due-badge-mobile">
+                        <div className="ml-8">
                             <Badge
                                 variant={isDueDateOverdue ? 'destructive' : isDueDateToday ? 'default' : 'secondary'}
-                                className="text-xs"
+                                className="text-xs px-2 py-0.5"
                             >
                                 <Calendar className="mr-1 h-3 w-3" />
                                 {isDueDateToday ? 'Today' : isDueDateOverdue ? `Overdue - ${formatDueDate(todo.dueDate)}` : `Due ${formatDueDate(todo.dueDate)}`}
@@ -366,63 +369,66 @@ export function TodoItem({
                         </div>
                     )}
 
-                    {/* Action Buttons - Separate row on mobile */}
+                    {/* Row 3: Action Buttons */}
                     {isEditing ? (
-                        <div className="todo-item-edit-actions-mobile">
+                        <div className="flex flex-col gap-2 ml-8">
                             <Button
                                 variant="outline"
                                 onClick={() => setDatePickerOpen(true)}
                                 title="Set due date"
-                                className="todo-edit-calendar-row w-full h-12"
+                                className="w-full h-11"
                             >
                                 <Calendar className="mr-2 h-4 w-4" />
                                 Set Due Date
                             </Button>
-                            <div className="todo-edit-buttons-row">
+                            <div className="flex gap-2">
                                 <Button
                                     variant="default"
                                     onClick={handleSaveEdit}
                                     disabled={isDisabled}
-                                    className="h-12"
+                                    className="flex-1 h-11"
                                 >
-                                    <Save className="mr-1 h-4 w-4" />
+                                    <Save className="mr-2 h-4 w-4" />
                                     Save
                                 </Button>
-                                <Button variant="outline" onClick={handleCancelEdit} className="h-12">
-                                    <X className="mr-1 h-4 w-4" />
+                                <Button variant="outline" onClick={handleCancelEdit} className="flex-1 h-11">
+                                    <X className="mr-2 h-4 w-4" />
                                     Cancel
                                 </Button>
                             </div>
                         </div>
                     ) : (
-                        <div className="todo-item-actions-mobile">
+                        <div className="flex gap-2 ml-8">
                             <Button
                                 variant="outline"
+                                size="sm"
                                 onClick={handleViewTodo}
                                 title="View details"
-                                className="min-h-11 min-w-11"
+                                className="h-9 flex-1 text-xs"
                             >
-                                <Eye className="mr-1 h-4 w-4" />
+                                <Eye className="mr-1 h-3.5 w-3.5" />
                                 View
                             </Button>
                             <Button
                                 variant="outline"
+                                size="sm"
                                 onClick={handleStartEdit}
                                 disabled={isDisabled}
                                 title="Edit"
-                                className="min-h-11 min-w-11"
+                                className="h-9 flex-1 text-xs"
                             >
-                                <Pencil className="mr-1 h-4 w-4" />
+                                <Pencil className="mr-1 h-3.5 w-3.5" />
                                 Edit
                             </Button>
                             <Button
                                 variant="outline"
+                                size="sm"
                                 onClick={() => onDelete(todo)}
                                 disabled={isDisabled}
                                 title="Delete"
-                                className="min-h-11 min-w-11"
+                                className="h-9 w-9 flex-shrink-0 px-0"
                             >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button>
                         </div>
                     )}

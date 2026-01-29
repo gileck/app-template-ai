@@ -104,7 +104,7 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
                         </Button>
                     </div>
 
-                    {/* Mobile layout: vertical stack */}
+                    {/* Mobile layout: Input + button row (calendar 48px + Add button flex) */}
                     <div className="flex flex-col gap-3 sm:hidden todo-create-form-mobile">
                         <Input
                             value={newTodoTitle}
@@ -113,12 +113,13 @@ export function CreateTodoForm({ onError }: CreateTodoFormProps) {
                             onKeyPress={handleKeyPress}
                             className="h-12 text-base w-full todo-input-focus"
                         />
-                        <div className="todo-create-buttons">
+                        <div className="todo-create-buttons flex gap-3">
                             <Button
                                 variant="outline"
                                 onClick={() => setDatePickerOpen(true)}
-                                className="h-12 min-w-12 flex-shrink-0"
+                                className="h-12 w-12 flex-shrink-0 px-0"
                                 title="Set due date"
+                                aria-label="Set due date"
                             >
                                 <Calendar className="h-5 w-5" />
                             </Button>
