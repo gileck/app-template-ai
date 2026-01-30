@@ -1,14 +1,13 @@
 /**
  * Database Collections
  *
- * This file re-exports template collections and adds project-specific collections.
- * Template collections are in index.template.ts (synced from template).
- *
- * Add your project-specific collection exports below the template re-export.
+ * This file combines template and project collections.
+ * - index.template.ts: Template collections (synced from template)
+ * - index.project.ts: Project collections (your custom collections)
  */
 
-// Re-export all template collections
+// Template collections
 export * from './index.template';
 
-// Project-specific collections:
-export * as todos from './todos';
+// Project-specific collections
+export * from './index.project';
