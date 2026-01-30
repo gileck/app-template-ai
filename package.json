@@ -17,6 +17,7 @@
     "watch-checks": "node scripts/watch-checks.js",
     "init-template": "tsx scripts/template/init-template.ts",
     "sync-template": "tsx scripts/template/sync-template/index.ts",
+    "cleanup-old-folders": "tsx scripts/template/cleanup-old-folders.ts",
     "merge-template": "tsx scripts/template/merge-template-files.ts",
     "generate-icons": "tsx scripts/generate-icons.ts",
     "investigate-bugs": "tsx scripts/investigate-bugs.ts",
