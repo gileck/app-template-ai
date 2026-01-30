@@ -1,12 +1,31 @@
 # Template Sync System - Implementation Summary
 
+## Config Models
+
+The sync system supports two configuration models:
+
+### Path Ownership Model (New - Recommended)
+
+Uses explicit path declarations:
+- **`templatePaths`**: Paths owned by template (synced exactly, including deletions)
+- **`projectOverrides`**: Files to keep different from template
+- **`overrideHashes`**: Auto-managed hashes for tracking template changes to overrides
+
+### Hash-Based Model (Legacy)
+
+Uses hash comparison:
+- **`ignoredFiles`**: Files never synced
+- **`projectSpecificFiles`**: Your custom code
+- **`templateIgnoredFiles`**: Template example code to skip
+- **`fileHashes`**: Auto-managed baseline hashes
+
 ## Created Files
 
 ### Configuration
 - **`.template-sync.json`** - Configuration file for template tracking
   - Contains template repository URL
   - Tracks last sync commit and date
-  - Lists ignored and project-specific files
+  - Uses either Path Ownership or Hash-Based model
 
 ### Scripts
 - **`scripts/init-template.ts`** - Initialize template tracking in a new project
@@ -191,7 +210,13 @@ git commit -m "Merge template updates"
 
 ## Key Features
 
-### Smart Conflict Detection
+### Path Ownership Model (New)
+- Explicit declaration of template-owned paths
+- Syncs deletions - if template removes a file, it's removed from project
+- Project overrides let you keep specific files different
+- Simple configuration with just two arrays
+
+### Smart Conflict Detection (Legacy Model)
 - Uses file hashing to detect content differences
 - Checks git history on BOTH sides (template AND project)
 - Only flags TRUE conflicts when both sides modified the same file
@@ -201,7 +226,8 @@ git commit -m "Merge template updates"
 ### Safe by Default
 - Requires clean working directory (or --force)
 - Dry-run mode for previewing changes
-- Never deletes your files
+- Path Ownership: deletes files removed from template (for template-owned paths)
+- Legacy: never deletes files
 - Creates `.template` backups for conflicts
 
 ### Flexible Configuration
@@ -209,6 +235,11 @@ git commit -m "Merge template updates"
 - Mark project-specific code
 - Configure template branch
 - Track sync history
+
+### Migration Support
+- `yarn sync-template --migrate` - Interactive migration wizard
+- `yarn sync-template --migration-help` - Migration documentation
+- Automatic backup of legacy config before migration
 
 ### Developer Friendly
 - Clear output with color coding

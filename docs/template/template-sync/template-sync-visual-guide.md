@@ -1,5 +1,31 @@
 # Template Sync Visual Workflow
 
+## Two Sync Models
+
+The template sync system supports two configuration models:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PATH OWNERSHIP MODEL (New - Recommended)                   │
+├─────────────────────────────────────────────────────────────┤
+│  • templatePaths: Paths owned by template                   │
+│  • projectOverrides: Files to keep different                │
+│  • ✅ Handles deletions (files removed from template)       │
+│  • ✅ Simple, explicit configuration                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  HASH-BASED MODEL (Legacy)                                  │
+├─────────────────────────────────────────────────────────────┤
+│  • ignoredFiles, projectSpecificFiles, fileHashes           │
+│  • Uses hash comparison for conflict detection              │
+│  • ❌ Does not handle deletions                             │
+│  • ⚠️ Hash drift can cause issues                          │
+└─────────────────────────────────────────────────────────────┘
+
+Migration: yarn sync-template --migrate
+```
+
 ## The Complete Journey
 
 ```

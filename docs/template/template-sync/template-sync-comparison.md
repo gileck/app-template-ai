@@ -87,10 +87,18 @@ yarn init-template <template-url>
 yarn sync-template
 ```
 
+**Two Config Models:**
+
+| Model | Best For | Key Feature |
+|-------|----------|-------------|
+| **Path Ownership** (new) | New projects | Handles deletions, explicit ownership |
+| **Hash-Based** (legacy) | Existing projects | Fine-grained control, no deletions |
+
 **Pros:**
 - ✅ **Smart conflict detection** - Only flags TRUE conflicts (both sides changed)
 - ✅ **Project customization aware** - Files only you changed are NOT flagged as conflicts
 - ✅ **Auto-merge safe changes** - Updates you didn't touch
+- ✅ **Handles deletions** - Path Ownership model syncs file deletions
 - ✅ **Configurable** - Ignore files, mark project-specific code
 - ✅ **Simple** - Two commands
 - ✅ **Clear output** - Shows exactly what happened
@@ -99,6 +107,7 @@ yarn sync-template
 - ✅ **Tracks history** - Knows what was synced when
 - ✅ **No git pollution** - Clean commit history
 - ✅ **File-based** - Not directory-based
+- ✅ **Migration support** - Easy upgrade from legacy to new model
 
 **Cons:**
 - Requires custom scripts (but we provide them!)

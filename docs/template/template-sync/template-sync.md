@@ -6,7 +6,140 @@ This template includes a powerful template sync system that allows you to merge 
 
 When you create a new app from this template, you can continue to receive updates and improvements from the template while maintaining your own customizations.
 
-## How It Works
+## Two Sync Models
+
+The sync system supports two configuration models:
+
+### 1. Path Ownership Model (New - Recommended)
+
+The **Path Ownership Model** uses explicit path declarations to determine what the template owns:
+
+- **`templatePaths`**: Paths owned by the template (synced exactly, including deletions)
+- **`projectOverrides`**: Files within templatePaths that the project wants to keep different
+
+**Key behaviors:**
+- Template-owned files are synced exactly (additions, modifications, AND deletions)
+- If template deletes a file, it's deleted from the project
+- Project overrides are kept different from template
+- Clear, explicit ownership - no hash drift issues
+
+### 2. Hash-Based Model (Legacy)
+
+The **Hash-Based Model** uses file hashes to detect who changed what:
+
+- **`ignoredFiles`**: Files never synced
+- **`projectSpecificFiles`**: Your custom code
+- **`templateIgnoredFiles`**: Template example code to skip
+- **`fileHashes`**: Auto-managed baseline hashes
+
+**Key behaviors:**
+- Uses MD5 hashes to track changes
+- Flags conflicts when BOTH template and project changed a file
+- Never deletes files (only adds/modifies)
+
+### Which Model Should I Use?
+
+| Use Case | Recommended Model |
+|----------|-------------------|
+| New projects | **Path Ownership** (simpler, more reliable) |
+| Existing projects with legacy config | Keep legacy OR migrate |
+| Projects with many customizations | Hash-Based (more fine-grained control) |
+| Projects that need deletion sync | **Path Ownership** (handles deletions) |
+
+**Migration:** Run `yarn sync-template --migrate` to convert legacy config to Path Ownership model.
+
+---
+
+## Path Ownership Model (Recommended)
+
+### How It Works
+
+1. **Template paths** are synced exactly - what's in template appears in project
+2. **Deletions** are synced - if template removes a file, it's removed from project
+3. **Project overrides** let you keep specific files different from template
+4. **package.json** uses 3-way merge to preserve project dependencies
+
+### Configuration
+
+```json
+{
+  "templateRepo": "git@github.com:yourusername/app-template-ai.git",
+  "templateBranch": "main",
+  "templateLocalPath": "../app-template-ai",
+  "lastSyncCommit": "abc123...",
+  "lastSyncDate": "2024-01-01T00:00:00.000Z",
+
+  "templatePaths": [
+    "package.json",
+    "tsconfig.json",
+    ".eslintrc.js",
+    "CLAUDE.md",
+    "docs/template/**",
+    "scripts/template/**",
+    ".ai/skills/template/**",
+    "src/client/components/ui/**",
+    "src/server/middleware/**"
+  ],
+
+  "projectOverrides": [
+    "src/client/components/ui/badge.tsx"
+  ],
+
+  "overrideHashes": {}
+}
+```
+
+### Key Fields
+
+| Field | Purpose |
+|-------|---------|
+| `templatePaths` | Globs/paths owned by template (synced exactly) |
+| `projectOverrides` | Files to keep different from template |
+| `overrideHashes` | Auto-managed hashes for detecting template changes to overrides |
+
+### Sync Behavior
+
+For each file matching `templatePaths`:
+
+1. **File in template:**
+   - If in `projectOverrides` AND template changed → **CONFLICT** (ask user)
+   - If in `projectOverrides` AND template unchanged → **SKIP**
+   - If `package.json` → **3-WAY MERGE** (preserves your deps)
+   - Else → **COPY** from template
+
+2. **File in project but NOT in template:**
+   - If in `projectOverrides` → **KEEP**
+   - Else → **DELETE** (template removed it)
+
+### Example Output
+
+```
+🔄 Folder Ownership Sync
+============================================================
+
+📊 Analysis Summary:
+  📥 To copy:   15 files (template → project)
+  🗑️  To delete:  2 files (removed from template)
+  🔀 To merge:   1 file (package.json)
+  ⏭️  To skip:    3 files (project overrides)
+  ⚠️  Conflicts:  1 file (override changed in template)
+
+🔄 Applying changes...
+  ✨ src/server/middleware/auth.ts
+  📝 src/client/components/ui/button.tsx
+  🗑️  src/old-deprecated-file.ts
+  🔀 package.json - merged
+  ⏭️  src/client/components/ui/badge.tsx (project override)
+  ⚠️  src/app.config.js - template changed (override conflict)
+```
+
+---
+
+## Hash-Based Model (Legacy)
+
+For projects using the legacy configuration format:
+
+### How It Works
 
 The sync system uses **hash-based change detection** to accurately track who changed what:
 
@@ -43,7 +176,47 @@ This creates a `.template-sync.json` configuration file.
 
 ### 2. Customize Configuration
 
-Edit `.template-sync.json` to specify:
+#### Path Ownership Config (Recommended)
+
+```json
+{
+  "templateRepo": "git@github.com:yourusername/app-template-ai.git",
+  "templateBranch": "main",
+  "templateLocalPath": "../app-template-ai",
+  "lastSyncCommit": "abc123...",
+  "lastSyncDate": "2024-01-01T00:00:00.000Z",
+
+  "templatePaths": [
+    "package.json",
+    "tsconfig.json",
+    ".eslintrc.js",
+    "eslint.config.mjs",
+    "CLAUDE.md",
+    "docs/template/**",
+    "scripts/template/**",
+    ".ai/skills/template/**",
+    "src/client/components/ui/**",
+    "src/client/query/**",
+    "src/client/stores/**",
+    "src/server/middleware/**",
+    "src/server/utils/**",
+    "src/pages/api/process/**"
+  ],
+
+  "projectOverrides": [
+    "src/client/components/ui/badge.tsx"
+  ],
+
+  "overrideHashes": {}
+}
+```
+
+**Key fields:**
+- `templatePaths`: Paths owned by template - synced exactly including deletions (supports globs)
+- `projectOverrides`: Files you want to keep different from template (won't be overwritten)
+- `overrideHashes`: Auto-managed hashes for tracking template changes to your overrides
+
+#### Legacy Hash-Based Config
 
 ```json
 {
@@ -79,7 +252,7 @@ Edit `.template-sync.json` to specify:
 }
 ```
 
-**Key fields:**
+**Legacy key fields:**
 - `templateRepo`: Remote git URL for the template (used as fallback)
 - `templateLocalPath`: Local path to template repo for faster syncing (optional, see below)
 - `ignoredFiles`: Files that should never be synced (config files, registry files)
@@ -108,7 +281,79 @@ If you have the template repository cloned locally (e.g., you're developing both
 
 **Note:** The local path must be a valid git repository with a `.git` directory.
 
-**Glob pattern support:**
+---
+
+## Migration: Legacy to Path Ownership
+
+If you have a project using the legacy hash-based config, you can migrate to the Path Ownership model.
+
+### Why Migrate?
+
+| Issue | Legacy Model | Path Ownership Model |
+|-------|-------------|---------------------|
+| Deleted files | Not handled (orphan files remain) | ✅ Synced (deleted from project) |
+| Conflict detection | Hash drift can cause false positives | ✅ Explicit path ownership |
+| Configuration | Complex (3 ignore arrays + hashes) | ✅ Simple (2 arrays) |
+| Behavior | Implicit (hash comparison) | ✅ Explicit (path declarations) |
+
+### Migration Process
+
+Run the interactive migration wizard:
+
+```bash
+yarn sync-template --migrate
+```
+
+The wizard will:
+1. Show you the suggested `templatePaths` based on common patterns
+2. Identify your `projectOverrides` from your current customizations
+3. Create a backup of your legacy config (`.template-sync.legacy.json`)
+4. Save the new config to `.template-sync.json`
+
+### Manual Migration
+
+Or migrate manually by editing `.template-sync.json`:
+
+**Before (Legacy):**
+```json
+{
+  "templateRepo": "...",
+  "ignoredFiles": ["...", "..."],
+  "projectSpecificFiles": ["...", "..."],
+  "templateIgnoredFiles": ["...", "..."],
+  "fileHashes": {"...": "..."}
+}
+```
+
+**After (Path Ownership):**
+```json
+{
+  "templateRepo": "...",
+  "templatePaths": [
+    "package.json",
+    "tsconfig.json",
+    "docs/template/**",
+    "scripts/template/**",
+    "src/client/components/ui/**"
+  ],
+  "projectOverrides": [
+    "src/client/components/ui/badge.tsx"
+  ],
+  "overrideHashes": {}
+}
+```
+
+### Migration Help
+
+For more details on the migration process:
+
+```bash
+yarn sync-template --migration-help
+```
+
+---
+
+**Glob pattern support (for both models):**
 Both arrays support glob patterns:
 - `*` - Matches any characters except `/` (within a single directory)
 - `**` - Matches any characters including `/` (across directories)
@@ -778,6 +1023,15 @@ jobs:
 
 ## Summary
 
+### Config Models
+
+| Model | Key Fields | Behavior |
+|-------|------------|----------|
+| **Path Ownership** (new) | `templatePaths`, `projectOverrides` | Explicit ownership, handles deletions |
+| **Hash-Based** (legacy) | `ignoredFiles`, `fileHashes` | Hash comparison, no deletions |
+
+### Commands
+
 | Command | Purpose |
 |---------|---------|
 | `yarn init-template <url>` | Initialize tracking in new project (SSH default) |
@@ -787,9 +1041,11 @@ jobs:
 | `yarn sync-template --force` | Force sync with uncommitted changes |
 | `yarn sync-template --use-https` | Use HTTPS instead of SSH for cloning |
 | `yarn sync-template --diff-summary` | Generate full diff report (all differences) |
-| `yarn sync-template --init-hashes` | Initialize baseline hashes for all files |
+| `yarn sync-template --init-hashes` | Initialize baseline hashes for all files (legacy) |
 | `yarn sync-template --changelog` | Show template commits since last sync |
 | `yarn sync-template --show-drift` | Show total project drift with file list |
+| `yarn sync-template --migrate` | Migrate from legacy to Path Ownership config |
+| `yarn sync-template --migration-help` | Show migration help information |
 
 ### Auto Mode Flags
 

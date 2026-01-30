@@ -24,7 +24,28 @@ yarn init-template https://github.com/yourusername/app-template-ai.git
 
 > **Note:** SSH is used by default for authentication. The HTTPS URL you provide is automatically converted to SSH format (e.g., `git@github.com:user/repo.git`). Use `--use-https` flag if you prefer HTTPS.
 
-This creates `.template-sync.json`:
+This creates `.template-sync.json`. The template supports two config formats:
+
+**Path Ownership Model (Recommended for new projects):**
+```json
+{
+  "templateRepo": "git@github.com:yourusername/app-template-ai.git",
+  "templateBranch": "main",
+  "lastSyncCommit": "abc123...",
+  "lastSyncDate": "2024-01-01T00:00:00.000Z",
+  "templatePaths": [
+    "package.json",
+    "tsconfig.json",
+    "docs/template/**",
+    "scripts/template/**",
+    "src/client/components/ui/**"
+  ],
+  "projectOverrides": [],
+  "overrideHashes": {}
+}
+```
+
+**Legacy Hash-Based Model:**
 ```json
 {
   "templateRepo": "git@github.com:yourusername/app-template-ai.git",
@@ -340,8 +361,13 @@ A: Yes! Edit `.template-sync.json`:
 }
 ```
 
-**Q: What if template deleted a file I'm using?**  
-A: The sync system never deletes your files. Only adds/modifies.
+**Q: What if template deleted a file I'm using?**
+A: This depends on your config model:
+- **Path Ownership Model**: Files removed from template ARE deleted from your project (for template-owned paths)
+- **Legacy Hash-Based Model**: Files are never deleted, only added/modified
+
+**Q: How do I migrate to the Path Ownership model?**
+A: Run `yarn sync-template --migrate` to use the interactive migration wizard.
 
 **Q: How do I know what the template changed?**  
 A: Use `yarn sync-template --diff-summary` to generate a detailed report, or check the template's git history.
