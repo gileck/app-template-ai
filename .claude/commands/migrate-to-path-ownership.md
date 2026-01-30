@@ -18,6 +18,8 @@ This command migrates a child project from the legacy hash-based template sync c
 
 **If changes are small or could benefit all projects** → Contribute to template instead and remove the override.
 
+**Index files should NOT be in projectOverrides** → Use the three-file pattern instead (see Step 4).
+
 ---
 
 ## Process
@@ -37,7 +39,7 @@ cat .template-sync.json
 | **Legacy (hash-based)** | Has `fileHashes`, `ignoredFiles`, `projectSpecificFiles`, `templateIgnoredFiles` |
 | **Path Ownership (new)** | Has `templatePaths`, `projectOverrides`, `overrideHashes` |
 
-If already using Path Ownership, skip to **Step 5: Validate Overrides**.
+If already using Path Ownership, skip to **Step 4: Migrate Index Files** or **Step 5: Validate Overrides**.
 
 ---
 
@@ -75,23 +77,27 @@ Write a new `.template-sync.json` with Path Ownership format:
     "src/client/components/ui/**",
     "src/client/query/**",
     "src/client/stores/**",
+    "src/client/features/index.ts",
+    "src/client/features/index.template.ts",
+    "src/client/routes/index.ts",
+    "src/client/routes/index.template.ts",
     "src/server/middleware/**",
     "src/server/utils/**",
     "src/server/database/index.ts",
+    "src/server/database/collections/index.ts",
     "src/server/database/collections/index.template.ts",
     "src/server/database/collections/feature-requests/**",
     "src/server/database/collections/users/**",
     "src/server/database/collections/todos/**",
     "src/server/database/collections/reports/**",
+    "src/apis/index.ts",
+    "src/apis/index.template.ts",
     "src/pages/api/process/**",
     "app-guildelines/**",
     "task-manager/**"
   ],
 
-  "projectOverrides": [
-    "src/client/features/index.ts",
-    "src/server/database/collections/index.ts"
-  ],
+  "projectOverrides": [],
 
   "overrideHashes": {}
 }
@@ -100,12 +106,101 @@ Write a new `.template-sync.json` with Path Ownership format:
 **CRITICAL:**
 - Do NOT use broad globs like `src/server/database/**` - this would delete project-specific collections
 - Be specific about which database files the template owns
+- Index files use the three-file pattern, so `projectOverrides` should be empty
 
 ---
 
-### Step 4: Run Migration Sync
+### Step 4: Migrate Index Files to Three-File Pattern
 
-**4.1: Dry Run First**
+The template uses a three-file pattern for index files that eliminates the need for `projectOverrides`:
+
+| File | Owner | Purpose |
+|------|-------|---------|
+| `index.template.ts` | Template | Template exports (synced) |
+| `index.project.ts` | Project | Project exports (never synced) |
+| `index.ts` | Template | Combines both (synced) |
+
+**Create `index.project.ts` files for each location:**
+
+#### 4.1: Features - `src/client/features/index.project.ts`
+
+```typescript
+/**
+ * Project-Specific Features
+ *
+ * Add your project-specific feature exports here.
+ * This file is NOT synced from template - it's owned by your project.
+ */
+
+// Add project-specific features below:
+export * from './my-custom-feature';
+
+// If no project features yet, use empty export:
+// export {};
+```
+
+#### 4.2: Collections - `src/server/database/collections/index.project.ts`
+
+```typescript
+/**
+ * Project-Specific Collections
+ *
+ * Add your project-specific collection exports here.
+ * This file is NOT synced from template - it's owned by your project.
+ */
+
+// Add project-specific collections below:
+export * as myItems from './my-items';
+
+// If no project collections yet, use empty export:
+// export {};
+```
+
+#### 4.3: APIs - `src/apis/index.project.ts`
+
+```typescript
+/**
+ * Project-Specific APIs
+ *
+ * Add your project-specific API exports here.
+ * This file is NOT synced from template - it's owned by your project.
+ */
+
+// Add project-specific APIs below:
+export * as myApi from './my-api';
+
+// If no project APIs yet, use empty export:
+// export {};
+```
+
+#### 4.4: Routes - `src/client/routes/index.project.ts`
+
+```typescript
+/**
+ * Project-Specific Routes
+ *
+ * Add your project-specific route definitions here.
+ * This file is NOT synced from template - it's owned by your project.
+ */
+
+import type { Routes } from '../router';
+import { MyPage } from './MyPage';
+
+export const projectRoutes: Routes = {
+  '/my-page': MyPage,
+};
+
+// If no project routes yet:
+// export const projectRoutes: Routes = {};
+```
+
+**Important:** Empty files need `export {}` to be valid TypeScript modules.
+
+---
+
+### Step 5: Run Migration Sync
+
+**5.1: Dry Run First**
 
 ```bash
 yarn sync-template --dry-run
@@ -123,13 +218,13 @@ yarn sync-template --dry-run
 1. Add them to `projectOverrides`, OR
 2. Make `templatePaths` more specific
 
-**4.2: Apply Sync**
+**5.2: Apply Sync**
 
 ```bash
 yarn sync-template --auto-safe-only
 ```
 
-**4.3: Verify**
+**5.3: Verify**
 
 ```bash
 yarn checks
@@ -137,7 +232,7 @@ yarn checks
 
 Must pass with 0 errors.
 
-**4.4: Commit**
+**5.4: Commit**
 
 ```bash
 git add -A
@@ -145,7 +240,7 @@ git commit -m "feat: migrate to Path Ownership template sync config
 
 - Converted from legacy hash-based config to new Path Ownership model
 - Template paths explicitly defined
-- Project-specific files protected via projectOverrides
+- Migrated to three-file index pattern (no projectOverrides needed)
 - Backed up legacy config as .template-sync.legacy.json
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
@@ -153,24 +248,26 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ---
 
-### Step 5: Validate projectOverrides
+### Step 6: Validate projectOverrides (If Any Remain)
 
 **CRITICAL STEP:** Each file in `projectOverrides` must be justified.
 
-**5.1: List Current Overrides**
+**6.1: List Current Overrides**
 
 ```bash
 cat .template-sync.json | grep -A 20 '"projectOverrides"'
 ```
 
-**5.2: For EACH Override, Compare with Template**
+**If `projectOverrides` is empty `[]`, skip to Step 7.**
+
+**6.2: For EACH Override, Compare with Template**
 
 ```bash
 # Compare override with template version
 diff -u ../app-template-ai/path/to/file.ts ./path/to/file.ts
 ```
 
-**5.3: Classify Each Override**
+**6.3: Classify Each Override**
 
 | Classification | Action | Criteria |
 |----------------|--------|----------|
@@ -178,32 +275,43 @@ diff -u ../app-template-ai/path/to/file.ts ./path/to/file.ts
 | **Should Contribute** | Contribute to template, remove override | Bug fixes, improvements that benefit all projects |
 | **Unnecessary** | Remove | File is identical or nearly identical to template |
 
-**5.4: Decision Tree**
+**6.4: Decision Tree**
 
 ```
-Does template have this file?
-├── NO: Is this genuinely project-specific?
-│   ├── YES → JUSTIFIED (keep override)
-│   └── NO → Template should have it → CONTRIBUTE
+Is this an index file (features/index.ts, collections/index.ts, etc.)?
+├── YES → Use three-file pattern instead (Step 4)
 │
-└── YES: What are the differences?
-    ├── MAJOR (different logic, project-specific) → JUSTIFIED
-    ├── MINOR (bug fixes, improvements) → CONTRIBUTE to template
-    └── NONE/TRIVIAL → REMOVE from overrides
+└── NO: Does template have this file?
+    ├── NO: Is this genuinely project-specific?
+    │   ├── YES → JUSTIFIED (keep override)
+    │   └── NO → Template should have it → CONTRIBUTE
+    │
+    └── YES: What are the differences?
+        ├── MAJOR (different logic, project-specific) → JUSTIFIED
+        ├── MINOR (bug fixes, improvements) → CONTRIBUTE to template
+        └── NONE/TRIVIAL → REMOVE from overrides
 ```
 
-**5.5: Examples**
+**6.5: Files That Should NEVER Be Overrides**
+
+| File Pattern | Why | Solution |
+|--------------|-----|----------|
+| `**/index.ts` | Use three-file pattern | Create `index.project.ts` |
+| `**/index.template.ts` | Template owns these | Remove override, sync from template |
+| UI components with minor tweaks | Should benefit all projects | Contribute to template |
+
+**6.6: Examples**
 
 | File | Verdict | Reason |
 |------|---------|--------|
-| `src/client/features/index.ts` | **Always Justified** | Each project exports its own features |
-| `src/server/database/collections/index.ts` | **Always Justified** | Each project exports its own collections |
+| `src/client/features/index.ts` | **Use three-file pattern** | Create index.project.ts instead |
+| `src/server/database/collections/index.ts` | **Use three-file pattern** | Create index.project.ts instead |
 | `src/client/components/ui/button.tsx` | **Usually NOT Justified** | Style tweaks should go to template |
-| `src/client/components/ui/checkbox.tsx` | **Justified IF** project added it and template doesn't need it |
+| `src/client/components/ui/custom-widget.tsx` | **Justified IF** project added it and template doesn't need it |
 
 ---
 
-### Step 6: Take Action on Unjustified Overrides
+### Step 7: Take Action on Unjustified Overrides
 
 **To remove an unnecessary override:**
 1. Remove file path from `projectOverrides` array
@@ -219,16 +327,18 @@ Does template have this file?
 
 ---
 
-### Step 7: Final Validation Checklist
+### Step 8: Final Validation Checklist
 
 - [ ] Config uses Path Ownership format (`templatePaths`, `projectOverrides`)
 - [ ] Legacy config backed up as `.template-sync.legacy.json`
+- [ ] **Index files migrated to three-file pattern:**
+  - [ ] `src/client/features/index.project.ts` exists
+  - [ ] `src/server/database/collections/index.project.ts` exists
+  - [ ] `src/apis/index.project.ts` exists
+  - [ ] `src/client/routes/index.project.ts` exists
+- [ ] `projectOverrides` is empty or contains only truly justified overrides
 - [ ] `yarn sync-template --dry-run` shows no unexpected deletions
 - [ ] `yarn checks` passes
-- [ ] **All overrides validated:**
-  - [ ] Each override has significant project-specific changes
-  - [ ] No overrides that could be contributed to template
-  - [ ] No unnecessary overrides (identical to template)
 - [ ] Changes committed
 
 ---
@@ -268,3 +378,12 @@ Does template have this file?
 **Solution:**
 1. If differences are intentional → Document why
 2. If not intentional → Remove from `projectOverrides`
+
+### Index files in projectOverrides
+
+**Problem:** `features/index.ts` or similar in overrides.
+
+**Solution:** Use the three-file pattern:
+1. Create `index.project.ts` with your project exports
+2. Remove from `projectOverrides`
+3. Run `yarn sync-template` to get the combiner from template
