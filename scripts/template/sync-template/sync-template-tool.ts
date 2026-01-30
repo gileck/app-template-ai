@@ -89,6 +89,24 @@ export class TemplateSyncTool {
   }
 
   /**
+   * Auto-commit any uncommitted sync changes
+   */
+  private autoCommitChanges(quiet: boolean): void {
+    try {
+      exec('git add -A', this.projectRoot, { silent: true });
+      const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
+      if (stagedChanges.trim()) {
+        exec('git commit -m "chore: sync template updates"', this.projectRoot, { silent: true });
+        if (!quiet) {
+          console.log('📝 Auto-committed sync changes');
+        }
+      }
+    } catch {
+      // Ignore commit errors - changes are still applied
+    }
+  }
+
+  /**
    * Run folder ownership sync (new model)
    */
   private async runFolderOwnershipSync(): Promise<void> {
@@ -121,6 +139,22 @@ export class TemplateSyncTool {
     const totalChanges = analysis.toCopy.length + analysis.toDelete.length + analysis.toMerge.length + analysis.conflicts.length + analysis.diverged.length;
     if (totalChanges === 0) {
       console.log('\n✅ No changes to sync. Project is up to date with template.');
+
+      // Still update config and commit any pending changes from previous syncs
+      if (!dryRun) {
+        try {
+          const templateCommit = exec('git rev-parse HEAD', templateDir, { silent: true }).trim();
+          config.lastSyncCommit = templateCommit;
+        } catch {
+          // Ignore
+        }
+        config.lastSyncDate = new Date().toISOString();
+        saveConfig(this.projectRoot, config);
+
+        // Auto-commit any pending sync changes
+        this.autoCommitChanges(quiet);
+      }
+
       await cleanupTemplate(this.context);
       return;
     }
@@ -257,19 +291,7 @@ export class TemplateSyncTool {
       saveConfig(this.projectRoot, config);
 
       // Auto-commit any uncommitted sync changes (including from previous syncs)
-      try {
-        // Stage all changes
-        exec('git add -A', this.projectRoot, { silent: true });
-        const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
-        if (stagedChanges.trim()) {
-          exec('git commit -m "chore: sync template updates"', this.projectRoot, { silent: true });
-          if (!quiet) {
-            console.log('📝 Auto-committed sync changes');
-          }
-        }
-      } catch {
-        // Ignore commit errors - changes are still applied
-      }
+      this.autoCommitChanges(quiet);
     }
 
     // Step 9: Print results
