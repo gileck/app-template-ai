@@ -105,7 +105,7 @@ The script outputs a structured summary:
 ✅ Synced (2):
    • project-1: Synced 5 file(s) successfully.
      - src/client/features/index.template.ts
-     - scripts/template-scripts/sync-template/modes/json-mode.ts
+     - scripts/template/sync-template/modes/json-mode.ts
      ... and 3 more
    • project-2: Synced 3 file(s) successfully.
 

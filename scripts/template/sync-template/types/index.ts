@@ -38,6 +38,10 @@ export interface SyncHistoryEntry {
   templateCommits: string[];  // Commit messages synced
 }
 
+/**
+ * Legacy config format - uses hash-based conflict detection.
+ * This is the default config type used throughout the existing codebase.
+ */
 export interface TemplateSyncConfig {
   templateRepo: string;
   templateBranch: string;
@@ -51,6 +55,66 @@ export interface TemplateSyncConfig {
   templateLocalPath?: string;  // Local path to template repo (for faster sync and contributing changes)
   syncHistory?: SyncHistoryEntry[];  // Track sync history
   fileHashes?: Record<string, string>;  // Hash of each file at last sync time
+}
+
+/**
+ * Alias for backward compatibility
+ */
+export type LegacyTemplateSyncConfig = TemplateSyncConfig;
+
+/**
+ * New config format - uses explicit path ownership model.
+ * Replaces hash-based conflict detection with explicit template/project ownership.
+ */
+export interface FolderOwnershipConfig {
+  templateRepo: string;
+  templateBranch: string;
+  templateLocalPath?: string;  // Local path to template repo (for faster sync)
+  lastSyncCommit: string | null;
+  lastSyncDate: string | null;
+
+  /**
+   * Paths owned by template (files, folders, globs).
+   * These paths are synced exactly - including deletions.
+   * Examples: ["package.json", "docs/template/**", "src/client/components/ui/**"]
+   */
+  templatePaths: string[];
+
+  /**
+   * Files within templatePaths that project wants to keep different.
+   * Template changes to these files will show as conflicts.
+   * Only specific files (not globs) are supported here.
+   * Examples: ["src/client/components/ui/badge.tsx"]
+   */
+  projectOverrides: string[];
+
+  /**
+   * Hashes of override files at the time they were overridden.
+   * Used to detect when template changes a file that project has overridden.
+   */
+  overrideHashes?: Record<string, string>;
+
+  // Optional - for tracking history
+  syncHistory?: SyncHistoryEntry[];
+}
+
+/**
+ * Union type for any config format (used for loading/detecting config type)
+ */
+export type AnyTemplateSyncConfig = TemplateSyncConfig | FolderOwnershipConfig;
+
+/**
+ * Type guard to check if config is the new FolderOwnershipConfig format
+ */
+export function isFolderOwnershipConfig(config: AnyTemplateSyncConfig): config is FolderOwnershipConfig {
+  return 'templatePaths' in config && Array.isArray((config as FolderOwnershipConfig).templatePaths);
+}
+
+/**
+ * Type guard to check if config is the legacy format
+ */
+export function isLegacyConfig(config: AnyTemplateSyncConfig): config is TemplateSyncConfig {
+  return !isFolderOwnershipConfig(config);
 }
 
 export interface FileChange {
@@ -169,4 +233,49 @@ export interface SyncContext {
   projectRoot: string;
   rl: readline.Interface;
   totalDiffSummary: TotalDiffSummary | null;
+}
+
+// ============================================================================
+// Folder Ownership Analysis Types (New Path Ownership Model)
+// ============================================================================
+
+/**
+ * Action type for a file in the folder ownership model
+ */
+export type FolderSyncAction = 'copy' | 'delete' | 'skip' | 'conflict' | 'merge';
+
+/**
+ * A file analysis result in the folder ownership model
+ */
+export interface FolderSyncFile {
+  path: string;
+  action: FolderSyncAction;
+  reason: string;
+  inTemplate: boolean;
+  inProject: boolean;
+  isOverride: boolean;
+  templateChanged?: boolean;  // For overrides: did template change this file?
+}
+
+/**
+ * Result of folder ownership analysis
+ */
+export interface FolderSyncAnalysis {
+  /** Files to copy from template (add or update) */
+  toCopy: FolderSyncFile[];
+
+  /** Files to delete from project (removed in template) */
+  toDelete: FolderSyncFile[];
+
+  /** Files to skip (project overrides with no template change) */
+  toSkip: FolderSyncFile[];
+
+  /** Conflicts (project override files where template also changed) */
+  conflicts: FolderSyncFile[];
+
+  /** Files to 3-way merge (package.json) */
+  toMerge: FolderSyncFile[];
+
+  /** Summary of template paths expanded from globs */
+  expandedTemplatePaths: string[];
 }

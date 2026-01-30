@@ -22,6 +22,7 @@
  *   --verbose                Detailed output for debugging
  *   --use-https              Use HTTPS instead of SSH for cloning (SSH is default)
  *   --merge-package-json     Only merge package.json from template (no full sync)
+ *   --migrate                Migrate from legacy config to folder ownership model
  *
  * Note: Validation checks (TypeScript + ESLint) are automatically run before committing.
  *       If checks fail, changes are applied but NOT committed - you must fix issues and commit manually.
@@ -35,8 +36,9 @@
  *   --project-diffs          Show diffs for files changed in project (for contribute-to-template)
  */
 
-import { SyncOptions, AutoMode } from './types';
+import { SyncOptions, AutoMode, isLegacyConfig } from './types';
 import { TemplateSyncTool } from './sync-template-tool';
+import { loadConfig, saveConfig, runMigrationWizard, backupLegacyConfig, printMigrationHelp } from './utils';
 
 // Main execution
 const args = process.argv.slice(2);
@@ -72,8 +74,44 @@ const options: SyncOptions = {
   mergePackageJson: args.includes('--merge-package-json'),
 };
 
-const tool = new TemplateSyncTool(options);
-tool.run().catch(error => {
-  console.error('❌ Error:', error.message);
-  process.exit(1);
-});
+// Handle migration mode
+if (args.includes('--migrate')) {
+  const projectRoot = process.cwd();
+  const config = loadConfig(projectRoot);
+
+  if (!isLegacyConfig(config)) {
+    console.log('✅ Config is already using folder ownership model. No migration needed.');
+    process.exit(0);
+  }
+
+  runMigrationWizard(config, projectRoot)
+    .then(newConfig => {
+      if (newConfig) {
+        // Backup old config
+        const backupPath = backupLegacyConfig(projectRoot);
+        console.log(`\n📁 Legacy config backed up to: ${backupPath}`);
+
+        // Save new config
+        saveConfig(projectRoot, newConfig);
+        console.log('✅ Migration complete! New config saved to .template-sync.json');
+        console.log('\nNext steps:');
+        console.log('  1. Review .template-sync.json');
+        console.log('  2. Adjust templatePaths and projectOverrides as needed');
+        console.log('  3. Run: yarn sync-template --dry-run');
+      } else {
+        console.log('❌ Migration cancelled.');
+      }
+    })
+    .catch(error => {
+      console.error('❌ Migration error:', error.message);
+      process.exit(1);
+    });
+} else if (args.includes('--migration-help')) {
+  printMigrationHelp();
+} else {
+  const tool = new TemplateSyncTool(options);
+  tool.run().catch(error => {
+    console.error('❌ Error:', error.message);
+    process.exit(1);
+  });
+}

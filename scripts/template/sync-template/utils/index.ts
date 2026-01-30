@@ -4,7 +4,7 @@
 
 export { log, logVerbose, logError } from './logging';
 export { exec, stripAnsi, type ExecOptions } from './exec';
-export { loadConfig, saveConfig, mergeTemplateIgnoredFiles } from './config';
+export { loadConfig, saveConfig, mergeTemplateIgnoredFiles, needsMigration, isNewConfigFormat, getConfigFormatDescription } from './config';
 export {
   mergePackageJson,
   mergePackageJsonFiles,
@@ -18,3 +18,15 @@ export {
   type FieldResolution,
   type PackageJsonMergeResult,
 } from './package-json-merge';
+
+// Migration utilities
+export {
+  migrateConfig,
+  runMigrationWizard,
+  backupLegacyConfig,
+  printMigrationHelp,
+  inferTemplatePaths,
+  inferProjectOverrides,
+  DEFAULT_TEMPLATE_PATHS,
+  COMMON_PROJECT_OVERRIDES,
+} from './migration';

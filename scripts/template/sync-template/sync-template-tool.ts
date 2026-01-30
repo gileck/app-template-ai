@@ -5,8 +5,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { SyncContext, SyncOptions, SyncMode, AutoMode, ConflictResolutionMap, TEMPLATE_DIR } from './types';
-import { loadConfig, saveConfig, mergeTemplateIgnoredFiles } from './utils/config';
+import { SyncContext, SyncOptions, SyncMode, AutoMode, ConflictResolutionMap, TEMPLATE_DIR, isLegacyConfig, isFolderOwnershipConfig, FolderOwnershipConfig, ConflictResolution } from './types';
+import { loadConfig, saveConfig, mergeTemplateIgnoredFiles, getConfigFormatDescription } from './utils/config';
 import { log, logError } from './utils/logging';
 import { exec } from './utils';
 import { confirm, isInteractive } from '../cli-utils';
@@ -18,13 +18,13 @@ import { cloneTemplate, cleanupTemplate, checkGitStatus } from './git';
 import { compareFiles, storeFileHash, getFileHash } from './files';
 
 // Analysis
-import { analyzeChanges } from './analysis';
+import { analyzeChanges, analyzeFolderSync, printFolderSyncAnalysis } from './analysis';
 
 // UI
 import { promptUser, handleConflictResolution, printConflictResolutionSummary, displayTotalDiffSummary } from './ui';
 
 // Sync operations
-import { syncFiles } from './sync';
+import { syncFiles, syncFolderOwnership } from './sync';
 
 // Reporting
 import { printResults, generateSyncReport, getTemplateCommitsSinceLastSync, formatSyncCommitMessage, addSyncHistoryEntry } from './reporting';
@@ -38,26 +38,204 @@ import { runInitHashes, runProjectDiffs, runShowDrift, runChangelog, runDiffSumm
 export class TemplateSyncTool {
   private context: SyncContext;
   private rl: readline.Interface;
+  private folderOwnershipConfig: FolderOwnershipConfig | null = null;
+  private projectRoot: string;
+  private options: SyncOptions;
 
   constructor(options: SyncOptions) {
-    const projectRoot = process.cwd();
-    const config = loadConfig(projectRoot);
+    this.projectRoot = process.cwd();
+    this.options = options;
+    const rawConfig = loadConfig(this.projectRoot);
 
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
-    this.context = {
+    // Check config format and handle appropriately
+    if (isFolderOwnershipConfig(rawConfig)) {
+      // Store folder ownership config for new sync path
+      this.folderOwnershipConfig = rawConfig;
+
+      // Create a minimal context for compatibility (won't be used in new path)
+      this.context = {
+        config: {
+          templateRepo: rawConfig.templateRepo,
+          templateBranch: rawConfig.templateBranch,
+          templateLocalPath: rawConfig.templateLocalPath,
+          baseCommit: null,
+          lastSyncCommit: rawConfig.lastSyncCommit,
+          lastProjectCommit: null,
+          lastSyncDate: rawConfig.lastSyncDate,
+          ignoredFiles: [],
+          projectSpecificFiles: [],
+          syncHistory: rawConfig.syncHistory,
+        },
+        options,
+        projectRoot: this.projectRoot,
+        rl: this.rl,
+        totalDiffSummary: null,
+      };
+    } else {
+      // Legacy config - existing code path
+      this.context = {
+        config: rawConfig,
+        options,
+        projectRoot: this.projectRoot,
+        rl: this.rl,
+        totalDiffSummary: null,
+      };
+    }
+  }
+
+  /**
+   * Run folder ownership sync (new model)
+   */
+  private async runFolderOwnershipSync(): Promise<void> {
+    if (!this.folderOwnershipConfig) {
+      throw new Error('Folder ownership config not set');
+    }
+
+    const config = this.folderOwnershipConfig;
+    const { dryRun, quiet, autoMode, verbose } = this.options;
+
+    console.log('🔄 Template Sync Tool (Folder Ownership Model)');
+    console.log('='.repeat(60));
+    console.log(`📁 Config format: ${getConfigFormatDescription(config)}`);
+
+    // Step 1: Clone/update template
+    console.log('\n📦 Preparing template...');
+    const templateDir = path.join(this.projectRoot, TEMPLATE_DIR);
+    await cloneTemplate(this.context);
+
+    // Step 2: Analyze changes
+    console.log('\n🔍 Analyzing changes...');
+    const analysis = analyzeFolderSync(config, this.projectRoot, templateDir);
+
+    // Step 3: Print analysis summary
+    if (verbose || !quiet) {
+      printFolderSyncAnalysis(analysis);
+    }
+
+    // Step 4: Check if there are changes
+    const totalChanges = analysis.toCopy.length + analysis.toDelete.length + analysis.toMerge.length + analysis.conflicts.length;
+    if (totalChanges === 0) {
+      console.log('\n✅ No changes to sync. Project is up to date with template.');
+      await cleanupTemplate(this.context);
+      return;
+    }
+
+    // Step 5: Handle conflicts interactively or based on auto mode
+    let conflictResolutions: Map<string, ConflictResolution> = new Map();
+
+    if (analysis.conflicts.length > 0) {
+      if (autoMode === 'skip-conflicts') {
+        for (const conflict of analysis.conflicts) {
+          conflictResolutions.set(conflict.path, 'skip');
+        }
+        console.log(`\n⏭️  Auto-skipping ${analysis.conflicts.length} conflict(s)`);
+      } else if (autoMode === 'override-conflicts') {
+        for (const conflict of analysis.conflicts) {
+          conflictResolutions.set(conflict.path, 'override');
+        }
+        console.log(`\n✅ Auto-overriding ${analysis.conflicts.length} conflict(s) with template version`);
+      } else if (autoMode === 'safe-only') {
+        // Skip conflicts entirely
+        console.log(`\n⚠️  ${analysis.conflicts.length} conflict(s) will be skipped (safe-only mode)`);
+      } else if (!quiet && isInteractive()) {
+        // Interactive conflict resolution
+        console.log(`\n⚠️  Found ${analysis.conflicts.length} conflict(s) that need resolution:`);
+        for (const conflict of analysis.conflicts) {
+          console.log(`\n   File: ${conflict.path}`);
+          console.log(`   Reason: ${conflict.reason}`);
+
+          const answer = await confirm(
+            `   Override with template version?`,
+            false
+          );
+
+          conflictResolutions.set(conflict.path, answer ? 'override' : 'skip');
+        }
+      }
+    }
+
+    // Step 6: Confirm sync
+    if (!dryRun && !quiet && isInteractive() && autoMode === 'none') {
+      const proceed = await confirm(
+        `\nProceed with sync? (${analysis.toCopy.length} copy, ${analysis.toDelete.length} delete, ${analysis.toMerge.length} merge)`,
+        true
+      );
+      if (!proceed) {
+        console.log('\n❌ Sync cancelled.');
+        await cleanupTemplate(this.context);
+        return;
+      }
+    }
+
+    // Step 7: Apply changes
+    console.log('\n🔄 Applying changes...');
+    const result = await syncFolderOwnership(
+      analysis,
       config,
-      options,
-      projectRoot,
-      rl: this.rl,
-      totalDiffSummary: null,
-    };
+      this.projectRoot,
+      templateDir,
+      {
+        dryRun,
+        quiet,
+        conflictResolutions,
+      }
+    );
+
+    // Step 8: Update config
+    if (!dryRun) {
+      // Get template commit for tracking
+      try {
+        const templateCommit = exec('git rev-parse HEAD', templateDir, { silent: true }).trim();
+        config.lastSyncCommit = templateCommit;
+      } catch {
+        // Ignore if we can't get commit
+      }
+
+      config.lastSyncDate = new Date().toISOString();
+      saveConfig(this.projectRoot, config);
+    }
+
+    // Step 9: Print results
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 Sync Results:');
+    console.log(`   ✅ Copied: ${result.copied.length}`);
+    console.log(`   🗑️  Deleted: ${result.deleted.length}`);
+    console.log(`   🔀 Merged: ${result.merged.length}`);
+    console.log(`   ⏭️  Skipped: ${result.skipped.length}`);
+    console.log(`   ⚠️  Conflicts: ${result.conflicts.length}`);
+    if (result.errors.length > 0) {
+      console.log(`   ❌ Errors: ${result.errors.length}`);
+      for (const error of result.errors) {
+        console.log(`      - ${error}`);
+      }
+    }
+
+    // Step 10: Cleanup
+    await cleanupTemplate(this.context);
+
+    if (dryRun) {
+      console.log('\n📝 Dry run complete. No changes were made.');
+    } else {
+      console.log('\n✅ Sync complete!');
+    }
   }
 
   async run(): Promise<void> {
+    // Route to folder ownership sync if using new config format
+    if (this.folderOwnershipConfig) {
+      try {
+        await this.runFolderOwnershipSync();
+      } finally {
+        this.rl.close();
+      }
+      return;
+    }
+
     // Handle JSON mode - run silently and output structured result
     if (this.context.options.json) {
       await runJsonMode(this.context);

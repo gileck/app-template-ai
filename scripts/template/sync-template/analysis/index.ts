@@ -14,3 +14,13 @@ export {
   isAgentAvailable,
   type ConflictAnalysis,
 } from './diff-utils';
+
+// Folder Ownership Model (new)
+export {
+  analyzeFolderSync,
+  printFolderSyncAnalysis,
+  expandGlob,
+  expandTemplatePaths,
+  matchesPatterns,
+  getProjectFilesMatchingTemplatePaths,
+} from './folder-sync-analysis';
