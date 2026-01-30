@@ -1,43 +1,19 @@
 /**
  * Route Definitions
  *
- * This file defines the app's routes by merging template routes with project routes.
- * Template routes are in index.template.ts (synced from template).
- *
- * Add your project-specific routes below.
- *
- * Route formats:
- *   '/path': Component                              // Requires auth (default)
- *   '/path': { component: Component, public: true } // Public route
- *   '/admin/path': Component                        // Admin only (automatic)
- *
- * REMINDER: When adding a new route, consider if it should be added to:
- *   - navItems (bottom nav bar) in src/client/components/NavLinks.tsx
- *   - menuItems (hamburger menu) in src/client/components/NavLinks.tsx
+ * This file combines template and project routes.
+ * - index.template.ts: Template routes (synced from template)
+ * - index.project.ts: Project routes (your custom routes)
  */
 
 import { createRoutes } from '../router';
 import { templateRoutes } from './index.template';
-import { Home } from './Home';
-import { AIChat } from './AIChat';
-import { Todos } from './Todos';
-import { SingleTodo } from './SingleTodo';
-import { Clarify } from './Clarify';
+import { projectRoutes } from './index.project';
 
 export const routes = createRoutes({
-  // Template routes (settings, profile, admin, etc.)
+  // Template routes
   ...templateRoutes,
 
-  // Project routes:
-  '/': Home,
-  '/ai-chat': AIChat,
-  '/todos': Todos,
-  '/todos/:todoId': SingleTodo,
-
-  // Clarification page (public, full-screen - no header/navbar)
-  '/clarify/:issueNumber': { component: Clarify, public: true, fullScreen: true },
-
-  // Add more project routes here:
-  // '/my-page': MyPage,
-  // '/share/:id': { component: SharePage, public: true },
+  // Project-specific routes
+  ...projectRoutes,
 });
