@@ -2,13 +2,52 @@
 
 This command helps you sync updates from the template repository into your project. Use this after the template has been updated with improvements, bug fixes, or new features.
 
-📚 **Full Documentation**: [docs/template-sync.md](mdc:../../docs/template-sync.md)  
-🚀 **Quick Start**: [docs/template-sync-quick-start.md](mdc:../../docs/template-sync-quick-start.md)  
-📊 **Visual Guide**: [docs/template-sync-visual-guide.md](mdc:../../docs/template-sync-visual-guide.md)
+📚 **Full Documentation**: [docs/template/template-sync/template-sync.md](mdc:../../docs/template/template-sync/template-sync.md)
+🚀 **Quick Start**: [docs/template/template-sync/template-sync-quick-start.md](mdc:../../docs/template/template-sync/template-sync-quick-start.md)
+📊 **Visual Guide**: [docs/template/template-sync/template-sync-visual-guide.md](mdc:../../docs/template/template-sync/template-sync-visual-guide.md)
+
+---
+
+## Two Config Models
+
+The sync system supports two configuration models:
+
+| Model | Recommended For | Key Features |
+|-------|-----------------|--------------|
+| **Path Ownership** (new) | New projects, recommended | Explicit path ownership, handles deletions, simpler config |
+| **Hash-Based** (legacy) | Existing projects | Fine-grained control, no deletion support |
+
+### Check Your Config Type
+
+```bash
+cat .template-sync.json | head -20
+```
+
+| If you see... | Config Type | Action |
+|---------------|-------------|--------|
+| `templatePaths`, `projectOverrides` | Path Ownership | You're on the new model |
+| `fileHashes`, `ignoredFiles`, `projectSpecificFiles` | Legacy | Consider migrating: `/migrate-to-path-ownership` |
+
+### Path Ownership Model (Recommended)
+
+```json
+{
+  "templatePaths": ["src/client/components/ui/**", "scripts/template/**", ...],
+  "projectOverrides": ["src/client/features/index.ts"],
+  "overrideHashes": {}
+}
+```
+
+- **templatePaths**: Files/folders owned by template (synced, including deletions)
+- **projectOverrides**: Files within templatePaths that project keeps different
+
+**To migrate from legacy**: Use `/migrate-to-path-ownership` command.
+
+---
 
 ## Overview
 
-The template sync system intelligently merges updates from the template repository while preserving your project customizations. It uses **hash-based change detection** to accurately track who modified each file.
+The template sync system intelligently merges updates from the template repository while preserving your project customizations.
 
 ### How It Works
 
@@ -550,12 +589,13 @@ git checkout src/file.ts
 
 ## Related Documentation
 
-- 📚 [Template Sync Guide](mdc:../../docs/template-sync.md) - Complete reference
-- 🚀 [Quick Start](mdc:../../docs/template-sync-quick-start.md) - Step-by-step tutorial
-- 📊 [Visual Guide](mdc:../../docs/template-sync-visual-guide.md) - Workflow diagrams
-- 🔄 [Comparison](mdc:../../docs/template-sync-comparison.md) - vs. git fork/subtree
-- 🔧 [Implementation](mdc:../../docs/template-sync-implementation.md) - Technical details
-- ✅ [New Project Checklist](mdc:../../NEW-PROJECT-CHECKLIST.md) - Initial setup
+- 📚 [Template Sync Guide](mdc:../../docs/template/template-sync/template-sync.md) - Complete reference
+- 🚀 [Quick Start](mdc:../../docs/template/template-sync/template-sync-quick-start.md) - Step-by-step tutorial
+- 📊 [Visual Guide](mdc:../../docs/template/template-sync/template-sync-visual-guide.md) - Workflow diagrams
+- 🔄 [Comparison](mdc:../../docs/template/template-sync/template-sync-comparison.md) - vs. git fork/subtree
+- 🔧 [Implementation](mdc:../../docs/template/template-sync/template-sync-implementation.md) - Technical details
+- 🔀 [Migration Guide](mdc:../../docs/template/template-sync/folder-restructure-migration.md) - Folder restructuring
+- ⬆️ [Migrate Config](/migrate-to-path-ownership) - Migrate to Path Ownership model
 
 ## What Should I Do?
 
