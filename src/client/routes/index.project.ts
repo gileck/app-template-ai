@@ -15,13 +15,23 @@
  */
 
 import { Routes } from '../router';
+import { Home } from './Home';
+import { AIChat } from './AIChat';
+import { Todos } from './Todos';
+import { SingleTodo } from './SingleTodo';
 
 /**
  * Project route definitions.
  * These are merged with template routes in index.ts.
  */
 export const projectRoutes: Routes = {
-  // Add project-specific routes here:
+  // Example app routes (template demo):
+  '/': Home,
+  '/ai-chat': AIChat,
+  '/todos': Todos,
+  '/todos/:todoId': SingleTodo,
+
+  // Add more project-specific routes here:
   // '/my-page': MyPage,
   // '/share/:id': { component: SharePage, public: true },
 };
