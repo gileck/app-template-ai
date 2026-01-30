@@ -256,18 +256,35 @@ export class TemplateSyncTool {
       config.lastSyncDate = new Date().toISOString();
       saveConfig(this.projectRoot, config);
 
-      // Auto-commit .template-sync.json changes
-      try {
-        exec('git add .template-sync.json', this.projectRoot, { silent: true });
-        const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
-        if (stagedChanges.includes('.template-sync.json')) {
-          exec('git commit -m "chore: update template sync config"', this.projectRoot, { silent: true });
-          if (!quiet) {
-            console.log('📝 Auto-committed .template-sync.json');
+      // Auto-commit all sync changes (synced files + config)
+      const hasChanges = result.copied.length > 0 || result.deleted.length > 0 || result.merged.length > 0 || (result.addedToOverrides?.length ?? 0) > 0;
+      if (hasChanges) {
+        try {
+          exec('git add -A', this.projectRoot, { silent: true });
+          const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
+          if (stagedChanges.trim()) {
+            exec('git commit -m "chore: sync template updates"', this.projectRoot, { silent: true });
+            if (!quiet) {
+              console.log('📝 Auto-committed sync changes');
+            }
           }
+        } catch {
+          // Ignore commit errors - changes are still applied
         }
-      } catch {
-        // Ignore commit errors - config is already saved
+      } else {
+        // Only config changed (e.g., added to overrides) - commit just the config
+        try {
+          exec('git add .template-sync.json', this.projectRoot, { silent: true });
+          const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
+          if (stagedChanges.includes('.template-sync.json')) {
+            exec('git commit -m "chore: update template sync config"', this.projectRoot, { silent: true });
+            if (!quiet) {
+              console.log('📝 Auto-committed .template-sync.json');
+            }
+          }
+        } catch {
+          // Ignore commit errors - config is already saved
+        }
       }
     }
 
