@@ -255,6 +255,20 @@ export class TemplateSyncTool {
 
       config.lastSyncDate = new Date().toISOString();
       saveConfig(this.projectRoot, config);
+
+      // Auto-commit .template-sync.json changes
+      try {
+        exec('git add .template-sync.json', this.projectRoot, { silent: true });
+        const stagedChanges = exec('git diff --cached --name-only', this.projectRoot, { silent: true });
+        if (stagedChanges.includes('.template-sync.json')) {
+          exec('git commit -m "chore: update template sync config"', this.projectRoot, { silent: true });
+          if (!quiet) {
+            console.log('📝 Auto-committed .template-sync.json');
+          }
+        }
+      } catch {
+        // Ignore commit errors - config is already saved
+      }
     }
 
     // Step 9: Print results
