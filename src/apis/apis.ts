@@ -1,23 +1,16 @@
 /**
  * API Handlers
  *
- * This file merges template API handlers with project-specific handlers.
- * Template handlers are in apis.template.ts (synced from template).
- *
- * Add your project-specific API handlers below.
+ * This file combines template and project API handlers.
+ * - apis.template.ts: Template handlers (synced from template)
+ * - apis.project.ts: Project handlers (your custom handlers)
  */
 
 import { mergeApiHandlers } from "./registry";
 import { templateApiHandlers } from "./apis.template";
-import { chatApiHandlers } from "./chat/server";
-import { todosApiHandlers } from "./todos/server";
-import { clarificationApiHandlers } from "./clarification/server";
+import { projectApiHandlers } from "./apis.project";
 
 export const apiHandlers = mergeApiHandlers(
   templateApiHandlers,
-  chatApiHandlers,
-  todosApiHandlers,
-  clarificationApiHandlers
-  // Add project-specific API handlers here:
-  // myApiHandlers,
+  projectApiHandlers
 );
