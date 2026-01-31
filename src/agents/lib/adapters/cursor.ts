@@ -201,6 +201,7 @@ IMPORTANT:
 
         // Buffer for accumulating streaming text responses
         let textBuffer = '';
+        let hasStreamedText = false; // Track if we've streamed any text to console
         const TEXT_BUFFER_FLUSH_SIZE = 500; // Flush after this many characters
 
         const flushTextBuffer = () => {
@@ -208,6 +209,14 @@ IMPORTANT:
                 logTextResponse(logCtx, textBuffer.trim());
             }
             textBuffer = '';
+        };
+
+        // Call before non-text output to add newline after streaming text
+        const endStreamingLine = () => {
+            if (hasStreamedText) {
+                console.log(''); // Newline to separate streaming text from next output
+                hasStreamedText = false;
+            }
         };
 
         let spinnerInterval: NodeJS.Timeout | null = null;
@@ -257,18 +266,20 @@ IMPORTANT:
                                 // Buffer text responses instead of logging each one
                                 textBuffer += event.content;
                                 lastResult = event.content;
+                                hasStreamedText = true;
 
                                 // Flush if buffer is large enough
                                 if (textBuffer.length >= TEXT_BUFFER_FLUSH_SIZE) {
                                     flushTextBuffer();
                                 }
 
-                                // Still show in console for real-time feedback
-                                console.log(`    \x1b[90m${event.content}\x1b[0m`);
+                                // Still show in console for real-time feedback (no newline for streaming)
+                                process.stdout.write(`\x1b[90m${event.content}\x1b[0m`);
                             }
 
                             if (event.type === 'tool_use') {
-                                // Flush text buffer before logging tool call
+                                // End streaming line and flush text buffer before logging tool call
+                                endStreamingLine();
                                 flushTextBuffer();
                                 toolCallCount++;
                                 const toolName = event.name || 'unknown';
@@ -296,7 +307,8 @@ IMPORTANT:
                             }
 
                             if (event.type === 'result') {
-                                // Flush any remaining text before processing result
+                                // End streaming line and flush any remaining text before processing result
+                                endStreamingLine();
                                 flushTextBuffer();
                                 if (event.result) {
                                     lastResult = event.result;
@@ -306,7 +318,8 @@ IMPORTANT:
                     }
                 );
 
-                // Flush any remaining text in buffer
+                // Flush any remaining text in buffer and end streaming line
+                endStreamingLine();
                 flushTextBuffer();
 
                 const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
