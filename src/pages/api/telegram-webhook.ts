@@ -23,6 +23,11 @@
  * 5. Routing (after initial sync):
  *    - Callback: "route_feature:requestId:destination" | "route_bug:reportId:destination"
  *
+ * 6. Undo Actions (5-minute window to revert accidental clicks):
+ *    - Callback: "u_rc:issueNumber:prNumber:timestamp" - Undo implementation PR request changes
+ *    - Callback: "u_dc:prNumber:issueNumber:type:timestamp" - Undo design PR request changes
+ *    - Callback: "u_dr:issueNumber:action:previousStatus:timestamp" - Undo design review changes/reject
+ *
  * This is a direct API route because Telegram sends webhook requests directly to this URL.
  * It cannot go through the standard API architecture.
  */
@@ -65,6 +70,28 @@ const STATUS_TRANSITIONS: Record<string, string> = {
 };
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
+
+/**
+ * Undo timeout in milliseconds (5 minutes)
+ */
+const UNDO_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Check if undo is still within the time window
+ */
+function isUndoValid(timestamp: number): boolean {
+    return Date.now() - timestamp < UNDO_TIMEOUT_MS;
+}
+
+/**
+ * Format remaining undo time for display
+ */
+function formatUndoTimeRemaining(timestamp: number): string {
+    const remaining = Math.max(0, UNDO_TIMEOUT_MS - (Date.now() - timestamp));
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 interface TelegramCallbackQuery {
     id: string;
@@ -126,38 +153,6 @@ async function answerCallbackQuery(
 }
 
 /**
- * Edit the original message to show the action taken (for design review)
- */
-async function editMessageTextWithExtra(
-    botToken: string,
-    chatId: number,
-    messageId: number,
-    originalText: string,
-    action: ReviewAction,
-    extraInfo: string = ''
-): Promise<void> {
-    const emoji = ACTION_EMOJIS[action];
-    const label = ACTION_LABELS[action];
-
-    // Append the action to the original message (escape originalText for HTML safety)
-    const newText = `${escapeHtml(originalText)}\n\n${emoji} <b>${label}</b>${extraInfo}`;
-
-    await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId,
-            text: newText,
-            parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            // Remove the inline keyboard after action
-            reply_markup: { inline_keyboard: [] },
-        }),
-    });
-}
-
-/**
  * Edit message with custom content (for initial approval)
  */
 async function editMessageWithResult(
@@ -211,6 +206,37 @@ async function editMessageText(
             text,
             parse_mode: parseMode,
             disable_web_page_preview: true,
+        }),
+    });
+}
+
+/**
+ * Edit message with an undo button
+ * The undo button includes a timestamp to enforce time window
+ */
+async function editMessageWithUndoButton(
+    botToken: string,
+    chatId: number,
+    messageId: number,
+    text: string,
+    undoCallbackData: string,
+    timestamp: number
+): Promise<void> {
+    const timeRemaining = formatUndoTimeRemaining(timestamp);
+    await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId,
+            text,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            reply_markup: {
+                inline_keyboard: [[
+                    { text: `↩️ Undo (${timeRemaining})`, callback_data: undoCallbackData },
+                ]],
+            },
         }),
     });
 }
@@ -689,6 +715,9 @@ async function handleDesignReviewAction(
 
     // Build detailed status message for the edited message
     let statusDetails = '';
+    const timestamp = Date.now();
+    const previousStatus = item.status || '';
+
     if (action === 'approve') {
         if (advancedTo) {
             statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${advancedTo}\n📋 Review Status: (ready for agent)`;
@@ -697,9 +726,9 @@ async function handleDesignReviewAction(
             statusDetails = `\n\n✅ <b>Success!</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Merge the PR to complete.`;
         }
     } else if (action === 'changes') {
-        statusDetails = `\n\n📝 <b>Changes Requested</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Add comments on the issue, then run agents.`;
+        statusDetails = `\n\n📝 <b>Changes Requested</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n💡 Add comments on the issue, then run agents.\n\n<i>Changed your mind? Click Undo within 5 minutes.</i>`;
     } else if (action === 'reject') {
-        statusDetails = `\n\n❌ <b>Rejected</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}`;
+        statusDetails = `\n\n❌ <b>Rejected</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n<i>Changed your mind? Click Undo within 5 minutes.</i>`;
     }
 
     // Acknowledge the button click (toast notification)
@@ -710,14 +739,32 @@ async function handleDesignReviewAction(
 
     // Edit the message to show the action taken with full details
     if (callbackQuery.message) {
-        await editMessageTextWithExtra(
-            botToken,
-            callbackQuery.message.chat.id,
-            callbackQuery.message.message_id,
-            callbackQuery.message.text || '',
-            action,
-            statusDetails
-        );
+        const emoji = ACTION_EMOJIS[action];
+        const label = ACTION_LABELS[action];
+        const originalText = callbackQuery.message.text || '';
+        const newText = `${escapeHtml(originalText)}\n\n${emoji} <b>${label}</b>${statusDetails}`;
+
+        // For changes/reject, show undo button; for approve, no undo needed
+        if (action === 'changes' || action === 'reject') {
+            // u_dr = undo design review (changes or reject)
+            const undoCallback = `u_dr:${issueNumber}:${action}:${previousStatus}:${timestamp}`;
+            await editMessageWithUndoButton(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                newText,
+                undoCallback,
+                timestamp
+            );
+        } else {
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                newText,
+                'HTML'
+            );
+        }
     }
 
     console.log(`Telegram webhook: ${action} issue #${issueNumber} (item ${item.itemId})`);
@@ -1339,8 +1386,9 @@ async function handleDesignPRRequestChanges(
             });
         }
 
-        // 3. Update the message with instructions
+        // 3. Update the message with instructions and undo button
         const prUrl = getPrUrl(prNumber);
+        const timestamp = Date.now();
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const statusUpdate = [
@@ -1353,14 +1401,19 @@ async function handleDesignPRRequestChanges(
                 '',
                 `<b>Next:</b> <a href="${prUrl}">Comment on the ${designLabel} PR</a> explaining what needs to change.`,
                 'Design agent will revise on next run.',
+                '',
+                '<i>Changed your mind? Click Undo within 5 minutes.</i>',
             ].join('\n');
 
-            await editMessageText(
+            // u_dc = undo design changes
+            const undoCallback = `u_dc:${prNumber}:${issueNumber}:${designType}:${timestamp}`;
+            await editMessageWithUndoButton(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
                 escapeHtml(originalText) + statusUpdate,
-                'HTML'
+                undoCallback,
+                timestamp
             );
         }
 
@@ -1408,8 +1461,9 @@ async function handleRequestChangesCallback(
             });
         }
 
-        // 3. Update the message with instructions
+        // 3. Update the message with instructions and undo button
         const prUrl = getPrUrl(prNumber);
+        const timestamp = Date.now();
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const statusUpdate = [
@@ -1422,14 +1476,19 @@ async function handleRequestChangesCallback(
                 '',
                 `<b>Next:</b> <a href="${prUrl}">Comment on the PR</a> explaining what needs to change.`,
                 'Implementor will pick it up on next run.',
+                '',
+                '<i>Changed your mind? Click Undo within 5 minutes.</i>',
             ].join('\n');
 
-            await editMessageText(
+            // u_rc = undo request changes (implementation PR)
+            const undoCallback = `u_rc:${issueNumber}:${prNumber}:${timestamp}`;
+            await editMessageWithUndoButton(
                 botToken,
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
                 escapeHtml(originalText) + statusUpdate,
-                'HTML'
+                undoCallback,
+                timestamp
             );
         }
 
@@ -1437,6 +1496,324 @@ async function handleRequestChangesCallback(
         return { success: true };
     } catch (error) {
         console.error('Error handling request changes:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle undo for implementation PR request changes
+ * Callback format: "u_rc:issueNumber:prNumber:timestamp"
+ *
+ * Restores status to PR Review and re-sends the PR Ready notification
+ */
+async function handleUndoRequestChanges(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    prNumber: number,
+    timestamp: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Check if undo is still valid
+        if (!isUndoValid(timestamp)) {
+            return { success: false, error: 'Undo window expired (5 minutes)' };
+        }
+
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // 2. Restore status to PR Review and clear review status
+        await adapter.updateItemStatus(item.itemId, STATUSES.prReview);
+        await adapter.clearItemReviewStatus(item.itemId);
+
+        // 3. Log the undo action
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'undo_request_changes', `Undid request changes for PR #${prNumber}`, {
+                prNumber,
+                restoredStatus: STATUSES.prReview,
+            });
+        }
+
+        // 4. Update the message to show undo was successful
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            // Find and remove the undo-related text
+            const cleanedText = originalText
+                .replace(/\n*<i>Changed your mind\?.*<\/i>/g, '')
+                .replace(/\n*Changed your mind\?.*5 minutes\./g, '');
+
+            const undoConfirmation = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '↩️ <b>Undone!</b>',
+                '',
+                `📊 Status restored to: ${STATUSES.prReview}`,
+                '📋 Review Status: (cleared)',
+                '',
+                'Re-sending PR Ready notification...',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(cleanedText) + undoConfirmation,
+                'HTML'
+            );
+        }
+
+        // 5. Re-send the PR Ready notification with buttons
+        // First, get the commit message from the PR
+        const { Octokit } = await import('@octokit/rest');
+        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const { getProjectConfig } = await import('@/server/project-management/config');
+        const projectConfig = getProjectConfig();
+        const { owner, repo } = projectConfig.github;
+
+        // Get PR details
+        const { data: pr } = await octokit.pulls.get({
+            owner,
+            repo,
+            pull_number: prNumber,
+        });
+
+        // Get commit message from PR comments
+        const { data: comments } = await octokit.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+        });
+
+        let commitMessage = { title: pr.title, body: pr.body || '' };
+        for (const comment of comments) {
+            if (comment.body?.includes(COMMIT_MESSAGE_MARKER)) {
+                const parsed = parseCommitMessageComment(comment.body);
+                if (parsed) {
+                    commitMessage = parsed;
+                    break;
+                }
+            }
+        }
+
+        // Re-send the notification
+        const { notifyPRReadyToMerge } = await import('@/agents/shared/notifications');
+        await notifyPRReadyToMerge(
+            item.title,
+            issueNumber,
+            prNumber,
+            commitMessage,
+            'feature' // Default to feature, could be improved
+        );
+
+        console.log(`Telegram webhook: undid request changes for PR #${prNumber}, issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling undo request changes:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle undo for design PR request changes
+ * Callback format: "u_dc:prNumber:issueNumber:designType:timestamp"
+ *
+ * Clears review status and re-sends the Design PR Ready notification
+ */
+async function handleUndoDesignChanges(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    prNumber: number,
+    issueNumber: number,
+    designType: 'product-dev' | 'product' | 'tech',
+    timestamp: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Check if undo is still valid
+        if (!isUndoValid(timestamp)) {
+            return { success: false, error: 'Undo window expired (5 minutes)' };
+        }
+
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // 2. Clear review status (design status unchanged)
+        await adapter.clearItemReviewStatus(item.itemId);
+
+        const designLabel = designType === 'product-dev'
+            ? 'Product Development'
+            : designType === 'product'
+                ? 'Product Design'
+                : 'Technical Design';
+
+        // 3. Log the undo action
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'undo_design_changes', `Undid request changes for ${designLabel} PR #${prNumber}`, {
+                prNumber,
+                designType,
+            });
+        }
+
+        // 4. Update the message to show undo was successful
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const cleanedText = originalText
+                .replace(/\n*<i>Changed your mind\?.*<\/i>/g, '')
+                .replace(/\n*Changed your mind\?.*5 minutes\./g, '');
+
+            const undoConfirmation = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '↩️ <b>Undone!</b>',
+                '',
+                `📊 Status: ${item.status}`,
+                '📋 Review Status: (cleared)',
+                '',
+                'Re-sending Design PR Ready notification...',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(cleanedText) + undoConfirmation,
+                'HTML'
+            );
+        }
+
+        // 5. Re-send the Design PR Ready notification with buttons
+        const { notifyDesignPRReady } = await import('@/agents/shared/notifications');
+        await notifyDesignPRReady(
+            designType,
+            item.title,
+            issueNumber,
+            prNumber,
+            false, // Not a revision since we're undoing
+            'feature' // Default to feature
+        );
+
+        console.log(`Telegram webhook: undid design changes for ${designType} PR #${prNumber}, issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling undo design changes:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle undo for design review (changes/reject)
+ * Callback format: "u_dr:issueNumber:action:previousStatus:timestamp"
+ *
+ * Clears review status and re-sends the design review notification
+ */
+async function handleUndoDesignReview(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    originalAction: 'changes' | 'reject',
+    previousStatus: string,
+    timestamp: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Check if undo is still valid
+        if (!isUndoValid(timestamp)) {
+            return { success: false, error: 'Undo window expired (5 minutes)' };
+        }
+
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // 1. Find the project item
+        const item = await findItemByIssueNumber(adapter, issueNumber);
+        if (!item) {
+            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // 2. Clear review status
+        await adapter.clearItemReviewStatus(item.itemId);
+
+        // 3. Log the undo action
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'undo_design_review', `Undid ${originalAction} for design review`, {
+                issueNumber,
+                originalAction,
+                status: item.status,
+            });
+        }
+
+        // 4. Update the message to show undo was successful
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const cleanedText = originalText
+                .replace(/\n*<i>Changed your mind\?.*<\/i>/g, '')
+                .replace(/\n*Changed your mind\?.*5 minutes\./g, '');
+
+            const undoConfirmation = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '↩️ <b>Undone!</b>',
+                '',
+                `📊 Status: ${item.status}`,
+                '📋 Review Status: (cleared)',
+                '',
+                'Re-sending review notification...',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(cleanedText) + undoConfirmation,
+                'HTML'
+            );
+        }
+
+        // 5. Re-send the appropriate notification based on the current status
+        const { getIssueUrl } = await import('@/server/project-management/config');
+        const issueUrl = getIssueUrl(issueNumber);
+
+        // Send a new message with the review buttons
+        await sendNotificationToOwner(
+            `<b>🔄 Review Restored</b>\n\n📋 ${escapeHtml(item.title)}\n🔗 Issue #${issueNumber}\n📊 Status: ${item.status}\n\nReady for review again.`,
+            {
+                parseMode: 'HTML',
+                inlineKeyboard: [
+                    [
+                        { text: '📋 View Issue', url: issueUrl },
+                    ],
+                    [
+                        { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
+                        { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+                        { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
+                    ],
+                ],
+            }
+        );
+
+        console.log(`Telegram webhook: undid ${originalAction} for issue #${issueNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling undo design review:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -1831,6 +2208,129 @@ export default async function handler(
 
             if (result.success) {
                 await answerCallbackQuery(botToken, callback_query.id, '🔄 Changes requested');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Undo request changes (implementation PR): "u_rc:issueNumber:prNumber:timestamp"
+        if (action === 'u_rc' && parts.length === 4) {
+            const issueNumber = parsed.getInt(1);
+            const prNumber = parsed.getInt(2);
+            const timestamp = parsed.getInt(3);
+
+            if (!issueNumber || !prNumber || !timestamp) {
+                console.error('Telegram webhook: Invalid u_rc callback data', {
+                    callbackData,
+                    issueNumber,
+                    prNumber,
+                    timestamp,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleUndoRequestChanges(
+                botToken,
+                callback_query,
+                issueNumber,
+                prNumber,
+                timestamp
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Undo design changes (design PR): "u_dc:prNumber:issueNumber:designType:timestamp"
+        if (action === 'u_dc' && parts.length === 5) {
+            const prNumber = parsed.getInt(1);
+            const issueNumber = parsed.getInt(2);
+            const designType = parsed.getString(3).toLowerCase() as 'product-dev' | 'product' | 'tech';
+            const timestamp = parsed.getInt(4);
+
+            if (!prNumber || !issueNumber || !['product-dev', 'product', 'tech'].includes(designType) || !timestamp) {
+                console.error('Telegram webhook: Invalid u_dc callback data', {
+                    callbackData,
+                    prNumber,
+                    issueNumber,
+                    designType,
+                    timestamp,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleUndoDesignChanges(
+                botToken,
+                callback_query,
+                prNumber,
+                issueNumber,
+                designType,
+                timestamp
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Undo design review (changes/reject): "u_dr:issueNumber:action:previousStatus:timestamp"
+        if (action === 'u_dr' && parts.length === 5) {
+            const issueNumber = parsed.getInt(1);
+            const originalAction = parsed.getString(2) as 'changes' | 'reject';
+            const previousStatus = parsed.getString(3);
+            const timestamp = parsed.getInt(4);
+
+            if (!issueNumber || !['changes', 'reject'].includes(originalAction) || !previousStatus || !timestamp) {
+                console.error('Telegram webhook: Invalid u_dr callback data', {
+                    callbackData,
+                    issueNumber,
+                    originalAction,
+                    previousStatus,
+                    timestamp,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleUndoDesignReview(
+                botToken,
+                callback_query,
+                issueNumber,
+                originalAction,
+                previousStatus,
+                timestamp
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
             } else {
                 await answerCallbackQuery(
                     botToken,
