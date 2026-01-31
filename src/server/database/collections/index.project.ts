@@ -8,7 +8,5 @@
  *   export * as myCollection from './my-collection';
  */
 
-// Add project-specific collections below:
-
-// Empty export to make this a valid module (required by TypeScript)
-export {};
+// Template demo collections (not synced to child projects):
+export * as todos from './todos';
