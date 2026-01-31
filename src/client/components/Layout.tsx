@@ -36,9 +36,14 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
   if (isFullScreen) {
     return (
       <>
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <div
+          className="flex flex-col"
+          style={{ height: '100dvh' }}
+        >
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </div>
         <ToastContainer />
       </>
     );
