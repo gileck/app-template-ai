@@ -11,14 +11,16 @@
  */
 
 import '../shared/loadEnv';
-import { handleStart, handleCreate } from './commands';
+import { handleStart, handleCreate, handleList, handleGet, handleUpdate } from './commands';
 
 type CommandHandler = (args: string[]) => Promise<void>;
 
 const COMMANDS: Record<string, CommandHandler> = {
     start: handleStart,
     create: handleCreate,
-    // Future commands: list, get, delete
+    list: handleList,
+    get: handleGet,
+    update: handleUpdate,
 };
 
 function printUsage(): void {
@@ -30,6 +32,9 @@ Usage: yarn agent-workflow <command> [options]
 Commands:
   start     Interactive guided process (prompts for all options)
   create    Create with named arguments
+  list      List feature requests and bug reports
+  get       Get details of a specific item
+  update    Update status or priority of an item
 
 Create options:
   --type <type>           Required: feature | bug
@@ -40,6 +45,23 @@ Create options:
                           (implies --auto-approve)
   --priority <level>      Optional: low | medium | high | critical (features only)
   --dry-run               Optional: Preview without creating
+
+List options:
+  --type <type>           Optional: feature | bug (filter by type)
+  --status <status>       Optional: Filter by status
+  --source <source>       Optional: ui | cli | auto (filter by source)
+
+Get options:
+  <id>                    Required: Item ID (full or first 8 chars)
+  --type <type>           Optional: feature | bug (hint for faster lookup)
+
+Update options:
+  <id>                    Required: Item ID (full or first 8 chars)
+  --status <status>       Optional: New status
+                          Features: new | in_progress | done | rejected
+                          Bugs: new | investigating | resolved | closed
+  --priority <level>      Optional: low | medium | high | critical (features only)
+  --dry-run               Optional: Preview without updating
 
 Workflow:
   Default (no flags):
@@ -61,17 +83,26 @@ Examples:
   # Interactive mode
   yarn agent-workflow start
 
-  # Create feature request (sends approval notification, waits for Telegram approval)
+  # Create feature request
   yarn agent-workflow create --type feature --title "Add dark mode" --description "Toggle theme"
 
-  # Auto-approve and sync to GitHub (sends routing notification)
-  yarn agent-workflow create --type feature --title "Add dark mode" --description "Toggle theme" --auto-approve
+  # List all items
+  yarn agent-workflow list
 
-  # Auto-approve and route directly to implementation (no notifications)
-  yarn agent-workflow create --type feature --title "Fix typo" --description "Header says Welcom" --route implementation
+  # List only features with status 'new'
+  yarn agent-workflow list --type feature --status new
 
-  # Preview without creating
-  yarn agent-workflow create --type feature --title "Test" --description "Description" --dry-run
+  # Get item details (using ID prefix)
+  yarn agent-workflow get a1b2c3d4
+
+  # Update item status
+  yarn agent-workflow update a1b2c3d4 --status in_progress
+
+  # Update feature priority
+  yarn agent-workflow update a1b2c3d4 --priority high
+
+  # Preview update without applying
+  yarn agent-workflow update a1b2c3d4 --status done --dry-run
 `);
 }
 

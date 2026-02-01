@@ -12,6 +12,10 @@ export interface ParsedArgs {
     priority?: string;
     dryRun?: boolean;
     autoApprove?: boolean;
+    // Fields for list/get/update commands
+    id?: string;
+    status?: string;
+    source?: string;
 }
 
 /**
@@ -23,7 +27,11 @@ export interface ParsedArgs {
  *   --description <value>
  *   --route <value>
  *   --priority <value>
+ *   --id <value>
+ *   --status <value>
+ *   --source <value>
  *   --dry-run (flag)
+ *   --auto-approve (flag)
  */
 export function parseArgs(args: string[]): ParsedArgs {
     const result: ParsedArgs = {};
@@ -53,6 +61,15 @@ export function parseArgs(args: string[]): ParsedArgs {
         } else if (arg === '--auto-approve') {
             result.autoApprove = true;
             i += 1;
+        } else if (arg === '--id' && args[i + 1]) {
+            result.id = args[i + 1];
+            i += 2;
+        } else if (arg === '--status' && args[i + 1]) {
+            result.status = args[i + 1];
+            i += 2;
+        } else if (arg === '--source' && args[i + 1]) {
+            result.source = args[i + 1];
+            i += 2;
         } else {
             // Unknown argument, skip
             i += 1;

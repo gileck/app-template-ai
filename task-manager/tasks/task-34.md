@@ -7,6 +7,7 @@ complexity: Low
 status: In Progress
 dateAdded: 2026-02-01
 dateUpdated: 2026-02-01
+planFile: task-manager/plans/task-34-plan.md
 ---
 
 # Task 34: Add list/get/update Commands to Workflow CLI
