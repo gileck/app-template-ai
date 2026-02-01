@@ -11,6 +11,9 @@ import '../src/agents/shared/loadEnv';
  *
  * Commands:
  *   list [filter]       List tasks (filter: open, in-progress, blocked, done, all)
+ *                       Options:
+ *                         --sortBy <type>  Sort by: priority, date, or number
+ *                         --groupBy <type> Group by: status, priority, or date
  *   view                View a specific task
  *   work                Work on a specific task
  *   worktree            Create worktree and work on task
@@ -21,13 +24,15 @@ import '../src/agents/shared/loadEnv';
  *   rebuild-index       Rebuild tasks.md summary index
  *
  * Examples:
- *   yarn task list              # All tasks grouped by status
- *   yarn task list open         # Only open tasks
- *   yarn task view --task 1     # View task details
+ *   yarn task list                      # All tasks grouped by status
+ *   yarn task list open                 # Only open tasks
+ *   yarn task list --sortBy date        # Sort by date added (newest first)
+ *   yarn task list --groupBy date       # Group by date added
+ *   yarn task view --task 1             # View task details
  *   yarn task work --task 1
  *   yarn task worktree --task 3
- *   yarn task migrate --dry-run # Preview migration
- *   yarn task migrate           # Execute migration
+ *   yarn task migrate --dry-run         # Preview migration
+ *   yarn task migrate                   # Execute migration
  */
 
 import { Command } from 'commander';
@@ -85,7 +90,60 @@ function getTaskOrExit(taskNumber: number): Task {
 // Commands
 // ============================================================================
 
-function listTasks(filter?: 'open' | 'in-progress' | 'blocked' | 'done' | 'all') {
+type SortBy = 'priority' | 'date' | 'number';
+type GroupBy = 'status' | 'priority' | 'date';
+
+interface ListOptions {
+    filter?: 'open' | 'in-progress' | 'blocked' | 'done' | 'all';
+    sortBy?: SortBy;
+    groupBy?: GroupBy;
+}
+
+/**
+ * Format date string for display (YYYY-MM-DD)
+ */
+function formatDate(dateStr: string): string {
+    return dateStr.split('T')[0];
+}
+
+/**
+ * Get date grouping key (just the date part)
+ */
+function getDateKey(dateStr: string): string {
+    return formatDate(dateStr);
+}
+
+/**
+ * Sort tasks by date (newest first)
+ */
+function sortByDate(tasks: Task[]): Task[] {
+    return [...tasks].sort((a, b) => {
+        const dateA = new Date(a.dateAdded).getTime();
+        const dateB = new Date(b.dateAdded).getTime();
+        return dateB - dateA; // newest first
+    });
+}
+
+/**
+ * Group tasks by date added
+ */
+function groupByDate(tasks: Task[]): Map<string, Task[]> {
+    const groups = new Map<string, Task[]>();
+    const sorted = sortByDate(tasks);
+
+    for (const task of sorted) {
+        const dateKey = getDateKey(task.dateAdded);
+        if (!groups.has(dateKey)) {
+            groups.set(dateKey, []);
+        }
+        groups.get(dateKey)!.push(task);
+    }
+
+    return groups;
+}
+
+function listTasks(options: ListOptions = {}) {
+    const { filter, sortBy = 'priority', groupBy = 'status' } = options;
     const allTasks = getAllTasks();
     const priorityOrder: TaskPriority[] = ['Critical', 'High', 'Medium', 'Low'];
 
@@ -94,6 +152,11 @@ function listTasks(filter?: 'open' | 'in-progress' | 'blocked' | 'done' | 'all')
     const inProgressTasks = allTasks.filter(t => t.status === 'In Progress');
     const blockedTasks = allTasks.filter(t => t.status === 'Blocked');
     const doneTasks = allTasks.filter(t => t.status === 'Done');
+
+    // Helper to print a single task
+    const printTask = (task: Task, indent = '  ') => {
+        console.log(`${indent}${task.number}. ${task.title} (${task.size})`);
+    };
 
     // Helper to print tasks grouped by priority
     const printTasksByPriority = (taskList: Task[], indent = '  ') => {
@@ -112,9 +175,38 @@ function listTasks(filter?: 'open' | 'in-progress' | 'blocked' | 'done' | 'all')
     const printTasksByNumber = (taskList: Task[], indent = '  ') => {
         const sorted = [...taskList].sort((a, b) => b.number - a.number);
         sorted.forEach((task) => {
-            console.log(`${indent}${task.number}. ${task.title} (${task.size})`);
+            printTask(task, indent);
         });
     };
+
+    // Helper to print tasks sorted by date (newest first)
+    const printTasksByDate = (taskList: Task[], indent = '  ') => {
+        const sorted = sortByDate(taskList);
+        sorted.forEach((task) => {
+            printTask(task, indent);
+        });
+    };
+
+    // Helper to print tasks grouped by date
+    const printTasksGroupedByDate = (taskList: Task[], indent = '  ') => {
+        const groups = groupByDate(taskList);
+        for (const [dateKey, tasks] of groups) {
+            console.log(`\n${indent}📅 ${dateKey}:`);
+            tasks.forEach((task) => {
+                console.log(`${indent}  ${task.number}. ${task.title} (${task.size})`);
+            });
+        }
+    };
+
+    // Choose the appropriate print function based on sortBy/groupBy
+    const getPrintFunction = () => {
+        if (groupBy === 'date') return printTasksGroupedByDate;
+        if (groupBy === 'priority') return printTasksByPriority;
+        if (sortBy === 'date') return printTasksByDate;
+        return printTasksByNumber;
+    };
+
+    const printFn = getPrintFunction();
 
     // Print based on filter
     if (filter === 'open') {
@@ -122,51 +214,56 @@ function listTasks(filter?: 'open' | 'in-progress' | 'blocked' | 'done' | 'all')
         if (openTasks.length === 0) {
             console.log('  No open tasks');
         } else {
-            printTasksByPriority(openTasks);
+            printFn(openTasks);
         }
     } else if (filter === 'in-progress') {
         console.log('\n🔄 In Progress Tasks\n');
         if (inProgressTasks.length === 0) {
             console.log('  No tasks in progress');
         } else {
-            printTasksByNumber(inProgressTasks);
+            printFn(inProgressTasks);
         }
     } else if (filter === 'blocked') {
         console.log('\n🚫 Blocked Tasks\n');
         if (blockedTasks.length === 0) {
             console.log('  No blocked tasks');
         } else {
-            printTasksByNumber(blockedTasks);
+            printFn(blockedTasks);
         }
     } else if (filter === 'done') {
         console.log('\n✅ Done Tasks\n');
         if (doneTasks.length === 0) {
             console.log('  No completed tasks');
         } else {
-            printTasksByNumber(doneTasks);
+            printFn(doneTasks);
         }
     } else {
         // Show all, separated by status
         console.log('\n📋 Tasks\n');
 
-        if (openTasks.length > 0) {
-            console.log('━━━ 📋 Open ━━━');
-            printTasksByPriority(openTasks);
-        }
+        // For groupBy=date, we show all tasks grouped by date regardless of status
+        if (groupBy === 'date') {
+            printTasksGroupedByDate(allTasks);
+        } else {
+            if (openTasks.length > 0) {
+                console.log('━━━ 📋 Open ━━━');
+                printFn(openTasks);
+            }
 
-        if (inProgressTasks.length > 0) {
-            console.log('\n━━━ 🔄 In Progress ━━━\n');
-            printTasksByNumber(inProgressTasks);
-        }
+            if (inProgressTasks.length > 0) {
+                console.log('\n━━━ 🔄 In Progress ━━━\n');
+                printFn(inProgressTasks);
+            }
 
-        if (blockedTasks.length > 0) {
-            console.log('\n━━━ 🚫 Blocked ━━━\n');
-            printTasksByNumber(blockedTasks);
-        }
+            if (blockedTasks.length > 0) {
+                console.log('\n━━━ 🚫 Blocked ━━━\n');
+                printFn(blockedTasks);
+            }
 
-        if (doneTasks.length > 0) {
-            console.log('\n━━━ ✅ Done ━━━\n');
-            printTasksByNumber(doneTasks);
+            if (doneTasks.length > 0) {
+                console.log('\n━━━ ✅ Done ━━━\n');
+                printFn(doneTasks);
+            }
         }
     }
 
@@ -576,14 +673,35 @@ program.name('task').description('Tasks Management CLI').version('2.0.0');
 program
     .command('list [filter]')
     .description('List tasks (filter: open, in-progress, blocked, done, or all)')
-    .action((filter?: string) => {
+    .option('--sortBy <type>', 'Sort by: priority, date, or number (default: priority)')
+    .option('--groupBy <type>', 'Group by: status, priority, or date (default: status)')
+    .action((filter: string | undefined, options: { sortBy?: string; groupBy?: string }) => {
         const validFilters = ['open', 'in-progress', 'blocked', 'done', 'all'];
         if (filter && !validFilters.includes(filter)) {
             console.error(`❌ Invalid filter: ${filter}`);
             console.log(`   Valid filters: ${validFilters.join(', ')}`);
             process.exit(1);
         }
-        listTasks(filter as any);
+
+        const validSortBy = ['priority', 'date', 'number'];
+        if (options.sortBy && !validSortBy.includes(options.sortBy)) {
+            console.error(`❌ Invalid sortBy: ${options.sortBy}`);
+            console.log(`   Valid options: ${validSortBy.join(', ')}`);
+            process.exit(1);
+        }
+
+        const validGroupBy = ['status', 'priority', 'date'];
+        if (options.groupBy && !validGroupBy.includes(options.groupBy)) {
+            console.error(`❌ Invalid groupBy: ${options.groupBy}`);
+            console.log(`   Valid options: ${validGroupBy.join(', ')}`);
+            process.exit(1);
+        }
+
+        listTasks({
+            filter: filter as ListOptions['filter'],
+            sortBy: options.sortBy as SortBy,
+            groupBy: options.groupBy as GroupBy,
+        });
     });
 
 program
