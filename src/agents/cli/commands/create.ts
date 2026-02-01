@@ -101,6 +101,7 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
         requestedByName: 'CLI',
         comments: [],
         approvalToken,
+        source: 'cli',
         createdAt: new Date(),
         updatedAt: new Date(),
     });
@@ -186,6 +187,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
         firstOccurrence: new Date(),
         lastOccurrence: new Date(),
         approvalToken,
+        source: 'cli',
         createdAt: new Date(),
         updatedAt: new Date(),
     });

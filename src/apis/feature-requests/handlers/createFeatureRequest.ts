@@ -49,6 +49,7 @@ export const createFeatureRequest = async (
             requestedByName,
             comments: [],
             approvalToken,
+            source: 'ui' as const,
             createdAt: now,
             updatedAt: now,
         };

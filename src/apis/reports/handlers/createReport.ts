@@ -81,6 +81,7 @@ export const createReport = async (
                     githubIssueUrl: existingReport.githubIssueUrl,
                     githubIssueNumber: existingReport.githubIssueNumber,
                     githubProjectItemId: existingReport.githubProjectItemId,
+                    source: existingReport.source,
                     createdAt: existingReport.createdAt.toISOString(),
                     updatedAt: now.toISOString(),
                 };
@@ -107,6 +108,9 @@ export const createReport = async (
         const approvalToken = request.type === 'bug' ? generateApprovalToken() : undefined;
 
         // Create new report with deduplication fields
+        // Source: 'auto' for automatic error reports, 'ui' for user-submitted bugs
+        const source = request.type === 'error' ? 'auto' : 'ui';
+
         const reportData = {
             type: request.type,
             status: 'new' as const,
@@ -123,6 +127,7 @@ export const createReport = async (
             performanceEntries: request.performanceEntries,
             errorKey: errorKey || undefined,
             approvalToken, // Add approval token for bug reports
+            source: source as 'ui' | 'auto',
             occurrenceCount: 1,
             firstOccurrence: now,
             lastOccurrence: now,
@@ -164,6 +169,7 @@ export const createReport = async (
             firstOccurrence: newReport.firstOccurrence.toISOString(),
             lastOccurrence: newReport.lastOccurrence.toISOString(),
             errorKey: newReport.errorKey,
+            source: newReport.source,
             createdAt: newReport.createdAt.toISOString(),
             updatedAt: newReport.updatedAt.toISOString(),
         };
