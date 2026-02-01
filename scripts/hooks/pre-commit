@@ -51,5 +51,17 @@ if [ -n "$STAGED_DOCS" ]; then
     fi
 fi
 
+# Run TypeScript and ESLint checks
+echo "[pre-commit] Running yarn checks..."
+if ! yarn checks; then
+    echo ""
+    echo "❌ ERROR: yarn checks failed"
+    echo ""
+    echo "Fix the issues above before committing."
+    echo "Run 'yarn checks' to see all errors."
+    echo ""
+    exit 1
+fi
+
 # Allow commit to proceed
 exit 0
