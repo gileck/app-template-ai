@@ -19,6 +19,22 @@ interface ChildProjectsConfig {
 }
 
 /**
+ * Extract JSON from yarn command output.
+ * Yarn adds wrapper text like "yarn run v1.22.22" and "Done in X.XXs" around the actual output.
+ */
+function extractJson(output: string): string | null {
+  // Find the first { and last } to extract JSON object
+  const firstBrace = output.indexOf('{');
+  const lastBrace = output.lastIndexOf('}');
+
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+    return null;
+  }
+
+  return output.slice(firstBrace, lastBrace + 1);
+}
+
+/**
  * JSON result from sync-template --json
  */
 interface SyncJsonResult {
@@ -148,7 +164,11 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
 
     // Parse JSON output (required - no legacy fallback)
     try {
-      const jsonResult = JSON.parse(output.trim()) as SyncJsonResult;
+      const jsonStr = extractJson(output);
+      if (!jsonStr) {
+        throw new Error('No JSON found in output');
+      }
+      const jsonResult = JSON.parse(jsonStr) as SyncJsonResult;
 
       // Map JSON result to SyncResult
       switch (jsonResult.status) {
@@ -206,7 +226,11 @@ function syncProject(projectPath: string, dryRun: boolean): SyncResult {
       const stdout = (error as { stdout?: string }).stdout;
       if (stdout) {
         try {
-          const jsonResult = JSON.parse(stdout.trim()) as SyncJsonResult;
+          const jsonStr = extractJson(stdout);
+          if (!jsonStr) {
+            throw new Error('No JSON found in output');
+          }
+          const jsonResult = JSON.parse(jsonStr) as SyncJsonResult;
           return {
             project: projectName,
             status: jsonResult.status === 'checks-failed' ? 'checks-failed' : 'error',
