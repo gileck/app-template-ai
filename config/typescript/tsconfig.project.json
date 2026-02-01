@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Project-specific TypeScript overrides. This file is NOT synced from template.",
+  "compilerOptions": {
+  },
+  "exclude": [
+  ]
+}
