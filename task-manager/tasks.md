@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 33
-- **Open:** 12
+- **Total Tasks:** 34
+- **Open:** 13
 - **In Progress:** 0
 - **Done:** 21
 
 ---
 
-## 📋 Open Tasks (12)
+## 📋 Open Tasks (13)
 
 ### 🟠 High Priority
 
@@ -35,6 +35,7 @@
 | 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
+| 34 | Add list/get/update Commands to Workflow CLI | M | Low |
 
 ### 🟢 Low Priority
 
@@ -71,4 +72,4 @@
 
 ---
 
-*Last updated: 2026-01-31*
+*Last updated: 2026-02-01*
