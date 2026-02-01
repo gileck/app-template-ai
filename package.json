@@ -50,7 +50,8 @@
     "test-openai-codex-adapter": "tsx scripts/template/test-openai-codex-adapter.ts",
     "test-all-adapters": "tsx scripts/template/test-all-adapters.ts",
     "test-clarification-flow": "tsx scripts/template/test-clarification-flow.ts",
-    "task": "tsx task-manager/tasks-cli.ts"
+    "task": "tsx task-manager/tasks-cli.ts",
+    "agent-workflow": "tsx src/agents/cli/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
@@ -111,6 +112,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie": "^1.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^24.5.2",
     "@types/react": "^19",
@@ -118,6 +120,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.6",
+    "gray-matter": "^4.0.3",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",

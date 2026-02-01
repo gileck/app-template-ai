@@ -123,12 +123,18 @@ export interface SyncToGitHubResult {
     error?: string;
 }
 
+export interface SyncOptions {
+    /** Skip sending Telegram routing notification (for CLI auto-routing) */
+    skipNotification?: boolean;
+}
+
 /**
  * Sync a feature request to GitHub
  * Creates an issue and adds it to the project with Backlog status
  */
 export async function syncFeatureRequestToGitHub(
-    requestId: string
+    requestId: string,
+    options?: SyncOptions
 ): Promise<SyncToGitHubResult> {
     try {
         // Get the feature request
@@ -174,12 +180,14 @@ export async function syncFeatureRequestToGitHub(
             githubProjectItemId: projectItemId,
         });
 
-        // Send routing notification
-        try {
-            await sendFeatureRoutingNotification(request, { number: issueNumber, url: issueUrl });
-        } catch (error) {
-            // Don't fail if notification fails
-            console.warn('Failed to send routing notification:', error);
+        // Send routing notification (unless skipped for CLI auto-routing)
+        if (!options?.skipNotification) {
+            try {
+                await sendFeatureRoutingNotification(request, { number: issueNumber, url: issueUrl });
+            } catch (error) {
+                // Don't fail if notification fails
+                console.warn('Failed to send routing notification:', error);
+            }
         }
 
         return {
@@ -254,7 +262,8 @@ export async function approveFeatureRequest(
  * Creates an issue and adds it to the project with Backlog status
  */
 export async function syncBugReportToGitHub(
-    reportId: string
+    reportId: string,
+    options?: SyncOptions
 ): Promise<SyncToGitHubResult> {
     try {
         // Get the bug report
@@ -301,12 +310,14 @@ export async function syncBugReportToGitHub(
             githubProjectItemId: projectItemId,
         });
 
-        // Send routing notification
-        try {
-            await sendBugRoutingNotification(report, { number: issueNumber, url: issueUrl });
-        } catch (error) {
-            // Don't fail if notification fails
-            console.warn('Failed to send routing notification:', error);
+        // Send routing notification (unless skipped for CLI auto-routing)
+        if (!options?.skipNotification) {
+            try {
+                await sendBugRoutingNotification(report, { number: issueNumber, url: issueUrl });
+            } catch (error) {
+                // Don't fail if notification fails
+                console.warn('Failed to send routing notification:', error);
+            }
         }
 
         return {
