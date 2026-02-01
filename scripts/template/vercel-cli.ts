@@ -20,6 +20,7 @@ import '../../src/agents/shared/loadEnv';
  *   env:push    Push env vars from .env file to Vercel
  *   env:sync    Sync all env vars from .env.local (recommended)
  *   project     Show current project info
+ *   redeploy    Trigger redeployment via empty git commit
  *
  * Environment Variable Commands:
  *   env:sync is the recommended way to sync env vars. It:
@@ -37,6 +38,8 @@ import '../../src/agents/shared/loadEnv';
  *   yarn vercel-cli env:sync                    # Sync .env.local to Vercel
  *   yarn vercel-cli env:sync --dry-run          # Preview what would be synced
  *   yarn vercel-cli project
+ *   yarn vercel-cli redeploy                    # Trigger redeploy with default message
+ *   yarn vercel-cli redeploy --message "fix: update env vars"  # Custom message
  */
 
 import { Command } from 'commander';
@@ -1226,6 +1229,43 @@ program
             await getProjectInfo(config);
         } catch (error) {
             handleError(error);
+        }
+    });
+
+// Redeploy command - Trigger a redeployment via empty git commit
+program
+    .command('redeploy')
+    .description('Trigger a Vercel redeployment by pushing an empty git commit')
+    .option('--message <message>', 'Commit message', 'chore: trigger redeploy')
+    .action(async (options) => {
+        try {
+            const { execSync } = await import('child_process');
+
+            console.log('\n🚀 Triggering Vercel Redeployment');
+            console.log('═'.repeat(60));
+
+            // Create empty commit
+            console.log(`   Creating empty commit: "${options.message}"`);
+            execSync(`git commit --allow-empty -m "${options.message}"`, {
+                stdio: 'inherit',
+                encoding: 'utf-8'
+            });
+
+            // Push to remote
+            console.log('   Pushing to remote...');
+            execSync('git push', {
+                stdio: 'inherit',
+                encoding: 'utf-8'
+            });
+
+            console.log('─'.repeat(60));
+            console.log('✅ Empty commit pushed. Vercel will automatically redeploy.');
+            console.log('   Check deployment status at: https://vercel.com/dashboard');
+            console.log('');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`\n❌ Failed to trigger redeploy: ${message}`);
+            process.exit(1);
         }
     });
 
