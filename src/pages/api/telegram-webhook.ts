@@ -28,13 +28,17 @@
  *    - Callback: "u_dc:prNumber:issueNumber:type:timestamp" - Undo design PR request changes
  *    - Callback: "u_dr:issueNumber:action:previousStatus:timestamp" - Undo design review changes/reject
  *
+ * 7. Revert Merge:
+ *    - Callback: "rv:issueNumber:prNumber:shortSha:prevStatus:phase" - Create revert PR and reset status
+ *    - Callback: "merge_rv:issueNumber:revertPrNumber" - Merge the revert PR
+ *
  * This is a direct API route because Telegram sends webhook requests directly to this URL.
  * It cannot go through the standard API architecture.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getProjectManagementAdapter } from '@/server/project-management';
-import { STATUSES, REVIEW_STATUSES, COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES, COMMIT_MESSAGE_MARKER, getIssueUrl } from '@/server/project-management/config';
 import { featureRequests, reports } from '@/server/database';
 import { approveFeatureRequest, approveBugReport } from '@/server/github-sync';
 import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
@@ -892,13 +896,15 @@ async function handleMergeCallback(
 
         // 2. Try to merge the PR (skip if already merged)
         let alreadyMerged = false;
+        let mergeCommitSha: string | null = null;
         try {
-            await adapter.mergePullRequest(prNumber, commitMsg.title, commitMsg.body);
-            console.log(`Telegram webhook: merged PR #${prNumber}`);
+            mergeCommitSha = await adapter.mergePullRequest(prNumber, commitMsg.title, commitMsg.body);
+            console.log(`Telegram webhook: merged PR #${prNumber}, commit: ${mergeCommitSha}`);
             if (logExists(issueNumber)) {
                 logWebhookAction(issueNumber, 'pr_merged', `PR #${prNumber} squash-merged`, {
                     prNumber,
                     commitTitle: commitMsg.title,
+                    mergeCommitSha,
                 });
             }
         } catch (mergeError) {
@@ -909,9 +915,12 @@ async function handleMergeCallback(
                 errorMsg.includes('not open')) {
                 console.log(`Telegram webhook: PR #${prNumber} already merged, continuing with status updates`);
                 alreadyMerged = true;
+                // Try to get the merge commit SHA from the already-merged PR
+                mergeCommitSha = await adapter.getMergeCommitSha(prNumber);
                 if (logExists(issueNumber)) {
                     logWebhookAction(issueNumber, 'pr_already_merged', `PR #${prNumber} was already merged`, {
                         prNumber,
+                        mergeCommitSha,
                     });
                 }
             } else {
@@ -1156,10 +1165,302 @@ Run <code>yarn agent:implement</code> to continue.`;
             console.log('Telegram webhook: sent multi-phase notification');
         }
 
+        // 9. Send merge success notification with Revert button
+        if (mergeCommitSha && appConfig.ownerTelegramChatId && process.env.TELEGRAM_BOT_TOKEN) {
+            // Get issue title for the notification
+            const issueDetails = await adapter.getIssueDetails(issueNumber);
+            const issueTitle = issueDetails?.title || `Issue #${issueNumber}`;
+
+            // Get PR info for the notification
+            const prInfo = await adapter.getPRInfo(prNumber);
+            const prTitle = prInfo?.title || `PR #${prNumber}`;
+
+            // Build progress message
+            let progressMessage = '';
+            if (isMultiPhaseMiddle && parsedPhase) {
+                const nextPhase = parsedPhase.current + 1;
+                progressMessage = `📊 Progress: Phase ${parsedPhase.current} of ${parsedPhase.total} complete\n⏭️ Next: Phase ${nextPhase}`;
+            } else if (parsedPhase && parsedPhase.current === parsedPhase.total) {
+                progressMessage = `🎉 All ${parsedPhase.total} phases complete! Feature ready.`;
+            } else {
+                progressMessage = `🎉 Implementation complete! Issue is now Done.`;
+            }
+
+            // Encode previous status for revert callback
+            // Status abbreviations to fit within 64-byte callback limit
+            const prevStatus = isMultiPhaseMiddle ? 'prrev' : 'impl';
+            const phaseStr = parsedPhase ? `${parsedPhase.current}/${parsedPhase.total}` : '';
+            const shortSha = mergeCommitSha.slice(0, 7);
+
+            // Callback format: rv:issueNum:prNum:shortSha:prevStatus:phase
+            const revertCallback = `rv:${issueNumber}:${prNumber}:${shortSha}:${prevStatus}:${phaseStr}`;
+
+            const successMessage = [
+                '✅ <b>PR Merged Successfully</b>',
+                '',
+                `📝 PR: #${prNumber} - ${escapeHtml(prTitle)}`,
+                `🔗 Issue: #${issueNumber} - ${escapeHtml(issueTitle)}`,
+                '',
+                progressMessage,
+            ].join('\n');
+
+            await sendNotificationToOwner(successMessage, {
+                parseMode: 'HTML',
+                inlineKeyboard: [
+                    [
+                        { text: '📄 View PR', url: getPrUrl(prNumber) },
+                        { text: '📋 View Issue', url: getIssueUrl(issueNumber) },
+                    ],
+                    [
+                        { text: '↩️ Revert', callback_data: revertCallback },
+                    ],
+                ],
+            });
+            console.log('Telegram webhook: sent merge success notification with revert button');
+        }
+
         console.log(`Telegram webhook: completed merge handling for PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
         console.error('Error handling merge:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle revert merge callback
+ * Callback format: "rv:issueNumber:prNumber:shortSha:prevStatus:phase"
+ *
+ * Actions:
+ * 1. Create a revert PR using GitHub API
+ * 2. Update GitHub Project status back to previous status
+ * 3. Restore phase info for multi-phase features
+ * 4. Update MongoDB status if needed
+ * 5. Send confirmation message with link to revert PR
+ */
+async function handleRevertMerge(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    prNumber: number,
+    shortSha: string,
+    prevStatus: string,
+    phase: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // Get the full merge commit SHA from the PR
+        const fullSha = await adapter.getMergeCommitSha(prNumber);
+        if (!fullSha) {
+            return { success: false, error: 'Could not find merge commit SHA' };
+        }
+
+        // Verify the short SHA matches
+        if (!fullSha.startsWith(shortSha)) {
+            return { success: false, error: 'Merge commit SHA mismatch' };
+        }
+
+        console.log(`Telegram webhook: creating revert PR for merge commit ${fullSha}`);
+
+        // Create the revert PR
+        const revertResult = await adapter.createRevertPR(fullSha, prNumber, issueNumber);
+        if (!revertResult) {
+            return { success: false, error: 'Failed to create revert PR. There may be conflicts - please revert manually.' };
+        }
+
+        console.log(`Telegram webhook: created revert PR #${revertResult.prNumber}`);
+
+        // Find the project item
+        const items = await adapter.listItems();
+        const item = items.find(i =>
+            i.content?.type === 'Issue' &&
+            i.content.number === issueNumber
+        );
+
+        if (item) {
+            // Restore to Implementation status (code needs to be fixed)
+            await adapter.updateItemStatus(item.id, STATUSES.implementation);
+            console.log(`Telegram webhook: restored status to ${STATUSES.implementation}`);
+
+            // Set review status to Request Changes (indicating there's feedback to address)
+            if (adapter.hasReviewStatusField()) {
+                await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.requestChanges);
+                console.log(`Telegram webhook: set review status to ${REVIEW_STATUSES.requestChanges}`);
+            }
+
+            // Restore phase if applicable
+            if (phase && adapter.hasImplementationPhaseField()) {
+                await adapter.setImplementationPhase(item.id, phase);
+                console.log(`Telegram webhook: restored phase to ${phase}`);
+            }
+        }
+
+        // Update MongoDB status back to in_progress/investigating
+        const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
+        if (featureRequest) {
+            await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'in_progress');
+            console.log('Telegram webhook: feature request status reverted to in_progress');
+        } else {
+            const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
+            if (bugReport) {
+                await reports.updateReport(bugReport._id.toString(), { status: 'investigating' });
+                console.log('Telegram webhook: bug report status reverted to investigating');
+            }
+        }
+
+        // Update the original message to show revert was initiated
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const revertNote = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '↩️ <b>Revert Initiated</b>',
+                `Revert PR #${revertResult.prNumber} created`,
+                '',
+                `<a href="${revertResult.url}">View Revert PR</a>`,
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(originalText) + revertNote,
+                'HTML'
+            );
+        }
+
+        // Send confirmation notification
+        const issueDetails = await adapter.getIssueDetails(issueNumber);
+        const issueTitle = issueDetails?.title || `Issue #${issueNumber}`;
+
+        const confirmMessage = [
+            '↩️ <b>Merge Reverted</b>',
+            '',
+            `📋 Issue: #${issueNumber} - ${escapeHtml(issueTitle)}`,
+            `🔀 Original PR: #${prNumber}`,
+            `🔄 Revert PR: #${revertResult.prNumber}`,
+            '',
+            phase ? `📊 Status: Implementation (Phase ${phase})` : '📊 Status: Implementation',
+            '📝 Review Status: Request Changes',
+            '',
+            '<b>Next steps:</b>',
+            '1️⃣ Click "Merge Revert PR" below to undo the changes',
+            `2️⃣ Go to Issue #${issueNumber} and add a comment explaining what went wrong`,
+            '3️⃣ Run <code>yarn agent:implement</code> - the agent will read your feedback and create a new PR',
+        ].join('\n');
+
+        // Callback format: merge_rv:issueNumber:revertPrNumber
+        const mergeRevertCallback = `merge_rv:${issueNumber}:${revertResult.prNumber}`;
+
+        await sendNotificationToOwner(confirmMessage, {
+            parseMode: 'HTML',
+            inlineKeyboard: [
+                [
+                    { text: '✅ Merge Revert PR', callback_data: mergeRevertCallback },
+                ],
+                [
+                    { text: '📄 View Revert PR', url: revertResult.url },
+                    { text: '📋 View Issue', url: getIssueUrl(issueNumber) },
+                ],
+            ],
+        });
+
+        console.log(`Telegram webhook: completed revert handling for PR #${prNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error handling revert:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Handle merge revert PR callback
+ * Callback format: "merge_rv:issueNumber:revertPrNumber"
+ *
+ * Actions:
+ * 1. Merge the revert PR (squash)
+ * 2. Delete the revert branch
+ * 3. Update the Telegram message
+ * 4. Does NOT change status (stays as Implementation with Request Changes)
+ */
+async function handleMergeRevertPR(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    issueNumber: number,
+    revertPrNumber: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+
+        // Get revert PR info for commit message
+        const prInfo = await adapter.getPRInfo(revertPrNumber);
+        if (!prInfo) {
+            return { success: false, error: 'Revert PR not found' };
+        }
+
+        // Check if PR is still open
+        const prDetails = await adapter.getPRDetails(revertPrNumber);
+        if (!prDetails) {
+            return { success: false, error: 'Could not get revert PR details' };
+        }
+        if (prDetails.merged) {
+            return { success: false, error: 'Revert PR already merged' };
+        }
+        if (prDetails.state === 'closed') {
+            return { success: false, error: 'Revert PR is closed' };
+        }
+
+        // Merge the revert PR
+        const commitTitle = prInfo.title;
+        const commitBody = `Part of #${issueNumber}`;
+
+        await adapter.mergePullRequest(revertPrNumber, commitTitle, commitBody);
+        console.log(`Telegram webhook: merged revert PR #${revertPrNumber}`);
+
+        // Delete the revert branch
+        try {
+            await adapter.deleteBranch(prDetails.headBranch);
+            console.log(`Telegram webhook: deleted revert branch ${prDetails.headBranch}`);
+        } catch {
+            console.log('Telegram webhook: revert branch already deleted or not found');
+        }
+
+        // Update the original message
+        if (callbackQuery.message) {
+            const originalText = callbackQuery.message.text || '';
+            const mergedNote = [
+                '',
+                '━━━━━━━━━━━━━━━━━━━━',
+                '✅ <b>Revert PR Merged</b>',
+                'Changes have been reverted on main.',
+                '',
+                '<b>Next steps:</b>',
+                `1️⃣ Go to Issue #${issueNumber} and add a comment explaining what went wrong`,
+                '2️⃣ Run <code>yarn agent:implement</code> - the agent will read your feedback and create a new PR',
+            ].join('\n');
+
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(originalText) + mergedNote,
+                'HTML'
+            );
+        }
+
+        console.log(`Telegram webhook: completed merge revert PR #${revertPrNumber}`);
+        return { success: true };
+    } catch (error) {
+        console.error('Error merging revert PR:', error);
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -2208,6 +2509,87 @@ export default async function handler(
 
             if (result.success) {
                 await answerCallbackQuery(botToken, callback_query.id, '🔄 Changes requested');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Revert merge: "rv:issueNumber:prNumber:shortSha:prevStatus:phase"
+        if (action === 'rv' && parts.length >= 5) {
+            const issueNumber = parsed.getInt(1);
+            const prNumber = parsed.getInt(2);
+            const shortSha = parsed.getString(3);
+            const prevStatus = parsed.getString(4);
+            const phase = parts.length >= 6 ? parsed.getString(5) : '';
+
+            if (!issueNumber || !prNumber || !shortSha || !prevStatus) {
+                console.error('Telegram webhook: Invalid revert callback data', {
+                    callbackData,
+                    issueNumber,
+                    prNumber,
+                    shortSha,
+                    prevStatus,
+                    phase,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid revert data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleRevertMerge(
+                botToken,
+                callback_query,
+                issueNumber,
+                prNumber,
+                shortSha,
+                prevStatus,
+                phase
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '↩️ Revert PR created!');
+            } else {
+                await answerCallbackQuery(
+                    botToken,
+                    callback_query.id,
+                    `❌ ${result.error?.slice(0, 150)}`
+                );
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
+        // Merge revert PR: "merge_rv:issueNumber:revertPrNumber"
+        if (action === 'merge_rv' && parts.length === 3) {
+            const issueNumber = parsed.getInt(1);
+            const revertPrNumber = parsed.getInt(2);
+
+            if (!issueNumber || !revertPrNumber) {
+                console.error('Telegram webhook: Invalid merge_rv callback data', {
+                    callbackData,
+                    issueNumber,
+                    revertPrNumber,
+                    parts,
+                });
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid merge data');
+                return res.status(200).json({ ok: true });
+            }
+
+            const result = await handleMergeRevertPR(
+                botToken,
+                callback_query,
+                issueNumber,
+                revertPrNumber
+            );
+
+            if (result.success) {
+                await answerCallbackQuery(botToken, callback_query.id, '✅ Revert PR merged!');
             } else {
                 await answerCallbackQuery(
                     botToken,

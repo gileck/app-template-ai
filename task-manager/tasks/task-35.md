@@ -1,11 +1,14 @@
 ---
 number: 35
-title: "Add PR Merge Success Notification with Revert Button"
+title: Add PR Merge Success Notification with Revert Button
 priority: Medium
 size: M
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-02-01
+dateUpdated: 2026-02-01
+dateCompleted: 2026-02-01
+planFile: task-manager/plans/task-35-plan.md
 ---
 
 # Task 35: Add PR Merge Success Notification with Revert Button

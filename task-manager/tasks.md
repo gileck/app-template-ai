@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 36
-- **Open:** 13
+- **Open:** 12
 - **In Progress:** 0
-- **Done:** 23
+- **Done:** 24
 
 ---
 
-## 📋 Open Tasks (13)
+## 📋 Open Tasks (12)
 
 ### 🟠 High Priority
 
@@ -35,7 +35,6 @@
 | 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
-| 35 | Add PR Merge Success Notification with Revert Button | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -44,11 +43,12 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (23)
+## ✅ Completed Tasks (24)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
 | 36 | ~~Improve sync-template with Interactive Conflict Resolution~~ | 2026-02-01 | `51c495c` |
+| 35 | ~~Add PR Merge Success Notification with Revert Button~~ | 2026-02-01 | - |
 | 34 | ~~Add list/get/update Commands to Workflow CLI~~ | 2026-02-01 | `ccbc23a` |
 | 31 | ~~Remove Legacy MongoDB Design Fields (productDesign/techDesign)~~ | 2026-01-28 | - |
 | 30 | ~~Telegram Interactive Clarification Flow for Agents~~ | 2026-01-28 | - |
