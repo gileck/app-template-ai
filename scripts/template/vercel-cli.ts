@@ -37,6 +37,7 @@ import '../../src/agents/shared/loadEnv';
  *   yarn vercel-cli env:set --name MY_VAR --value "my value" --target production,preview
  *   yarn vercel-cli env:sync                    # Sync .env.local to Vercel
  *   yarn vercel-cli env:sync --dry-run          # Preview what would be synced
+ *   yarn vercel-cli env:sync --redeploy         # Sync and trigger redeployment
  *   yarn vercel-cli project
  *   yarn vercel-cli redeploy                    # Trigger redeploy with default message
  *   yarn vercel-cli redeploy --message "fix: update env vars"  # Custom message
