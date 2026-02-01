@@ -285,6 +285,16 @@ jobs:
           ERROR_MSG: ${{ steps.deployment.outputs.error }}
           LOG_URL: ${{ steps.deployment.outputs.log_url }}
         run: |
+          # Validate required environment variables
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "$CHAT_ID_RAW" ]; then
+            echo "::error::Chat ID secret is not set"
+            exit 1
+          fi
+
           # Parse chat ID and optional thread ID (format: chatId or chatId:threadId)
           if [[ "$CHAT_ID_RAW" == *":"* ]]; then
             CHAT_ID="${CHAT_ID_RAW%:*}"
@@ -293,6 +303,11 @@ jobs:
           else
             CHAT_ID="$CHAT_ID_RAW"
             THREAD_PARAM=""
+          fi
+
+          if [ -z "$CHAT_ID" ]; then
+            echo "::error::Failed to parse CHAT_ID"
+            exit 1
           fi
 
           # Truncate error message if too long
