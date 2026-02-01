@@ -52,6 +52,20 @@ jobs:
           HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMITS_JSON: ${{ toJson(github.event.commits) }}
         run: |
+          # Validate required environment variables
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN secret is not set. Please configure it in GitHub repository secrets."
+            exit 1
+          fi
+          if [ -z "$CHAT_ID_RAW" ]; then
+            echo "::error::Neither VERCEL_TELEGRAM_CHAT_ID nor LOCAL_TELEGRAM_CHAT_ID secret is set. Please configure at least one in GitHub repository secrets."
+            exit 1
+          fi
+          if [ -z "$COMMIT_SHA" ]; then
+            echo "::error::Could not determine commit SHA from deploy-type step."
+            exit 1
+          fi
+
           # Parse chat ID and optional thread ID (format: chatId or chatId:threadId)
           if [[ "$CHAT_ID_RAW" == *":"* ]]; then
             CHAT_ID="${CHAT_ID_RAW%:*}"
@@ -62,8 +76,18 @@ jobs:
             THREAD_PARAM=""
           fi
 
+          # Validate parsed chat ID
+          if [ -z "$CHAT_ID" ]; then
+            echo "::error::Failed to parse CHAT_ID from CHAT_ID_RAW: '$CHAT_ID_RAW'"
+            exit 1
+          fi
+
           if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
             COMMIT_COUNT=$(echo "$COMMITS_JSON" | jq 'length')
+            if [ -z "$COMMIT_COUNT" ] || ! [[ "$COMMIT_COUNT" =~ ^[0-9]+$ ]]; then
+              echo "::warning::Could not parse commit count from COMMITS_JSON, defaulting to 1"
+              COMMIT_COUNT=1
+            fi
 
             if [ "$COMMIT_COUNT" -eq 1 ]; then
               # Single commit - show commit name and Open Commit button
@@ -166,6 +190,16 @@ jobs:
           HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMITS_JSON: ${{ toJson(github.event.commits) }}
         run: |
+          # Validate required environment variables
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "$CHAT_ID_RAW" ]; then
+            echo "::error::Chat ID secret is not set"
+            exit 1
+          fi
+
           # Parse chat ID and optional thread ID (format: chatId or chatId:threadId)
           if [[ "$CHAT_ID_RAW" == *":"* ]]; then
             CHAT_ID="${CHAT_ID_RAW%:*}"
@@ -176,8 +210,16 @@ jobs:
             THREAD_PARAM=""
           fi
 
+          if [ -z "$CHAT_ID" ]; then
+            echo "::error::Failed to parse CHAT_ID"
+            exit 1
+          fi
+
           if [ "${{ env.IS_PRODUCTION }}" == "true" ]; then
             COMMIT_COUNT=$(echo "$COMMITS_JSON" | jq 'length')
+            if [ -z "$COMMIT_COUNT" ] || ! [[ "$COMMIT_COUNT" =~ ^[0-9]+$ ]]; then
+              COMMIT_COUNT=1
+            fi
 
             if [ "$COMMIT_COUNT" -eq 1 ]; then
               # Single commit - show commit name and Open Commit button
