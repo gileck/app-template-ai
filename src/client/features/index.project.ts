@@ -9,6 +9,4 @@
  */
 
 // Add project-specific features below:
-
-// Empty export to make this a valid module (required by TypeScript)
-export {};
+export * from './welcome-toast';

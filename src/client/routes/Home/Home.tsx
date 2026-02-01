@@ -1,12 +1,24 @@
+import { useEffect } from 'react';
 import { useUser } from '@/client/features/auth';
+import { useWelcomeToastStore } from '@/client/features/welcome-toast';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/client/components/ui/card';
 import { Alert, AlertDescription } from '@/client/components/ui/alert';
+import { toast } from '@/client/components/ui/toast';
 import { CheckSquare, Settings, FileText, CheckCircle } from 'lucide-react';
 import { useRouter } from '@/client/router';
 
 export const Home = () => {
   const user = useUser();
   const { navigate } = useRouter();
+  const hasShownWelcomeToast = useWelcomeToastStore((state) => state.hasShownWelcomeToast);
+  const setWelcomeToastShown = useWelcomeToastStore((state) => state.setWelcomeToastShown);
+
+  useEffect(() => {
+    if (!hasShownWelcomeToast) {
+      toast.info('Welcome! Explore the app to get started.', { duration: 3000 });
+      setWelcomeToastShown();
+    }
+  }, [hasShownWelcomeToast, setWelcomeToastShown]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
