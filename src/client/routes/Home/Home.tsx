@@ -1,6 +1,7 @@
 import { useUser } from '@/client/features/auth';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/client/components/ui/card';
-import { CheckSquare, Settings, FileText } from 'lucide-react';
+import { Alert, AlertDescription } from '@/client/components/ui/alert';
+import { CheckSquare, Settings, FileText, CheckCircle } from 'lucide-react';
 import { useRouter } from '@/client/router';
 
 export const Home = () => {
@@ -9,6 +10,11 @@ export const Home = () => {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
+      <Alert variant="success" className="mb-6">
+        <CheckCircle className="h-4 w-4" />
+        <AlertDescription>Welcome to the app!</AlertDescription>
+      </Alert>
+
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">
           {user ? `Welcome, ${user.username}` : 'Welcome'}
