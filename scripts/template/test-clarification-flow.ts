@@ -8,7 +8,7 @@
  * Usage: yarn test-clarification-flow
  */
 
-import '../src/agents/shared/loadEnv';
+import '../../src/agents/shared/loadEnv';
 import { GitHubProjectsAdapter } from '../../src/server/project-management/adapters/github';
 import { STATUSES, REVIEW_STATUSES } from '../../src/server/project-management/config';
 import { notifyAgentNeedsClarification } from '../../src/agents/shared/notifications';
