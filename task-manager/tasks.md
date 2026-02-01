@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 35
-- **Open:** 14
+- **Total Tasks:** 36
+- **Open:** 15
 - **In Progress:** 0
 - **Done:** 21
 
 ---
 
-## 📋 Open Tasks (14)
+## 📋 Open Tasks (15)
 
 ### 🟠 High Priority
 
@@ -37,6 +37,7 @@
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
 | 34 | Add list/get/update Commands to Workflow CLI | M | Low |
 | 35 | Add PR Merge Success Notification with Revert Button | M | Medium |
+| 36 | Improve sync-template with Interactive Conflict Resolution | L | Medium |
 
 ### 🟢 Low Priority
 
