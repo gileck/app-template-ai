@@ -1134,7 +1134,8 @@ program
     .command('env:set')
     .description('Set a single environment variable (uses API, no trailing newline issues)')
     .requiredOption('--name <name>', 'Environment variable name')
-    .requiredOption('--value <value>', 'Environment variable value')
+    .option('--value <value>', 'Environment variable value (reads from --file if not provided)')
+    .option('--file <path>', 'Path to .env file to read value from', '.env.local')
     .option('--target <targets>', 'Comma-separated targets: production,preview,development', 'production,preview,development')
     .action(async (options) => {
         try {
@@ -1142,11 +1143,48 @@ program
             if (globalOpts.cloudProxy) setupCloudProxy();
             const config = getConfig(globalOpts);
 
+            let value = options.value;
+
+            // If no value provided, read from env file
+            if (!value) {
+                if (!existsSync(options.file)) {
+                    console.error(`❌ No --value provided and env file not found: ${options.file}`);
+                    process.exit(1);
+                }
+
+                const envContent = readFileSync(options.file, 'utf-8');
+                for (const line of envContent.split('\n')) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+
+                    const eqIndex = trimmed.indexOf('=');
+                    if (eqIndex === -1) continue;
+
+                    const key = trimmed.slice(0, eqIndex).trim();
+                    if (key === options.name) {
+                        value = trimmed.slice(eqIndex + 1).trim();
+                        // Remove surrounding quotes if present
+                        if ((value.startsWith('"') && value.endsWith('"')) ||
+                            (value.startsWith("'") && value.endsWith("'"))) {
+                            value = value.slice(1, -1);
+                        }
+                        break;
+                    }
+                }
+
+                if (!value) {
+                    console.error(`❌ Variable "${options.name}" not found in ${options.file}`);
+                    process.exit(1);
+                }
+
+                console.log(`📄 Reading ${options.name} from ${options.file}`);
+            }
+
             const targets = options.target.split(',').map((t: string) => t.trim()) as Array<'production' | 'preview' | 'development'>;
 
             await setEnvVar(config, {
                 key: options.name,
-                value: options.value,
+                value,
                 targets,
             });
         } catch (error) {

@@ -199,10 +199,13 @@ IMPORTANT:
         const filesExamined: string[] = [];
         let lastResult = '';
 
-        // Buffer for accumulating streaming text responses
+        // Buffer for accumulating streaming text responses (for logging)
         let textBuffer = '';
-        let hasStreamedText = false; // Track if we've streamed any text to console
-        const TEXT_BUFFER_FLUSH_SIZE = 500; // Flush after this many characters
+        const TEXT_BUFFER_FLUSH_SIZE = 500; // Flush to log after this many characters
+
+        // Buffer for console display (shows progress without fragment spam)
+        let displayBuffer = '';
+        const DISPLAY_BUFFER_SIZE = 100; // Display every ~100 chars (1-2 lines)
 
         const flushTextBuffer = () => {
             if (textBuffer.trim() && logCtx) {
@@ -211,12 +214,12 @@ IMPORTANT:
             textBuffer = '';
         };
 
-        // Call before non-text output to add newline after streaming text
-        const endStreamingLine = () => {
-            if (hasStreamedText) {
-                console.log(''); // Newline to separate streaming text from next output
-                hasStreamedText = false;
+        const flushDisplayBuffer = () => {
+            if (displayBuffer.trim()) {
+                // Print buffered text as a single line (gray, indented)
+                console.log(`    \x1b[90m${displayBuffer.trim()}\x1b[0m`);
             }
+            displayBuffer = '';
         };
 
         let spinnerInterval: NodeJS.Timeout | null = null;
@@ -265,21 +268,23 @@ IMPORTANT:
                             if (event.type === 'text' && event.content) {
                                 // Buffer text responses instead of logging each one
                                 textBuffer += event.content;
+                                displayBuffer += event.content;
                                 lastResult = event.content;
-                                hasStreamedText = true;
 
-                                // Flush if buffer is large enough
+                                // Flush to log if buffer is large enough
                                 if (textBuffer.length >= TEXT_BUFFER_FLUSH_SIZE) {
                                     flushTextBuffer();
                                 }
 
-                                // Still show in console for real-time feedback (no newline for streaming)
-                                process.stdout.write(`\x1b[90m${event.content}\x1b[0m`);
+                                // Flush to console periodically for progress feedback
+                                if (displayBuffer.length >= DISPLAY_BUFFER_SIZE) {
+                                    flushDisplayBuffer();
+                                }
                             }
 
                             if (event.type === 'tool_use') {
-                                // End streaming line and flush text buffer before logging tool call
-                                endStreamingLine();
+                                // Flush buffers before logging tool call
+                                flushDisplayBuffer();
                                 flushTextBuffer();
                                 toolCallCount++;
                                 const toolName = event.name || 'unknown';
@@ -307,8 +312,8 @@ IMPORTANT:
                             }
 
                             if (event.type === 'result') {
-                                // End streaming line and flush any remaining text before processing result
-                                endStreamingLine();
+                                // Flush any remaining buffers before processing result
+                                flushDisplayBuffer();
                                 flushTextBuffer();
                                 if (event.result) {
                                     lastResult = event.result;
@@ -318,8 +323,8 @@ IMPORTANT:
                     }
                 );
 
-                // Flush any remaining text in buffer and end streaming line
-                endStreamingLine();
+                // Flush any remaining text in buffers
+                flushDisplayBuffer();
                 flushTextBuffer();
 
                 const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
