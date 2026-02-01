@@ -58,36 +58,58 @@ main <--- Phase 3 PR (direct to main)
 
 ## Approach
 
-The feature branch workflow introduces a new branch hierarchy:
+The feature branch workflow introduces a new branch hierarchy where ALL work (design + implementation) targets the feature branch:
 
 ```
-main <---------------- Final PR: "Task #42: Add feature X"
-                              ^
-                              |
-                      feature/task-42
-                              ^
-          +---------+---------+---------+
-          |         |         |
-     Phase 1 PR  Phase 2 PR  Phase 3 PR
-     (merged)    (merged)    (open)
+main <─────────────────────── Final PR: "Task #42: Add feature X"
+                                      │
+                              feature/task-42
+                                      ▲
+        ┌──────────────┬──────────────┼──────────────┬──────────────┐
+        │              │              │              │              │
+  Product Design   Tech Design    Phase 1 PR    Phase 2 PR    Phase 3 PR
+  PR (merged)      PR (merged)    (merged)      (merged)      (merged)
 ```
 
 ### Key Changes Required
 
-1. **Create feature branch per task** at workflow start (when implementation begins)
-2. **Phase PRs target feature branch** instead of main
-3. **After all phases complete**, create a single PR from feature branch to main
-4. **Admin verifies via Vercel preview** before merging final PR
-5. **Include preview URL in notifications** for final PR
+1. **Create feature branch per task** at workflow start (when product design begins)
+2. **Design PRs target feature branch** - full PR review experience with line comments
+3. **Phase PRs target feature branch** instead of main
+4. **After all phases complete**, create a single PR from feature branch to main
+5. **Admin verifies via Vercel preview** before merging final PR
+6. **Include preview URL in notifications** for final PR
 
 ### Architectural Decisions
 
-1. **When to create feature branch**: At the start of implementation (first phase), not earlier
-2. **Branch naming**: `feature/task-{issueId}` for the task branch, `feature/task-{issueId}-phase-{N}` for phase branches
-3. **Where to track task branch**: Add new field to GitHub Projects or store in artifact comment
-4. **Phase merge handling**: Merge to feature branch (not main) - this is the key change
-5. **Final PR creation**: After last phase merges to feature branch, automatically create PR to main
-6. **Preview URL**: Get from Vercel API or include in final PR notification
+1. **When to create feature branch**: At the START of the workflow (product design phase)
+2. **Design docs**: PRs to feature branch (not main) - full review experience with line comments
+3. **Branch naming**: `feature/task-{issueId}` for the task branch, sub-branches for each PR
+4. **Where to track task branch**: Store in artifact comment on the issue
+5. **All PRs merge to feature branch**: Design PRs + Phase PRs all target feature branch
+6. **Final PR creation**: After last phase merges to feature branch, create PR to main
+7. **Preview URL**: Get from Vercel API or include in final PR notification
+
+### Design Docs Flow (New)
+
+**Before (current):**
+- Product Design Agent → Creates PR to main → Admin reviews → Merged to main
+- Tech Design Agent → Creates PR to main → Admin reviews → Merged to main
+
+**After (new):**
+- Feature branch `feature/task-{issueId}` created at workflow start
+- Product Design Agent → Creates PR to feature branch → Admin reviews with line comments → Merged to feature branch
+- Tech Design Agent → Creates PR to feature branch → Admin reviews with line comments → Merged to feature branch
+- Implementation phases → PRs to feature branch → PR Review Agent reviews → Merged to feature branch
+- Final PR from feature branch to main
+
+**Benefits:**
+- Full PR review experience for designs (line comments, Request Changes)
+- If task is abandoned, no orphaned design docs in main
+- Everything for a task stays in one branch
+- Single final PR includes design + code
+- True isolation between concurrent workflows
+- Admin can request changes on design with detailed feedback
 
 ## Sub-tasks
 
@@ -96,49 +118,67 @@ main <---------------- Final PR: "Task #42: Add feature X"
 - [ ] Add `getTaskBranch()` and `setTaskBranch()` methods to adapter
 - [ ] Update `ArtifactComment` type to include `taskBranch` field
 
-### Sub-task 2: Modify Implementation Agent - Branch Creation
-- [ ] Create task feature branch when first phase starts
-- [ ] Store task branch name in tracking system
+### Sub-task 2: Create Feature Branch at Workflow Start
+- [ ] Create `feature/task-{issueId}` branch when workflow enters Product Design
+- [ ] Store task branch name in artifact comment
+- [ ] Update workflow runner to create branch before invoking design agents
+
+### Sub-task 3: Modify Design Agents - PR to Feature Branch
+- [ ] Update Product Design Agent to create PR targeting feature branch (not main)
+- [ ] Update Tech Design Agent to create PR targeting feature branch (not main)
+- [ ] Create design branch off feature branch: `feature/task-{id}-product-design`
+- [ ] Update PR base branch from `defaultBranch` to task branch
+
+### Sub-task 4: Update Design Review Flow
+- [ ] Design PRs target feature branch - full PR review experience preserved
+- [ ] Admin can use line comments and Request Changes as before
+- [ ] Merge design PRs to feature branch (not main)
+- [ ] Update Telegram webhook to handle design PR merge to feature branch
+
+### Sub-task 5: Modify Implementation Agent - Branch Creation
+- [ ] Reuse existing task feature branch (don't create new one)
 - [ ] Update `generateBranchName()` to create phase-specific branches off task branch
 - [ ] Checkout task branch before creating phase branch
 
-### Sub-task 3: Modify Implementation Agent - PR Creation
+### Sub-task 6: Modify Implementation Agent - PR Creation
 - [ ] Change PR base branch from `defaultBranch` to task branch
 - [ ] Update PR body to indicate it targets feature branch
 - [ ] Update `createPullRequest()` call with correct base branch
 
-### Sub-task 4: Modify PR Review Agent
+### Sub-task 7: Modify PR Review Agent
 - [ ] Review phase PRs (targeting feature branch)
 - [ ] No changes needed for review logic (still reviews code changes)
 - [ ] Possibly skip certain checks that apply to main-targeted PRs
 
-### Sub-task 5: Update Merge Handler (Telegram Webhook)
-- [ ] Detect if merging phase PR (to feature branch) vs final PR (to main)
-- [ ] For phase PRs: merge to feature branch, trigger next phase or final PR
+### Sub-task 8: Update Merge Handler (Telegram Webhook)
+- [ ] Detect PR type: design PR, phase PR, or final PR
+- [ ] For design PRs: merge to feature branch, advance to next design phase or implementation
+- [ ] For phase PRs: merge to feature branch, trigger next phase or final PR creation
 - [ ] For final PRs: merge to main, mark as Done, delete feature branch
 
-### Sub-task 6: Create Final PR Logic
+### Sub-task 9: Create Final PR Logic
 - [ ] Detect when last phase merges to feature branch
 - [ ] Automatically create PR from feature branch to main
 - [ ] Include all phase information in final PR description
+- [ ] Include design doc summaries in final PR body
 - [ ] Request review from admin
 
-### Sub-task 7: Add Vercel Preview URL to Notifications
+### Sub-task 10: Add Vercel Preview URL to Notifications
 - [ ] Get preview deployment URL for feature branch PRs
 - [ ] Include preview URL in final PR notification
 - [ ] Add "Open Preview" button to Telegram notification
 
-### Sub-task 8: Update On-PR-Merged Script
+### Sub-task 11: Update On-PR-Merged Script
 - [ ] Handle phase merges to feature branch differently
 - [ ] Handle final PR merge to main
 - [ ] Update phase tracking logic
 
-### Sub-task 9: Update Notifications
+### Sub-task 12: Update Notifications
 - [ ] Add `notifyFinalPRReady()` for when final PR to main is created
 - [ ] Include preview URL in notification
 - [ ] Add verification step for admin
 
-### Sub-task 10: Update Documentation
+### Sub-task 13: Update Documentation
 - [ ] Update multi-phase-features.md with new flow
 - [ ] Document feature branch workflow
 - [ ] Update troubleshooting guides
@@ -146,8 +186,10 @@ main <---------------- Final PR: "Task #42: Add feature X"
 ## Files to Modify
 
 ### Core Agent Files
-- `src/agents/core-agents/implementAgent/index.ts` - Branch creation, PR targeting
+- `src/agents/core-agents/implementAgent/index.ts` - PR targeting to feature branch
 - `src/agents/core-agents/prReviewAgent/index.ts` - Minor updates for phase PR context
+- `src/agents/core-agents/productDesignAgent/index.ts` - PR to feature branch instead of main
+- `src/agents/core-agents/techDesignAgent/index.ts` - PR to feature branch instead of main
 
 ### Infrastructure Files
 - `src/server/project-management/adapters/github.ts` - Add task branch tracking methods
@@ -211,9 +253,11 @@ main <---------------- Final PR: "Task #42: Add feature X"
 ## Notes
 
 ### Trade-offs
-- **More PRs**: Each task now has N+1 PRs (N phase PRs + 1 final PR) instead of N PRs
-- **More branches**: Each task has a feature branch plus phase branches
+- **More PRs**: Each task now has D+N+1 PRs (D design PRs + N phase PRs + 1 final PR)
+  - Example: 2 design PRs + 3 phase PRs + 1 final = 6 PRs per task
+- **More branches**: Each task has a feature branch plus sub-branches for each PR
 - **Better isolation**: Worth the complexity for concurrent workflow support
+- **Full review experience**: Line comments and Request Changes for all stages (design + code)
 - **Preview before merge**: Admin can verify complete feature before merging to main
 
 ### Backward Compatibility
