@@ -1,11 +1,14 @@
 ---
 number: 36
-title: "Improve sync-template with Interactive Conflict Resolution"
+title: Improve sync-template with Interactive Conflict Resolution
 priority: Medium
 size: L
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-02-01
+dateUpdated: 2026-02-01
+dateCompleted: 2026-02-01
+completionCommit: 51c495c
 planFile: task-manager/plans/task-36-plan.md
 ---
 

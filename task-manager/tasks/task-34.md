@@ -1,11 +1,12 @@
 ---
 number: 34
-title: "Add list/get/update Commands to Workflow CLI"
+title: Add list/get/update Commands to Workflow CLI
 priority: Medium
 size: M
 complexity: Low
-status: TODO
+status: In Progress
 dateAdded: 2026-02-01
+dateUpdated: 2026-02-01
 ---
 
 # Task 34: Add list/get/update Commands to Workflow CLI
