@@ -22,7 +22,6 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
-| 28 | Issue Workflow Configuration Page from Telegram | XL | High |
 
 ### 🟡 Medium Priority
 
@@ -33,6 +32,7 @@
 | 6 | Add PR Size Validation Enforcement | S | Low |
 | 23 | Workflow Source Code Audit Command | M | Medium |
 | 24 | Standalone Task Creation Agent | L | Medium |
+| 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
 
@@ -71,4 +71,4 @@
 
 ---
 
-*Last updated: 2026-01-30*
+*Last updated: 2026-01-31*

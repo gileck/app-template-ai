@@ -1,78 +1,50 @@
 ---
 number: 28
-title: Issue Workflow Configuration Page from Telegram
-priority: High
-size: XL
-complexity: High
+title: "sync-template: Warn When Overwriting Local Project Changes"
+priority: Medium
+size: M
+complexity: Medium
 status: TODO
-dateAdded: 2026-01-27
-dateUpdated: 2026-01-27
+dateAdded: 2026-01-31
 ---
 
-# Task 28: Issue Workflow Configuration Page from Telegram
+# Task 28: sync-template: Warn When Overwriting Local Project Changes
 
-**Summary:** Add a web-based configuration page for each issue, accessible from Telegram, allowing admin to configure the entire workflow before it starts (phases, plans, reviews, etc.).
+**Summary:** Add git history check to detect and warn when template sync will overwrite files the project modified locally since last sync.
 
-## Problem
+## Details
 
-Currently, workflow configuration is global (in `agents.config.ts`) and cannot be customized per-issue. Different issues may need:
-1. Different number of phases
-2. Plan subagent enabled/disabled
-3. Different review strictness
-4. Skip certain workflow stages
-5. Custom prompts or context
+Currently, the folder ownership model always copies template files (unless in projectOverrides). This is correct behavior, but users may accidentally lose local changes they made without realizing.
 
-## Proposed Solution
+This enhancement adds a warning when overwriting files that the project modified since `lastSyncDate`, giving users a chance to either:
+1. Approve the overwrite
+2. Add the file to `projectOverrides` to keep their version
 
-Create a web page that:
-1. Is invoked from a Telegram button when an issue is approved
-2. Shows all configurable workflow options for this specific issue
-3. Allows admin to customize before starting workflow
-4. Saves configuration to issue metadata (MongoDB or GitHub)
-5. Workflow agents read this per-issue config
+## Implementation Notes
 
-## Configuration Options
+Flow:
+1. Template still wins by default (current behavior)
+2. For each file that differs between template and project:
+   - Check git history: `git log --since=lastSyncDate -- <file>`
+   - If project modified the file since last sync → show warning
+3. Warning message: "⚠️ You modified X locally, it will be overwritten"
+4. User can:
+   - Approve to continue with overwrite
+   - Add to projectOverrides to keep their version
+   - Cancel sync
 
-- **Phases**: Number of phases (1-5), auto-detect, or manual split
-- **Plan Subagent**: Enable/disable for this issue
-- **Product Design**: Skip/require
-- **Tech Design**: Skip/require
-- **PR Review Strictness**: Lenient/Normal/Strict
-- **Auto-merge**: Enable/disable after approval
-- **Custom Context**: Additional instructions for agents
-- **Branch Strategy**: Target master or feature branch
-
-## User Flow
-
-```
-1. Issue approved in Telegram
-2. "Configure Workflow" button appears
-3. Click opens web page: /admin/workflow-config/{issueId}
-4. Admin adjusts settings
-5. Click "Start Workflow"
-6. Workflow runs with custom configuration
-```
+Key implementation points:
+- Use `lastSyncDate` from `.template-sync.json` config
+- Run git log for each differing file (batch if many files)
+- Show interactive prompt with approve button
+- Optionally offer to auto-add to projectOverrides
 
 ## Files to Modify
 
-- Create `/src/client/routes/WorkflowConfig/` - New admin route
-- Create `/src/apis/workflow-config/` - API for saving/loading config
-- Update Telegram webhook to add config button
-- Update agents to read per-issue config
-- Create `src/server/database/collections/workflow-configs/`
-
-## Considerations
-
-- Config page should have sensible defaults
-- Show estimated cost/time for different configurations
-- Allow saving presets for common configurations
-- Consider mobile-friendly design for quick Telegram→config flow
-
-## Dependencies
-
-- Task #22 (Per-Issue Plan Subagent Toggle) - Can be superseded by this
+- `scripts/template/sync-template/analysis/folder-sync-analysis.ts` - Add git history check
+- `scripts/template/sync-template/sync-template-tool.ts` - Add warning UI/prompts
+- `scripts/template/sync-template/types/index.ts` - Add new types for warnings
 
 ## Notes
 
-- This is a significant feature that touches many parts of the system
-- Consider implementing incrementally: basic config first, advanced later
+This improves UX without breaking the ownership model. Template still wins by default, but users get a safety net against accidental data loss.
