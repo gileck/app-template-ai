@@ -444,9 +444,11 @@ export interface ProjectManagementAdapter {
     getDefaultBranch(): Promise<string>;
 
     /**
-     * Create a new branch from the default branch
+     * Create a new branch from the default branch (or specified base branch)
+     * @param branchName - Name of the new branch to create
+     * @param baseBranch - Optional base branch to create from (defaults to default branch)
      */
-    createBranch(branchName: string): Promise<void>;
+    createBranch(branchName: string, baseBranch?: string): Promise<void>;
 
     /**
      * Check if a branch exists
