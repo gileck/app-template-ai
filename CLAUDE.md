@@ -21,6 +21,16 @@ Next.js PWA with offline-first capabilities. Use this to understand the project 
 
 ---
 
+## Build CLAUDE.md
+
+Auto-generate CLAUDE.md from docs and skills. Run this after creating or updating docs.
+
+**Summary:** Run `yarn build:claude` to regenerate CLAUDE.md from all docs and skills with frontmatter. **IMPORTANT: Run this after adding new docs or updating title/summary/description in existing docs.**
+
+**Docs:** [build-claude-md.md](docs/template/build-claude-md.md)
+
+---
+
 ## Exit Codes
 
 How to properly check command success/failure. Use this when running shell commands.
