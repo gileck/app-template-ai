@@ -19,6 +19,11 @@
     ".claude/commands/sync-children.md",
     "scripts/sync-child-projects.ts",
     "scripts/push-and-sync.sh",
-    "scripts/hooks/**"
+    "scripts/hooks/**",
+    "src/apis/todos/**",
+    "src/client/routes/Todos/**",
+    "src/client/routes/SingleTodo/**",
+    "src/server/database/collections/todos/**",
+    "src/client/styles/todos.css"
   ]
 }
