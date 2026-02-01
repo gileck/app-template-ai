@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 36
-- **Open:** 12
+- **Total Tasks:** 37
+- **Open:** 13
 - **In Progress:** 0
 - **Done:** 24
 
 ---
 
-## 📋 Open Tasks (12)
+## 📋 Open Tasks (13)
 
 ### 🟠 High Priority
 
@@ -22,6 +22,7 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
+| 37 | Implement Feature Branch Workflow with Phase PRs | L | High |
 
 ### 🟡 Medium Priority
 
