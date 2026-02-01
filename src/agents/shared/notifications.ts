@@ -699,6 +699,49 @@ ${isRevision ? 'Design updated based on feedback. ' : ''}Review and merge to pro
 }
 
 /**
+ * Notify admin that Final Review is ready (feature branch workflow)
+ * All phases complete, final PR from feature branch to main awaits admin verification
+ */
+export async function notifyFinalReviewReady(
+    title: string,
+    issueNumber: number,
+    prNumber: number,
+    totalPhases: number,
+    itemType: 'bug' | 'feature' = 'feature',
+    summary?: string
+): Promise<SendResult> {
+    const prUrl = getPrUrl(prNumber);
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
+
+    const summarySection = summary ? `\n\n<b>Summary:</b>\n${escapeHtml(summary)}` : '';
+
+    const message = `<b>Agent (Final Review):</b> 🎯 Ready for Verification
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber} → Final PR #${prNumber}
+📊 Status: Final Review (${totalPhases} phases complete)
+
+All implementation phases are complete. Verify the feature via preview deployment and merge to main.${summarySection}`;
+
+    // Note: Vercel automatically adds deployment preview to PR
+    // Admin can click "View PR" to see the preview link in the PR
+    const keyboard: InlineKeyboardMarkup = {
+        inline_keyboard: [[
+            { text: '✅ Merge to Main', callback_data: `merge_final:${issueNumber}:${prNumber}` },
+        ], [
+            { text: '👀 View PR (with Preview)', url: prUrl },
+            { text: '📋 View Issue', url: issueUrl },
+        ]],
+    };
+
+    return sendToAdmin(message, keyboard);
+}
+
+/**
  * Notify admin that a phase of a multi-PR feature was completed
  */
 export async function notifyPhaseComplete(
@@ -737,4 +780,68 @@ ${nextAction}`;
     };
 
     return sendToAdmin(message, buttons);
+}
+
+/**
+ * Notify admin that a phase was merged to feature branch (feature branch workflow)
+ * Used when a phase PR is merged to the feature branch, not to main
+ */
+export async function notifyPhaseMergedToFeatureBranch(
+    currentPhase: number,
+    totalPhases: number,
+    title: string,
+    issueNumber: number,
+    prNumber: number
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+    const prUrl = getPrUrl(prNumber);
+
+    const isLastPhase = currentPhase >= totalPhases;
+    const status = isLastPhase
+        ? `✅ Phase ${currentPhase}/${totalPhases} merged to feature branch`
+        : `✅ Phase ${currentPhase}/${totalPhases} merged to feature branch`;
+
+    const nextAction = isLastPhase
+        ? 'Creating final PR to main...'
+        : `Ready for Phase ${currentPhase + 1}/${totalPhases}`;
+
+    const message = `<b>Agent (Feature Branch):</b> ${status}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber} → PR #${prNumber}
+
+${nextAction}`;
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🔀 View PR', url: prUrl },
+                { text: '📋 View Issue', url: issueUrl },
+            ],
+        ],
+    };
+
+    return sendToAdmin(message, buttons);
+}
+
+/**
+ * Notify admin that final PR was merged (feature branch workflow complete)
+ */
+export async function notifyFinalMergeComplete(
+    title: string,
+    issueNumber: number,
+    prNumber: number,
+    totalPhases: number
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const message = `<b>Agent (Feature Branch):</b> 🎉 Feature Complete!
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber} → Final PR #${prNumber}
+📊 ${totalPhases} phases merged to main
+
+Issue will be marked as Done. Branches cleaned up.`;
+
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
