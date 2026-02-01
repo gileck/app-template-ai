@@ -1,3 +1,14 @@
+---
+title: Configuration Files (Template/Project Split)
+description: Config files use a split pattern for template updates without losing project customizations. Use this when modifying ESLint, Next.js, or TypeScript configs.
+summary: Template configs (synced) live in `config/*/` folders. Project configs (never synced) let you add customizations. Root configs merge both.
+priority: 3
+key_points:
+  - "ESLint: `config/eslint/eslint.project.mjs` for project rules (ignores, custom rules)"
+  - "Next.js: `config/next/next.project.ts` for project config (images, domains)"
+  - "TypeScript: Add `tsconfig.json` to `projectOverrides` if you need custom excludes"
+---
+
 # Configuration Files (Template/Project Split)
 
 This document explains how configuration files are organized to allow template updates while preserving project-specific customizations.

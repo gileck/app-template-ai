@@ -12,6 +12,7 @@
     "push": "git add .;git commit -am 'commit' && git push",
     "ts": "tsc --noEmit",
     "checks": "./scripts/template/checks-ci.sh",
+    "build:claude": "tsx scripts/build-claude-md.ts CLAUDE.md",
     "checks:ci": "./scripts/template/checks-ci.sh",
     "checks:dev": "yarn ts; yarn lint",
     "watch-checks": "node scripts/template/watch-checks.js",
