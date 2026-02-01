@@ -171,6 +171,21 @@ CLI tool for Claude Code to send Telegram messages to developer. Use this for lo
 
 ---
 
+## Configuration Files (Template/Project Split)
+
+Config files use a split pattern for template updates without losing project customizations. Use this when modifying ESLint, Next.js, or TypeScript configs.
+
+**Summary:** Template configs (synced) live in `config/*/` folders. Project configs (never synced) let you add customizations. Root configs merge both.
+
+**Key Points:**
+- ESLint: `config/eslint/eslint.project.mjs` for project rules (ignores, custom rules)
+- Next.js: `config/next/next.project.ts` for project config (images, domains)
+- TypeScript: Add `tsconfig.json` to `projectOverrides` if you need custom excludes
+
+**Docs:** [docs/template/config-files.md](docs/template/config-files.md)
+
+---
+
 ## TypeScript
 
 Strict TypeScript guidelines. Use this when writing TypeScript code.
