@@ -518,6 +518,107 @@ Before submitting review:
 - Update understanding of project guidelines
 - Apply lessons to similar situations
 
+## Reverting Merged PRs
+
+Sometimes a merged PR needs to be reverted due to issues discovered after deployment. The workflow provides a one-click revert option.
+
+### When to Use Revert
+
+- Bug discovered after merging to main
+- Feature behavior doesn't match expectations
+- Performance regression detected
+- Breaking change affects other functionality
+
+### Revert Process
+
+**1. Click Revert Button**
+
+After merging a PR, you receive a success notification with a "Revert" button:
+
+```
+✅ PR Merged Successfully
+
+📝 PR: #124 - Add search functionality
+🔗 Issue: #45 - Add search functionality
+
+🎉 Implementation complete! Issue is now Done.
+
+[📄 View PR] [📋 View Issue]
+[↩️ Revert]
+```
+
+**2. Revert Creates Recovery PR**
+
+Clicking "Revert" does NOT directly push to main. Instead:
+- Creates a new branch with the revert commit
+- Opens a new PR (e.g., #125) for the revert
+- Restores issue status to "Implementation" with "Request Changes" review status
+- For multi-phase features, restores the phase counter
+
+**3. Confirmation with Next Steps**
+
+```
+↩️ Merge Reverted
+
+📋 Issue: #45 - Add search functionality
+🔀 Original PR: #124
+🔄 Revert PR: #125
+
+📊 Status: Implementation
+📝 Review Status: Request Changes
+
+Next steps:
+1️⃣ Click "Merge Revert PR" below to undo the changes
+2️⃣ Go to Issue #45 and add a comment explaining what went wrong
+3️⃣ Run `yarn agent:implement` - the agent will read your feedback and create a new PR
+
+[✅ Merge Revert PR]
+[📄 View Revert PR] [📋 View Issue]
+```
+
+**4. Merge Revert PR**
+
+Click "Merge Revert PR" to complete the revert. Changes are now undone on main.
+
+**5. Provide Feedback on Issue**
+
+Add a comment to the **issue** (not PR) explaining what went wrong. The implementation agent reads issue comments when starting work.
+
+Example feedback comment:
+```markdown
+The search feature has an issue:
+
+1. Search results don't update when the filter changes
+2. Performance is slow with more than 100 items
+3. Search doesn't work in offline mode
+
+Please fix these issues and ensure search works offline.
+```
+
+**6. Agent Creates New PR**
+
+Run `yarn agent:implement` - the agent will:
+- Read your feedback from the issue comments
+- Understand what went wrong
+- Create a new implementation PR addressing the issues
+
+### Revert Best Practices
+
+**Provide Clear Feedback:**
+- Explain what went wrong specifically
+- Include reproduction steps if applicable
+- Reference any error messages or logs
+
+**Use Issue Comments:**
+- Comment on the **issue** (not the PR)
+- Agent reads issue comments for context
+- Previous PR context is still available
+
+**Multi-Phase Features:**
+- Revert affects only the current phase
+- Previous phases remain merged
+- Phase counter is restored to current phase
+
 ## Summary
 
 **Clarification Flow:**
@@ -534,6 +635,12 @@ Before submitting review:
 - PR review agent or admin finds issues
 - Admin requests changes with detailed comments
 - Agent updates PR → re-review cycle
+
+**Reverting Merged PRs:**
+- Click "Revert" on merge success notification
+- Creates revert PR (not direct push to main)
+- Add feedback to issue explaining what went wrong
+- Agent reads feedback and creates new PR
 
 **Effective Reviews:**
 - Be specific with examples

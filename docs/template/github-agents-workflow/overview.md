@@ -36,6 +36,7 @@ Items can enter the workflow through three paths (all converge into the same pip
 7. **Admin approves design PR** (via Telegram button) → PR auto-merged → status advances to next phase
 8. **PR Review agent reviews implementation PR** (cron) → generates commit message → Telegram notification with Merge button
 9. **Admin merges implementation PR** (via Telegram Merge button) → Telegram webhook marks item as Done
+10. **Post-merge recovery** (if needed): Merge success notification includes "Revert" button → creates revert PR → restores status for agent to fix
 
 **Key concepts:**
 - **6 board columns**: Backlog → Product Design → Technical Design → Ready for development → PR Review → Done
@@ -47,6 +48,7 @@ Items can enter the workflow through three paths (all converge into the same pip
 - **Auto-advance on approval**: When approved via Telegram, the item automatically moves to the next phase
 - **Implement agent auto-moves to PR Review**: After creating a PR, the item moves from "Ready for development" to "PR Review"
 - **Single webhook**: All Telegram approval and routing buttons use `/api/telegram-webhook` for instant in-app feedback
+- **Post-merge revert**: One-click revert button on merge success → creates revert PR (not direct push) → restores status for agent to fix
 - **Simplified MongoDB schema**: MongoDB stores only high-level status (4 values), GitHub Projects tracks detailed workflow
 - **Separate MongoDB collections**: `feature-requests` and `reports` collections (bugs need session logs, screenshots, diagnostics)
 - **Design documents as files**: Stored in `design-docs/issue-{N}/` with PR-based review workflow
