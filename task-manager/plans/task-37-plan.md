@@ -144,6 +144,55 @@ Ready for Dev → PR Review → Ready for Dev → PR Review → ... → Final Re
 6. **Final PR creation**: Automatic after last phase merges to feature branch
 7. **Preview URL**: Include in Final Review notification for admin verification
 
+### Logging Requirements
+
+All new feature branch operations MUST be logged to the issue logger for debugging. Use new log markers:
+
+| Marker | Usage |
+|--------|-------|
+| `[LOG:FEATURE_BRANCH]` | All feature branch operations (create, PR targeting, merge, cleanup) |
+| `[LOG:FINAL_REVIEW]` | Final review status transitions and notifications |
+
+**Required Log Points:**
+
+```
+# At implementation start (multi-phase detection)
+[LOG:FEATURE_BRANCH] Detected multi-phase feature: {phases.total} phases
+[LOG:FEATURE_BRANCH] Creating feature branch: feature/task-{issueId} from main
+
+# At each phase implementation
+[LOG:FEATURE_BRANCH] Creating phase branch: feature/task-{issueId}-phase-{N} from feature/task-{issueId}
+[LOG:FEATURE_BRANCH] PR #{prNumber} targeting feature branch: {phaseBranch} → {taskBranch}
+
+# At phase merge (Telegram webhook)
+[LOG:FEATURE_BRANCH] Merging phase PR #{prNumber} to feature branch
+[LOG:FEATURE_BRANCH] Phase {current}/{total} complete
+
+# At last phase merge
+[LOG:FEATURE_BRANCH] All phases complete, creating final PR
+[LOG:FEATURE_BRANCH] Final PR #{prNumber} created: feature/task-{issueId} → main
+[LOG:FINAL_REVIEW] Status transition: PR Review → Final Review
+
+# At final merge
+[LOG:FINAL_REVIEW] Admin merging final PR #{prNumber}
+[LOG:FEATURE_BRANCH] Cleaning up branches for task-{issueId}
+[LOG:FEATURE_BRANCH] Deleted branch: feature/task-{issueId}-phase-{N}
+[LOG:FEATURE_BRANCH] Deleted branch: feature/task-{issueId}
+[LOG:FINAL_REVIEW] Status transition: Final Review → Done
+
+# Error cases
+[LOG:ERROR] [FEATURE_BRANCH] Failed to create branch: {reason}
+[LOG:ERROR] [FEATURE_BRANCH] Failed to create PR: {reason}
+[LOG:ERROR] [FEATURE_BRANCH] Failed to merge: {reason}
+[LOG:ERROR] [FEATURE_BRANCH] Failed to delete branch: {reason}
+```
+
+**Error Log Requirements:**
+- Include issue number and phase context
+- Include expected vs actual state
+- Include suggested recovery steps
+- Use `[LOG:ERROR]` with `[FEATURE_BRANCH]` context for grep filtering
+
 ## Sub-tasks
 
 ### Sub-task 1: Add "Final Review" Status to GitHub Projects
@@ -209,7 +258,68 @@ Ready for Dev → PR Review → Ready for Dev → PR Review → ... → Final Re
 - [ ] Delete feature branch after final PR merges to main
 - [ ] Handle cleanup on rejection/abandonment
 
-### Sub-task 12: Update Documentation - E2E Flows
+### Sub-task 12: Add Extensive Logging Throughout New Flow
+- [ ] Add `[LOG:FEATURE_BRANCH]` marker for feature branch operations
+- [ ] Log each step with informative context for debugging:
+  - `[LOG:FEATURE_BRANCH] Creating feature branch: feature/task-{id} from main`
+  - `[LOG:FEATURE_BRANCH] Phase branch: feature/task-{id}-phase-{N} from feature/task-{id}`
+  - `[LOG:FEATURE_BRANCH] PR targeting feature branch: {phaseBranch} → {taskBranch}`
+  - `[LOG:FEATURE_BRANCH] Phase {N}/{total} merged to feature branch`
+  - `[LOG:FEATURE_BRANCH] Last phase complete, creating final PR`
+  - `[LOG:FEATURE_BRANCH] Final PR created: feature/task-{id} → main (PR #{prNumber})`
+  - `[LOG:FEATURE_BRANCH] Final PR merged, cleaning up branches`
+  - `[LOG:FEATURE_BRANCH] Deleted branch: {branchName}`
+- [ ] Log artifact updates when storing/retrieving task branch
+- [ ] Log detection of single-phase vs multi-phase at implementation start
+- [ ] Include issue number, phase info, and branch names in all log entries
+
+### Sub-task 13: Add Error Handling with Informative Messages
+- [ ] Handle feature branch creation failures:
+  - Branch already exists (recover or error with context)
+  - Permission denied (clear error message)
+  - Network failures (retry logic with logging)
+- [ ] Handle phase PR creation failures:
+  - Base branch doesn't exist (log expected vs actual)
+  - Merge conflicts (log conflicting files)
+- [ ] Handle final PR creation failures:
+  - Feature branch missing (log recovery steps)
+  - No changes to merge (log phase merge status)
+- [ ] Handle merge failures:
+  - Merge conflicts (log files, suggest resolution)
+  - Branch protection rules (log which rules blocked)
+- [ ] Handle branch cleanup failures:
+  - Branch doesn't exist (warn, continue)
+  - Permission denied (log, continue with remaining cleanup)
+- [ ] All errors should include:
+  - Issue number and phase context
+  - Expected vs actual state
+  - Suggested recovery steps
+  - Link to relevant log entries
+
+### Sub-task 14: Update /workflow-review Command for Feature Branch Validation
+- [ ] Add new log markers to `.claude/commands/workflow-review.md`:
+  - `[LOG:FEATURE_BRANCH]` - Feature branch operations
+  - `[LOG:FINAL_REVIEW]` - Final review status transitions
+- [ ] Add Feature Branch Flow validation checklist:
+  - Verify feature branch created for multi-phase
+  - Verify phase PRs target feature branch (not main)
+  - Verify final PR created after last phase
+  - Verify Final Review status set correctly
+  - Verify branch cleanup after merge
+- [ ] Add grep patterns for new flow:
+  - `\[LOG:FEATURE_BRANCH\]` - All feature branch operations
+  - `\[LOG:FEATURE_BRANCH\].*Creating feature branch` - Branch creation
+  - `\[LOG:FEATURE_BRANCH\].*targeting feature branch` - PR targeting
+  - `\[LOG:FEATURE_BRANCH\].*Final PR` - Final PR operations
+  - `\[LOG:FINAL_REVIEW\]` - Final review transitions
+- [ ] Add validation for common issues:
+  - Phase PR targeting main instead of feature branch (error)
+  - Feature branch not created for multi-phase (error)
+  - Final PR not created after last phase (error)
+  - Branches not cleaned up after merge (warning)
+- [ ] Update example output to show feature branch flow analysis
+
+### Sub-task 15: Update Documentation - E2E Flows
 - [ ] Update `docs/template/github-agents-workflow/multi-phase-features.md`
   - Document new feature branch flow
   - Add E2E flow diagrams for multi-phase
@@ -251,6 +361,9 @@ Ready for Dev → PR Review → Ready for Dev → PR Review → ... → Final Re
 - `docs/template/github-agents-workflow/workflow-overview.md` - Add single vs multi-phase section
 - `docs/template/github-agents-workflow/feature-branch-workflow.md` - New comprehensive doc
 
+### Workflow Review Command
+- `.claude/commands/workflow-review.md` - Add feature branch flow validation
+
 ## Files NOT Modified (No Change)
 
 These files remain unchanged because design docs and single-phase features use existing flow:
@@ -271,6 +384,7 @@ These files remain unchanged because design docs and single-phase features use e
    - PR goes directly to main
    - No feature branch created
    - Status: Ready for Dev → PR Review → Done
+   - No `[LOG:FEATURE_BRANCH]` entries in log
 
 3. **Integration Testing - Multi-Phase**
    - Feature branch created at implementation start
@@ -278,12 +392,24 @@ These files remain unchanged because design docs and single-phase features use e
    - Final PR created after last phase
    - Status includes Final Review
    - Preview URL in notification
+   - All `[LOG:FEATURE_BRANCH]` entries present in log
 
 4. **Manual Verification**
    - Run complete multi-phase workflow
    - Verify Vercel preview works for final PR
    - Test admin merge flow from Final Review
    - Verify branch cleanup after merge
+
+5. **Log Verification with /workflow-review**
+   - Run `/workflow-review {issueNumber}` after multi-phase workflow
+   - Verify feature branch checklist passes:
+     - [ ] Feature branch created for multi-phase
+     - [ ] Phase PRs target feature branch (not main)
+     - [ ] Final PR created after last phase
+     - [ ] Final Review status set correctly
+     - [ ] Branch cleanup after merge
+   - Verify no errors in `[LOG:FEATURE_BRANCH]` entries
+   - Verify all expected log points are present
 
 ## Risks and Mitigations
 
@@ -421,10 +547,11 @@ These files remain unchanged because design docs and single-phase features use e
 
 ### Critical Files for Implementation
 
-The 5 most critical files for implementing this plan:
+The 6 most critical files for implementing this plan:
 
 1. `src/agents/core-agents/implementAgent/index.ts` - Feature branch creation and PR targeting for multi-phase
 2. `src/pages/api/telegram-webhook.ts` - Handle phase merges to feature branch, final PR creation, Final Review merge
 3. `src/server/project-management/config.ts` - Add "Final Review" status
 4. `src/agents/lib/artifacts.ts` - Track task branch in artifact comment
 5. `src/agents/shared/notifications.ts` - Final Review notification with preview URL
+6. `.claude/commands/workflow-review.md` - Add feature branch flow validation and new log markers
