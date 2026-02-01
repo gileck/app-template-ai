@@ -32,6 +32,7 @@ interface DocEntry extends DocFrontmatter {
   file_path: string;
   source: 'template' | 'project';
   type: 'doc' | 'skill'; // Whether this is a doc or a skill-only entry
+  folder?: string; // Nested folder name (e.g., 'github-agents-workflow'), undefined for root docs
 }
 
 // Load config (wrap in frontmatter delimiters for gray-matter)
@@ -44,25 +45,27 @@ function loadConfig(configPath: string): Config {
 }
 
 // Scan directory for .md files (recursive)
-function scanDocs(dirPath: string, source: 'template' | 'project'): DocEntry[] {
+// basePath is the root docs directory (e.g., 'docs/template')
+// currentPath is the current directory being scanned
+function scanDocs(basePath: string, currentPath: string, source: 'template' | 'project'): DocEntry[] {
   const entries: DocEntry[] = [];
 
-  if (!fs.existsSync(dirPath)) {
+  if (!fs.existsSync(currentPath)) {
     return entries;
   }
 
-  const items = fs.readdirSync(dirPath);
+  const items = fs.readdirSync(currentPath);
 
   for (const item of items) {
     // Skip _ prefixed files, but allow _custom folder
     if (item.startsWith('_') && item !== '_custom') continue;
 
-    const itemPath = path.join(dirPath, item);
+    const itemPath = path.join(currentPath, item);
     const stat = fs.statSync(itemPath);
 
     // Recursively scan subdirectories
     if (stat.isDirectory()) {
-      const subEntries = scanDocs(itemPath, source);
+      const subEntries = scanDocs(basePath, itemPath, source);
       entries.push(...subEntries);
       continue;
     }
@@ -78,6 +81,14 @@ function scanDocs(dirPath: string, source: 'template' | 'project'): DocEntry[] {
         continue;
       }
 
+      // Calculate folder relative to base path
+      const relativePath = path.relative(basePath, currentPath);
+      // If relativePath is empty or '.', it's a root doc; otherwise it's the folder name
+      // For nested folders like 'github-agents-workflow', use the first segment
+      const folder = relativePath && relativePath !== '.'
+        ? relativePath.split(path.sep)[0]
+        : undefined;
+
       entries.push({
         title: data.title,
         description: data.description,
@@ -89,6 +100,7 @@ function scanDocs(dirPath: string, source: 'template' | 'project'): DocEntry[] {
         file_path: itemPath,
         source,
         type: 'doc',
+        folder,
       });
     } catch (err) {
       // Skip files with parse errors
@@ -224,7 +236,7 @@ function buildClaudeMd(config: Config): string {
   // Scan docs
   for (const docsPath of config.docs_paths) {
     const source = docsPath.includes('project') ? 'project' : 'template';
-    const entries = scanDocs(docsPath, source as 'template' | 'project');
+    const entries = scanDocs(docsPath, docsPath, source as 'template' | 'project');
     allEntries.push(...entries);
   }
 
@@ -246,11 +258,37 @@ function buildClaudeMd(config: Config): string {
     return a.title.localeCompare(b.title);
   });
 
+  // Group entries: root docs first, then grouped by folder
+  const rootEntries = allEntries.filter(e => !e.folder);
+  const folderEntries = allEntries.filter(e => e.folder);
+
+  // Get unique folders in order of first appearance (by priority)
+  const folders: string[] = [];
+  for (const entry of folderEntries) {
+    if (entry.folder && !folders.includes(entry.folder)) {
+      folders.push(entry.folder);
+    }
+  }
+
   // Generate output
   const sections: string[] = [config.header, ''];
 
-  for (const entry of allEntries) {
+  // Root docs first
+  for (const entry of rootEntries) {
     sections.push(generateSection(entry));
+  }
+
+  // Then folder groups
+  for (const folder of folders) {
+    const folderDocs = folderEntries.filter(e => e.folder === folder);
+    if (folderDocs.length === 0) continue;
+
+    // Add folder header
+    sections.push(`# ${folder}\n`);
+
+    for (const entry of folderDocs) {
+      sections.push(generateSection(entry));
+    }
   }
 
   return sections.join('\n');
