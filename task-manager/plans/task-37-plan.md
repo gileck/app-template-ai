@@ -2,7 +2,7 @@
 
 ## Objective
 
-Refactor the GitHub agents workflow to use feature branches per task with phase PRs targeting those feature branches (not main), providing isolation between concurrent workflows, easier phase reviews, and preview deployments for verification before final merge.
+Refactor the GitHub agents workflow to use feature branches for **multi-phase features only**, providing isolation between concurrent workflows, easier phase reviews, and preview deployments for verification before final merge. Single-phase features remain unchanged.
 
 ## Current Architecture
 
@@ -10,10 +10,21 @@ Based on codebase exploration, here is how the system currently works:
 
 ### Current Branch Flow
 ```
-main <--- Phase 1 PR (direct to main)
-main <--- Phase 2 PR (direct to main)
-main <--- Phase 3 PR (direct to main)
+main <--- Product Design PR (merged)
+main <--- Tech Design PR (merged)
+main <--- Phase 1 PR (merged)
+main <--- Phase 2 PR (merged)
+main <--- Phase 3 PR (merged)
 ```
+
+### Current GitHub Project Statuses
+- `Backlog` - New items, not yet started
+- `Product Development` - (Optional) AI transforms vague ideas into product specs
+- `Product Design` - AI generates UX/UI design, human reviews
+- `Technical Design` - AI generates tech design, human reviews
+- `Ready for development` - Implementation (Implementation Phase field tracks multi-PR phases)
+- `PR Review` - PR created, awaiting human review/merge
+- `Done` - Completed and merged
 
 ### Key Components Identified
 
@@ -34,247 +45,386 @@ main <--- Phase 3 PR (direct to main)
    - `mergePullRequest()` - squash merges PRs
    - `createBranch()`, `deleteBranch()`, `branchExists()` - branch management
 
-4. **On PR Merged Script** (`scripts/template/on-pr-merged.ts`)
-   - Handles phase transitions when PRs merge
-   - Increments phase counter or marks as Done
-   - Updates artifact comments
-
-5. **Telegram Webhook** (`src/pages/api/telegram-webhook.ts`)
+4. **Telegram Webhook** (`src/pages/api/telegram-webhook.ts`)
    - Handles merge actions via callback buttons
    - Primary merge handler (GitHub Action is disabled)
 
-6. **Multi-Phase System** (`src/agents/lib/phases.ts`, `src/agents/lib/artifacts.ts`)
+5. **Multi-Phase System** (`src/agents/lib/phases.ts`, `src/agents/lib/artifacts.ts`)
    - Tracks phase progress via `Implementation Phase` field in GitHub Projects
    - Stores phase info in artifact comments on issues
    - Format: `Phase X/Y: Name`
 
-7. **Notifications** (`src/agents/shared/notifications.ts`)
-   - `notifyPRReady()`, `notifyPRReadyToMerge()`, `notifyPhaseComplete()`
-   - Sends Telegram messages with action buttons
-
-8. **Vercel Deployments** (`.github/workflows/deploy-notify.yml`)
-   - Preview deployments for PRs already exist
-   - Production deployments on merge to main
-
 ## Approach
 
-The feature branch workflow introduces a new branch hierarchy where ALL work (design + implementation) targets the feature branch:
+### Key Decision: Design to Main, Implementation Splits by Phase Count
+
+Since phases are only determined during Tech Design, we use this approach:
+- **Design docs (Product Design, Tech Design)**: Always PR to main (no change)
+- **Single-phase implementation**: PR to main (no change)
+- **Multi-phase implementation**: Feature branch + Final Review status
+
+This minimizes changes while providing isolation where it matters most.
+
+### New Flow Diagram
 
 ```
-main <─────────────────────── Final PR: "Task #42: Add feature X"
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DESIGN PHASE                                    │
+│                         (Always to main - NO CHANGE)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   Product Design PR → main → Tech Design PR → main                           │
+│                                     │                                        │
+│                              Phases determined                               │
+│                                     │                                        │
+└─────────────────────────────────────┼───────────────────────────────────────┘
                                       │
-                              feature/task-42
-                                      ▲
-        ┌──────────────┬──────────────┼──────────────┬──────────────┐
-        │              │              │              │              │
-  Product Design   Tech Design    Phase 1 PR    Phase 2 PR    Phase 3 PR
-  PR (merged)      PR (merged)    (merged)      (merged)      (merged)
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+                    ▼                                   ▼
+┌───────────────────────────────────┐ ┌───────────────────────────────────────┐
+│         SINGLE-PHASE              │ │            MULTI-PHASE                 │
+│       (NO CHANGE - to main)       │ │      (NEW - feature branch)            │
+├───────────────────────────────────┤ ├───────────────────────────────────────┤
+│                                   │ │                                        │
+│   Ready for Dev                   │ │   Ready for Dev (Phase 1/N)            │
+│        │                          │ │        │                               │
+│   Implementation PR → main        │ │   feature/task-{id} created            │
+│        │                          │ │        │                               │
+│   PR Review                       │ │   Phase 1 PR → feature branch          │
+│        │                          │ │        │                               │
+│   Merged → Done                   │ │   PR Review → Merged to feature        │
+│                                   │ │        │                               │
+│                                   │ │   Ready for Dev (Phase 2/N)            │
+│                                   │ │        │                               │
+│                                   │ │   ... repeat for all phases ...        │
+│                                   │ │        │                               │
+│                                   │ │   Last phase merged to feature         │
+│                                   │ │        │                               │
+│                                   │ │   Final PR: feature → main             │
+│                                   │ │        │                               │
+│                                   │ │   *** Final Review *** (NEW STATUS)    │
+│                                   │ │        │                               │
+│                                   │ │   Admin verifies preview → Merges      │
+│                                   │ │        │                               │
+│                                   │ │   Done                                 │
+└───────────────────────────────────┘ └───────────────────────────────────────┘
 ```
 
-### Key Changes Required
+### New GitHub Project Status: "Final Review"
 
-1. **Create feature branch per task** at workflow start (when product design begins)
-2. **Design PRs target feature branch** - full PR review experience with line comments
-3. **Phase PRs target feature branch** instead of main
-4. **After all phases complete**, create a single PR from feature branch to main
-5. **Admin verifies via Vercel preview** before merging final PR
-6. **Include preview URL in notifications** for final PR
+Add new status between "PR Review" and "Done" for multi-phase features:
+
+| Status | Description | Used By |
+|--------|-------------|---------|
+| PR Review | Phase PR being reviewed by PR Review Agent | Single & Multi-phase |
+| **Final Review** *(NEW)* | Final PR from feature branch to main, admin verifies complete feature | Multi-phase only |
+| Done | Merged to main | Single & Multi-phase |
+
+### Status Flow Comparison
+
+**Single-Phase (No Change):**
+```
+Ready for Dev → PR Review → Done
+```
+
+**Multi-Phase (New):**
+```
+Ready for Dev → PR Review → Ready for Dev → PR Review → ... → Final Review → Done
+     (1/N)        (phase 1)      (2/N)        (phase 2)         (final PR)
+```
 
 ### Architectural Decisions
 
-1. **When to create feature branch**: At the START of the workflow (product design phase)
-2. **Design docs**: PRs to feature branch (not main) - full review experience with line comments
-3. **Branch naming**: `feature/task-{issueId}` for the task branch, sub-branches for each PR
-4. **Where to track task branch**: Store in artifact comment on the issue
-5. **All PRs merge to feature branch**: Design PRs + Phase PRs all target feature branch
-6. **Final PR creation**: After last phase merges to feature branch, create PR to main
-7. **Preview URL**: Get from Vercel API or include in final PR notification
-
-### Design Docs Flow (New)
-
-**Before (current):**
-- Product Design Agent → Creates PR to main → Admin reviews → Merged to main
-- Tech Design Agent → Creates PR to main → Admin reviews → Merged to main
-
-**After (new):**
-- Feature branch `feature/task-{issueId}` created at workflow start
-- Product Design Agent → Creates PR to feature branch → Admin reviews with line comments → Merged to feature branch
-- Tech Design Agent → Creates PR to feature branch → Admin reviews with line comments → Merged to feature branch
-- Implementation phases → PRs to feature branch → PR Review Agent reviews → Merged to feature branch
-- Final PR from feature branch to main
-
-**Benefits:**
-- Full PR review experience for designs (line comments, Request Changes)
-- If task is abandoned, no orphaned design docs in main
-- Everything for a task stays in one branch
-- Single final PR includes design + code
-- True isolation between concurrent workflows
-- Admin can request changes on design with detailed feedback
+1. **When to create feature branch**: At start of implementation for multi-phase only (after Tech Design determines phases)
+2. **Design docs**: Always to main (no change) - we don't know phase count yet
+3. **Single-phase**: Direct to main (no change) - no feature branch overhead
+4. **Multi-phase**: Feature branch for isolation, Final Review for admin verification
+5. **Branch naming**: `feature/task-{issueId}` for task branch, `feature/task-{issueId}-phase-{N}` for phase branches
+6. **Final PR creation**: Automatic after last phase merges to feature branch
+7. **Preview URL**: Include in Final Review notification for admin verification
 
 ## Sub-tasks
 
-### Sub-task 1: Add Task Branch Tracking Infrastructure
-- [ ] Add `Task Branch` field to GitHub Projects (or use artifact comment)
-- [ ] Add `getTaskBranch()` and `setTaskBranch()` methods to adapter
+### Sub-task 1: Add "Final Review" Status to GitHub Projects
+- [ ] Add `Final Review` status/column to GitHub Projects
+- [ ] Update `STATUSES` constant in `src/server/project-management/config.ts`
+- [ ] Position between "PR Review" and "Done"
+
+### Sub-task 2: Add Task Branch Tracking Infrastructure
 - [ ] Update `ArtifactComment` type to include `taskBranch` field
+- [ ] Add `getTaskBranch()` and `setTaskBranch()` helper functions
+- [ ] Store task branch name in artifact comment on the issue
 
-### Sub-task 2: Create Feature Branch at Workflow Start
-- [ ] Create `feature/task-{issueId}` branch when workflow enters Product Design
+### Sub-task 3: Modify Implementation Agent - Feature Branch Creation (Multi-Phase Only)
+- [ ] Detect if multi-phase (phases.total > 1) at implementation start
+- [ ] Create `feature/task-{issueId}` branch from main for multi-phase
 - [ ] Store task branch name in artifact comment
-- [ ] Update workflow runner to create branch before invoking design agents
+- [ ] Single-phase: no change (continue using main as base)
 
-### Sub-task 3: Modify Design Agents - PR to Feature Branch
-- [ ] Update Product Design Agent to create PR targeting feature branch (not main)
-- [ ] Update Tech Design Agent to create PR targeting feature branch (not main)
-- [ ] Create design branch off feature branch: `feature/task-{id}-product-design`
-- [ ] Update PR base branch from `defaultBranch` to task branch
+### Sub-task 4: Modify Implementation Agent - PR Creation
+- [ ] For multi-phase: Create phase branches off task branch
+- [ ] For multi-phase: PR targets task branch (not main)
+- [ ] For single-phase: No change (PR targets main)
+- [ ] Update `generateBranchName()` to handle both flows
 
-### Sub-task 4: Update Design Review Flow
-- [ ] Design PRs target feature branch - full PR review experience preserved
-- [ ] Admin can use line comments and Request Changes as before
-- [ ] Merge design PRs to feature branch (not main)
-- [ ] Update Telegram webhook to handle design PR merge to feature branch
+### Sub-task 5: Update Phase PR Merge Handler (Telegram Webhook)
+- [ ] Detect if PR targets feature branch vs main
+- [ ] For phase PRs to feature branch: merge, advance phase counter
+- [ ] After last phase merges to feature branch: trigger final PR creation
+- [ ] For single-phase to main: no change (current behavior)
 
-### Sub-task 5: Modify Implementation Agent - Branch Creation
-- [ ] Reuse existing task feature branch (don't create new one)
-- [ ] Update `generateBranchName()` to create phase-specific branches off task branch
-- [ ] Checkout task branch before creating phase branch
+### Sub-task 6: Create Final PR Logic
+- [ ] After last phase merges to feature branch, auto-create PR to main
+- [ ] Set status to "Final Review" (new status)
+- [ ] Include comprehensive PR description:
+  - All phase summaries
+  - Links to phase PRs
+  - Design doc references
+- [ ] Notify admin with preview URL
 
-### Sub-task 6: Modify Implementation Agent - PR Creation
-- [ ] Change PR base branch from `defaultBranch` to task branch
-- [ ] Update PR body to indicate it targets feature branch
-- [ ] Update `createPullRequest()` call with correct base branch
+### Sub-task 7: Update Final PR Merge Handler
+- [ ] Handle merge of final PR (feature branch → main)
+- [ ] Move status from "Final Review" to "Done"
+- [ ] Delete feature branch and all phase branches
+- [ ] Update artifact comment with completion info
 
-### Sub-task 7: Modify PR Review Agent
-- [ ] Review phase PRs (targeting feature branch)
-- [ ] No changes needed for review logic (still reviews code changes)
-- [ ] Possibly skip certain checks that apply to main-targeted PRs
+### Sub-task 8: Add Vercel Preview URL to Final Review Notification
+- [ ] Get preview deployment URL for final PR
+- [ ] Include preview URL in Telegram notification
+- [ ] Add "Open Preview" button alongside Merge/Reject buttons
 
-### Sub-task 8: Update Merge Handler (Telegram Webhook)
-- [ ] Detect PR type: design PR, phase PR, or final PR
-- [ ] For design PRs: merge to feature branch, advance to next design phase or implementation
-- [ ] For phase PRs: merge to feature branch, trigger next phase or final PR creation
-- [ ] For final PRs: merge to main, mark as Done, delete feature branch
+### Sub-task 9: Update Notifications
+- [ ] Add `notifyFinalReviewReady()` for when final PR is created
+- [ ] Include preview URL and feature summary
+- [ ] Update merge notification to indicate "merged to main"
 
-### Sub-task 9: Create Final PR Logic
-- [ ] Detect when last phase merges to feature branch
-- [ ] Automatically create PR from feature branch to main
-- [ ] Include all phase information in final PR description
-- [ ] Include design doc summaries in final PR body
-- [ ] Request review from admin
+### Sub-task 10: Update PR Review Agent (Minor)
+- [ ] No logic changes needed (still reviews code in PRs)
+- [ ] Ensure it handles PRs targeting feature branches correctly
+- [ ] Skip any main-branch-specific checks if applicable
 
-### Sub-task 10: Add Vercel Preview URL to Notifications
-- [ ] Get preview deployment URL for feature branch PRs
-- [ ] Include preview URL in final PR notification
-- [ ] Add "Open Preview" button to Telegram notification
+### Sub-task 11: Branch Cleanup
+- [ ] Delete phase branches after merge to feature branch
+- [ ] Delete feature branch after final PR merges to main
+- [ ] Handle cleanup on rejection/abandonment
 
-### Sub-task 11: Update On-PR-Merged Script
-- [ ] Handle phase merges to feature branch differently
-- [ ] Handle final PR merge to main
-- [ ] Update phase tracking logic
-
-### Sub-task 12: Update Notifications
-- [ ] Add `notifyFinalPRReady()` for when final PR to main is created
-- [ ] Include preview URL in notification
-- [ ] Add verification step for admin
-
-### Sub-task 13: Update Documentation
-- [ ] Update multi-phase-features.md with new flow
-- [ ] Document feature branch workflow
-- [ ] Update troubleshooting guides
+### Sub-task 12: Update Documentation - E2E Flows
+- [ ] Update `docs/template/github-agents-workflow/multi-phase-features.md`
+  - Document new feature branch flow
+  - Add E2E flow diagrams for multi-phase
+  - Document Final Review status and admin verification
+- [ ] Update `docs/template/github-agents-workflow/workflow-overview.md`
+  - Add section on single-phase vs multi-phase differences
+  - Document when feature branches are used
+- [ ] Create new doc: `docs/template/github-agents-workflow/feature-branch-workflow.md`
+  - Complete E2E flow with diagrams
+  - Branch naming conventions
+  - Final Review process
+  - Preview deployment verification
+  - Troubleshooting guide
+- [ ] Update status flow diagrams in existing docs
+- [ ] Document the new "Final Review" GitHub Project column
 
 ## Files to Modify
 
 ### Core Agent Files
-- `src/agents/core-agents/implementAgent/index.ts` - PR targeting to feature branch
-- `src/agents/core-agents/prReviewAgent/index.ts` - Minor updates for phase PR context
-- `src/agents/core-agents/productDesignAgent/index.ts` - PR to feature branch instead of main
-- `src/agents/core-agents/techDesignAgent/index.ts` - PR to feature branch instead of main
+- `src/agents/core-agents/implementAgent/index.ts` - Feature branch creation, PR targeting (multi-phase only)
+- `src/agents/core-agents/prReviewAgent/index.ts` - Minor updates for feature branch PRs (if needed)
 
 ### Infrastructure Files
-- `src/server/project-management/adapters/github.ts` - Add task branch tracking methods
-- `src/server/project-management/types.ts` - Add task branch to types
-- `src/server/project-management/config.ts` - Add task branch field constant
+- `src/server/project-management/config.ts` - Add "Final Review" status
+- `src/server/project-management/adapters/github.ts` - May need minor updates for branch operations
+- `src/server/project-management/types.ts` - Update status types if needed
 
 ### Merge/Webhook Handling
-- `src/pages/api/telegram-webhook.ts` - Handle phase vs final PR merge
-- `scripts/template/on-pr-merged.ts` - Update merge logic (if re-enabled)
+- `src/pages/api/telegram-webhook.ts` - Handle phase merges, final PR creation, Final Review merge
 
 ### Artifact/Phase Tracking
 - `src/agents/lib/artifacts.ts` - Add task branch to artifact comment
-- `src/agents/lib/phases.ts` - May need updates for phase-to-feature-branch flow
 
 ### Notifications
-- `src/agents/shared/notifications.ts` - Add final PR notification with preview URL
+- `src/agents/shared/notifications.ts` - Add Final Review notification with preview URL
 
 ### Documentation
-- `docs/template/github-agents-workflow/multi-phase-features.md`
+- `docs/template/github-agents-workflow/multi-phase-features.md` - Update with new flow
+- `docs/template/github-agents-workflow/workflow-overview.md` - Add single vs multi-phase section
+- `docs/template/github-agents-workflow/feature-branch-workflow.md` - New comprehensive doc
 
-## New Files (if any)
+## Files NOT Modified (No Change)
 
-- `src/agents/lib/feature-branch.ts` - Utilities for feature branch management (optional, could be in artifacts.ts)
+These files remain unchanged because design docs and single-phase features use existing flow:
+
+- `src/agents/core-agents/productDesignAgent/index.ts` - No change (PR to main)
+- `src/agents/core-agents/techDesignAgent/index.ts` - No change (PR to main)
+- Design review handling in Telegram webhook - No change
 
 ## Testing Strategy
 
 1. **Unit Testing**
-   - Test branch name generation with new hierarchy
-   - Test artifact comment parsing/formatting with task branch
-   - Test PR base branch determination logic
+   - Test phase count detection (single vs multi)
+   - Test branch name generation for both flows
+   - Test artifact comment parsing with task branch field
 
-2. **Integration Testing**
-   - Dry run with `--dry-run` flag to verify branch/PR logic
-   - Test with single-phase feature (should still work)
-   - Test with multi-phase feature (full flow)
+2. **Integration Testing - Single-Phase**
+   - Verify single-phase workflow unchanged
+   - PR goes directly to main
+   - No feature branch created
+   - Status: Ready for Dev → PR Review → Done
 
-3. **Manual Verification**
-   - Run workflow on test issue
-   - Verify phase PRs target feature branch
-   - Verify final PR targets main
-   - Verify preview deployment URL is included
-   - Verify merge flow works correctly
+3. **Integration Testing - Multi-Phase**
+   - Feature branch created at implementation start
+   - Phase PRs target feature branch
+   - Final PR created after last phase
+   - Status includes Final Review
+   - Preview URL in notification
+
+4. **Manual Verification**
+   - Run complete multi-phase workflow
+   - Verify Vercel preview works for final PR
+   - Test admin merge flow from Final Review
+   - Verify branch cleanup after merge
 
 ## Risks and Mitigations
 
-### Risk 1: Breaking Existing Single-Phase Workflow
-**Mitigation**: Feature branch workflow should apply to all workflows, but single-phase features become `task-{id}` branch with single phase PR, then final PR to main. Test thoroughly with single-phase features.
+### Risk 1: Detecting Multi-Phase Correctly
+**Mitigation**: Use `phases.total > 1` check. This is already determined by Tech Design agent and stored in artifact comment.
 
-### Risk 2: Preview Deployment Availability
-**Mitigation**: Vercel already creates preview deployments for PRs. The preview URL may need to be fetched from GitHub deployment API or Vercel API. Fallback to GitHub PR link if preview not available.
+### Risk 2: Preview Deployment Timing
+**Mitigation**: Vercel creates previews for all PRs. May need to wait for deployment or poll for URL. Fallback to PR link if preview not ready.
 
-### Risk 3: Concurrent Workflow Conflicts
-**Mitigation**: Feature branches isolate work. Each task has its own branch space. No conflicts between concurrent workflows.
+### Risk 3: Branch Cleanup on Abandonment
+**Mitigation**: Add cleanup logic for when issues are rejected or abandoned. Consider periodic cleanup job for orphaned branches.
 
-### Risk 4: Complexity in Feedback Mode
-**Mitigation**: Feedback mode pushes to the same phase branch, which is still a child of the task branch. The PR still targets the task branch. Should work without major changes.
+### Risk 4: Existing Multi-Phase Issues In Progress
+**Mitigation**: Document migration steps. Existing issues continue with old flow until completion. New issues use new flow.
 
-### Risk 5: Branch Cleanup
-**Mitigation**: Delete phase branches after merge to task branch. Delete task branch after final PR merges to main. Use existing `deleteBranch()` method.
+### Risk 5: Telegram Webhook Complexity
+**Mitigation**: Clearly separate handling for:
+1. Design PR merge (to main) - no change
+2. Single-phase implementation PR merge (to main) - no change
+3. Multi-phase PR merge (to feature branch) - new logic
+4. Final PR merge (feature to main) - new logic
+
+## E2E Flow: Multi-Phase Feature (Complete)
+
+```
+1. Issue created in Backlog
+   └── Admin moves to Product Design
+
+2. Product Design
+   ├── Agent creates product-design branch
+   ├── Agent creates PR: product-design → main
+   ├── Admin reviews (line comments available)
+   ├── Admin approves → PR merged to main
+   └── Status → Technical Design
+
+3. Technical Design
+   ├── Agent creates tech-design branch
+   ├── Agent creates PR: tech-design → main
+   ├── Agent determines phases (e.g., 3 phases)
+   ├── Phases stored in artifact comment
+   ├── Admin reviews (line comments available)
+   ├── Admin approves → PR merged to main
+   └── Status → Ready for Development (Phase 1/3)
+
+4. Implementation Phase 1
+   ├── Agent detects multi-phase (3 phases)
+   ├── Agent creates feature/task-{id} branch from main ← NEW
+   ├── Agent creates feature/task-{id}-phase-1 branch from feature branch
+   ├── Agent implements phase 1
+   ├── Agent creates PR: phase-1 → feature/task-{id} ← NEW (targets feature branch)
+   ├── Status → PR Review
+   ├── PR Review Agent reviews code
+   ├── Agent approved → Admin merges to feature branch ← NEW
+   └── Status → Ready for Development (Phase 2/3)
+
+5. Implementation Phase 2
+   ├── Agent creates feature/task-{id}-phase-2 from feature branch
+   ├── Agent implements phase 2
+   ├── Agent creates PR: phase-2 → feature/task-{id}
+   ├── Status → PR Review
+   ├── PR Review Agent reviews
+   ├── Admin merges to feature branch
+   └── Status → Ready for Development (Phase 3/3)
+
+6. Implementation Phase 3 (Final)
+   ├── Agent creates feature/task-{id}-phase-3 from feature branch
+   ├── Agent implements phase 3
+   ├── Agent creates PR: phase-3 → feature/task-{id}
+   ├── Status → PR Review
+   ├── PR Review Agent reviews
+   ├── Admin merges to feature branch
+   └── Triggers final PR creation ← NEW
+
+7. Final Review ← NEW STATUS
+   ├── System creates PR: feature/task-{id} → main
+   ├── PR includes all phase changes + design references
+   ├── Status → Final Review
+   ├── Telegram notification with:
+   │   ├── Preview deployment URL
+   │   ├── Feature summary
+   │   └── Merge / Reject buttons
+   ├── Admin verifies complete feature via preview
+   └── Admin clicks Merge
+
+8. Completion
+   ├── Final PR merged to main
+   ├── Status → Done
+   ├── Feature branch deleted
+   ├── Phase branches deleted
+   └── Completion notification sent
+```
+
+## E2E Flow: Single-Phase Feature (No Change)
+
+```
+1. Issue created in Backlog
+   └── Admin moves to Product Design
+
+2. Product Design
+   ├── Agent creates PR → main
+   ├── Admin reviews → merged
+   └── Status → Technical Design
+
+3. Technical Design
+   ├── Agent creates PR → main
+   ├── Agent determines: 1 phase (single-phase)
+   ├── Admin reviews → merged
+   └── Status → Ready for Development (no phase indicator)
+
+4. Implementation
+   ├── Agent creates feature/issue-{id} branch from main
+   ├── Agent implements feature
+   ├── Agent creates PR → main (direct, no feature branch)
+   ├── Status → PR Review
+   ├── PR Review Agent reviews
+   ├── Admin merges → main
+   └── Status → Done
+
+(No Final Review status - same as current behavior)
+```
 
 ## Notes
 
 ### Trade-offs
-- **More PRs**: Each task now has D+N+1 PRs (D design PRs + N phase PRs + 1 final PR)
-  - Example: 2 design PRs + 3 phase PRs + 1 final = 6 PRs per task
-- **More branches**: Each task has a feature branch plus sub-branches for each PR
-- **Better isolation**: Worth the complexity for concurrent workflow support
-- **Full review experience**: Line comments and Request Changes for all stages (design + code)
-- **Preview before merge**: Admin can verify complete feature before merging to main
+- **Minimal changes**: Only implementation agent and merge handler change significantly
+- **Design agents untouched**: No risk of breaking design review flow
+- **Single-phase unchanged**: Fast path for simple features preserved
+- **Multi-phase gets isolation**: Worth the extra PR for complex features
 
 ### Backward Compatibility
-- Existing issues in progress may need special handling
-- Consider adding migration logic or documenting manual steps for in-flight issues
-
-### Vercel Preview Considerations
-- Vercel creates previews for all PRs by default
-- Preview URL format: `{project}-{hash}-{team}.vercel.app` or custom preview URL pattern
-- May need to wait for deployment before including URL in notification
+- Single-phase features: No change at all
+- Design phase: No change at all
+- Multi-phase implementation: New flow with feature branches
+- Existing in-progress issues: Continue with old flow
 
 ### Critical Files for Implementation
 
 The 5 most critical files for implementing this plan:
 
-1. `src/agents/core-agents/implementAgent/index.ts` - Core logic for branch creation and PR targeting (most changes)
-2. `src/pages/api/telegram-webhook.ts` - Merge handling for phase PRs vs final PRs (critical flow change)
-3. `src/server/project-management/adapters/github.ts` - Add task branch methods (infrastructure)
-4. `src/agents/lib/artifacts.ts` - Track task branch in artifact comment (state management)
-5. `src/agents/shared/notifications.ts` - Final PR notifications with preview URL (user-facing)
+1. `src/agents/core-agents/implementAgent/index.ts` - Feature branch creation and PR targeting for multi-phase
+2. `src/pages/api/telegram-webhook.ts` - Handle phase merges to feature branch, final PR creation, Final Review merge
+3. `src/server/project-management/config.ts` - Add "Final Review" status
+4. `src/agents/lib/artifacts.ts` - Track task branch in artifact comment
+5. `src/agents/shared/notifications.ts` - Final Review notification with preview URL
