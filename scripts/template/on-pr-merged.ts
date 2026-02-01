@@ -32,7 +32,7 @@ import { sendNotificationToOwner } from '@/server/telegram';
 import { appConfig } from '@/app.config';
 import { findByGitHubIssueNumber as findFeatureByIssue, updateFeatureRequestStatus } from '@/server/database/collections/feature-requests';
 import { findByGitHubIssueNumber as findReportByIssue, updateReport } from '@/server/database/collections/reports';
-import { parsePhaseString } from '../src/agents/lib/parsing';
+import { parsePhaseString } from '../../src/agents/lib/parsing';
 import {
     updateDesignArtifact,
     getDesignDocLink,
@@ -41,9 +41,9 @@ import {
     updateImplementationPhaseArtifact,
     parseArtifactComment,
     initializeImplementationPhases,
-} from '../src/agents/lib';
-import { readDesignDoc } from '../src/agents/lib/design-files';
-import { formatPhasesToComment, parsePhasesFromMarkdown } from '../src/agents/lib/phases';
+} from '../../src/agents/lib';
+import { readDesignDoc } from '../../src/agents/lib/design-files';
+import { formatPhasesToComment, parsePhasesFromMarkdown } from '../../src/agents/lib/phases';
 
 /**
  * Handle design PR merged event

@@ -16,13 +16,13 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import type { AgentLibraryAdapter, AgentRunResult } from '../src/agents/lib';
+import type { AgentLibraryAdapter, AgentRunResult } from '../../src/agents/lib';
 
 // Import all adapters directly
-import geminiAdapter from '../src/agents/lib/adapters/gemini';
-import openaiCodexAdapter from '../src/agents/lib/adapters/openai-codex';
-import cursorAdapter from '../src/agents/lib/adapters/cursor';
-import claudeCodeSDKAdapter from '../src/agents/lib/adapters/claude-code-sdk';
+import geminiAdapter from '../../src/agents/lib/adapters/gemini';
+import openaiCodexAdapter from '../../src/agents/lib/adapters/openai-codex';
+import cursorAdapter from '../../src/agents/lib/adapters/cursor';
+import claudeCodeSDKAdapter from '../../src/agents/lib/adapters/claude-code-sdk';
 
 // ============================================================
 // CONFIGURATION

@@ -28,7 +28,7 @@ import {
     ConfidenceLevel,
     SessionLogEntry,
     ReportSummary,
-} from '../src/server/database/collections/reports';
+} from '../../src/server/database/collections/reports';
 
 // ============================================================
 // CONFIGURATION
@@ -96,7 +96,7 @@ function loadEnv(): void {
 
 // Dynamic import for database (ESM compatibility)
 async function getDatabase() {
-    const { reports, closeDbConnection } = await import('../src/server/database');
+    const { reports, closeDbConnection } = await import('../../src/server/database');
     return { reports, closeDbConnection };
 }
 

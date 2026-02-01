@@ -21,10 +21,10 @@
  */
 
 import { Command } from 'commander';
-import type { AgentRunResult, AgentLibraryAdapter } from '../src/agents/lib';
+import type { AgentRunResult, AgentLibraryAdapter } from '../../src/agents/lib';
 
 // Import gemini adapter directly for testing
-import geminiAdapter from '../src/agents/lib/adapters/gemini';
+import geminiAdapter from '../../src/agents/lib/adapters/gemini';
 
 /**
  * Get the gemini adapter (initializing if needed)
