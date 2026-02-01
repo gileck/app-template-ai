@@ -37,12 +37,16 @@ There are **three entry points** to the workflow, but they all converge into the
          └──────────────────┬───────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      GITHUB SYNC                                             │
+│                      GITHUB SYNC (src/server/github-sync/)                   │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │ syncFeatureRequestToGitHub()  │  syncBugReportToGitHub()               │ │
-│  │ - Creates GitHub Issue        │  - Creates GitHub Issue                │ │
-│  │ - Adds to Projects board      │  - Adds to Projects board              │ │
-│  │ - Sets status to Backlog      │  - Sets status to Backlog              │ │
+│  │         │                     │         │                              │ │
+│  │         └──────────┬──────────┴─────────┘                              │ │
+│  │                    ▼                                                   │ │
+│  │           syncItemToGitHub<T>() (sync-core.ts)                         │ │
+│  │           - Creates GitHub Issue                                       │ │
+│  │           - Adds to Projects board                                     │ │
+│  │           - Sets status to Backlog                                     │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
                             │
@@ -159,7 +163,18 @@ All entry points use these shared components:
 | `sendFeatureRoutingNotification()` | Routing buttons after approval | UI, CLI |
 | `sendBugRoutingNotification()` | Routing buttons after approval | UI, CLI |
 
-### GitHub Sync (`src/server/github-sync/index.ts`)
+### GitHub Sync (`src/server/github-sync/`)
+
+The GitHub sync service uses a **shared core architecture** to eliminate duplication between feature requests and bug reports:
+
+```
+src/server/github-sync/
+├── index.ts       # Public API - type-specific wrappers
+├── sync-core.ts   # Shared sync logic (generic functions)
+└── types.ts       # Shared types and interfaces
+```
+
+**Public API (`index.ts`):**
 
 | Function | Purpose | Entry Points |
 |----------|---------|--------------|
@@ -167,6 +182,38 @@ All entry points use these shared components:
 | `syncBugReportToGitHub()` | Create GitHub issue for bug | UI, CLI |
 | `approveFeatureRequest()` | Update status + sync (UI approval flow) | UI |
 | `approveBugReport()` | Update status + sync (UI approval flow) | UI |
+
+**Shared Core (`sync-core.ts`):**
+
+Both `syncFeatureRequestToGitHub()` and `syncBugReportToGitHub()` use the same generic `syncItemToGitHub<T>()` function internally. This 9-step workflow is defined once:
+
+1. Get item from database
+2. Check if already synced (return existing result)
+3. Initialize project management adapter
+4. Create GitHub issue (title, body, labels)
+5. Add issue to project board
+6. Set status to Backlog
+7. Create empty artifact comment
+8. Update MongoDB with GitHub fields
+9. Send routing notification (unless skipped)
+
+Similarly, `approveFeatureRequest()` and `approveBugReport()` use a shared `approveItem<T>()` function.
+
+**Configuration Pattern:**
+
+Each item type provides a `SyncItemConfig<T>` with type-specific behavior:
+
+```typescript
+const featureRequestSyncConfig: SyncItemConfig<FeatureRequestDocument> = {
+    getFromDB: (id) => featureRequests.findFeatureRequestById(id),
+    getTitle: (item) => item.title,
+    buildBody: buildFeatureIssueBody,
+    getLabels: getFeatureLabels,
+    // ... other type-specific functions
+};
+```
+
+This architecture makes it easy to add new item types in the future while keeping the core sync logic in one place.
 
 ### MongoDB Collections
 
