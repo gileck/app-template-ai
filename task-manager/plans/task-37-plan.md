@@ -196,9 +196,17 @@ All new feature branch operations MUST be logged to the issue logger for debuggi
 ## Sub-tasks
 
 ### Sub-task 1: Add "Final Review" Status to GitHub Projects
-- [ ] Add `Final Review` status/column to GitHub Projects
+- [ ] Add `Final Review` status/column to GitHub Projects (manually in GitHub UI)
 - [ ] Update `STATUSES` constant in `src/server/project-management/config.ts`
 - [ ] Position between "PR Review" and "Done"
+- [ ] Update `docs/template/init-github-projects-workflow.md`:
+  - Add "Final Review" to Status column table
+  - Document when this status is used (multi-phase only)
+  - Add to troubleshooting section if missing
+- [ ] Update `scripts/template/verify-github-projects-setup.ts`:
+  - Update expected status count from 6 to 7 (or 8 with Product Development)
+  - Add verification that "Final Review" exists
+  - Add helpful error message if missing
 
 ### Sub-task 2: Add Task Branch Tracking Infrastructure
 - [ ] Update `ArtifactComment` type to include `taskBranch` field
