@@ -9,8 +9,8 @@ key_points:
   - Request Changes triggers revision cycle on same PR
   - 5-minute undo window for accidental Request Changes clicks
 related_docs:
-  - github-agents-workflow/overview.md
-  - github-agents-workflow/mongodb-github-status.md
+  - overview.md
+  - mongodb-github-status.md
 ---
 
 # GitHub Agents Workflow - End-to-End Scenarios

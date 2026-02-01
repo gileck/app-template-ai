@@ -403,12 +403,12 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 **Summary:** 6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically.
 
 **Key Points:**
-- [object Object]
-- [object Object]
-- [object Object]
-- All actions logged to `agent-logs/issue-{N}.md`
+- Entry points: UI feature request, UI bug report, or CLI
+- Agents: Product Design, Tech Design, Implementor, PR Review
+- Status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)
+- All actions logged to agent-logs/issue-N.md
 
-**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/github-agents-workflow/workflow-e2e.md), [mongodb-github-status.md](docs/template/github-agents-workflow/github-agents-workflow/mongodb-github-status.md), [agent-logging.md](docs/template/github-agents-workflow/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/github-agents-workflow/running-agents.md)
+**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [mongodb-github-status.md](docs/template/github-agents-workflow/mongodb-github-status.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md)
 
 ---
 
@@ -424,7 +424,7 @@ CLI for managing feature requests and bug reports. Use this when working with `y
 - update command: change status/priority with --dry-run
 - ID prefix matching supported (first 8 chars of ObjectId)
 
-**Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/github-agents-workflow/workflow-e2e.md)
+**Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
 
 ---
 
@@ -440,7 +440,7 @@ Complete setup instructions for GitHub Projects and AI agents. Use this when set
 - Two tokens: GITHUB_TOKEN (admin/projects) + GITHUB_BOT_TOKEN (PRs/issues)
 - Optional: Telegram topics for organized notifications
 
-**Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/github-agents-workflow/telegram-notifications.md)
+**Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
 
 ---
 
@@ -456,7 +456,7 @@ Visual workflows for all workflow scenarios. Use this to understand specific flo
 - Request Changes triggers revision cycle on same PR
 - 5-minute undo window for accidental Request Changes clicks
 
-**Docs:** [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [mongodb-github-status.md](docs/template/github-agents-workflow/github-agents-workflow/mongodb-github-status.md)
+**Docs:** [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [overview.md](docs/template/github-agents-workflow/overview.md), [mongodb-github-status.md](docs/template/github-agents-workflow/mongodb-github-status.md)
 
 ---
 

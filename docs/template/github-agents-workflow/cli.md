@@ -9,8 +9,8 @@ key_points:
   - "update command: change status/priority with --dry-run"
   - "ID prefix matching supported (first 8 chars of ObjectId)"
 related_docs:
-  - github-agents-workflow/overview.md
-  - github-agents-workflow/workflow-e2e.md
+  - overview.md
+  - workflow-e2e.md
 ---
 
 # Agent Workflow CLI

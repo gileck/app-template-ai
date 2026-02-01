@@ -9,8 +9,8 @@ key_points:
   - "Two tokens: GITHUB_TOKEN (admin/projects) + GITHUB_BOT_TOKEN (PRs/issues)"
   - "Optional: Telegram topics for organized notifications"
 related_docs:
-  - github-agents-workflow/overview.md
-  - telegram-notifications.md
+  - overview.md
+  - ../telegram-notifications.md
 ---
 
 # GitHub Agents Workflow - Setup Guide

@@ -4,18 +4,18 @@ description: Architecture and flow of the AI-powered feature/bug pipeline. Use t
 summary: "6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically."
 priority: 2
 key_points:
-  - Entry points: UI feature request, UI bug report, or CLI (`yarn agent-workflow create`)
-  - Agents: Product Design, Tech Design, Implementor, PR Review
-  - Status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)
-  - All actions logged to `agent-logs/issue-{N}.md`
+  - "Entry points: UI feature request, UI bug report, or CLI"
+  - "Agents: Product Design, Tech Design, Implementor, PR Review"
+  - "Status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)"
+  - "All actions logged to agent-logs/issue-N.md"
 related_docs:
-  - github-agents-workflow/setup-guide.md
-  - github-agents-workflow/cli.md
-  - github-agents-workflow/workflow-e2e.md
-  - github-agents-workflow/mongodb-github-status.md
-  - github-agents-workflow/agent-logging.md
-  - github-agents-workflow/telegram-integration.md
-  - github-agents-workflow/running-agents.md
+  - setup-guide.md
+  - cli.md
+  - workflow-e2e.md
+  - mongodb-github-status.md
+  - agent-logging.md
+  - telegram-integration.md
+  - running-agents.md
 ---
 
 # GitHub Agents Workflow - Overview
