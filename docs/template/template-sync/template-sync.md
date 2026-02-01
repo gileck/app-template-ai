@@ -533,6 +533,51 @@ yarn sync-template --auto-skip-conflicts
 | `--auto-override-conflicts` | ✅ Applied | 🔄 Replaced with template |
 | `--auto-skip-conflicts` | ✅ Applied | ⏭️ Skipped |
 
+### Accept All Mode (`--yes`)
+
+For quick syncing without interactive prompts, use the `--yes` flag:
+
+```bash
+# Accept all template changes (same as --auto-override-conflicts)
+yarn sync-template --yes
+# or
+yarn sync-template -y
+```
+
+This bypasses all confirmation prompts and applies all template changes. Use with caution as it will override any diverged files with the template version.
+
+### Batch Operations
+
+When resolving conflicts interactively, you can apply the same action to all files:
+
+1. **Batch vs Individual**: When conflicts are detected, you'll be asked whether to apply the same action to all or choose per file.
+
+2. **Apply to All**: During individual resolution, options like "Accept template (apply to all)" let you apply the same resolution to remaining files.
+
+3. **Resolution Options**:
+   - **Accept template version** - Replace with template version
+   - **Keep project version** - Keep your version and add to overrides
+   - **Merge manually** - Create .template file for manual merge
+   - **Contribute to template** - Mark for upstream contribution
+   - **Skip for now** - Decide later
+
+### Contribute to Template
+
+When you have project changes you want to contribute back to the template, select "Contribute to template" during conflict resolution. This:
+
+1. Keeps your project version
+2. Adds the file to projectOverrides
+3. Marks the file for contribution
+
+After syncing, you'll see a reminder:
+```
+📤 Files marked for contribution to template:
+   • src/client/features/auth/store.ts
+
+To contribute these files, use:
+  yarn sync-template --project-diffs
+```
+
 ### Initialize Baseline Hashes
 
 For projects that were synced before the hash system, or to establish a clean baseline:
@@ -923,6 +968,7 @@ jobs:
 | `yarn sync-template --dry-run` | Preview changes |
 | `yarn sync-template --force` | Force sync with uncommitted changes |
 | `yarn sync-template --use-https` | Use HTTPS instead of SSH for cloning |
+| `yarn sync-template --yes` or `-y` | Accept all template changes (non-interactive) |
 | `yarn sync-template --diff-summary` | Generate full diff report (all differences) |
 | `yarn sync-template --init-hashes` | Initialize baseline hashes for all files (legacy) |
 | `yarn sync-template --changelog` | Show template commits since last sync |

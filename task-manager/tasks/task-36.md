@@ -6,6 +6,7 @@ size: L
 complexity: Medium
 status: TODO
 dateAdded: 2026-02-01
+planFile: task-manager/plans/task-36-plan.md
 ---
 
 # Task 36: Improve sync-template with Interactive Conflict Resolution
