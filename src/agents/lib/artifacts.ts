@@ -59,6 +59,12 @@ export interface ArtifactComment {
     productDesign?: DesignArtifact;
     techDesign?: DesignArtifact;
     implementation?: ImplementationArtifact;
+    /**
+     * Feature branch for multi-phase implementations
+     * Format: "feature/task-{issueId}"
+     * Only set for multi-phase features (phases > 1)
+     */
+    taskBranch?: string;
 }
 
 export interface GitHubComment {
@@ -229,6 +235,15 @@ export function parseArtifactComment(comments: GitHubComment[]): ArtifactComment
         }
     }
 
+    // Parse task branch (for multi-phase feature branch workflow)
+    // Format: **Feature Branch:** `feature/task-123`
+    const taskBranchMatch = comment.body.match(
+        /\*\*Feature Branch:\*\*\s*`([^`]+)`/
+    );
+    if (taskBranchMatch) {
+        artifact.taskBranch = taskBranchMatch[1];
+    }
+
     // Return the artifact even if empty (for existence check)
     return artifact;
 }
@@ -253,6 +268,33 @@ export function getTechDesignPath(artifact: ArtifactComment | null): string | nu
         return null;
     }
     return artifact.techDesign.path;
+}
+
+/**
+ * Extract task branch from artifact
+ * @returns Task branch name if set (multi-phase feature), null otherwise
+ */
+export function getTaskBranch(artifact: ArtifactComment | null): string | null {
+    if (!artifact?.taskBranch) {
+        return null;
+    }
+    return artifact.taskBranch;
+}
+
+/**
+ * Generate task branch name for multi-phase feature
+ * @returns Branch name: "feature/task-{issueNumber}"
+ */
+export function generateTaskBranchName(issueNumber: number): string {
+    return `feature/task-${issueNumber}`;
+}
+
+/**
+ * Generate phase branch name for a specific phase
+ * @returns Branch name: "feature/task-{issueNumber}-phase-{phase}"
+ */
+export function generatePhaseBranchName(issueNumber: number, phase: number): string {
+    return `feature/task-${issueNumber}-phase-${phase}`;
 }
 
 // ============================================================
@@ -350,6 +392,15 @@ ${phaseRows.join('\n')}`);
 |-------|--------|-----|
 | Phase 1/1 | ${emoji} ${label} | ${prLink} |`);
         }
+    }
+
+    // Feature Branch section (for multi-phase workflow)
+    if (artifacts.taskBranch) {
+        sections.push(`## Feature Branch
+
+**Feature Branch:** \`${artifacts.taskBranch}\`
+
+*Multi-phase feature using feature branch workflow. Phase PRs target this branch.*`);
     }
 
     // Return empty string if nothing to show
@@ -562,4 +613,67 @@ export async function initializeImplementationPhases(
 
     await saveArtifactComment(adapter, issueNumber, existingArtifact);
     console.log(`  Initialized ${totalPhases} implementation phases in artifact comment`);
+}
+
+// ============================================================
+// TASK BRANCH MANAGEMENT (Multi-Phase Feature Branch Workflow)
+// ============================================================
+
+/**
+ * Set task branch in artifact comment
+ * Used for multi-phase features to track the feature branch
+ *
+ * @param adapter Project management adapter
+ * @param issueNumber Issue number
+ * @param taskBranch Task branch name (e.g., "feature/task-123")
+ */
+export async function setTaskBranch(
+    adapter: ProjectManagementAdapter,
+    issueNumber: number,
+    taskBranch: string
+): Promise<void> {
+    const comments = await adapter.getIssueComments(issueNumber);
+    const existingArtifact = parseArtifactComment(comments) || {};
+
+    existingArtifact.taskBranch = taskBranch;
+
+    await saveArtifactComment(adapter, issueNumber, existingArtifact);
+    console.log(`  [LOG:FEATURE_BRANCH] Set task branch in artifact: ${taskBranch}`);
+}
+
+/**
+ * Clear task branch from artifact comment
+ * Used after final PR is merged and feature branch is deleted
+ *
+ * @param adapter Project management adapter
+ * @param issueNumber Issue number
+ */
+export async function clearTaskBranch(
+    adapter: ProjectManagementAdapter,
+    issueNumber: number
+): Promise<void> {
+    const comments = await adapter.getIssueComments(issueNumber);
+    const existingArtifact = parseArtifactComment(comments) || {};
+
+    delete existingArtifact.taskBranch;
+
+    await saveArtifactComment(adapter, issueNumber, existingArtifact);
+    console.log(`  [LOG:FEATURE_BRANCH] Cleared task branch from artifact`);
+}
+
+/**
+ * Get task branch from issue comments
+ * Convenience function that fetches comments and extracts task branch
+ *
+ * @param adapter Project management adapter
+ * @param issueNumber Issue number
+ * @returns Task branch name if set, null otherwise
+ */
+export async function getTaskBranchFromIssue(
+    adapter: ProjectManagementAdapter,
+    issueNumber: number
+): Promise<string | null> {
+    const comments = await adapter.getIssueComments(issueNumber);
+    const artifact = parseArtifactComment(comments);
+    return getTaskBranch(artifact);
 }
