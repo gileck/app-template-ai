@@ -1,3 +1,18 @@
+---
+title: Agent Workflow CLI
+description: CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
+summary: "Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live GitHub status), `update` (change status/priority). Supports `--auto-approve` and `--route` for automated workflows."
+priority: 3
+key_points:
+  - "list command: filter by --type, --status, --source"
+  - "get command: shows live GitHub Project status"
+  - "update command: change status/priority with --dry-run"
+  - "ID prefix matching supported (first 8 chars of ObjectId)"
+related_docs:
+  - github-agents-workflow/overview.md
+  - github-agents-workflow/workflow-e2e.md
+---
+
 # Agent Workflow CLI
 
 Command-line interface for managing feature requests and bug reports that feed into the GitHub agents workflow.

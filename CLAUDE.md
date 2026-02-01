@@ -82,6 +82,22 @@ Single API endpoint pattern with React Query. Use this when creating/calling API
 
 ---
 
+## GitHub Agents Workflow Overview
+
+Architecture and flow of the AI-powered feature/bug pipeline. Use this to understand the agent workflow system.
+
+**Summary:** 6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically.
+
+**Key Points:**
+- [object Object]
+- [object Object]
+- [object Object]
+- All actions logged to `agent-logs/issue-{N}.md`
+
+**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/github-agents-workflow/workflow-e2e.md), [mongodb-github-status.md](docs/template/github-agents-workflow/github-agents-workflow/mongodb-github-status.md), [agent-logging.md](docs/template/github-agents-workflow/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/github-agents-workflow/running-agents.md)
+
+---
+
 ## Mobile-First Philosophy
 
 All UI must be designed for mobile screens first (~400px width). Use this when implementing any UI.
@@ -123,6 +139,22 @@ Single-admin setup via environment variable. Use this when implementing admin fe
 
 ---
 
+## Agent Workflow CLI
+
+CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
+
+**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live GitHub status), `update` (change status/priority). Supports `--auto-approve` and `--route` for automated workflows.
+
+**Key Points:**
+- list command: filter by --type, --status, --source
+- get command: shows live GitHub Project status
+- update command: change status/priority with --dry-run
+- ID prefix matching supported (first 8 chars of ObjectId)
+
+**Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/github-agents-workflow/workflow-e2e.md)
+
+---
+
 ## Configuration Files (Template/Project Split)
 
 Config files use a split pattern for template updates without losing project customizations. Use this when modifying ESLint, Next.js, or TypeScript configs.
@@ -151,6 +183,22 @@ Feature-based folder structure for client code. Use this when organizing client-
 - Import from feature index, not internal files
 
 **Rules:** [feature-based-structure](.ai/skills/template/feature-based-structure/SKILL.md)
+
+---
+
+## GitHub Agents Workflow Setup
+
+Complete setup instructions for GitHub Projects and AI agents. Use this when setting up the workflow for the first time.
+
+**Summary:** Setup requires: GitHub Project with 6-column Status field and Review Status field, two GitHub tokens (admin + bot), optional Telegram integration. Run `yarn verify-setup` to check configuration.
+
+**Key Points:**
+- Create GitHub Project with 6-column Status field
+- Create Review Status field (Waiting for Review, Approved, Request Changes, Rejected)
+- Two tokens: GITHUB_TOKEN (admin/projects) + GITHUB_BOT_TOKEN (PRs/issues)
+- Optional: Telegram topics for organized notifications
+
+**Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/github-agents-workflow/telegram-notifications.md)
 
 ---
 
@@ -350,6 +398,22 @@ AI-powered feature request and bug fix pipeline. Use this for automated feature/
 **Summary:** 6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Multi-phase features split into sequential PRs.
 
 **Docs:** [init-github-projects-workflow.md](docs/template/init-github-projects-workflow.md)
+
+---
+
+## GitHub Agents Workflow E2E Scenarios
+
+Visual workflows for all workflow scenarios. Use this to understand specific flows like multi-phase features, request changes, or rejections.
+
+**Summary:** Comprehensive visual diagrams for: simple features, multi-phase features (L/XL split into phases), bug fixes, design/implementation request changes flows, undo actions (5-min window), clarification flows, and rejection scenarios.
+
+**Key Points:**
+- Simple features can skip design phases and go straight to implementation
+- Multi-phase features create sequential PRs (Phase 1/3, 2/3, 3/3)
+- Request Changes triggers revision cycle on same PR
+- 5-minute undo window for accidental Request Changes clicks
+
+**Docs:** [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [overview.md](docs/template/github-agents-workflow/github-agents-workflow/overview.md), [mongodb-github-status.md](docs/template/github-agents-workflow/github-agents-workflow/mongodb-github-status.md)
 
 ---
 
