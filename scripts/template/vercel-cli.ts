@@ -876,11 +876,36 @@ async function setEnvVar(
  * This uses the Vercel API directly to avoid trailing newline issues
  * that occur when piping through `echo` to `vercel env add`.
  */
+/**
+ * Trigger a redeployment by pushing an empty git commit
+ */
+async function triggerRedeploy(message: string): Promise<void> {
+    const { execSync } = await import('child_process');
+
+    console.log('\n🚀 Triggering Vercel Redeployment');
+    console.log('─'.repeat(70));
+    console.log(`   Creating empty commit: "${message}"`);
+
+    execSync(`git commit --allow-empty -m "${message}"`, {
+        stdio: 'inherit',
+        encoding: 'utf-8'
+    });
+
+    console.log('   Pushing to remote...');
+    execSync('git push', {
+        stdio: 'inherit',
+        encoding: 'utf-8'
+    });
+
+    console.log('✅ Redeployment triggered. Check: https://vercel.com/dashboard');
+}
+
 async function syncEnvVars(
     config: Config,
     options: {
         envFile: string;
         dryRun: boolean;
+        redeploy: boolean;
     }
 ): Promise<void> {
     // Variables that should only go to preview environment
@@ -1003,8 +1028,11 @@ async function syncEnvVars(
     console.log(`Synced: ${synced} | Failed: ${skipped}`);
     if (options.dryRun) {
         console.log('\n⚠️  This was a dry run. Run without --dry-run to apply changes.');
-    } else {
+    } else if (options.redeploy && synced > 0) {
+        await triggerRedeploy('chore: sync env vars and redeploy');
+    } else if (!options.redeploy) {
         console.log('\n⚠️  Remember to redeploy to pick up the new env vars!');
+        console.log('   Run: yarn vercel-cli redeploy');
     }
     console.log('');
 }
@@ -1201,6 +1229,7 @@ program
     .description('Sync all env vars from .env.local to Vercel (PREVIEW_USER_ID goes to preview only)')
     .option('--file <path>', 'Path to .env file', '.env.local')
     .option('--dry-run', 'Show what would be synced without making changes', false)
+    .option('--redeploy', 'Automatically trigger redeployment after sync', false)
     .action(async (options) => {
         try {
             const globalOpts = program.opts();
@@ -1210,6 +1239,7 @@ program
             await syncEnvVars(config, {
                 envFile: options.file,
                 dryRun: options.dryRun,
+                redeploy: options.redeploy,
             });
         } catch (error) {
             handleError(error);
