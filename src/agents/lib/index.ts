@@ -475,6 +475,13 @@ export {
     updateImplementationArtifact,
     updateImplementationPhaseArtifact,
     initializeImplementationPhases,
+    // Task branch utilities (for feature branch workflow)
+    getTaskBranch,
+    generateTaskBranchName,
+    generatePhaseBranchName,
+    setTaskBranch,
+    clearTaskBranch,
+    getTaskBranchFromIssue,
 } from './artifacts';
 
 // Re-export design file utilities
