@@ -7,7 +7,13 @@
 import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument } from '@/server/database/collections/feature-requests/types';
 import type { ReportDocument } from '@/server/database/collections/reports/types';
+import { getProjectManagementAdapter } from '@/server/project-management';
 import { parseArgs } from '../utils/parse-args';
+
+interface GitHubProjectInfo {
+    status: string | null;
+    reviewStatus: string | null;
+}
 
 /**
  * Format date for display
@@ -91,9 +97,28 @@ async function tryFindReport(id: string): Promise<ReportDocument | null> {
 }
 
 /**
+ * Fetch GitHub Project status for an item
+ */
+async function fetchGitHubProjectInfo(projectItemId: string): Promise<GitHubProjectInfo | null> {
+    try {
+        const adapter = getProjectManagementAdapter();
+        await adapter.init();
+        const item = await adapter.getItem(projectItemId);
+        if (!item) return null;
+        return {
+            status: item.status,
+            reviewStatus: item.reviewStatus,
+        };
+    } catch (error) {
+        console.warn(`  Warning: Could not fetch GitHub Project status: ${error}`);
+        return null;
+    }
+}
+
+/**
  * Print feature request details
  */
-function printFeatureDetails(feature: FeatureRequestDocument): void {
+function printFeatureDetails(feature: FeatureRequestDocument, githubInfo: GitHubProjectInfo | null): void {
     console.log('=== Feature Request ===\n');
     console.log(`  ID:          ${feature._id}`);
     console.log(`  Title:       ${feature.title}`);
@@ -107,10 +132,12 @@ function printFeatureDetails(feature: FeatureRequestDocument): void {
     if (feature.githubIssueUrl) {
         console.log(`\n  GitHub Issue: #${feature.githubIssueNumber}`);
         console.log(`  GitHub URL:   ${feature.githubIssueUrl}`);
-    }
-
-    if (feature.githubProjectItemId) {
-        console.log(`  Project Item: ${feature.githubProjectItemId}`);
+        if (githubInfo) {
+            console.log(`  GitHub Status: ${githubInfo.status || 'N/A'}`);
+            if (githubInfo.reviewStatus) {
+                console.log(`  Review Status: ${githubInfo.reviewStatus}`);
+            }
+        }
     }
 
     console.log(`\n  Description:\n    ${feature.description.split('\n').join('\n    ')}`);
@@ -130,7 +157,7 @@ function printFeatureDetails(feature: FeatureRequestDocument): void {
 /**
  * Print report details
  */
-function printReportDetails(report: ReportDocument): void {
+function printReportDetails(report: ReportDocument, githubInfo: GitHubProjectInfo | null): void {
     console.log('=== Bug Report ===\n');
     console.log(`  ID:          ${report._id}`);
     console.log(`  Status:      ${report.status}`);
@@ -153,10 +180,12 @@ function printReportDetails(report: ReportDocument): void {
     if (report.githubIssueUrl) {
         console.log(`\n  GitHub Issue: #${report.githubIssueNumber}`);
         console.log(`  GitHub URL:   ${report.githubIssueUrl}`);
-    }
-
-    if (report.githubProjectItemId) {
-        console.log(`  Project Item: ${report.githubProjectItemId}`);
+        if (githubInfo) {
+            console.log(`  GitHub Status: ${githubInfo.status || 'N/A'}`);
+            if (githubInfo.reviewStatus) {
+                console.log(`  Review Status: ${githubInfo.reviewStatus}`);
+            }
+        }
     }
 
     if (report.description) {
@@ -216,10 +245,21 @@ export async function handleGet(args: string[]): Promise<void> {
         process.exit(1);
     }
 
+    // Fetch GitHub Project info if available
+    let githubInfo: GitHubProjectInfo | null = null;
+    const projectItemId = result.type === 'feature'
+        ? (result.item as FeatureRequestDocument).githubProjectItemId
+        : (result.item as ReportDocument).githubProjectItemId;
+
+    if (projectItemId) {
+        console.log('Fetching GitHub Project status...\n');
+        githubInfo = await fetchGitHubProjectInfo(projectItemId);
+    }
+
     if (result.type === 'feature') {
-        printFeatureDetails(result.item);
+        printFeatureDetails(result.item, githubInfo);
     } else {
-        printReportDetails(result.item);
+        printReportDetails(result.item, githubInfo);
     }
 
     console.log('');
