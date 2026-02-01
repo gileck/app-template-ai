@@ -1233,7 +1233,13 @@ async function handleMergeCallback(
         let isMultiPhaseMiddle = false;
 
         if (parsedPhase && item) {
-            console.log(`Telegram webhook: Multi-phase feature: Phase ${parsedPhase.current}/${parsedPhase.total}`);
+            const taskBranch = getTaskBranch(artifact);
+            const isFeatureBranchWorkflow = !!taskBranch;
+            const workflowType = isFeatureBranchWorkflow ? 'feature branch' : 'direct-to-main';
+            console.log(`Telegram webhook: Multi-phase feature: Phase ${parsedPhase.current}/${parsedPhase.total} (${workflowType})`);
+            if (isFeatureBranchWorkflow) {
+                console.log(`  [LOG:FEATURE_BRANCH] Phase ${parsedPhase.current}/${parsedPhase.total} PR merged to feature branch`);
+            }
 
             // Update artifact comment to mark phase as merged
             try {
@@ -1294,7 +1300,7 @@ async function handleMergeCallback(
                 // Final phase complete - check if using feature branch workflow
                 console.log(`  [LOG:FEATURE_BRANCH] All ${parsedPhase.total} phases complete!`);
 
-                const taskBranch = getTaskBranch(artifact);
+                // taskBranch already defined above for this block
 
                 if (taskBranch) {
                     // Feature branch workflow: Create Final PR to main
