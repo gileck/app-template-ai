@@ -297,9 +297,8 @@ async function processItem(
                     console.log(`  Loaded product design from issue body (fallback)`);
                 }
             }
-
-            else {
-                console.log(` ⚠️  No product design found for issue ⚠️`);
+            if (!productDesign) {
+                console.log(`  ⚠️  No product design found for issue ⚠️`);
             }
 
             // Check for existing tech design in file (for idempotency)
