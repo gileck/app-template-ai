@@ -9,8 +9,8 @@
 
 - **Total Tasks:** 36
 - **Open:** 13
-- **In Progress:** 1
-- **Done:** 22
+- **In Progress:** 0
+- **Done:** 23
 
 ---
 
@@ -44,17 +44,12 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## 🔄 In Progress (1)
-
-| # | Title | Size | Priority |
-|---|-------|------|----------|
-| 34 | Add list/get/update Commands to Workflow CLI | M | **Medium** |
-
-## ✅ Completed Tasks (22)
+## ✅ Completed Tasks (23)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
 | 36 | ~~Improve sync-template with Interactive Conflict Resolution~~ | 2026-02-01 | `51c495c` |
+| 34 | ~~Add list/get/update Commands to Workflow CLI~~ | 2026-02-01 | `ccbc23a` |
 | 31 | ~~Remove Legacy MongoDB Design Fields (productDesign/techDesign)~~ | 2026-01-28 | - |
 | 30 | ~~Telegram Interactive Clarification Flow for Agents~~ | 2026-01-28 | - |
 | 29 | ~~Disable Plan Mode When Addressing PR Feedback~~ | 2026-01-28 | `a0a531e` |

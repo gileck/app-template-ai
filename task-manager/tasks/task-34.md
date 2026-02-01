@@ -4,9 +4,11 @@ title: Add list/get/update Commands to Workflow CLI
 priority: Medium
 size: M
 complexity: Low
-status: In Progress
+status: Done
 dateAdded: 2026-02-01
 dateUpdated: 2026-02-01
+dateCompleted: 2026-02-01
+completionCommit: ccbc23a
 planFile: task-manager/plans/task-34-plan.md
 ---
 
