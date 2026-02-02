@@ -282,7 +282,17 @@ export function getTaskBranch(artifact: ArtifactComment | null): string | null {
 }
 
 /**
- * Generate task branch name for multi-phase feature
+ * Generate task branch name for multi-phase feature (feature branch)
+ *
+ * This is the BASE BRANCH for all phase PRs in a multi-phase feature.
+ * Phase branches are created from this branch, and phase PRs target this branch.
+ * After all phases complete, a final PR is created from this branch to main.
+ *
+ * Naming convention:
+ * - Task branch (this): "feature/task-{issueNumber}" - base for all phases
+ * - Phase branches: "feature/task-{issueNumber}-phase-{N}" - individual phases
+ * - Single-phase: "feature/issue-{issueNumber}-{slug}" - direct to main (different convention)
+ *
  * @returns Branch name: "feature/task-{issueNumber}"
  */
 export function generateTaskBranchName(issueNumber: number): string {
@@ -290,10 +300,20 @@ export function generateTaskBranchName(issueNumber: number): string {
 }
 
 /**
- * Generate phase branch name for a specific phase
+ * Generate phase branch name for a specific phase implementation
+ *
+ * Phase branches are created FROM the task branch and PRs TARGET the task branch.
+ * This provides isolation for each phase while accumulating changes on the feature branch.
+ *
+ * @param issueNumber - The GitHub issue number
+ * @param phase - The phase number (must be >= 1)
  * @returns Branch name: "feature/task-{issueNumber}-phase-{phase}"
+ * @throws Error if phase is less than 1
  */
 export function generatePhaseBranchName(issueNumber: number, phase: number): string {
+    if (phase < 1) {
+        throw new Error(`Invalid phase number: ${phase}. Phase must be >= 1`);
+    }
     return `feature/task-${issueNumber}-phase-${phase}`;
 }
 
