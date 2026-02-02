@@ -675,6 +675,17 @@ export async function clearTaskBranch(
     const comments = await adapter.getIssueComments(issueNumber);
     const existingArtifact = parseArtifactComment(comments) || {};
 
+    // Log existing artifact state for debugging
+    console.log(`  [LOG:FEATURE_BRANCH] clearTaskBranch: Found ${comments.length} comments`);
+    if (existingArtifact.implementation?.phases) {
+        console.log(`  [LOG:FEATURE_BRANCH] clearTaskBranch: Preserving ${existingArtifact.implementation.phases.length} phases:`);
+        existingArtifact.implementation.phases.forEach(p => {
+            console.log(`    Phase ${p.phase}/${p.totalPhases}: ${p.status} (PR #${p.prNumber || 'none'})`);
+        });
+    } else {
+        console.log(`  [LOG:FEATURE_BRANCH] clearTaskBranch: No implementation phases found in artifact`);
+    }
+
     delete existingArtifact.taskBranch;
 
     await saveArtifactComment(adapter, issueNumber, existingArtifact);

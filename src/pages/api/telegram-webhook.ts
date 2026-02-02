@@ -1211,15 +1211,21 @@ async function handleMergeCallback(
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
             console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
+            console.warn(`  DEBUG: This prevents artifact update to 'merged' status`);
             // Still return success if PR was merged - issue just wasn't in project
             if (alreadyMerged || !commitComment) {
                 return { success: true };
             }
+        } else {
+            console.log(`Telegram webhook: found project item for issue #${issueNumber} (itemId: ${item.itemId})`);
         }
 
         // 4. Check for multi-phase implementation
         const phase = item ? await adapter.getImplementationPhase(item.itemId) : null;
+        console.log(`Telegram webhook: Implementation Phase field value: ${phase || '(not set)'}`);
         const parsedPhase = parsePhaseString(phase);
+        console.log(`Telegram webhook: Parsed phase: ${parsedPhase ? `${parsedPhase.current}/${parsedPhase.total}` : '(null)'}`);
+        console.log(`Telegram webhook: Artifact update condition: item=${!!item}, parsedPhase=${!!parsedPhase}`);
 
         // Get phase name from artifact comment if available
         const issueComments = await adapter.getIssueComments(issueNumber);
@@ -1243,6 +1249,7 @@ async function handleMergeCallback(
 
             // Update artifact comment to mark phase as merged
             try {
+                console.log(`Telegram webhook: updating artifact - phase ${parsedPhase.current}/${parsedPhase.total} to 'merged' for PR #${prNumber}`);
                 await updateImplementationPhaseArtifact(
                     adapter,
                     issueNumber,
@@ -1252,9 +1259,13 @@ async function handleMergeCallback(
                     'merged',
                     prNumber
                 );
-                console.log('Telegram webhook: updated artifact comment - phase marked as merged');
+                console.log('Telegram webhook: ✅ artifact comment updated - phase marked as merged');
             } catch (artifactError) {
-                console.warn('Telegram webhook: failed to update artifact comment:', artifactError);
+                console.error('Telegram webhook: ❌ failed to update artifact comment');
+                console.error('  Error:', artifactError instanceof Error ? artifactError.message : String(artifactError));
+                if (artifactError instanceof Error && artifactError.stack) {
+                    console.error('  Stack:', artifactError.stack);
+                }
             }
 
             if (parsedPhase.current < parsedPhase.total) {
@@ -1413,6 +1424,7 @@ async function handleMergeCallback(
         } else if (item) {
             // Single-phase feature
             try {
+                console.log(`Telegram webhook: updating artifact - single-phase to 'merged' for PR #${prNumber}`);
                 // Use Phase 1/1 format for consistency
                 await updateImplementationPhaseArtifact(
                     adapter,
@@ -1423,9 +1435,10 @@ async function handleMergeCallback(
                     'merged',
                     prNumber
                 );
-                console.log('Telegram webhook: updated artifact comment - implementation marked as merged');
+                console.log('Telegram webhook: ✅ artifact comment updated - implementation marked as merged');
             } catch (artifactError) {
-                console.warn('Telegram webhook: failed to update artifact comment:', artifactError);
+                console.error('Telegram webhook: ❌ failed to update artifact comment (single-phase)');
+                console.error('  Error:', artifactError instanceof Error ? artifactError.message : String(artifactError));
             }
 
             // Post completion comment
@@ -1433,6 +1446,11 @@ async function handleMergeCallback(
             await adapter.addIssueComment(issueNumber, completionComment);
 
             statusMessage = '📊 Status: Done';
+        } else {
+            // Neither condition met - item not found
+            console.warn(`Telegram webhook: ⚠️ SKIPPING artifact update - item not found in project`);
+            console.warn(`  DEBUG: item=${!!item}, parsedPhase=${!!parsedPhase}`);
+            console.warn(`  DEBUG: This means the artifact will NOT be updated to 'merged' status`);
         }
 
         // 5. For final/single phase: Update status to Done, update MongoDB
