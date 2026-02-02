@@ -1335,7 +1335,6 @@ async function main(): Promise<void> {
     }
 
     // Initialize project management adapter
-    console.log('\nConnecting to GitHub...');
     const adapter = getProjectManagementAdapter();
     await adapter.init();
 
@@ -1344,7 +1343,6 @@ async function main(): Promise<void> {
 
     if (options.id) {
         // Process specific item
-        console.log(`\nFetching item: ${options.id}`);
         const item = await adapter.getItem(options.id);
         if (!item) {
             console.error(`Item not found: ${options.id}`);
@@ -1388,19 +1386,16 @@ async function main(): Promise<void> {
     } else {
         // Flow A: Fetch items ready for implementation (Implementation status with empty Review Status)
         // For new implementations, we ALWAYS create a new PR (no idempotency check needed)
-        console.log(`\nFetching items in "${STATUSES.implementation}" with empty Review Status...`);
         const allImplementationItems = await adapter.listItems({ status: STATUSES.implementation, limit: options.limit || 50 });
         const newItems = allImplementationItems.filter((item) => !item.reviewStatus);
         for (const item of newItems) {
             itemsToProcess.push({ item, mode: 'new' });
         }
-        console.log(`  Found ${newItems.length} item(s) for implementation`);
 
         // Flow B: Fetch items needing revision (Implementation or PR Review status with Request Changes)
         // For feedback mode, we find the OPEN PR and get its branch name directly from the PR
         // This is more reliable than regenerating the branch name (title/phase could have changed)
         if (adapter.hasReviewStatusField()) {
-            console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.requestChanges}"...`);
             const feedbackItems = allImplementationItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
             );
@@ -1413,14 +1408,10 @@ async function main(): Promise<void> {
                         prNumber: openPR.prNumber,
                         branchName: openPR.branchName,
                     });
-                } else {
-                    console.log(`  ⚠️ No open PR found for issue #${item.content?.number} - skipping`);
                 }
             }
-            console.log(`  Found ${feedbackItems.length} item(s) in "${STATUSES.implementation}" needing revision`);
 
             // Also fetch PR Review items with Request Changes
-            console.log(`\nFetching items in "${STATUSES.prReview}" with Review Status "${REVIEW_STATUSES.requestChanges}"...`);
             const prReviewItems = await adapter.listItems({ status: STATUSES.prReview, limit: options.limit || 50 });
             const prFeedbackItems = prReviewItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.requestChanges
@@ -1434,21 +1425,16 @@ async function main(): Promise<void> {
                         prNumber: openPR.prNumber,
                         branchName: openPR.branchName,
                     });
-                } else {
-                    console.log(`  ⚠️ No open PR found for issue #${item.content?.number} - skipping`);
                 }
             }
-            console.log(`  Found ${prFeedbackItems.length} item(s) in "${STATUSES.prReview}" needing revision`);
 
             // Flow C: Fetch items with clarification received
-            console.log(`\nFetching items with Review Status "${REVIEW_STATUSES.clarificationReceived}"...`);
             const clarificationItems = allImplementationItems.filter(
                 (item) => item.reviewStatus === REVIEW_STATUSES.clarificationReceived
             );
             for (const item of clarificationItems) {
                 itemsToProcess.push({ item, mode: 'clarification' });
             }
-            console.log(`  Found ${clarificationItems.length} item(s) with clarification received`);
         }
 
         // Apply limit
@@ -1458,7 +1444,7 @@ async function main(): Promise<void> {
     }
 
     if (itemsToProcess.length === 0) {
-        console.log('\nNo items to process.');
+        console.log('No items to process.');
         return;
     }
 
