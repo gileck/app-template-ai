@@ -228,6 +228,11 @@ async function main() {
         process.exit(0);
     }
 
+    // Log working directory
+    const workingDir = process.cwd();
+    console.log(`\n📁 Working directory: ${workingDir}`);
+    console.log(`[LOG:INFO] Working directory: ${workingDir}`);
+
     // Find which script(s) to run
     const scriptsToRun: string[] = [];
     const passThrough: string[] = [];
