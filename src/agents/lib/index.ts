@@ -228,7 +228,15 @@ ${planResult.plan}
 ---
 
 Follow the plan above while implementing. Adjust as needed based on actual code you encounter.`;
-            return library.run({ ...options, prompt: enhancedPrompt });
+            console.log(` 🚀 Starting implementation agent...`);
+            const result = await library.run({ ...options, prompt: enhancedPrompt });
+            console.log(`  ✅ Implementation agent completed:
+                inputTokens: ${result?.usage?.inputTokens},
+                outputTokens: ${result?.usage?.outputTokens},
+                cost: ${result?.usage?.totalCostUSD},
+                duration: ${result.durationSeconds}s
+            `);
+            return result;
         }
         // If plan generation failed, proceed without it
         console.log('  ⚠️ Plan subagent did not generate a plan, proceeding without it');
@@ -237,7 +245,15 @@ Follow the plan above while implementing. Adjust as needed based on actual code 
         console.log('  📋 Plan subagent skipped (shouldUsePlanMode: false)');
     }
 
-    return library.run(options);
+    console.log(` 🚀 Starting ${options.workflow || 'agent'}...`);
+    const result = await library.run(options);
+    console.log(`  ✅ ${options.workflow || 'Agent'} completed:
+        inputTokens: ${result?.usage?.inputTokens},
+        outputTokens: ${result?.usage?.outputTokens},
+        cost: ${result?.usage?.totalCostUSD},
+        duration: ${result.durationSeconds}s
+    `);
+    return result;
 }
 
 /**
