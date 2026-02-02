@@ -7,9 +7,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Make hooks executable
+# Make hooks and scripts executable
 chmod +x "$SCRIPT_DIR/post-push"
 chmod +x "$SCRIPT_DIR/pre-commit"
+chmod +x "$PROJECT_DIR/scripts/template/check-template-files.sh" 2>/dev/null || true
 
 # Install pre-commit hook
 cp "$SCRIPT_DIR/pre-commit" "$PROJECT_DIR/.git/hooks/pre-commit"
@@ -25,7 +26,10 @@ git config --local alias.pushh "!git push \"\$@\" && $SCRIPT_DIR/post-push #"
 git update-index --skip-worktree yarn.lock 2>/dev/null || true
 
 echo "✅ Git hooks configured!"
-echo "✅ Pre-commit hook installed (auto-regenerates CLAUDE.md)"
+echo "✅ Pre-commit hook installed:"
+echo "   - Auto-regenerates CLAUDE.md when docs/skills change"
+echo "   - Blocks modifications to template-owned files (child projects)"
+echo "   - Runs yarn checks before commit"
 echo "✅ yarn.lock marked as skip-worktree (local changes ignored)"
 echo ""
 echo "Use 'git pushh' instead of 'git push' to trigger post-push hook."
