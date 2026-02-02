@@ -19,6 +19,7 @@ import { Home } from './Home';
 import { AIChat } from './AIChat';
 import { Todos } from './Todos';
 import { SingleTodo } from './SingleTodo';
+import { Dashboard } from './Dashboard';
 
 /**
  * Project route definitions.
@@ -30,6 +31,9 @@ export const projectRoutes: Routes = {
   '/ai-chat': AIChat,
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
+
+  // Admin routes
+  '/admin/dashboard': Dashboard,
 
   // Add more project-specific routes here:
   // '/my-page': MyPage,
