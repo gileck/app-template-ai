@@ -1140,7 +1140,14 @@ See issue #${issueNumber} for full context, product design, and technical design
                 // Trigger Claude Code review
                 try {
                     console.log('  Triggering Claude Code review...');
-                    await adapter.addPRComment(prNumber, '@claude please review this PR');
+                    const reviewInstructions = `@claude please review this PR
+
+**Review Guidelines:**
+- Request changes if there are ANY Minor Issues, Suggestions, or Improvements
+- Only approve if there are absolutely ZERO Minor Issues, ZERO Suggestions, and ZERO Improvements recommended
+- Never approve a PR that has minor suggestions, minor improvements, or minor issues - these should all trigger "Request Changes"
+- All issues, suggestions, and improvements must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
+                    await adapter.addPRComment(prNumber, reviewInstructions);
                     console.log('  ✅ Claude Code review triggered');
                 } catch (error) {
                     // Non-fatal error - PR is still created successfully
@@ -1180,16 +1187,24 @@ See issue #${issueNumber} for full context, product design, and technical design
                     console.warn('  ⚠️ No comment in structured output for feedback response');
                 }
                 // Post feedback comment on PR if available
+                const reReviewInstructions = `
+
+**Review Guidelines:**
+- Request changes if there are ANY Minor Issues, Suggestions, or Improvements
+- Only approve if there are absolutely ZERO Minor Issues, ZERO Suggestions, and ZERO Improvements recommended
+- Never approve a PR that has minor suggestions, minor improvements, or minor issues - these should all trigger "Request Changes"
+- All issues, suggestions, and improvements must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
+
                 if (feedbackComment) {
                     const prefixedComment = addAgentPrefix('implementor', feedbackComment);
                     // Add @claude to trigger Claude GitHub App to re-review the fixes
-                    const commentWithReviewRequest = `${prefixedComment}\n\n@claude please review the changes`;
+                    const commentWithReviewRequest = `${prefixedComment}\n\n@claude please review the changes${reReviewInstructions}`;
                     await adapter.addPRComment(prNumber, commentWithReviewRequest);
                     console.log('  Feedback response comment posted on PR (with @claude review request)');
                     logGitHubAction(logCtx, 'comment', 'Posted feedback response on PR with @claude review request');
                 } else {
                     // Still trigger @claude review even without detailed comment
-                    await adapter.addPRComment(prNumber, '@claude please review the changes');
+                    await adapter.addPRComment(prNumber, `@claude please review the changes${reReviewInstructions}`);
                     console.log('  Review request posted on PR (no detailed comment available)');
                 }
             }
