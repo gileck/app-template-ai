@@ -8,10 +8,17 @@
  */
 
 import { NavItem } from './layout/types';
-import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb } from 'lucide-react';
+import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
 
 // Re-export template items and utilities
-export { adminMenuItems, filterAdminNavItems } from './NavLinks.template';
+import { adminMenuItems as templateAdminMenuItems, filterAdminNavItems } from './NavLinks.template';
+export { filterAdminNavItems };
+
+/** Admin-only menu items (includes template items + project-specific) */
+export const adminMenuItems: NavItem[] = [
+  ...templateAdminMenuItems,
+  { path: '/admin/dashboard', label: 'Dashboard', icon: <BarChart3 size={18} /> },
+];
 
 /** Bottom navigation bar items */
 export const navItems: NavItem[] = [
