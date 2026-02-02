@@ -78,9 +78,10 @@ async function sendMessage(
     text: string,
     threadId?: number,
     replyToMessageId?: number
-): Promise<void> {
+): Promise<number | undefined> {
     // Split long messages
     const chunks = splitMessage(text);
+    let firstMessageId: number | undefined;
 
     for (const chunk of chunks) {
         const body: Record<string, unknown> = {
@@ -107,15 +108,84 @@ async function sendMessage(
             if (!response.ok) {
                 // Retry without markdown if parsing fails
                 body.parse_mode = undefined;
-                await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
+                const retryResponse = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
+                const retryData = await retryResponse.json() as { ok: boolean; result?: { message_id: number } };
+                if (retryData.ok && retryData.result && !firstMessageId) {
+                    firstMessageId = retryData.result.message_id;
+                }
+            } else {
+                const data = await response.json() as { ok: boolean; result?: { message_id: number } };
+                if (data.ok && data.result && !firstMessageId) {
+                    firstMessageId = data.result.message_id;
+                }
             }
         } catch (error) {
             console.error('Failed to send message:', error);
         }
+    }
+
+    return firstMessageId;
+}
+
+async function editMessage(
+    botToken: string,
+    chatId: string,
+    messageId: number,
+    text: string,
+    threadId?: number
+): Promise<void> {
+    const body: Record<string, unknown> = {
+        chat_id: chatId,
+        message_id: messageId,
+        text: text.slice(0, MAX_MESSAGE_LENGTH), // Truncate if needed
+        parse_mode: 'Markdown',
+    };
+
+    if (threadId) {
+        body.message_thread_id = threadId;
+    }
+
+    try {
+        const response = await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            // Retry without markdown
+            body.parse_mode = undefined;
+            await fetch(`${TELEGRAM_API_URL}${botToken}/editMessageText`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+        }
+    } catch (error) {
+        console.error('Failed to edit message:', error);
+    }
+}
+
+async function deleteMessage(
+    botToken: string,
+    chatId: string,
+    messageId: number
+): Promise<void> {
+    try {
+        await fetch(`${TELEGRAM_API_URL}${botToken}/deleteMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                message_id: messageId
+            })
+        });
+    } catch {
+        // Ignore delete errors
     }
 }
 
@@ -197,7 +267,7 @@ async function processWithClaude(prompt: string): Promise<string> {
     let result = '';
     const toolCalls: string[] = [];
 
-    console.log(`\n📝 Processing: "${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
+    console.log(`\n⚙️  Processing with Claude...`);
 
     try {
         for await (const message of query({
@@ -222,8 +292,9 @@ async function processWithClaude(prompt: string): Promise<string> {
                     if (block.type === 'tool_use') {
                         const toolUse = block as { type: 'tool_use'; name: string; input: Record<string, unknown> };
                         const target = toolUse.input?.file_path || toolUse.input?.pattern || toolUse.input?.command || '';
-                        toolCalls.push(`${toolUse.name}${target ? `: ${String(target).slice(0, 50)}` : ''}`);
-                        console.log(`  🔧 ${toolUse.name}`);
+                        const targetStr = target ? `: ${String(target).slice(0, 50)}` : '';
+                        toolCalls.push(`${toolUse.name}${targetStr}`);
+                        console.log(`   🔧 Tool: ${toolUse.name}${targetStr}`);
                     }
                 }
             }
@@ -243,11 +314,11 @@ async function processWithClaude(prompt: string): Promise<string> {
             result = result + summary;
         }
 
-        console.log(`  ✅ Done (${result.length} chars)`);
+        console.log(`   ✅ Claude done (${toolCalls.length} tools, ${result.length} chars)`);
         return result || 'No response generated.';
 
     } catch (error) {
-        console.error('  ❌ Error:', error);
+        console.error('   ❌ Claude error:', error);
         return `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
 }
@@ -276,6 +347,14 @@ async function main() {
     console.log(`📍 Working directory: ${PROJECT_ROOT}`);
     console.log(`💬 Listening for chat ID: ${allowedChatId}${allowedThreadId ? ` (thread: ${allowedThreadId})` : ''}`);
     console.log('⏳ Waiting for messages...\n');
+
+    // Send startup message
+    await sendMessage(
+        botToken,
+        allowedChatId,
+        `🤖 *Hey, I'm online!*\n\nClaude Code Bot is ready.\n📍 Project: \`${PROJECT_ROOT.split('/').pop()}\`\n\nSend me any message and I'll process it with Claude Code SDK.`,
+        allowedThreadId
+    );
 
     let lastUpdateId: number | undefined;
     const processingMessages = new Set<number>();
@@ -310,7 +389,11 @@ async function main() {
                 const userText = message.text;
                 const userName = message.from.first_name;
 
-                console.log(`\n💬 Message from ${userName}: "${userText.slice(0, 50)}${userText.length > 50 ? '...' : ''}"`);
+                // Log incoming message
+                console.log(`\n${'='.repeat(60)}`);
+                console.log(`📥 INCOMING from ${userName} (@${message.from.username || 'no-username'}):`);
+                console.log(`   "${userText}"`);
+                console.log('='.repeat(60));
 
                 // Handle special commands
                 if (userText === '/start' || userText === '/help') {
@@ -325,13 +408,30 @@ async function main() {
                     continue;
                 }
 
-                // Send typing indicator
-                await sendTypingAction(botToken, msgChatId);
+                // Send "thinking" message
+                const thinkingMsgId = await sendMessage(
+                    botToken,
+                    msgChatId,
+                    '🤔 _Claude is thinking..._',
+                    allowedThreadId,
+                    message.message_id
+                );
 
                 // Process with Claude
                 const response = await processWithClaude(userText);
 
-                // Send response
+                // Delete thinking message and send response
+                if (thinkingMsgId) {
+                    await deleteMessage(botToken, msgChatId, thinkingMsgId);
+                }
+
+                // Log and send response
+                console.log(`\n${'─'.repeat(60)}`);
+                console.log(`📤 RESPONSE:`);
+                console.log(`   "${response.slice(0, 200)}${response.length > 200 ? '...' : ''}"`);
+                console.log(`   (${response.length} chars total)`);
+                console.log('─'.repeat(60));
+
                 await sendMessage(botToken, msgChatId, response, allowedThreadId, message.message_id);
 
                 processingMessages.delete(message.message_id);
