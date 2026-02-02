@@ -42,12 +42,18 @@ When an issue description is unclear or incomplete, agents can request clarifica
 - Identifies gaps or ambiguities
 - Decides if work can proceed or clarification needed
 
-**2. Clarification Request**
-- Agent posts GitHub comment with structured question format
+**2. Agent Structured Output**
+- Agent sets `needsClarification: true` in structured output
+- Agent provides question in `clarificationRequest` field
+- Agent leaves other output fields empty (design, comment, etc.)
+
+**3. System Handling**
+- System detects `needsClarification=true` flag
+- Posts clarification question as GitHub issue comment
 - Sets Review Status to "Waiting for Clarification"
 - Sends Telegram notification with "ANSWER QUESTIONS" button
 
-**3. Admin Response (Two Options)**
+**4. Admin Response (Two Options)**
 
 **Option A: Interactive Web UI (Recommended)**
 - Click "ANSWER QUESTIONS" button in Telegram
@@ -61,7 +67,7 @@ When an issue description is unclear or incomplete, agents can request clarifica
 - Click "Clarification Received" button in Telegram
 - Status updates to "Clarification Received"
 
-**4. Agent Resumes**
+**5. Agent Resumes**
 - Agent reads admin's answers
 - Incorporates clarifications into design/implementation
 - Proceeds with normal workflow
@@ -105,8 +111,20 @@ https://your-app.vercel.app/clarify/45?token=abc123
 
 **Issue #45: Add search functionality**
 
-**Agent Comment (structured format):**
+**Agent Structured Output:**
+```json
+{
+  "needsClarification": true,
+  "clarificationRequest": "## Context\nThe feature request asks for \"search functionality\" but doesn't specify the scope or type.\n\n## Question\nWhat notification channels should be supported initially?\n\n## Options\n\n✅ Option 1: Email only\n   - Simpler to implement\n   - Most users have email configured\n\n⚠️ Option 2: Email + Push notifications\n   - More complex, requires service worker\n   - Better UX for time-sensitive alerts\n\n⚠️ Option 3: In-app only\n   - Simplest to implement\n   - Users must be in app to see them\n\n## Recommendation\nI recommend Option 1 because it provides reliable delivery with minimal complexity.",
+  "design": "",
+  "comment": ""
+}
+```
+
+**System Posts to GitHub Issue:**
 ```markdown
+## 🤔 Agent Needs Clarification
+
 ## Context
 The feature request asks for "search functionality" but doesn't specify the scope or type.
 
@@ -129,6 +147,9 @@ What notification channels should be supported initially?
 
 ## Recommendation
 I recommend Option 1 because it provides reliable delivery with minimal complexity.
+
+---
+_Please respond with your answer in a comment below, then click "Clarification Received" in Telegram._
 ```
 
 **Telegram Notification:**
@@ -177,11 +198,12 @@ _Clarification provided via interactive UI. Continue with the selected option(s)
 ### Clarification Best Practices
 
 **For Agents:**
-- Ask specific, numbered questions
-- Provide context for each question
-- Suggest 2-4 options with pros/cons
-- Indicate recommended option with reasoning
-- Keep questions concise and focused
+- Set `needsClarification: true` when clarification is needed
+- Provide clear question in `clarificationRequest` field
+- Leave other output fields empty (design, comment, etc.)
+- Format question with: Context, Question, Options (2-4), Recommendation
+- Use ✅ for recommended option, ⚠️ for alternatives
+- Keep questions specific and focused
 
 **For Admins:**
 - Use the interactive UI when possible (faster, less error-prone)
