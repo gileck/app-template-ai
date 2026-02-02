@@ -6,6 +6,7 @@ size: L
 complexity: High
 status: TODO
 dateAdded: 2026-02-01
+planFile: task-manager/plans/task-37-plan.md
 ---
 
 # Task 37: Implement Feature Branch Workflow with Phase PRs

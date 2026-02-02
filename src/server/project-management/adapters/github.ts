@@ -1421,15 +1421,16 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         }
     }
 
-    async createBranch(branchName: string): Promise<void> {
+    async createBranch(branchName: string, baseBranch?: string): Promise<void> {
         const oc = this.getOctokit();
         const { owner, repo } = this.config.github;
 
-        const defaultBranch = await this.getDefaultBranch();
+        // Use specified base branch or fall back to default branch
+        const sourceBranch = baseBranch || await this.getDefaultBranch();
         const { data: refData } = await oc.git.getRef({
             owner,
             repo,
-            ref: `heads/${defaultBranch}`,
+            ref: `heads/${sourceBranch}`,
         });
 
         await oc.git.createRef({

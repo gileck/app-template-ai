@@ -81,7 +81,11 @@ import {
     parseArtifactComment,
     getProductDesignPath,
     getTechDesignPath,
+    getTaskBranch,
+    generateTaskBranchName,
+    generatePhaseBranchName,
     updateImplementationPhaseArtifact,
+    setTaskBranch,
 } from '../../lib/artifacts';
 import {
     readDesignDoc,
@@ -175,6 +179,48 @@ function checkoutBranch(branchName: string, createFromDefault: boolean = false):
     } else {
         git(`checkout ${branchName}`);
     }
+}
+
+/**
+ * Create a branch from a specific base branch
+ * Used for creating phase branches from feature branch in multi-phase workflow
+ */
+function createBranchFromBase(newBranch: string, baseBranch: string): void {
+    console.log(`  [LOG:FEATURE_BRANCH] Creating branch ${newBranch} from ${baseBranch}`);
+    // Ensure base branch is up to date
+    try {
+        git(`fetch origin ${baseBranch}`, { silent: true });
+    } catch {
+        console.log(`  [LOG:FEATURE_BRANCH] Could not fetch ${baseBranch} - may not exist remotely yet`);
+    }
+    // Create new branch from base
+    git(`checkout -b ${newBranch} origin/${baseBranch}`);
+}
+
+/**
+ * Create the feature branch for multi-phase workflow
+ * Returns the feature branch name
+ */
+async function ensureFeatureBranch(
+    adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
+    issueNumber: number,
+    defaultBranch: string
+): Promise<string> {
+    const taskBranchName = generateTaskBranchName(issueNumber);
+    console.log(`  [LOG:FEATURE_BRANCH] Ensuring feature branch exists: ${taskBranchName}`);
+
+    // Check if branch exists remotely
+    const branchExists = await adapter.branchExists(taskBranchName);
+
+    if (branchExists) {
+        console.log(`  [LOG:FEATURE_BRANCH] Feature branch already exists: ${taskBranchName}`);
+    } else {
+        console.log(`  [LOG:FEATURE_BRANCH] Creating feature branch: ${taskBranchName} from ${defaultBranch}`);
+        await adapter.createBranch(taskBranchName, defaultBranch);
+        console.log(`  [LOG:FEATURE_BRANCH] Feature branch created successfully`);
+    }
+
+    return taskBranchName;
 }
 
 /**
@@ -420,11 +466,14 @@ async function processItem(
         const existingPhase = await adapter.getImplementationPhase(item.id);
         const parsed = parsePhaseString(existingPhase);
 
+        // Track task branch for multi-phase workflow
+        let taskBranchForPhase: string | null = null;
+
         if (parsed) {
             // Phase tracking exists - use it for all modes
             currentPhase = parsed.current;
             totalPhases = parsed.total;
-            console.log(`  📋 Multi-phase feature: Phase ${currentPhase}/${totalPhases}`);
+            console.log(`  [LOG:FEATURE_BRANCH] Multi-phase feature: Phase ${currentPhase}/${totalPhases}`);
 
             // Try to get phase details from comments first (reliable), then fallback to markdown
             const parsedPhases = parsePhasesFromComment(issueComments) ||
@@ -444,6 +493,20 @@ async function processItem(
                     console.log('  Phases loaded from markdown (fallback)');
                 }
             }
+
+            // Get task branch from artifact for continuing phases (Phase 2+)
+            if (mode === 'new' && currentPhase > 1) {
+                taskBranchForPhase = getTaskBranch(artifact);
+                if (taskBranchForPhase) {
+                    console.log(`  [LOG:FEATURE_BRANCH] Retrieved task branch from artifact: ${taskBranchForPhase}`);
+                } else {
+                    console.warn(`  [LOG:ERROR] [FEATURE_BRANCH] Task branch not found in artifact for Phase ${currentPhase}/${totalPhases}`);
+                    console.warn(`  Expected: Task branch should have been set in Phase 1`);
+                    // Fallback: try to generate the expected branch name
+                    taskBranchForPhase = generateTaskBranchName(issueNumber);
+                    console.log(`  [LOG:FEATURE_BRANCH] Using generated task branch name: ${taskBranchForPhase}`);
+                }
+            }
         } else if (mode === 'new' && !phaseInfo) {
             // No existing phase - check if we should start multi-phase (only for new implementations)
             // Try comment first, fallback to markdown
@@ -454,7 +517,7 @@ async function processItem(
                 // Start new multi-phase implementation
                 currentPhase = 1;
                 totalPhases = parsedPhases.length;
-                console.log(`  📋 Multi-phase feature detected: ${totalPhases} phases`);
+                console.log(`  [LOG:FEATURE_BRANCH] Detected multi-phase feature: ${totalPhases} phases`);
 
                 // Log which method was used
                 if (parsePhasesFromComment(issueComments)) {
@@ -467,6 +530,14 @@ async function processItem(
                 if (!options.dryRun && adapter.hasImplementationPhaseField()) {
                     await adapter.setImplementationPhase(item.id, `${currentPhase}/${totalPhases}`);
                     console.log(`  Set Implementation Phase to: ${currentPhase}/${totalPhases}`);
+                }
+
+                // Create feature branch for multi-phase workflow (NEW)
+                if (!options.dryRun) {
+                    const taskBranchName = await ensureFeatureBranch(adapter, issueNumber, defaultBranch);
+                    // Store task branch in artifact comment for future phases to reference
+                    await setTaskBranch(adapter, issueNumber, taskBranchName);
+                    console.log(`  [LOG:FEATURE_BRANCH] Feature branch stored in artifact: ${taskBranchName}`);
                 }
 
                 // Get current phase details
@@ -487,10 +558,19 @@ async function processItem(
 
         // Determine branch name:
         // - For feedback mode: use the branch name from the OPEN PR (more reliable)
-        // - For new/clarification mode: generate the branch name
-        const branchName = (mode === 'feedback' && processable.branchName)
-            ? processable.branchName
-            : generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
+        // - For new/clarification multi-phase: use phase branch naming (feature/task-{id}-phase-{N})
+        // - For new/clarification single-phase: use old naming (feature/issue-{N}-{slug})
+        let branchName: string;
+        if (mode === 'feedback' && processable.branchName) {
+            branchName = processable.branchName;
+        } else if (currentPhase && totalPhases && totalPhases > 1) {
+            // Multi-phase: use new naming convention
+            branchName = generatePhaseBranchName(issueNumber, currentPhase);
+            console.log(`  [LOG:FEATURE_BRANCH] Using phase branch: ${branchName}`);
+        } else {
+            // Single-phase: use old naming convention (unchanged)
+            branchName = generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
+        }
 
         if (mode === 'feedback' && processable.branchName) {
             console.log(`  Using branch from PR: ${branchName}`);
@@ -607,7 +687,21 @@ ${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have alrea
         const branchExistsLocally = git('branch --list ' + branchName, { silent: true }).length > 0;
 
         if (mode === 'new' && !branchExistsLocally) {
-            checkoutBranch(branchName, true);
+            // For multi-phase: create phase branch from feature branch
+            // For single-phase: create from default branch (unchanged)
+            if (taskBranchForPhase) {
+                // Multi-phase: create from feature branch
+                console.log(`  [LOG:FEATURE_BRANCH] Creating phase branch from feature branch: ${taskBranchForPhase}`);
+                createBranchFromBase(branchName, taskBranchForPhase);
+            } else if (currentPhase === 1 && totalPhases && totalPhases > 1) {
+                // Phase 1 of multi-phase: create from the new feature branch
+                const taskBranch = generateTaskBranchName(issueNumber);
+                console.log(`  [LOG:FEATURE_BRANCH] Creating Phase 1 branch from feature branch: ${taskBranch}`);
+                createBranchFromBase(branchName, taskBranch);
+            } else {
+                // Single-phase: create from default branch (unchanged behavior)
+                checkoutBranch(branchName, true);
+            }
         } else {
             checkoutBranch(branchName, false);
             if (mode === 'feedback' || mode === 'clarification') {
@@ -924,10 +1018,23 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
         // that we can handle gracefully.
         if (mode === 'new') {
             console.log('  Creating pull request...');
-            const defaultBranch = await adapter.getDefaultBranch();
+            const repoDefaultBranch = await adapter.getDefaultBranch();
+
+            // Determine base branch for PR:
+            // - Multi-phase: target the feature branch
+            // - Single-phase: target the default branch (unchanged)
+            let prBaseBranch: string;
+            if (currentPhase && totalPhases && totalPhases > 1) {
+                // Multi-phase: PR targets feature branch
+                prBaseBranch = generateTaskBranchName(issueNumber);
+                console.log(`  [LOG:FEATURE_BRANCH] PR #{prNumber} targeting feature branch: ${branchName} → ${prBaseBranch}`);
+            } else {
+                // Single-phase: PR targets default branch (unchanged)
+                prBaseBranch = repoDefaultBranch;
+            }
 
                 // Get list of changed files for PR description
-                const changedFiles = getChangedFiles(defaultBranch);
+                const changedFiles = getChangedFiles(prBaseBranch);
                 const filesList = changedFiles.length > 0
                     ? changedFiles.map((f) => `- ${f}`).join('\n')
                     : 'No files changed';
@@ -988,13 +1095,18 @@ See issue #${issueNumber} for full context, product design, and technical design
 
                 const pr = await adapter.createPullRequest(
                     branchName,
-                    defaultBranch,
+                    prBaseBranch,
                     prTitle,
                     prBody,
                     [adminUsername] // Request review from admin
                 );
                 prNumber = pr.number;
                 console.log(`  Created PR #${prNumber}: ${pr.url}`);
+
+                // Log PR targeting for multi-phase
+                if (currentPhase && totalPhases && totalPhases > 1) {
+                    console.log(`  [LOG:FEATURE_BRANCH] Phase ${currentPhase}/${totalPhases} PR targets feature branch`);
+                }
 
                 // Update artifact comment with implementation PR
                 try {

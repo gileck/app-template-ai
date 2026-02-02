@@ -55,6 +55,8 @@ Use Grep to find problems WITHOUT reading full content.
 | Telegram events | `\[LOG:TELEGRAM\]` |
 | Summary | `\[LOG:SUMMARY\]` |
 | Previous reviews | `\[LOG:REVIEW\]` |
+| Feature branch ops | `\[LOG:FEATURE_BRANCH\]` |
+| Final review status | `\[LOG:FINAL_REVIEW\]` |
 
 ```bash
 # Find errors (precise - no false positives from design docs)
@@ -224,6 +226,42 @@ After completing the analysis, append an "Issue Review" section to the end of th
 - [ ] PR created successfully? (`Grep pattern="\[LOG:GITHUB\].*pr_created\|\[LOG:GITHUB\].*PR"`)
 - [ ] Status updates correct? (`Grep pattern="\[LOG:STATUS\]"`)
 
+### Feature Branch Flow (Multi-Phase Only)
+
+For multi-phase features, verify the feature branch workflow is correctly implemented:
+
+**Detection Patterns:**
+```bash
+# Check if feature branch workflow was used
+Grep pattern="\[LOG:FEATURE_BRANCH\]" path="agent-logs/issue-{N}.md"
+
+# Find feature branch creation
+Grep pattern="\[LOG:FEATURE_BRANCH\].*Creating feature branch" path="agent-logs/issue-{N}.md"
+
+# Find PR targeting
+Grep pattern="\[LOG:FEATURE_BRANCH\].*targeting" path="agent-logs/issue-{N}.md"
+
+# Find final PR creation
+Grep pattern="\[LOG:FEATURE_BRANCH\].*Final PR" path="agent-logs/issue-{N}.md"
+
+# Find Final Review transitions
+Grep pattern="\[LOG:FINAL_REVIEW\]" path="agent-logs/issue-{N}.md"
+```
+
+**Feature Branch Checklist:**
+- [ ] Multi-phase detection: `\[LOG:FEATURE_BRANCH\].*Multi-phase feature` or `\[LOG:FEATURE_BRANCH\].*Detected multi-phase`
+- [ ] Feature branch created: `\[LOG:FEATURE_BRANCH\].*Creating feature branch.*from main`
+- [ ] Phase PRs target feature branch: `\[LOG:FEATURE_BRANCH\].*targeting feature branch`
+- [ ] Final PR created after last phase: `\[LOG:FEATURE_BRANCH\].*Final PR.*created`
+- [ ] Final Review status set: `\[LOG:FINAL_REVIEW\].*Status transition.*Final Review`
+- [ ] Branch cleanup after merge: `\[LOG:FEATURE_BRANCH\].*Deleted branch`
+
+**Common Issues to Flag:**
+- ❌ Phase PR targeting main instead of feature branch (should see `targeting feature branch`)
+- ❌ Feature branch not created for multi-phase (should see `Creating feature branch`)
+- ❌ Final PR not created after last phase (should see `Final PR` after all phases complete)
+- ⚠️ Branches not cleaned up after merge (should see `Deleted branch` entries)
+
 ### Prompts
 - [ ] Agent confused? (`Grep pattern="\[LOG:RESPONSE\]"` then read for confusion indicators)
 - [ ] Missing context? (`Grep pattern="\[LOG:TOOL_RESULT\].*not found\|\[LOG:ERROR\].*missing"`)
@@ -361,6 +399,8 @@ Log files use `[LOG:TYPE]` markers for easy grep searching:
 | `[LOG:WEBHOOK_END]` | Webhook phase end |
 | `[LOG:ACTION_START]` | GitHub Action phase start |
 | `[LOG:ACTION_END]` | GitHub Action phase end |
+| `[LOG:FEATURE_BRANCH]` | Feature branch workflow operations |
+| `[LOG:FINAL_REVIEW]` | Final Review status transitions |
 
 ---
 
