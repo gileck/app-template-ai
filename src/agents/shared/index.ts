@@ -137,6 +137,7 @@ export {
     getBugDiagnostics,
     formatSessionLogs,
     extractClarification,
+    extractClarificationFromResult,
     handleClarificationRequest,
     extractFeedbackResolution,
     formatFeedbackResolution,

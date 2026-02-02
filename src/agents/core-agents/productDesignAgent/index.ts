@@ -57,7 +57,7 @@ import {
     type UsageStats,
     type ProductDesignOutput,
     // Utils
-    extractClarification,
+    extractClarificationFromResult,
     handleClarificationRequest,
     // Output schemas
     PRODUCT_DESIGN_OUTPUT_FORMAT,
@@ -327,8 +327,8 @@ async function processItem(
                 return { success: false, error };
             }
 
-            // Check if agent needs clarification
-            const clarificationRequest = extractClarification(result.content);
+            // Check if agent needs clarification (in both raw content and structured output)
+            const clarificationRequest = extractClarificationFromResult(result);
             if (clarificationRequest) {
                 console.log('  🤔 Agent needs clarification');
                 return await handleClarificationRequest(

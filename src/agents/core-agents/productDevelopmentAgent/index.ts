@@ -63,7 +63,7 @@ import {
     type UsageStats,
     type ProductDevelopmentOutput,
     // Utils
-    extractClarification,
+    extractClarificationFromResult,
     handleClarificationRequest,
     // Output schemas
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
@@ -326,10 +326,10 @@ async function processItem(
                 return { success: false, error };
             }
 
-            // Check if agent needs clarification
-            const clarificationRequest = extractClarification(result.content);
+            // Check if agent needs clarification (in both raw content and structured output)
+            const clarificationRequest = extractClarificationFromResult(result);
             if (clarificationRequest) {
-                console.log('  Agent needs clarification');
+                console.log('  🤔 Agent needs clarification');
                 return await handleClarificationRequest(
                     adapter,
                     { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },

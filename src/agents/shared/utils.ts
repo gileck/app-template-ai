@@ -96,7 +96,7 @@ export function formatSessionLogs(logs: SessionLogEntry[], limit?: number): stri
 // ============================================================
 
 /**
- * Extract clarification request from agent output
+ * Extract clarification request from a string
  *
  * Agents output clarification requests in this format:
  * ```clarification
@@ -104,8 +104,63 @@ export function formatSessionLogs(logs: SessionLogEntry[], limit?: number): stri
  * ```
  */
 export function extractClarification(content: string): string | null {
-    const match = content.match(/```clarification\n([\s\S]*?)\n```/);
+    // Handle both triple backticks (```) and quadruple backticks (````)
+    const match = content.match(/`{3,4}clarification\n([\s\S]*?)\n`{3,4}/);
     return match ? match[1].trim() : null;
+}
+
+/**
+ * Extract clarification request from agent result
+ *
+ * Checks both raw content AND structured output fields for clarification blocks.
+ * This handles the case where agents using structured output put the clarification
+ * in the comment or design field instead of raw text output.
+ *
+ * @param result - The agent result object containing content and/or structuredOutput
+ * @returns The clarification request text if found, null otherwise
+ */
+export function extractClarificationFromResult(result: {
+    content?: string | null;
+    structuredOutput?: unknown;
+}): string | null {
+    // First check raw content
+    if (result.content) {
+        const clarification = extractClarification(result.content);
+        if (clarification) {
+            return clarification;
+        }
+    }
+
+    // Then check structured output fields (comment and design)
+    if (result.structuredOutput && typeof result.structuredOutput === 'object') {
+        const output = result.structuredOutput as Record<string, unknown>;
+
+        // Check comment field (most common place for clarification in structured output)
+        if (output.comment && typeof output.comment === 'string') {
+            const clarification = extractClarification(output.comment);
+            if (clarification) {
+                return clarification;
+            }
+        }
+
+        // Check design field (agent might put placeholder with clarification embedded)
+        if (output.design && typeof output.design === 'string') {
+            const clarification = extractClarification(output.design);
+            if (clarification) {
+                return clarification;
+            }
+        }
+
+        // Check document field (for product development agent)
+        if (output.document && typeof output.document === 'string') {
+            const clarification = extractClarification(output.document);
+            if (clarification) {
+                return clarification;
+            }
+        }
+    }
+
+    return null;
 }
 
 /**

@@ -64,7 +64,7 @@ import {
     // Utils
     getIssueType,
     getBugDiagnostics,
-    extractClarification,
+    extractClarificationFromResult,
     handleClarificationRequest,
     // Output schemas
     TECH_DESIGN_OUTPUT_FORMAT,
@@ -380,8 +380,8 @@ async function processItem(
                 return { success: false, error };
             }
 
-            // Check if agent needs clarification
-            const clarificationRequest = extractClarification(result.content);
+            // Check if agent needs clarification (in both raw content and structured output)
+            const clarificationRequest = extractClarificationFromResult(result);
             if (clarificationRequest) {
                 console.log('  🤔 Agent needs clarification');
                 return await handleClarificationRequest(

@@ -63,7 +63,7 @@ import {
     // Utils
     getIssueType,
     getBugDiagnostics,
-    extractClarification,
+    extractClarificationFromResult,
     handleClarificationRequest,
     // Output schemas
     IMPLEMENTATION_OUTPUT_FORMAT,
@@ -836,25 +836,23 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
             return { success: false, error };
         }
 
-        // Check if agent needs clarification
-        if (result.content) {
-            const clarificationRequest = extractClarification(result.content);
-            if (clarificationRequest) {
-                console.log('  🤔 Agent needs clarification');
-                // Checkout back to default branch before pausing
-                git(`checkout ${defaultBranch}`);
-                return await handleClarificationRequest(
-                    adapter,
-                    { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },
-                    issueNumber,
-                    clarificationRequest,
-                    'Implementation',
-                    content.title,
-                    issueType,
-                    options,
-                    'implementor'
-                );
-            }
+        // Check if agent needs clarification (in both raw content and structured output)
+        const clarificationRequest = extractClarificationFromResult(result);
+        if (clarificationRequest) {
+            console.log('  🤔 Agent needs clarification');
+            // Checkout back to default branch before pausing
+            git(`checkout ${defaultBranch}`);
+            return await handleClarificationRequest(
+                adapter,
+                { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },
+                issueNumber,
+                clarificationRequest,
+                'Implementation',
+                content.title,
+                issueType,
+                options,
+                'implementor'
+            );
         }
 
         console.log(`  Agent completed in ${result.durationSeconds}s`);
