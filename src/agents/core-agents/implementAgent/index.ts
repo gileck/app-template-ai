@@ -105,6 +105,7 @@ import {
     logExecutionEnd,
     logGitHubAction,
     logError,
+    logFeatureBranch,
 } from '../../lib/logging';
 
 // ============================================================
@@ -185,13 +186,17 @@ function checkoutBranch(branchName: string, createFromDefault: boolean = false):
  * Create a branch from a specific base branch
  * Used for creating phase branches from feature branch in multi-phase workflow
  */
-function createBranchFromBase(newBranch: string, baseBranch: string): void {
-    console.log(`  [LOG:FEATURE_BRANCH] Creating branch ${newBranch} from ${baseBranch}`);
+function createBranchFromBase(newBranch: string, baseBranch: string, issueNumber: number): void {
+    const msg = `Creating branch ${newBranch} from ${baseBranch}`;
+    console.log(`  🌿 ${msg}`);
+    logFeatureBranch(issueNumber, msg);
     // Ensure base branch is up to date
     try {
         git(`fetch origin ${baseBranch}`, { silent: true });
     } catch {
-        console.log(`  [LOG:FEATURE_BRANCH] Could not fetch ${baseBranch} - may not exist remotely yet`);
+        const fetchMsg = `Could not fetch ${baseBranch} - may not exist remotely yet`;
+        console.log(`  🌿 ${fetchMsg}`);
+        logFeatureBranch(issueNumber, fetchMsg);
     }
     // Create new branch from base
     git(`checkout -b ${newBranch} origin/${baseBranch}`);
@@ -207,17 +212,25 @@ async function ensureFeatureBranch(
     defaultBranch: string
 ): Promise<string> {
     const taskBranchName = generateTaskBranchName(issueNumber);
-    console.log(`  [LOG:FEATURE_BRANCH] Ensuring feature branch exists: ${taskBranchName}`);
+    const ensureMsg = `Ensuring feature branch exists: ${taskBranchName}`;
+    console.log(`  🌿 ${ensureMsg}`);
+    logFeatureBranch(issueNumber, ensureMsg);
 
     // Check if branch exists remotely
     const branchExists = await adapter.branchExists(taskBranchName);
 
     if (branchExists) {
-        console.log(`  [LOG:FEATURE_BRANCH] Feature branch already exists: ${taskBranchName}`);
+        const existsMsg = `Feature branch already exists: ${taskBranchName}`;
+        console.log(`  🌿 ${existsMsg}`);
+        logFeatureBranch(issueNumber, existsMsg);
     } else {
-        console.log(`  [LOG:FEATURE_BRANCH] Creating feature branch: ${taskBranchName} from ${defaultBranch}`);
+        const createMsg = `Creating feature branch: ${taskBranchName} from ${defaultBranch}`;
+        console.log(`  🌿 ${createMsg}`);
+        logFeatureBranch(issueNumber, createMsg);
         await adapter.createBranch(taskBranchName, defaultBranch);
-        console.log(`  [LOG:FEATURE_BRANCH] Feature branch created successfully`);
+        const successMsg = `Feature branch created successfully`;
+        console.log(`  🌿 ${successMsg}`);
+        logFeatureBranch(issueNumber, successMsg);
     }
 
     return taskBranchName;
@@ -473,7 +486,9 @@ async function processItem(
             // Phase tracking exists - use it for all modes
             currentPhase = parsed.current;
             totalPhases = parsed.total;
-            console.log(`  [LOG:FEATURE_BRANCH] Multi-phase feature: Phase ${currentPhase}/${totalPhases}`);
+            const multiPhaseMsg = `Multi-phase feature: Phase ${currentPhase}/${totalPhases}`;
+            console.log(`  🌿 ${multiPhaseMsg}`);
+            logFeatureBranch(issueNumber, multiPhaseMsg);
 
             // Try to get phase details from comments first (reliable), then fallback to markdown
             const parsedPhases = parsePhasesFromComment(issueComments) ||
@@ -498,13 +513,18 @@ async function processItem(
             if (mode === 'new' && currentPhase > 1) {
                 taskBranchForPhase = getTaskBranch(artifact);
                 if (taskBranchForPhase) {
-                    console.log(`  [LOG:FEATURE_BRANCH] Retrieved task branch from artifact: ${taskBranchForPhase}`);
+                    const retrievedMsg = `Retrieved task branch from artifact: ${taskBranchForPhase}`;
+                    console.log(`  🌿 ${retrievedMsg}`);
+                    logFeatureBranch(issueNumber, retrievedMsg);
                 } else {
-                    console.warn(`  [LOG:ERROR] [FEATURE_BRANCH] Task branch not found in artifact for Phase ${currentPhase}/${totalPhases}`);
+                    console.warn(`  ⚠️ Task branch not found in artifact for Phase ${currentPhase}/${totalPhases}`);
                     console.warn(`  Expected: Task branch should have been set in Phase 1`);
+                    logFeatureBranch(issueNumber, `WARNING: Task branch not found in artifact for Phase ${currentPhase}/${totalPhases}`);
                     // Fallback: try to generate the expected branch name
                     taskBranchForPhase = generateTaskBranchName(issueNumber);
-                    console.log(`  [LOG:FEATURE_BRANCH] Using generated task branch name: ${taskBranchForPhase}`);
+                    const fallbackMsg = `Using generated task branch name: ${taskBranchForPhase}`;
+                    console.log(`  🌿 ${fallbackMsg}`);
+                    logFeatureBranch(issueNumber, fallbackMsg);
                 }
             }
         } else if (mode === 'new' && !phaseInfo) {
@@ -517,7 +537,9 @@ async function processItem(
                 // Start new multi-phase implementation
                 currentPhase = 1;
                 totalPhases = parsedPhases.length;
-                console.log(`  [LOG:FEATURE_BRANCH] Detected multi-phase feature: ${totalPhases} phases`);
+                const detectedMsg = `Detected multi-phase feature: ${totalPhases} phases`;
+                console.log(`  🌿 ${detectedMsg}`);
+                logFeatureBranch(issueNumber, detectedMsg);
 
                 // Log which method was used
                 if (parsePhasesFromComment(issueComments)) {
@@ -537,7 +559,9 @@ async function processItem(
                     const taskBranchName = await ensureFeatureBranch(adapter, issueNumber, defaultBranch);
                     // Store task branch in artifact comment for future phases to reference
                     await setTaskBranch(adapter, issueNumber, taskBranchName);
-                    console.log(`  [LOG:FEATURE_BRANCH] Feature branch stored in artifact: ${taskBranchName}`);
+                    const storedMsg = `Feature branch stored in artifact: ${taskBranchName}`;
+                    console.log(`  🌿 ${storedMsg}`);
+                    logFeatureBranch(issueNumber, storedMsg);
                 }
 
                 // Get current phase details
@@ -566,7 +590,9 @@ async function processItem(
         } else if (currentPhase && totalPhases && totalPhases > 1) {
             // Multi-phase: use new naming convention
             branchName = generatePhaseBranchName(issueNumber, currentPhase);
-            console.log(`  [LOG:FEATURE_BRANCH] Using phase branch: ${branchName}`);
+            const phaseBranchMsg = `Using phase branch: ${branchName}`;
+            console.log(`  🌿 ${phaseBranchMsg}`);
+            logFeatureBranch(issueNumber, phaseBranchMsg);
         } else {
             // Single-phase: use old naming convention (unchanged)
             branchName = generateBranchName(issueNumber, content.title, issueType === 'bug', currentPhase);
@@ -691,13 +717,17 @@ ${currentPhase > 1 ? `\n**Note:** This builds on previous phases that have alrea
             // For single-phase: create from default branch (unchanged)
             if (taskBranchForPhase) {
                 // Multi-phase: create from feature branch
-                console.log(`  [LOG:FEATURE_BRANCH] Creating phase branch from feature branch: ${taskBranchForPhase}`);
-                createBranchFromBase(branchName, taskBranchForPhase);
+                const createPhaseMsg = `Creating phase branch from feature branch: ${taskBranchForPhase}`;
+                console.log(`  🌿 ${createPhaseMsg}`);
+                logFeatureBranch(issueNumber, createPhaseMsg);
+                createBranchFromBase(branchName, taskBranchForPhase, issueNumber);
             } else if (currentPhase === 1 && totalPhases && totalPhases > 1) {
                 // Phase 1 of multi-phase: create from the new feature branch
                 const taskBranch = generateTaskBranchName(issueNumber);
-                console.log(`  [LOG:FEATURE_BRANCH] Creating Phase 1 branch from feature branch: ${taskBranch}`);
-                createBranchFromBase(branchName, taskBranch);
+                const createPhase1Msg = `Creating Phase 1 branch from feature branch: ${taskBranch}`;
+                console.log(`  🌿 ${createPhase1Msg}`);
+                logFeatureBranch(issueNumber, createPhase1Msg);
+                createBranchFromBase(branchName, taskBranch, issueNumber);
             } else {
                 // Single-phase: create from default branch (unchanged behavior)
                 checkoutBranch(branchName, true);
@@ -1025,7 +1055,9 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
             if (currentPhase && totalPhases && totalPhases > 1) {
                 // Multi-phase: PR targets feature branch
                 prBaseBranch = generateTaskBranchName(issueNumber);
-                console.log(`  [LOG:FEATURE_BRANCH] PR #{prNumber} targeting feature branch: ${branchName} → ${prBaseBranch}`);
+                const prTargetMsg = `PR will target feature branch: ${branchName} → ${prBaseBranch}`;
+                console.log(`  🌿 ${prTargetMsg}`);
+                logFeatureBranch(issueNumber, prTargetMsg);
             } else {
                 // Single-phase: PR targets default branch (unchanged)
                 prBaseBranch = repoDefaultBranch;
@@ -1103,7 +1135,9 @@ See issue #${issueNumber} for full context, product design, and technical design
 
                 // Log PR targeting for multi-phase
                 if (currentPhase && totalPhases && totalPhases > 1) {
-                    console.log(`  [LOG:FEATURE_BRANCH] Phase ${currentPhase}/${totalPhases} PR targets feature branch`);
+                    const prCreatedMsg = `Phase ${currentPhase}/${totalPhases} PR #${prNumber} targets feature branch`;
+                    console.log(`  🌿 ${prCreatedMsg}`);
+                    logFeatureBranch(issueNumber, prCreatedMsg);
                 }
 
                 // Update artifact comment with implementation PR

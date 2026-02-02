@@ -261,6 +261,23 @@ export function logInfo(
 }
 
 /**
+ * Log feature branch workflow event
+ * Used for multi-phase feature branch operations
+ */
+export function logFeatureBranch(
+    issueNumber: number,
+    message: string
+): void {
+    const timestamp = formatTime(new Date());
+
+    const content = `**[${timestamp}]** [LOG:FEATURE_BRANCH] 🌿 ${message}
+
+`;
+
+    appendToLog(issueNumber, content);
+}
+
+/**
  * Log error
  */
 export function logError(
