@@ -53,8 +53,7 @@ fi
 
 # Check for modifications to template-owned files (child projects only)
 # This check only runs if .template-sync.template.json exists (child project)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_CHECK_SCRIPT="$SCRIPT_DIR/../template/check-template-files.sh"
+TEMPLATE_CHECK_SCRIPT="scripts/template/check-template-files.sh"
 
 if [ -f ".template-sync.template.json" ] && [ -f "$TEMPLATE_CHECK_SCRIPT" ]; then
     if ! "$TEMPLATE_CHECK_SCRIPT"; then
