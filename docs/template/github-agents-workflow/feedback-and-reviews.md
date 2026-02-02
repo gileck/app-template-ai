@@ -225,7 +225,7 @@ _Clarification provided via interactive UI. Continue with the selected option(s)
 
 **For Agents:**
 - Set `needsClarification: true` when clarification is needed
-- Provide structured `clarification` object (not a string)
+- **REQUIRED**: Provide structured `clarification` object (string format not supported)
 - Include all required fields: `context`, `question`, `options`, `recommendation`
 - Provide 2-4 options with clear labels and descriptions
 - Set `isRecommended: true` on exactly ONE option
@@ -233,21 +233,32 @@ _Clarification provided via interactive UI. Continue with the selected option(s)
 - Leave other output fields empty (design, comment, etc.)
 - Keep questions specific and focused
 
-**Clarification Object Schema:**
+**Clarification Object Schema (Required):**
 ```typescript
 {
-  context: string;        // What's ambiguous and why
-  question: string;       // The specific question
-  options: [              // 2-4 options
-    {
-      label: string;      // Short option name
-      description: string; // Details with \n for bullets
-      isRecommended: boolean;
-    }
-  ];
-  recommendation: string; // Why you recommend the option
+  needsClarification: true,
+  clarification: {
+    context: string;        // What's ambiguous and why
+    question: string;       // The specific question
+    options: [              // 2-4 options (non-empty array required)
+      {
+        label: string;        // Short option name
+        description: string;  // Details with \n for bullets
+        isRecommended: boolean;
+      }
+    ];
+    recommendation: string; // Why you recommend the option
+  },
+  design: "",              // Leave empty
+  comment: ""              // Leave empty
 }
 ```
+
+**Error Handling:**
+The system will throw errors if agents use incorrect format:
+- Using legacy `clarificationRequest` string → Error with migration instructions
+- Missing required fields in `clarification` object → Error listing missing fields
+- `needsClarification: true` without `clarification` object → Error with required format
 
 **For Admins:**
 - Use the interactive UI when possible (faster, less error-prone)
