@@ -74,9 +74,14 @@ export function logExecutionStart(ctx: LogContext): void {
             ? `**Model:** ${ctx.model}\n`
             : '';
 
+    // Get working directory
+    const workingDir = process.cwd();
+    console.log(`  📁 Working directory: ${workingDir}`);
+
     const content = `## [LOG:PHASE_START] Phase: ${ctx.phase}
 
 **Agent:** ${ctx.workflow}
+**Working Directory:** ${workingDir}
 ${ctx.mode ? `**Mode:** ${ctx.mode}\n` : ''}${libraryInfo}${statusLine}**Started:** ${formatTime(ctx.startTime)}
 
 `;
