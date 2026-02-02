@@ -5,6 +5,14 @@ export const appConfig = {
     cacheType: isProduction ? 's3' : 's3',
     dbName: 'app_template_db',
 
+    // Production URL for the app (used for clarification links in Telegram)
+    // Override via NEXT_PUBLIC_APP_URL env var
+    // Falls back to Vercel URL when deployed, otherwise uses this default
+    appUrl: process.env.NEXT_PUBLIC_APP_URL ||
+            process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` ||
+            process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}` ||
+            'https://app-template-ai.vercel.app',
+
     // Telegram Chat IDs for different notification categories
     // Get these by running: yarn telegram-setup
     //

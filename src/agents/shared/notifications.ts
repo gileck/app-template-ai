@@ -462,23 +462,14 @@ Issue will be marked as Done.`;
 /**
  * Get the base app URL for clarification links
  *
- * Priority order:
- * 1. VERCEL_PROJECT_PRODUCTION_URL - Stable production domain
- * 2. VERCEL_URL - Deployment-specific URL
- * 3. NEXT_PUBLIC_APP_URL - Manual override
- * 4. localhost:3000 - Local development fallback
+ * Uses appConfig.appUrl which has the following priority:
+ * 1. NEXT_PUBLIC_APP_URL - Manual override
+ * 2. VERCEL_PROJECT_PRODUCTION_URL - Stable production domain
+ * 3. VERCEL_URL - Deployment-specific URL
+ * 4. Default production URL from config
  */
 function getAppUrl(): string {
-    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-        return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-    }
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`;
-    }
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-        return process.env.NEXT_PUBLIC_APP_URL;
-    }
-    return 'http://localhost:3000';
+    return appConfig.appUrl;
 }
 
 /**
