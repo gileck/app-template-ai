@@ -96,12 +96,14 @@ export function formatSessionLogs(logs: SessionLogEntry[], limit?: number): stri
 // ============================================================
 
 /**
- * Extract clarification request from a string
+ * Extract clarification request from a string (legacy format)
  *
- * Agents output clarification requests in this format:
+ * Agents previously output clarification requests in this format:
  * ```clarification
  * [formatted question with context, options, recommendation]
  * ```
+ *
+ * @deprecated Use extractClarificationFromResult instead, which checks the boolean flag
  */
 export function extractClarification(content: string): string | null {
     // Handle both triple backticks (```) and quadruple backticks (````)
@@ -112,9 +114,8 @@ export function extractClarification(content: string): string | null {
 /**
  * Extract clarification request from agent result
  *
- * Checks both raw content AND structured output fields for clarification blocks.
- * This handles the case where agents using structured output put the clarification
- * in the comment or design field instead of raw text output.
+ * Checks for the needsClarification boolean flag in structured output.
+ * Also supports legacy format (```clarification block) for backwards compatibility.
  *
  * @param result - The agent result object containing content and/or structuredOutput
  * @returns The clarification request text if found, null otherwise
@@ -123,7 +124,22 @@ export function extractClarificationFromResult(result: {
     content?: string | null;
     structuredOutput?: unknown;
 }): string | null {
-    // First check raw content
+    // Primary method: Check boolean flag in structured output
+    if (result.structuredOutput && typeof result.structuredOutput === 'object') {
+        const output = result.structuredOutput as Record<string, unknown>;
+
+        // Check explicit needsClarification flag (preferred method)
+        if (output.needsClarification === true) {
+            // Return the clarification request if provided
+            if (typeof output.clarificationRequest === 'string' && output.clarificationRequest.trim()) {
+                return output.clarificationRequest;
+            }
+            // Flag is true but no request text - return a generic message
+            return 'Clarification needed (no specific question provided)';
+        }
+    }
+
+    // Fallback: Legacy format - check for ```clarification block in content
     if (result.content) {
         const clarification = extractClarification(result.content);
         if (clarification) {
@@ -131,31 +147,17 @@ export function extractClarificationFromResult(result: {
         }
     }
 
-    // Then check structured output fields (comment and design)
+    // Fallback: Legacy format - check structured output string fields for ```clarification block
     if (result.structuredOutput && typeof result.structuredOutput === 'object') {
         const output = result.structuredOutput as Record<string, unknown>;
 
-        // Check comment field (most common place for clarification in structured output)
-        if (output.comment && typeof output.comment === 'string') {
-            const clarification = extractClarification(output.comment);
-            if (clarification) {
-                return clarification;
-            }
-        }
-
-        // Check design field (agent might put placeholder with clarification embedded)
-        if (output.design && typeof output.design === 'string') {
-            const clarification = extractClarification(output.design);
-            if (clarification) {
-                return clarification;
-            }
-        }
-
-        // Check document field (for product development agent)
-        if (output.document && typeof output.document === 'string') {
-            const clarification = extractClarification(output.document);
-            if (clarification) {
-                return clarification;
+        // Check common string fields for legacy clarification blocks
+        for (const field of ['comment', 'design', 'document', 'clarificationRequest']) {
+            if (output[field] && typeof output[field] === 'string') {
+                const clarification = extractClarification(output[field] as string);
+                if (clarification) {
+                    return clarification;
+                }
             }
         }
     }

@@ -15,9 +15,14 @@ If you encounter ANY ambiguity, uncertainty, or missing information that prevent
 
 1. DO NOT make assumptions or pick an option arbitrarily
 2. DO NOT proceed with partial or uncertain information
-3. INSTEAD, output a clarification request in this EXACT format:
+3. INSTEAD, use the clarification fields in your structured output:
 
-\`\`\`clarification
+Set these fields:
+- \`needsClarification\`: true
+- \`clarificationRequest\`: Your question formatted as shown below
+- Leave all other fields empty (design, comment, phases, etc.)
+
+Format for clarificationRequest:
 ## Context
 [Describe what's ambiguous or unclear]
 
@@ -38,9 +43,8 @@ If you encounter ANY ambiguity, uncertainty, or missing information that prevent
 
 ## Recommendation
 I recommend Option 1 because [clear reasoning].
-\`\`\`
 
-When you output a clarification request:
+When you set needsClarification=true:
 - The system will post it as a comment on the GitHub issue
 - Admin will be notified via Telegram with an interactive UI link
 - Your work will pause until admin responds

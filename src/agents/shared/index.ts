@@ -63,12 +63,14 @@ export type {
     TechDesignOutput,
     ImplementationOutput,
     ImplementationPhase,
+    ClarificationFields,
 } from './output-schemas';
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
     PRODUCT_DESIGN_OUTPUT_FORMAT,
     TECH_DESIGN_OUTPUT_FORMAT,
     IMPLEMENTATION_OUTPUT_FORMAT,
+    CLARIFICATION_SCHEMA_PROPERTIES,
 } from './output-schemas';
 
 // Agent library abstraction
