@@ -99,102 +99,72 @@ import type { StructuredClarification } from './output-schemas';
 
 /**
  * Result of extracting clarification from agent output.
- * Can be either structured data (preferred) or legacy string format.
+ * Contains structured clarification data.
  */
 export interface ExtractedClarification {
-    /** Structured clarification data (preferred format) */
-    structured?: StructuredClarification;
-    /** Legacy string format (for backwards compatibility) */
-    legacyText?: string;
-}
-
-/**
- * Extract clarification request from a string (legacy format)
- *
- * Agents previously output clarification requests in this format:
- * ```clarification
- * [formatted question with context, options, recommendation]
- * ```
- *
- * @deprecated Use extractClarificationFromResult instead, which checks the boolean flag
- */
-export function extractClarification(content: string): string | null {
-    // Handle both triple backticks (```) and quadruple backticks (````)
-    const match = content.match(/`{3,4}clarification\n([\s\S]*?)\n`{3,4}/);
-    return match ? match[1].trim() : null;
+    /** Structured clarification data */
+    structured: StructuredClarification;
 }
 
 /**
  * Extract clarification request from agent result
  *
- * Checks for structured clarification data first (preferred),
- * then falls back to legacy string formats for backwards compatibility.
+ * Checks for structured clarification data in the agent's output.
+ * Throws an error if agent uses legacy string format - agents must use structured format.
  *
  * @param result - The agent result object containing content and/or structuredOutput
- * @returns ExtractedClarification with structured or legacy data, or null if none found
+ * @returns ExtractedClarification with structured data, or null if no clarification needed
+ * @throws Error if agent uses legacy string format instead of structured clarification
  */
 export function extractClarificationFromResult(result: {
     content?: string | null;
     structuredOutput?: unknown;
 }): ExtractedClarification | null {
-    // Primary method: Check for structured clarification in output
-    if (result.structuredOutput && typeof result.structuredOutput === 'object') {
-        const output = result.structuredOutput as Record<string, unknown>;
-
-        // Check explicit needsClarification flag
-        if (output.needsClarification === true) {
-            // Check for new structured clarification format
-            if (output.clarification && typeof output.clarification === 'object') {
-                const clarification = output.clarification as Record<string, unknown>;
-
-                // Validate required fields
-                if (
-                    typeof clarification.context === 'string' &&
-                    typeof clarification.question === 'string' &&
-                    Array.isArray(clarification.options) &&
-                    clarification.options.length > 0 &&
-                    typeof clarification.recommendation === 'string'
-                ) {
-                    return {
-                        structured: clarification as unknown as StructuredClarification,
-                    };
-                }
-            }
-
-            // Fallback: Legacy clarificationRequest string field
-            if (typeof output.clarificationRequest === 'string' && output.clarificationRequest.trim()) {
-                return { legacyText: output.clarificationRequest };
-            }
-
-            // Flag is true but no valid data - return a generic message
-            return { legacyText: 'Clarification needed (no specific question provided)' };
-        }
+    if (!result.structuredOutput || typeof result.structuredOutput !== 'object') {
+        return null;
     }
 
-    // Fallback: Legacy format - check for ```clarification block in content
-    if (result.content) {
-        const clarification = extractClarification(result.content);
-        if (clarification) {
-            return { legacyText: clarification };
-        }
+    const output = result.structuredOutput as Record<string, unknown>;
+
+    // Check explicit needsClarification flag
+    if (output.needsClarification !== true) {
+        return null;
     }
 
-    // Fallback: Legacy format - check structured output string fields for ```clarification block
-    if (result.structuredOutput && typeof result.structuredOutput === 'object') {
-        const output = result.structuredOutput as Record<string, unknown>;
+    // Check for structured clarification format (required)
+    if (output.clarification && typeof output.clarification === 'object') {
+        const clarification = output.clarification as Record<string, unknown>;
 
-        // Check common string fields for legacy clarification blocks
-        for (const field of ['comment', 'design', 'document', 'clarificationRequest']) {
-            if (output[field] && typeof output[field] === 'string') {
-                const clarification = extractClarification(output[field] as string);
-                if (clarification) {
-                    return { legacyText: clarification };
-                }
-            }
+        // Validate required fields
+        if (
+            typeof clarification.context === 'string' &&
+            typeof clarification.question === 'string' &&
+            Array.isArray(clarification.options) &&
+            clarification.options.length > 0 &&
+            typeof clarification.recommendation === 'string'
+        ) {
+            return {
+                structured: clarification as unknown as StructuredClarification,
+            };
         }
+
+        // Clarification object exists but is invalid
+        throw new Error(
+            'Invalid clarification format: clarification object must have context, question, options (non-empty array), and recommendation fields'
+        );
     }
 
-    return null;
+    // Legacy string format - not supported
+    if (typeof output.clarificationRequest === 'string' && output.clarificationRequest.trim()) {
+        throw new Error(
+            'Legacy clarificationRequest string format is not supported. Use structured clarification object instead: { clarification: { context, question, options, recommendation } }'
+        );
+    }
+
+    // needsClarification is true but no clarification data
+    throw new Error(
+        'needsClarification is true but no clarification object provided. Add: clarification: { context, question, options, recommendation }'
+    );
 }
 
 /**
@@ -238,40 +208,31 @@ export function formatStructuredClarification(clarification: StructuredClarifica
 
 /**
  * Get the text content from extracted clarification (for display/notifications).
- * Returns formatted markdown regardless of whether it was structured or legacy.
+ * Returns formatted markdown from structured clarification data.
  */
 export function getClarificationText(extracted: ExtractedClarification): string {
-    if (extracted.structured) {
-        return formatStructuredClarification(extracted.structured);
-    }
-    return extracted.legacyText || 'Clarification needed';
+    return formatStructuredClarification(extracted.structured);
 }
 
 /**
  * Handle agent clarification request.
  *
- * Accepts either ExtractedClarification (new format) or a string (legacy).
+ * Accepts ExtractedClarification with structured data.
  * Formats and posts the clarification to GitHub, updates status, and sends notification.
  */
 export async function handleClarificationRequest(
     adapter: ProjectManagementAdapter,
     item: { id: string; content: { number: number; title: string; labels?: string[] } },
     issueNumber: number,
-    clarification: ExtractedClarification | string,
+    clarification: ExtractedClarification,
     phase: string,
     title: string,
     issueType: 'bug' | 'feature',
     options: CommonCLIOptions,
     agentName: AgentName
 ): Promise<{ success: boolean; needsClarification: true }> {
-    // Normalize to ExtractedClarification
-    const extracted: ExtractedClarification =
-        typeof clarification === 'string'
-            ? { legacyText: clarification }
-            : clarification;
-
     // Get the text content for display
-    const clarificationText = getClarificationText(extracted);
+    const clarificationText = getClarificationText(clarification);
 
     if (options.dryRun) {
         console.log('  [DRY RUN] Would add clarification comment');

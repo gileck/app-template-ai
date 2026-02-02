@@ -140,7 +140,6 @@ export {
     getIssueType,
     getBugDiagnostics,
     formatSessionLogs,
-    extractClarification,
     extractClarificationFromResult,
     handleClarificationRequest,
     formatStructuredClarification,
