@@ -10,15 +10,15 @@ If the user hasn't provided a specific report ID, list investigated reports that
 
 ```bash
 # List all investigated reports
-node scripts/list-reports.mjs --investigated
+node scripts/template/list-reports.mjs --investigated
 
 # Filter by investigation status
-node scripts/list-reports.mjs --inv-status root_cause_found
-node scripts/list-reports.mjs --inv-status complex_fix
+node scripts/template/list-reports.mjs --inv-status root_cause_found
+node scripts/template/list-reports.mjs --inv-status complex_fix
 
 # Combine filters
-node scripts/list-reports.mjs --status new --inv-status root_cause_found
-node scripts/list-reports.mjs --confidence high --complexity low --limit 20
+node scripts/template/list-reports.mjs --status new --inv-status root_cause_found
+node scripts/template/list-reports.mjs --confidence high --complexity low --limit 20
 ```
 
 The output includes:
@@ -32,16 +32,16 @@ The output includes:
 If the user provides a **report ID**, fetch the full report with investigation details:
 
 ```bash
-node scripts/get-report.mjs <report-id>
+node scripts/template/get-report.mjs <report-id>
 ```
 
 This outputs the complete report including the investigation results and proposed fix.
 
 ## Typical Workflow
 
-1. **List investigated reports** - Run `node scripts/list-reports.mjs --investigated`
+1. **List investigated reports** - Run `node scripts/template/list-reports.mjs --investigated`
 2. **Select a report** - Pick one with `root_cause_found` status and a proposed fix
-3. **Fetch full details** - Run `node scripts/get-report.mjs <report-id>`
+3. **Fetch full details** - Run `node scripts/template/get-report.mjs <report-id>`
 4. **Review investigation** - Understand the root cause and proposed fix
 5. **Implement fix** - Make the code changes following the proposed fix
 6. **Test** - Verify the fix works
