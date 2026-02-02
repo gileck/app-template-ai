@@ -9,9 +9,11 @@ import { mergeApiHandlers } from "./registry";
 import { chatApiHandlers } from "./chat/server";
 import { todosApiHandlers } from "./todos/server";
 import { clarificationApiHandlers } from "./clarification/server";
+import { dashboardApiHandlers } from "./dashboard/server";
 
 export const projectApiHandlers = mergeApiHandlers(
   chatApiHandlers,
   todosApiHandlers,
-  clarificationApiHandlers
+  clarificationApiHandlers,
+  dashboardApiHandlers
 );
