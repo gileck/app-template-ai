@@ -1,11 +1,13 @@
 /**
  * Dashboard Header Component
  *
- * Header with title and date range preset buttons.
+ * Header with title, date range preset buttons, and export button.
  */
 
 import { Button } from '@/client/components/ui/button';
+import { ExportButton } from './ExportButton';
 import { useDashboardStore } from '../store';
+import { useDashboardAnalytics } from '../hooks';
 import type { DateRangePreset } from '../types';
 
 /**
@@ -42,6 +44,7 @@ export function DashboardHeader() {
     const startDate = useDashboardStore((s) => s.startDate);
     const endDate = useDashboardStore((s) => s.endDate);
     const setPreset = useDashboardStore((s) => s.setPreset);
+    const { data } = useDashboardAnalytics();
 
     const currentPreset = getCurrentPreset(startDate, endDate);
 
@@ -49,8 +52,8 @@ export function DashboardHeader() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold">Analytics Dashboard</h1>
 
-            {/* Date range presets */}
-            <div className="flex flex-wrap gap-2">
+            {/* Date range presets and export */}
+            <div className="flex flex-wrap items-center gap-2">
                 {presets.map((preset) => (
                     <Button
                         key={preset.value}
@@ -62,6 +65,8 @@ export function DashboardHeader() {
                         {preset.label}
                     </Button>
                 ))}
+                <div className="hidden sm:block w-px h-6 bg-border mx-1" />
+                <ExportButton metrics={data} startDate={startDate} endDate={endDate} />
             </div>
         </div>
     );

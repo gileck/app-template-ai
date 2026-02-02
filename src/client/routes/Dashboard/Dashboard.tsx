@@ -2,19 +2,24 @@
  * Dashboard Page Component
  *
  * Main analytics dashboard with metrics, charts, and activity feed.
- * Phase 2: Added metrics cards and interactive charts.
+ * Phase 3: Added activity feed with filtering and CSV export.
  */
 
-import { Card } from '@/client/components/ui/card';
 import { Alert, AlertDescription } from '@/client/components/ui/alert';
-import { DashboardHeader, DashboardSkeleton, MetricsSection, ChartsSection } from './components';
+import {
+    DashboardHeader,
+    DashboardSkeleton,
+    MetricsSection,
+    ChartsSection,
+    ActivityFeedSection,
+} from './components';
 import { useDashboardAnalytics } from './hooks';
 
 /**
  * Main Dashboard component
  */
 export function Dashboard() {
-    const { data, isLoading, error } = useDashboardAnalytics();
+    const { data, isLoading, error, isRefetching } = useDashboardAnalytics();
 
     // Loading state
     if (isLoading && !data) {
@@ -67,34 +72,13 @@ export function Dashboard() {
                 <ChartsSection data={data} />
             </div>
 
-            {/* Placeholder for activity feed (Phase 3) */}
-            <Card className="mt-4 p-4">
-                <h3 className="text-lg font-medium">Recent Activity</h3>
-                <p className="text-sm text-muted-foreground">
-                    Activity feed coming in Phase 3
-                </p>
-                {data.activities && data.activities.length > 0 ? (
-                    <div className="mt-4 space-y-3">
-                        {data.activities.slice(0, 5).map((activity) => (
-                            <div
-                                key={activity.id}
-                                className="flex items-start gap-3 rounded-md border border-border p-3"
-                            >
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">{activity.title}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {new Date(activity.timestamp).toLocaleString()}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="mt-4 h-32 flex items-center justify-center rounded-md bg-muted/50">
-                        <span className="text-muted-foreground">No recent activity</span>
-                    </div>
-                )}
-            </Card>
+            {/* Activity feed with filtering */}
+            <div className="mt-4">
+                <ActivityFeedSection
+                    activities={data.activities || []}
+                    isRefetching={isRefetching}
+                />
+            </div>
         </div>
     );
 }
