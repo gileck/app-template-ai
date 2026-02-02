@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 38
-- **Open:** 14
+- **Total Tasks:** 39
+- **Open:** 15
 - **In Progress:** 0
 - **Done:** 24
 
 ---
 
-## 📋 Open Tasks (14)
+## 📋 Open Tasks (15)
 
 ### 🟠 High Priority
 
@@ -37,6 +37,7 @@
 | 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
+| 39 | Split telegram-webhook.ts into smaller modules | M | Medium |
 
 ### 🟢 Low Priority
 
