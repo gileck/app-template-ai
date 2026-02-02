@@ -289,7 +289,7 @@ async function main() {
     console.log('Syncing agent logs to dev repo...');
     console.log('='.repeat(60));
     try {
-        const syncScript = resolve(__dirname, '../../scripts/sync-agent-logs.sh');
+        const syncScript = resolve(__dirname, '../../scripts/template/sync-agent-logs.sh');
         execSync(`bash "${syncScript}"`, {
             cwd: process.cwd(),
             encoding: 'utf-8',
