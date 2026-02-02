@@ -35,7 +35,7 @@
     "telegram-setup": "tsx scripts/template/telegram-setup.ts",
     "telegram-webhook": "tsx scripts/template/telegram-webhook-setup.ts",
     "send-telegram": "tsx scripts/template/send-telegram.ts",
-    "telegram-bot": "tsx scripts/poc/telegram-claude-bot.ts",
+    "telegram-bot": "tsx scripts/template/telegram-bot/index.ts",
     "setup-github-secrets": "tsx scripts/template/setup-github-secrets.ts",
     "sync-children": "tsx scripts/template/sync-child-projects.ts",
     "sync-agent-logs": "./scripts/template/sync-agent-logs.sh",
