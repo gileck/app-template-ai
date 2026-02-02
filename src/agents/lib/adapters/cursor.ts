@@ -267,6 +267,14 @@ IMPORTANT:
 
                             if (event.type === 'text' && event.content) {
                                 // Buffer text responses instead of logging each one
+                                // Add newline between text chunks if previous chunk ended with sentence punctuation
+                                const needsNewline = textBuffer.length > 0 &&
+                                    /[.!?]$/.test(textBuffer.trim()) &&
+                                    /^[A-Z]/.test(event.content.trim());
+                                if (needsNewline) {
+                                    textBuffer += '\n';
+                                    displayBuffer += '\n';
+                                }
                                 textBuffer += event.content;
                                 displayBuffer += event.content;
                                 lastResult = event.content;
