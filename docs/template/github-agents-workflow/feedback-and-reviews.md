@@ -44,11 +44,16 @@ When an issue description is unclear or incomplete, agents can request clarifica
 
 **2. Agent Structured Output**
 - Agent sets `needsClarification: true` in structured output
-- Agent provides question in `clarificationRequest` field
+- Agent provides structured `clarification` object with:
+  - `context`: What's ambiguous and why clarification is needed
+  - `question`: The specific question being asked
+  - `options`: Array of options (2-4) with labels, descriptions, and `isRecommended` flags
+  - `recommendation`: Why the agent recommends a specific option
 - Agent leaves other output fields empty (design, comment, etc.)
 
 **3. System Handling**
 - System detects `needsClarification=true` flag
+- Formats structured clarification data as markdown
 - Posts clarification question as GitHub issue comment
 - Sets Review Status to "Waiting for Clarification"
 - Sends Telegram notification with "ANSWER QUESTIONS" button
@@ -115,7 +120,28 @@ https://your-app.vercel.app/clarify/45?token=abc123
 ```json
 {
   "needsClarification": true,
-  "clarificationRequest": "## Context\nThe feature request asks for \"search functionality\" but doesn't specify the scope or type.\n\n## Question\nWhat notification channels should be supported initially?\n\n## Options\n\n✅ Option 1: Email only\n   - Simpler to implement\n   - Most users have email configured\n\n⚠️ Option 2: Email + Push notifications\n   - More complex, requires service worker\n   - Better UX for time-sensitive alerts\n\n⚠️ Option 3: In-app only\n   - Simplest to implement\n   - Users must be in app to see them\n\n## Recommendation\nI recommend Option 1 because it provides reliable delivery with minimal complexity.",
+  "clarification": {
+    "context": "The feature request asks for 'search functionality' but doesn't specify the scope or type of notifications to send when search results change.",
+    "question": "What notification channels should be supported initially?",
+    "options": [
+      {
+        "label": "Email only",
+        "description": "Send notifications via email.\n- Simpler to implement\n- Most users have email configured\n- No additional infrastructure needed",
+        "isRecommended": true
+      },
+      {
+        "label": "Email + Push notifications",
+        "description": "Send via both email and browser push notifications.\n- More complex, requires service worker\n- Better UX for time-sensitive alerts\n- Requires user opt-in for push",
+        "isRecommended": false
+      },
+      {
+        "label": "In-app only",
+        "description": "Show notifications only within the app.\n- Simplest to implement\n- Users must be in app to see them\n- No external dependencies",
+        "isRecommended": false
+      }
+    ],
+    "recommendation": "I recommend 'Email only' because it provides reliable delivery with minimal complexity. We can add push notifications in a future iteration."
+  },
   "design": "",
   "comment": ""
 }
@@ -199,11 +225,29 @@ _Clarification provided via interactive UI. Continue with the selected option(s)
 
 **For Agents:**
 - Set `needsClarification: true` when clarification is needed
-- Provide clear question in `clarificationRequest` field
+- Provide structured `clarification` object (not a string)
+- Include all required fields: `context`, `question`, `options`, `recommendation`
+- Provide 2-4 options with clear labels and descriptions
+- Set `isRecommended: true` on exactly ONE option
+- Use `\n` for newlines in description text (for bullet points)
 - Leave other output fields empty (design, comment, etc.)
-- Format question with: Context, Question, Options (2-4), Recommendation
-- Use ✅ for recommended option, ⚠️ for alternatives
 - Keep questions specific and focused
+
+**Clarification Object Schema:**
+```typescript
+{
+  context: string;        // What's ambiguous and why
+  question: string;       // The specific question
+  options: [              // 2-4 options
+    {
+      label: string;      // Short option name
+      description: string; // Details with \n for bullets
+      isRecommended: boolean;
+    }
+  ];
+  recommendation: string; // Why you recommend the option
+}
+```
 
 **For Admins:**
 - Use the interactive UI when possible (faster, less error-prone)

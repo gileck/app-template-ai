@@ -6,19 +6,47 @@
  */
 
 // ============================================================
-// SHARED CLARIFICATION FIELDS
+// SHARED CLARIFICATION TYPES
 // ============================================================
+
+/**
+ * A single option in a clarification question.
+ * Used in structured agent output for reliable parsing.
+ */
+export interface ClarificationOption {
+    /** Short label for the option (e.g., "Phased approach") */
+    label: string;
+    /** Detailed description or explanation */
+    description: string;
+    /** Whether this is the recommended option */
+    isRecommended: boolean;
+}
+
+/**
+ * Structured clarification request from an agent.
+ * This replaces the old markdown string format for reliable parsing.
+ */
+export interface StructuredClarification {
+    /** Context describing what's ambiguous or unclear */
+    context: string;
+    /** The specific question being asked */
+    question: string;
+    /** Available options to choose from (2-4 options) */
+    options: ClarificationOption[];
+    /** Agent's recommendation text explaining why they recommend a specific option */
+    recommendation: string;
+}
 
 /**
  * Clarification fields that are added to all agent output schemas.
  * When an agent needs clarification, it sets needsClarification=true
- * and provides the question in clarificationRequest.
+ * and provides structured clarification data.
  */
 export interface ClarificationFields {
     /** Set to true if clarification is needed before proceeding */
     needsClarification?: boolean;
-    /** The clarification question (required when needsClarification=true) */
-    clarificationRequest?: string;
+    /** Structured clarification data (required when needsClarification=true) */
+    clarification?: StructuredClarification;
 }
 
 /**
@@ -28,11 +56,48 @@ export interface ClarificationFields {
 export const CLARIFICATION_SCHEMA_PROPERTIES = {
     needsClarification: {
         type: 'boolean',
-        description: 'Set to true if you need clarification before proceeding. When true, provide the question in clarificationRequest and leave other fields empty/null.',
+        description: 'Set to true if you need clarification before proceeding. When true, provide structured clarification data and leave other fields empty.',
     },
-    clarificationRequest: {
-        type: 'string',
-        description: 'The clarification question. Required when needsClarification=true. Format: ## Context, ## Question, ## Options (with ✅/⚠️), ## Recommendation',
+    clarification: {
+        type: 'object',
+        description: 'Structured clarification request. Required when needsClarification=true.',
+        properties: {
+            context: {
+                type: 'string',
+                description: 'Context describing what is ambiguous or unclear. Explain the situation and why clarification is needed.',
+            },
+            question: {
+                type: 'string',
+                description: 'The specific question being asked. Should be clear and actionable.',
+            },
+            options: {
+                type: 'array',
+                description: 'Available options to choose from. Provide 2-4 options with clear descriptions.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        label: {
+                            type: 'string',
+                            description: 'Short label for the option (e.g., "Phased approach", "Build all upfront")',
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Detailed description explaining this option, its benefits, and tradeoffs. Use bullet points with newlines.',
+                        },
+                        isRecommended: {
+                            type: 'boolean',
+                            description: 'Set to true for the recommended option (only one option should be recommended)',
+                        },
+                    },
+                    required: ['label', 'description', 'isRecommended'],
+                },
+            },
+            recommendation: {
+                type: 'string',
+                description: 'Explain why you recommend the recommended option. Be specific about the reasoning.',
+            },
+        },
+        required: ['context', 'question', 'options', 'recommendation'],
     },
 };
 

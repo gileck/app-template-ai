@@ -19,36 +19,47 @@ If you encounter ANY ambiguity, uncertainty, or missing information that prevent
 
 Set these fields:
 - \`needsClarification\`: true
-- \`clarificationRequest\`: Your question formatted as shown below
+- \`clarification\`: An object with structured clarification data (see format below)
 - Leave all other fields empty (design, comment, phases, etc.)
 
-Format for clarificationRequest:
-## Context
-[Describe what's ambiguous or unclear]
+Format for clarification object:
+\`\`\`json
+{
+  "needsClarification": true,
+  "clarification": {
+    "context": "Explain what is ambiguous or unclear and why clarification is needed.",
+    "question": "Your specific, actionable question.",
+    "options": [
+      {
+        "label": "Recommended option name",
+        "description": "Detailed explanation of this option, its benefits, and approach.\\n- Bullet point 1\\n- Bullet point 2",
+        "isRecommended": true
+      },
+      {
+        "label": "Alternative option name",
+        "description": "Detailed explanation of this option and its tradeoffs.\\n- Bullet point 1\\n- Bullet point 2",
+        "isRecommended": false
+      }
+    ],
+    "recommendation": "I recommend [option] because [clear reasoning]."
+  },
+  "design": "",
+  "comment": ""
+}
+\`\`\`
 
-## Question
-[Your specific question]
-
-## Options
-
-✅ Option 1: [Recommended option name]
-   - [Benefit/reason 1]
-   - [Benefit/reason 2]
-
-⚠️ Option 2: [Alternative option name]
-   - [Drawback/reason 1]
-   - [Drawback/reason 2]
-
-[Additional options if needed - use ⚠️ for non-recommended options]
-
-## Recommendation
-I recommend Option 1 because [clear reasoning].
+Guidelines for clarification:
+- Provide 2-4 options (one should be recommended)
+- Use clear, descriptive labels for options
+- Include detailed descriptions with bullet points (use \\n for newlines)
+- Only set isRecommended=true for ONE option
+- Keep the question specific and actionable
 
 When you set needsClarification=true:
-- The system will post it as a comment on the GitHub issue
-- Admin will be notified via Telegram with an interactive UI link
+- The system will post a formatted comment on the GitHub issue
+- Admin will be notified via Telegram with an interactive UI
+- Admin can select an option or provide a custom response
 - Your work will pause until admin responds
-- Admin will select an option or provide a custom response via the UI
 - You will be re-invoked with the admin's clear answer
 
 Examples of when to ask for clarification:

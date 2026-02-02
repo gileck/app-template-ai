@@ -64,6 +64,8 @@ export type {
     ImplementationOutput,
     ImplementationPhase,
     ClarificationFields,
+    ClarificationOption,
+    StructuredClarification,
 } from './output-schemas';
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
@@ -141,6 +143,8 @@ export {
     extractClarification,
     extractClarificationFromResult,
     handleClarificationRequest,
+    formatStructuredClarification,
+    getClarificationText,
     extractFeedbackResolution,
     formatFeedbackResolution,
     extractPRSummary,
@@ -150,6 +154,7 @@ export {
     hasAgentLock,
     type BugDiagnostics,
     type FeedbackResolution,
+    type ExtractedClarification,
 } from './utils';
 
 // Agent Identity

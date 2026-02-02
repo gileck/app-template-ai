@@ -95,6 +95,19 @@ export function formatSessionLogs(logs: SessionLogEntry[], limit?: number): stri
 // CLARIFICATION EXTRACTION
 // ============================================================
 
+import type { StructuredClarification } from './output-schemas';
+
+/**
+ * Result of extracting clarification from agent output.
+ * Can be either structured data (preferred) or legacy string format.
+ */
+export interface ExtractedClarification {
+    /** Structured clarification data (preferred format) */
+    structured?: StructuredClarification;
+    /** Legacy string format (for backwards compatibility) */
+    legacyText?: string;
+}
+
 /**
  * Extract clarification request from a string (legacy format)
  *
@@ -114,28 +127,47 @@ export function extractClarification(content: string): string | null {
 /**
  * Extract clarification request from agent result
  *
- * Checks for the needsClarification boolean flag in structured output.
- * Also supports legacy format (```clarification block) for backwards compatibility.
+ * Checks for structured clarification data first (preferred),
+ * then falls back to legacy string formats for backwards compatibility.
  *
  * @param result - The agent result object containing content and/or structuredOutput
- * @returns The clarification request text if found, null otherwise
+ * @returns ExtractedClarification with structured or legacy data, or null if none found
  */
 export function extractClarificationFromResult(result: {
     content?: string | null;
     structuredOutput?: unknown;
-}): string | null {
-    // Primary method: Check boolean flag in structured output
+}): ExtractedClarification | null {
+    // Primary method: Check for structured clarification in output
     if (result.structuredOutput && typeof result.structuredOutput === 'object') {
         const output = result.structuredOutput as Record<string, unknown>;
 
-        // Check explicit needsClarification flag (preferred method)
+        // Check explicit needsClarification flag
         if (output.needsClarification === true) {
-            // Return the clarification request if provided
-            if (typeof output.clarificationRequest === 'string' && output.clarificationRequest.trim()) {
-                return output.clarificationRequest;
+            // Check for new structured clarification format
+            if (output.clarification && typeof output.clarification === 'object') {
+                const clarification = output.clarification as Record<string, unknown>;
+
+                // Validate required fields
+                if (
+                    typeof clarification.context === 'string' &&
+                    typeof clarification.question === 'string' &&
+                    Array.isArray(clarification.options) &&
+                    clarification.options.length > 0 &&
+                    typeof clarification.recommendation === 'string'
+                ) {
+                    return {
+                        structured: clarification as unknown as StructuredClarification,
+                    };
+                }
             }
-            // Flag is true but no request text - return a generic message
-            return 'Clarification needed (no specific question provided)';
+
+            // Fallback: Legacy clarificationRequest string field
+            if (typeof output.clarificationRequest === 'string' && output.clarificationRequest.trim()) {
+                return { legacyText: output.clarificationRequest };
+            }
+
+            // Flag is true but no valid data - return a generic message
+            return { legacyText: 'Clarification needed (no specific question provided)' };
         }
     }
 
@@ -143,7 +175,7 @@ export function extractClarificationFromResult(result: {
     if (result.content) {
         const clarification = extractClarification(result.content);
         if (clarification) {
-            return clarification;
+            return { legacyText: clarification };
         }
     }
 
@@ -156,7 +188,7 @@ export function extractClarificationFromResult(result: {
             if (output[field] && typeof output[field] === 'string') {
                 const clarification = extractClarification(output[field] as string);
                 if (clarification) {
-                    return clarification;
+                    return { legacyText: clarification };
                 }
             }
         }
@@ -166,25 +198,86 @@ export function extractClarificationFromResult(result: {
 }
 
 /**
- * Handle agent clarification request
+ * Format structured clarification as markdown for GitHub comments.
+ * This produces a consistent, parseable format for the clarification UI.
+ */
+export function formatStructuredClarification(clarification: StructuredClarification): string {
+    const lines: string[] = [];
+
+    // Context section
+    lines.push('## Context');
+    lines.push(clarification.context);
+    lines.push('');
+
+    // Question section
+    lines.push('## Question');
+    lines.push(clarification.question);
+    lines.push('');
+
+    // Options section
+    lines.push('## Options');
+    lines.push('');
+
+    clarification.options.forEach((option, index) => {
+        const emoji = option.isRecommended ? '✅' : '⚠️';
+        lines.push(`${emoji} Option ${index + 1}: ${option.label}`);
+        // Add description with proper indentation
+        const descriptionLines = option.description.split('\n');
+        descriptionLines.forEach(line => {
+            lines.push(`   ${line}`);
+        });
+        lines.push('');
+    });
+
+    // Recommendation section
+    lines.push('## Recommendation');
+    lines.push(clarification.recommendation);
+
+    return lines.join('\n');
+}
+
+/**
+ * Get the text content from extracted clarification (for display/notifications).
+ * Returns formatted markdown regardless of whether it was structured or legacy.
+ */
+export function getClarificationText(extracted: ExtractedClarification): string {
+    if (extracted.structured) {
+        return formatStructuredClarification(extracted.structured);
+    }
+    return extracted.legacyText || 'Clarification needed';
+}
+
+/**
+ * Handle agent clarification request.
+ *
+ * Accepts either ExtractedClarification (new format) or a string (legacy).
+ * Formats and posts the clarification to GitHub, updates status, and sends notification.
  */
 export async function handleClarificationRequest(
     adapter: ProjectManagementAdapter,
     item: { id: string; content: { number: number; title: string; labels?: string[] } },
     issueNumber: number,
-    clarificationRequest: string,
+    clarification: ExtractedClarification | string,
     phase: string,
     title: string,
     issueType: 'bug' | 'feature',
     options: CommonCLIOptions,
     agentName: AgentName
 ): Promise<{ success: boolean; needsClarification: true }> {
+    // Normalize to ExtractedClarification
+    const extracted: ExtractedClarification =
+        typeof clarification === 'string'
+            ? { legacyText: clarification }
+            : clarification;
+
+    // Get the text content for display
+    const clarificationText = getClarificationText(extracted);
 
     if (options.dryRun) {
         console.log('  [DRY RUN] Would add clarification comment');
         console.log('  [DRY RUN] Would set Review Status to Waiting for Clarification');
         console.log('  [DRY RUN] Would send notification');
-        console.log(`\n--- Clarification Request ---\n${clarificationRequest}\n---\n`);
+        console.log(`\n--- Clarification Request ---\n${clarificationText}\n---\n`);
         return { success: true, needsClarification: true };
     }
 
@@ -192,7 +285,7 @@ export async function handleClarificationRequest(
     const comment = [
         '## 🤔 Agent Needs Clarification',
         '',
-        clarificationRequest,
+        clarificationText,
         '',
         '---',
         '_Please respond with your answer in a comment below, then click "Clarification Received" in Telegram._',
@@ -219,7 +312,7 @@ export async function handleClarificationRequest(
     }
 
     // Send notification
-    await notifyAgentNeedsClarification(phase, title, issueNumber, clarificationRequest, issueType);
+    await notifyAgentNeedsClarification(phase, title, issueNumber, clarificationText, issueType);
     console.log('  Notification sent');
 
     return { success: true, needsClarification: true };
