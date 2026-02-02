@@ -278,6 +278,8 @@ async function runImplementationPlanSubagent(
         logExecutionStart(planCtx);
     }
 
+    console.log(` 🏁 Creating implementation plan... ${timeout ? `(timeout: ${timeout}s)` : ''}`);
+
     // Build the plan prompt using the dedicated prompt builder
     const planPrompt = buildPlanSubagentPrompt(options.prompt);
 
@@ -301,6 +303,8 @@ async function runImplementationPlanSubagent(
             progressLabel: 'Creating implementation plan',
         });
 
+        console.log(`  ☑️ Implementation plan generation completed in ${result.durationSeconds}s`);
+
         // Log token usage if available
         if (planCtx && result.usage) {
             logTokenUsage(planCtx, {
@@ -319,7 +323,12 @@ async function runImplementationPlanSubagent(
         const toolCallsCount = result.filesExamined?.length || 0;
 
         if (result.success && result.content) {
-            console.log('  ✅ Plan subagent completed');
+            console.log(`  ✅ Plan subagent completed successfully:
+                inputTokens: ${result?.usage?.inputTokens},
+                outputTokens: ${result?.usage?.outputTokens},
+                cost: ${result?.usage?.totalCostUSD},
+                duration: ${result.durationSeconds}s
+            `);
 
             // Log execution end with success
             if (planCtx) {
