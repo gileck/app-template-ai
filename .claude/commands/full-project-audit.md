@@ -179,27 +179,28 @@ Read these files completely in order:
 #### Core Documentation
 5. `CLAUDE.md` - Main guidelines summary
 6. `docs/architecture.md` - Architecture overview
-7. `docs/authentication.md` - Auth flow details
-8. `docs/caching-strategy.md` - Caching architecture
+7. `docs/template/project-structure-guidelines.md` - Template/project subfolder structure
+8. `docs/authentication.md` - Auth flow details
+9. `docs/caching-strategy.md` - Caching architecture
 
 #### Rules Files
-9. `.ai/skills/client-server-communications/SKILL.md` - API structure
-10. `.ai/skills/feature-based-structure/SKILL.md` - Code organization
-11. `.ai/skills/react-component-organization/SKILL.md` - Component patterns
-12. `.ai/skills/react-hook-organization/SKILL.md` - Hook patterns
-13. `.ai/skills/state-management-guidelines/SKILL.md` - State decisions
-14. `.ai/skills/pages-and-routing-guidelines/SKILL.md` - Routing patterns
-15. `.ai/skills/shadcn-usage/SKILL.md` - UI components
-16. `.ai/skills/theming-guidelines/SKILL.md` - Theming requirements
-17. `.ai/skills/typescript-guidelines/SKILL.md` - TypeScript standards
-18. `.ai/skills/mongodb-usage/SKILL.md` - Database patterns
-19. `.ai/skills/ai-models-api-usage/SKILL.md` - AI integration (if applicable)
-20. `.ai/skills/user-access/SKILL.md` - Auth patterns
+10. `.ai/skills/client-server-communications/SKILL.md` - API structure
+11. `.ai/skills/feature-based-structure/SKILL.md` - Code organization
+12. `.ai/skills/react-component-organization/SKILL.md` - Component patterns
+13. `.ai/skills/react-hook-organization/SKILL.md` - Hook patterns
+14. `.ai/skills/state-management-guidelines/SKILL.md` - State decisions
+15. `.ai/skills/pages-and-routing-guidelines/SKILL.md` - Routing patterns
+16. `.ai/skills/shadcn-usage/SKILL.md` - UI components
+17. `.ai/skills/theming-guidelines/SKILL.md` - Theming requirements
+18. `.ai/skills/typescript-guidelines/SKILL.md` - TypeScript standards
+19. `.ai/skills/mongodb-usage/SKILL.md` - Database patterns
+20. `.ai/skills/ai-models-api-usage/SKILL.md` - AI integration (if applicable)
+21. `.ai/skills/user-access/SKILL.md` - Auth patterns
 
 #### Supporting Documentation
-21. `docs/api-endpoint-format.md` - API format details
-22. `docs/admin.md` - Admin system
-23. `app-guildelines/React-components-guidelines.md` - Component patterns & loading states
+22. `docs/api-endpoint-format.md` - API format details
+23. `docs/admin.md` - Admin system
+24. `app-guildelines/React-components-guidelines.md` - Component patterns & loading states
 
 ### Confirm Understanding
 
@@ -1831,6 +1832,145 @@ find src/client/features -name "*.tsx" -exec wc -l {} \; | awk '$1 > 200 { print
 
 ---
 
+### 3.13: Project Structure Audit
+
+📚 **Reference**: [docs/template/project-structure-guidelines.md](../../docs/template/project-structure-guidelines.md)
+
+The project uses a **template/project subfolder pattern** to separate synced template code from project-specific code. This enables template updates without conflicts.
+
+#### 3.13.1: Features Structure
+
+```bash
+# Verify template/project subfolder structure
+ls -la src/client/features/
+ls -la src/client/features/template/
+ls -la src/client/features/project/
+
+# Find features NOT in template/ or project/ (VIOLATIONS)
+find src/client/features -maxdepth 1 -type d | grep -v -E "template|project|^src/client/features$"
+
+# Check three-file pattern exists
+ls src/client/features/index.ts src/client/features/index.template.ts src/client/features/index.project.ts
+```
+
+| Check | Status |
+|-------|--------|
+| `features/template/` exists with template features | |
+| `features/project/` exists (even if empty with .gitkeep) | |
+| No feature folders at `features/` root level | |
+| `index.ts` exists (combiner) | |
+| `index.template.ts` exists (template exports) | |
+| `index.project.ts` exists (project exports) | |
+
+#### 3.13.2: Routes Structure
+
+```bash
+# Verify template/project subfolder structure
+ls -la src/client/routes/
+ls -la src/client/routes/template/
+ls -la src/client/routes/project/
+
+# Find routes NOT in template/ or project/ (VIOLATIONS)
+find src/client/routes -maxdepth 1 -type d | grep -v -E "template|project|^src/client/routes$"
+
+# Check three-file pattern exists
+ls src/client/routes/index.ts src/client/routes/index.template.ts src/client/routes/index.project.ts
+```
+
+| Check | Status |
+|-------|--------|
+| `routes/template/` exists with template routes | |
+| `routes/project/` exists with project routes | |
+| No route folders at `routes/` root level | |
+| `index.ts` exists (combiner) | |
+| `index.template.ts` exists (template exports) | |
+| `index.project.ts` exists (project exports) | |
+
+#### 3.13.3: Components Structure
+
+```bash
+# Verify template/project subfolder structure
+ls -la src/client/components/
+ls -la src/client/components/template/
+ls -la src/client/components/project/
+
+# Check NavLinks three-file pattern
+ls src/client/components/NavLinks.tsx
+ls src/client/components/template/NavLinks.template.tsx
+ls src/client/components/project/NavLinks.project.tsx
+
+# Check GlobalDialogs pattern
+ls src/client/components/GlobalDialogs.tsx
+ls src/client/components/template/GlobalDialogs.template.tsx
+```
+
+| Check | Status |
+|-------|--------|
+| `components/template/` exists (ui/, layout/, etc.) | |
+| `components/project/` exists | |
+| `NavLinks.tsx` exists (combiner) | |
+| `NavLinks.template.tsx` exists in template/ | |
+| `NavLinks.project.tsx` exists in project/ | |
+| `GlobalDialogs.tsx` exists (combiner) | |
+
+#### 3.13.4: Circular Import Prevention (CRITICAL)
+
+**Internal feature-to-feature imports MUST use direct paths, NOT the barrel file.**
+
+```bash
+# Find barrel imports within features (VIOLATIONS - cause circular deps)
+grep -r "from '@/client/features'" src/client/features/template/ --include="*.ts" --include="*.tsx"
+
+# These should use direct imports like:
+# import { useRouter } from '../router';
+# import { useIsAdmin } from '../auth/store';
+# NOT: import { useRouter } from '@/client/features';
+```
+
+| Check | Status |
+|-------|--------|
+| No `from '@/client/features'` imports inside `features/template/` | |
+| Internal feature imports use relative paths (`../router`, `../auth/store`) | |
+| Circular dependency check passes (`yarn check:circular`) | |
+
+#### 3.13.5: Template Sync Configuration
+
+```bash
+# Verify template paths are configured
+cat .template-sync.template.json | grep -A5 "templatePaths"
+
+# Check for required template paths
+grep "src/client/features/template" .template-sync.template.json
+grep "src/client/routes/template" .template-sync.template.json
+grep "src/client/components/template" .template-sync.template.json
+```
+
+| Check | Status |
+|-------|--------|
+| `.template-sync.template.json` exists | |
+| `src/client/features/template/**` in templatePaths | |
+| `src/client/features/index.ts` in templatePaths | |
+| `src/client/features/index.template.ts` in templatePaths | |
+| `src/client/routes/template/**` in templatePaths | |
+| `src/client/routes/index.ts` in templatePaths | |
+| `src/client/routes/index.template.ts` in templatePaths | |
+| `src/client/components/template/**` in templatePaths | |
+| `src/client/components/NavLinks.tsx` in templatePaths | |
+
+#### 3.13.6: Project Overrides Check
+
+```bash
+# Check if any template files are in projectOverrides (should be minimal)
+cat .template-sync.json 2>/dev/null | grep -A20 "projectOverrides" || echo "No overrides file"
+```
+
+| Check | Status |
+|-------|--------|
+| `projectOverrides` only contains intentionally modified files | |
+| No template files modified without being in `projectOverrides` | |
+
+---
+
 ## Phase 4: Cross-Cutting Concerns
 
 ### 4.1: Import Pattern Compliance
@@ -2322,6 +2462,9 @@ Complete ALL items to finish the audit:
 - [ ] Checked TypeScript quality
 - [ ] Checked MongoDB patterns
 - [ ] Checked component organization
+- [ ] Checked project structure (template/project subfolders)
+- [ ] Checked circular imports in features
+- [ ] Verified three-file pattern (index.ts, index.template.ts, index.project.ts)
 
 ### Phase 4: Cross-Cutting Concerns
 - [ ] Verified import patterns
@@ -2408,6 +2551,17 @@ Complete ALL items to finish the audit:
 | Missing loading state | Check route components | Add `if (isLoading) return <Skeleton />` |
 | Component > 200 lines | `find -name "*.tsx" -exec wc -l {}` | Split into smaller components |
 | Feature code in components/ | Check `src/client/components/` | Move to `features/[name]/` |
+
+### 🚨 CRITICAL Violations (docs/template/project-structure-guidelines.md)
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Circular imports via barrel | `grep -r "from '@/client/features'" src/client/features/template/` | Use direct imports (`../router`, `../auth/store`) |
+| Feature not in template/project subfolder | `find src/client/features -maxdepth 1 -type d` | Move to `features/template/` or `features/project/` |
+| Route not in template/project subfolder | `find src/client/routes -maxdepth 1 -type d` | Move to `routes/template/` or `routes/project/` |
+| Missing three-file pattern | `ls src/client/features/index*.ts` | Create `index.ts`, `index.template.ts`, `index.project.ts` |
+| NavLinks not using combiner pattern | `ls src/client/components/*NavLinks*` | Create `NavLinks.tsx` + `NavLinks.template.tsx` + `NavLinks.project.tsx` |
+| Modified template file without override | Compare with template repo | Add to `projectOverrides` in `.template-sync.json` |
 | No isFetching indicator | Check list components | Add subtle refresh indicator |
 | Fixed pixel widths | `grep -r "w-\[.*px\]"` | Use responsive Tailwind classes |
 
