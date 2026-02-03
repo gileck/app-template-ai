@@ -65,13 +65,7 @@ const eslintTemplateConfig = [
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
       }],
-      // Add API Guidelines rules
-      "api-guidelines/no-server-import-in-client": ["warn", {
-        // Import type imports from server are fine
-        allowedPaths: [
-          '@/server/cache/types'
-        ]
-      }],
+      // Add API Guidelines rules (no-server-import-in-client replaced by eslint-plugin-boundaries)
       "api-guidelines/api-names-from-index": ["warn", {
         // Type imports from server are fine
         allowedPaths: [
