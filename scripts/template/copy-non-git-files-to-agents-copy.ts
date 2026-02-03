@@ -9,7 +9,8 @@
  *   yarn copy-to-agents
  */
 
-import { existsSync, copyFileSync, rmSync, cpSync } from 'fs';
+import { existsSync, copyFileSync, rmSync } from 'fs';
+import { execSync } from 'child_process';
 import { resolve, basename } from 'path';
 import { homedir } from 'os';
 
@@ -77,8 +78,9 @@ function main() {
       if (existsSync(targetPath)) {
         rmSync(targetPath, { recursive: true, force: true });
       }
-      console.log(`📁 ${dir}/ - copying (this may take a moment)...`);
-      cpSync(sourcePath, targetPath, { recursive: true });
+      console.log(`📁 ${dir}/ - copying with symlinks preserved (this may take a moment)...`);
+      // Use cp -a to preserve symlinks (cpSync follows symlinks and breaks .bin/)
+      execSync(`cp -a "${sourcePath}" "${targetPath}"`, { stdio: 'inherit' });
       console.log(`✅ ${dir}/ - copied`);
       copiedCount++;
     } catch (error) {
