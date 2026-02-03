@@ -8,8 +8,8 @@ import { filterAdminNavItems, menuItems, navItems, adminMenuItems } from './NavL
 import { useGlobalErrorHandler, ErrorBoundary, useNetworkLogger } from '@/client/features';
 import { GlobalDialogs } from './GlobalDialogs';
 import { ToastContainer } from './ui/toast';
-import { useIsAdmin } from '@/client/features/auth';
-import { useRouter } from '@/client/router';
+import { useIsAdmin } from '@/client/features';
+import { useRouter } from '@/client/features';
 
 
 export const Layout = ({ children }: { children?: ReactNode }) => {

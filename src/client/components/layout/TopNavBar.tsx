@@ -1,5 +1,5 @@
 import { Menu, Moon, SunMedium, LogIn, User, LogOut, WifiOff, Wifi } from 'lucide-react';
-import { useRouter } from '../../router';
+import { useRouter } from '@/client/features';
 import { NavItem } from '../../components/layout/types';
 import {
   useAuthStore,

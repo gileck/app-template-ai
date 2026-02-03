@@ -1,6 +1,6 @@
-import type { Settings } from "@/client/features/settings";
+import type { Settings } from "@/client/features";
 import type { BatchSyncResponse } from "@/apis/batch-updates/types";
-import { logger } from "@/client/features/session-logs";
+import { logger } from "@/client/features";
 
 type PrimitiveParam = string | number | boolean | undefined | null;
 export interface OfflinePostQueueItem<Params = Record<string, PrimitiveParam>> {

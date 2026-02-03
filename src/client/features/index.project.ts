@@ -5,7 +5,7 @@
  * This file is NOT synced from template - it's owned by your project.
  *
  * Example:
- *   export * from './my-custom-feature';
+ *   export * from './project/my-custom-feature';
  */
 
 // Add project-specific features below:

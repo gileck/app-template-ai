@@ -17,11 +17,11 @@ import {
 } from '@/client/features';
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { useAllPersistedStoresHydrated } from '@/client/stores';
-import { markEvent, BOOT_PHASES } from '@/client/features/boot-performance';
+import { markEvent, BOOT_PHASES } from '@/client/features';
 // Import preflight early to start /me call ASAP (side effect import)
-import '@/client/features/auth/preflight';
+import '@/client/features/template/auth/preflight';
 
-const RouterProvider = dynamic(() => import('@/client/router/index').then(module => module.RouterProvider), { ssr: false });
+const RouterProvider = dynamic(() => import('@/client/features/template/router/Router').then(module => module.RouterProvider), { ssr: false });
 
 // Mark app mount as early as possible
 markEvent(BOOT_PHASES.APP_MOUNT);

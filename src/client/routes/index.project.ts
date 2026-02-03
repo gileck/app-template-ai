@@ -14,12 +14,12 @@
  *   - menuItems (hamburger menu) in src/client/components/NavLinks.tsx
  */
 
-import { Routes } from '../router';
-import { Home } from './Home';
-import { AIChat } from './AIChat';
-import { Todos } from './Todos';
-import { SingleTodo } from './SingleTodo';
-import { Dashboard } from './Dashboard';
+import { Routes } from '../features/template/router';
+import { Home } from './project/Home';
+import { AIChat } from './project/AIChat';
+import { Todos } from './project/Todos';
+import { SingleTodo } from './project/SingleTodo';
+import { Dashboard } from './project/Dashboard';
 
 /**
  * Project route definitions.

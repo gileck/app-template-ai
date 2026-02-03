@@ -1,4 +1,4 @@
-import { useRouter } from '../../router';
+import { useRouter } from '@/client/features';
 import { NavItem } from '../../components/layout/types';
 
 interface BottomNavBarProps {

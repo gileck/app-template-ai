@@ -1,9 +1,9 @@
 import { Sheet, SheetContent, SheetTitle } from '@/client/components/ui/sheet';
 import React from 'react';
-import { useRouter } from '../../router';
+import { useRouter } from '@/client/features';
 import { NavItem } from '../../components/layout/types';
-import { useOpenBugReportDialog } from '@/client/features/bug-report';
-import { useOpenFeatureRequestDialog } from '@/client/features/feature-request';
+import { useOpenBugReportDialog } from '@/client/features';
+import { useOpenFeatureRequestDialog } from '@/client/features';
 import { Bug, Lightbulb } from 'lucide-react';
 import { Separator } from '@/client/components/ui/separator';
 
