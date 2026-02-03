@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 39
-- **Open:** 15
+- **Open:** 14
 - **In Progress:** 0
-- **Done:** 24
+- **Done:** 25
 
 ---
 
-## 📋 Open Tasks (15)
+## 📋 Open Tasks (14)
 
 ### 🟠 High Priority
 
@@ -22,7 +22,6 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
-| 37 | Implement Feature Branch Workflow with Phase PRs | L | High |
 | 38 | Implement AWS S3 Issue Log System for Agent Workflow | M | Medium |
 
 ### 🟡 Medium Priority
@@ -46,10 +45,11 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (24)
+## ✅ Completed Tasks (25)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 37 | ~~Implement Feature Branch Workflow with Phase PRs~~ | 2026-02-03 | `374bf1c` |
 | 36 | ~~Improve sync-template with Interactive Conflict Resolution~~ | 2026-02-01 | `51c495c` |
 | 35 | ~~Add PR Merge Success Notification with Revert Button~~ | 2026-02-01 | - |
 | 34 | ~~Add list/get/update Commands to Workflow CLI~~ | 2026-02-01 | `ccbc23a` |
@@ -77,4 +77,4 @@
 
 ---
 
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-03*
