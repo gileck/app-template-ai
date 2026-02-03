@@ -20,7 +20,9 @@
     "**/*.test.tsx",
     "**/*.d.ts",
     "src/pages/api/**",
-    "node_modules/**"
+    "node_modules/**",
+    "src/agents/lib/**",
+    "src/server/s3/example.ts"
   ],
   "ignoreDependencies": [
     "@types/*",
@@ -33,11 +35,16 @@
     "@eslint/eslintrc",
     "eslint-config-next",
     "eslint-plugin-boundaries",
-    "@playwright/mcp"
+    "@playwright/mcp",
+    "@anthropic-ai/claude-code",
+    "aws-sdk",
+    "date-fns",
+    "undici"
   ],
   "ignoreBinaries": [
     "madge"
   ],
+  "ignoreExportsUsedInFile": true,
   "next": {
     "entry": [
       "src/pages/**/*.{ts,tsx}",
