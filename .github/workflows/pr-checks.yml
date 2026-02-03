@@ -27,11 +27,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for yarn.lock
+        id: yarn-lock
+        run: |
+          if [ -f yarn.lock ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'yarn'
+          cache: ${{ steps.yarn-lock.outputs.exists == 'true' && 'yarn' || '' }}
 
       - name: Install dependencies
         run: yarn install
