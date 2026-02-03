@@ -1,5 +1,5 @@
 import { Collection, ObjectId } from 'mongodb';
-import { getDb } from '@/server/database';
+import { getDb } from '../../connection';
 import { toQueryId } from '@/server/utils';
 import { TodoItem, TodoItemCreate, TodoItemUpdate } from './types';
 

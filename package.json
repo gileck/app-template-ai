@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check:circular": "madge --circular --extensions ts,tsx src/",
+    "check:circular": "madge --circular --extensions ts,tsx --ts-config tsconfig.json src/",
     "init-project": "node scripts/template/init-project.js",
     "push": "git add .;git commit -am 'commit' && git push",
     "ts": "tsc --noEmit",
