@@ -154,7 +154,7 @@ const eslintTemplateConfig = [
       ]
     },
     rules: {
-      // Prevent client code from importing server code
+      // Enforce module boundaries
       "boundaries/element-types": ["error", {
         default: "allow",
         rules: [
@@ -165,6 +165,12 @@ const eslintTemplateConfig = [
             disallow: ["server", "agents"],
             importKind: "value",
             message: "Client code cannot import from server or agents. Use APIs instead. (type imports are allowed)"
+          },
+          {
+            // Server code cannot import from client (browser APIs don't exist in Node.js)
+            from: ["server", "agents"],
+            disallow: ["client-features-template", "client-features-project", "client-routes-template", "client-routes-project", "client-components-template", "client-components-project", "client-utils", "client-stores", "client-other"],
+            message: "Server/agents code cannot import from client. Client code uses browser APIs that don't exist in Node.js."
           },
           {
             // Template code cannot import from project code
