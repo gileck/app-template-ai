@@ -8,14 +8,14 @@ import { useAuthStore, useUser, useCurrentUser } from '@/client/features';
 import { useRouter } from '@/client/features';
 import { apiUpdateProfile } from '@/apis/auth/client';
 import { UpdateProfileRequest, UserResponse } from '@/apis/auth/types';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import { ProfileHeader } from './components/ProfileHeader';
 import { ProfileSection } from './components/ProfileSection';
 import { EditableField } from './components/EditableField';
 import { ImageUploadDialog } from './components/ImageUploadDialog';
-import { Skeleton } from '@/client/components/ui/skeleton';
+import { Skeleton } from '@/client/components/template/ui/skeleton';
 import { Bell, Calendar, Mail, MessageSquare, User } from 'lucide-react';
-import { Switch } from '@/client/components/ui/switch';
+import { Switch } from '@/client/components/template/ui/switch';
 
 export const Profile = () => {
     const user = useUser();

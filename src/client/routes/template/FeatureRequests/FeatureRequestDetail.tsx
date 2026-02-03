@@ -1,6 +1,6 @@
 import { ArrowLeft, Calendar, User, FileText, ExternalLink, Loader2 } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Card, CardContent } from '@/client/components/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Card, CardContent } from '@/client/components/template/ui/card';
 import { useRouter } from '@/client/features';
 import { StatusBadge, PriorityBadge } from './components/StatusBadge';
 import { CollapsibleSection } from './components/CollapsibleSection';

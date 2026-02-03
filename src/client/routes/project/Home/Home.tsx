@@ -1,5 +1,5 @@
 import { useUser } from '@/client/features';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/client/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/client/components/template/ui/card';
 import { CheckSquare, Settings, FileText } from 'lucide-react';
 import { useRouter } from '@/client/features';
 

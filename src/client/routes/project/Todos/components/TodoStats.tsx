@@ -5,8 +5,8 @@
  * Mobile-first design with larger text and touch-friendly badges.
  */
 
-import { Card } from '@/client/components/ui/card';
-import { Badge } from '@/client/components/ui/badge';
+import { Card } from '@/client/components/template/ui/card';
+import { Badge } from '@/client/components/template/ui/badge';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 import { isToday, isOverdue } from '../utils/dateUtils';
 

@@ -1,11 +1,11 @@
-import { Sheet, SheetContent, SheetTitle } from '@/client/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/client/components/template/ui/sheet';
 import React from 'react';
 import { useRouter } from '@/client/features';
-import { NavItem } from '../../components/layout/types';
+import { NavItem } from './types';
 import { useOpenBugReportDialog } from '@/client/features';
 import { useOpenFeatureRequestDialog } from '@/client/features';
 import { Bug, Lightbulb } from 'lucide-react';
-import { Separator } from '@/client/components/ui/separator';
+import { Separator } from '@/client/components/template/ui/separator';
 
 interface DrawerMenuProps {
   navItems: NavItem[];

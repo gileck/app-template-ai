@@ -24,10 +24,10 @@
  */
 
 import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/client/components/ui/sheet';
-import { Button } from '@/client/components/ui/button';
-import { Badge } from '@/client/components/ui/badge';
-import { Separator } from '@/client/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/client/components/template/ui/sheet';
+import { Button } from '@/client/components/template/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
+import { Separator } from '@/client/components/template/ui/separator';
 import {
     Filter,
     X,

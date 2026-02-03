@@ -28,7 +28,7 @@ import type {
     CreateFeatureRequestRequest,
 } from '@/apis/feature-requests/types';
 import { useQueryDefaults } from '@/client/query';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 
 const featureRequestsBaseQueryKey = ['feature-requests'] as const;
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,8 +10,8 @@ import {
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
-} from '@/client/components/ui/dropdown-menu';
-import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
+} from '@/client/components/template/ui/dropdown-menu';
+import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { ChevronDown, ChevronUp, MoreVertical, Trash2, User, Calendar, FileText, ExternalLink, Loader2, RotateCcw } from 'lucide-react';
 import { StatusBadge, PriorityBadge, GitHubStatusBadge } from './StatusBadge';
 import { StatusIndicatorStrip } from './StatusIndicatorStrip';

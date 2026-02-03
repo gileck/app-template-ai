@@ -5,8 +5,8 @@
  */
 
 import { useState } from 'react';
-import { Card } from '@/client/components/ui/card';
-import { Alert } from '@/client/components/ui/alert';
+import { Card } from '@/client/components/template/ui/card';
+import { Alert } from '@/client/components/template/ui/alert';
 import { CacheSection } from './components/CacheSection';
 import { AIModelSection } from './components/AIModelSection';
 

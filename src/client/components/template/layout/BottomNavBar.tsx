@@ -1,5 +1,5 @@
 import { useRouter } from '@/client/features';
-import { NavItem } from '../../components/layout/types';
+import { NavItem } from './types';
 
 interface BottomNavBarProps {
   navItems: NavItem[];

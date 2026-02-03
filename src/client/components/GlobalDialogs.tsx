@@ -7,7 +7,7 @@
  * Add your project-specific dialogs below the TemplateDialogs component.
  */
 
-import { TemplateDialogs } from './GlobalDialogs.template';
+import { TemplateDialogs } from './template/GlobalDialogs.template';
 
 export const GlobalDialogs = () => (
   <>

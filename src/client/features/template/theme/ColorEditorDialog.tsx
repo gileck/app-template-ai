@@ -1,14 +1,14 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { RotateCcw, Sun, Moon, ChevronDown, Palette, Save, X, Sparkles } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Input } from '@/client/components/ui/input';
+import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
     DialogHeader,
     DialogTitle,
-} from '@/client/components/ui/dialog';
+} from '@/client/components/template/ui/dialog';
 import { useThemeStore, useEffectiveColors, useHasCustomColors, useHasAnyCustomColors } from './store';
 import { hslToHex, hexToHsl } from './utils';
 import { themePresets } from './presets';

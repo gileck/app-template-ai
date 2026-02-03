@@ -1,6 +1,6 @@
 import { Menu, Moon, SunMedium, LogIn, User, LogOut, WifiOff, Wifi } from 'lucide-react';
 import { useRouter } from '@/client/features';
-import { NavItem } from '../../components/layout/types';
+import { NavItem } from './types';
 import {
   useAuthStore,
   useUser,
@@ -10,10 +10,10 @@ import {
   useThemeStore,
 } from '@/client/features';
 import { useState } from 'react';
-import { Button } from '@/client/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/client/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/client/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/ui/dialog';
+import { Button } from '@/client/components/template/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/client/components/template/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/client/components/template/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/template/ui/dialog';
 
 interface TopNavBarProps {
   navItems: NavItem[];

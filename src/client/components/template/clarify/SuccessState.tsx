@@ -5,7 +5,7 @@
  */
 
 import { CheckCircle } from 'lucide-react';
-import { Card, CardContent } from '@/client/components/ui/card';
+import { Card, CardContent } from '@/client/components/template/ui/card';
 
 interface SuccessStateProps {
     issueNumber: number;

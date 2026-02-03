@@ -4,8 +4,8 @@
  */
 
 import { Clipboard, Upload, X } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
+import { Button } from '@/client/components/template/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/template/ui/dialog';
 
 interface ImageUploadDialogProps {
     open: boolean;

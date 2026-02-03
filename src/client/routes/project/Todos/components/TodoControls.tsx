@@ -8,11 +8,11 @@
  */
 
 import React, { useMemo } from 'react';
-import { Card } from '@/client/components/ui/card';
-import { Label } from '@/client/components/ui/label';
-import { Switch } from '@/client/components/ui/switch';
-import { Button } from '@/client/components/ui/button';
-import { Badge } from '@/client/components/ui/badge';
+import { Card } from '@/client/components/template/ui/card';
+import { Label } from '@/client/components/template/ui/label';
+import { Switch } from '@/client/components/template/ui/switch';
+import { Button } from '@/client/components/template/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
 import { ChevronDown } from 'lucide-react';
 import {
     Select,
@@ -20,7 +20,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/client/components/ui/select';
+} from '@/client/components/template/ui/select';
 import { useTodoPreferencesStore } from '../store';
 
 export function TodoControls() {

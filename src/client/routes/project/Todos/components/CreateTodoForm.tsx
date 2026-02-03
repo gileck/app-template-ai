@@ -3,10 +3,10 @@
  */
 
 import { useState } from 'react';
-import { Button } from '@/client/components/ui/button';
-import { Input } from '@/client/components/ui/input';
-import { Card } from '@/client/components/ui/card';
-import { Badge } from '@/client/components/ui/badge';
+import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
+import { Card } from '@/client/components/template/ui/card';
+import { Badge } from '@/client/components/template/ui/badge';
 import { Plus, Calendar, X } from 'lucide-react';
 import { useCreateTodoWithId } from '../hooks';
 import { logger } from '@/client/features';

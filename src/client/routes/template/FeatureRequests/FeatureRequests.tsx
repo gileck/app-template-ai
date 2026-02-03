@@ -6,24 +6,24 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Card, CardContent } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
+import { Card, CardContent } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogDescription,
-} from '@/client/components/ui/dialog';
+} from '@/client/components/template/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/client/components/ui/dropdown-menu';
-import { Label } from '@/client/components/ui/label';
-import { Input } from '@/client/components/ui/input';
-import { Textarea } from '@/client/components/ui/textarea';
+} from '@/client/components/template/ui/dropdown-menu';
+import { Label } from '@/client/components/template/ui/label';
+import { Input } from '@/client/components/template/ui/input';
+import { Textarea } from '@/client/components/template/ui/textarea';
 import { Loader2, AlertCircle, Inbox, Lightbulb, Plus, Send, ArrowDownAZ } from 'lucide-react';
 import { useFeatureRequests, useCreateFeatureRequest, useBatchGitHubStatuses } from './hooks';
 import { useFeatureRequestsStore } from './store';
@@ -33,7 +33,7 @@ import { FilterChipBar } from './components/FilterChipBar';
 import { applyAllFilters } from './utils/filterUtils';
 import { applySorting, separateDoneItems } from './utils/sortingUtils';
 import type { SortMode } from './utils/sortingUtils';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import type { GetGitHubStatusResponse } from '@/apis/feature-requests/types';
 
 // Sort mode display labels

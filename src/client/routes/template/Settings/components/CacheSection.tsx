@@ -5,12 +5,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Switch } from '@/client/components/ui/switch';
-import { Separator } from '@/client/components/ui/separator';
-import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { Input } from '@/client/components/ui/input';
-import { Label } from '@/client/components/ui/label';
+import { Button } from '@/client/components/template/ui/button';
+import { Switch } from '@/client/components/template/ui/switch';
+import { Separator } from '@/client/components/template/ui/separator';
+import { LinearProgress } from '@/client/components/template/ui/linear-progress';
+import { Input } from '@/client/components/template/ui/input';
+import { Label } from '@/client/components/template/ui/label';
 import { useSettingsStore } from '@/client/features';
 import { clearCache as clearCacheApi } from '@/apis/settings/clearCache/client';
 import { clearAllPersistedStores } from '@/client/stores';

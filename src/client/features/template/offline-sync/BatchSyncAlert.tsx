@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import {
     ChevronDown,
     ChevronUp,

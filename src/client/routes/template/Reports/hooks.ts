@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getReports, updateReportStatus, deleteReport, deleteAllReports, batchUpdateStatus, batchDeleteReports } from '@/apis/reports/client';
 import type { GetReportsRequest, ReportStatus } from '@/apis/reports/types';
 import { useQueryDefaults } from '@/client/query';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 
 const reportsBaseQueryKey = ['reports'] as const;
 

@@ -3,16 +3,16 @@
  */
 
 import { useState, useRef } from 'react';
-import { Button } from '@/client/components/ui/button';
-import { Input } from '@/client/components/ui/input';
-import { Card } from '@/client/components/ui/card';
-import { Badge } from '@/client/components/ui/badge';
+import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
+import { Card } from '@/client/components/template/ui/card';
+import { Badge } from '@/client/components/template/ui/badge';
 import { Eye, Save, X, Pencil, Trash2, Check, Calendar } from 'lucide-react';
 import { useRouter } from '@/client/features';
 import { useUpdateTodo } from '../hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 import { logger } from '@/client/features';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import { CelebrationEffect } from './CelebrationEffect';
 import { prefersReducedMotion } from '../animations';
 import { DatePickerDialog } from './DatePickerDialog';

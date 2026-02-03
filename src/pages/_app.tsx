@@ -2,10 +2,10 @@ import "@/client/styles/globals.css";
 import "@/client/styles/project.css";  // Project-specific styles (ignored by template-sync)
 import type { AppProps } from "next/app";
 import Head from 'next/head';
-import { AppThemeProvider } from "@/client/components/ThemeProvider";
+import { AppThemeProvider } from "@/client/components/template/ThemeProvider";
 import dynamic from 'next/dynamic';
 import { routes } from '@/client/routes';
-import { Layout } from '@/client/components/Layout';
+import { Layout } from '@/client/components/template/Layout';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryProvider } from '@/client/query';
 import {

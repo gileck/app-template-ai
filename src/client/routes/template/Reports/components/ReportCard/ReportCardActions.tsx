@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import {
     Copy,
     ChevronDown,

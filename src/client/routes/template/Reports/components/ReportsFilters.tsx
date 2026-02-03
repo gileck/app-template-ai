@@ -2,8 +2,8 @@
  * Reports Filters Component
  */
 
-import { Button } from '@/client/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
+import { Button } from '@/client/components/template/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { List, Layers } from 'lucide-react';
 import type { ReportType } from '@/apis/reports/types';
 import type { StatusFilterOption } from '../store';

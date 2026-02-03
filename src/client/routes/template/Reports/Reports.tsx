@@ -5,13 +5,13 @@
  */
 
 import { useState } from 'react';
-import { Card, CardContent } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
+import { Card, CardContent } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
 import { Loader2, AlertCircle, CheckCircle, Copy } from 'lucide-react';
 import { useReports, useDeleteAllReports } from './hooks';
 import { useReportsStore } from './store';
-import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
-import { toast } from '@/client/components/ui/toast';
+import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
+import { toast } from '@/client/components/template/ui/toast';
 import { ReportsHeader } from './components/ReportsHeader';
 import { ReportsFilters } from './components/ReportsFilters';
 import { ReportCard } from './components/ReportCard';

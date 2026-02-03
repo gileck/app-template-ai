@@ -3,7 +3,7 @@
  */
 
 import { Bug, AlertCircle, Gauge, Clock, Search } from 'lucide-react';
-import { Badge } from '@/client/components/ui/badge';
+import { Badge } from '@/client/components/template/ui/badge';
 import type { ReportClient, InvestigationStatus } from '@/apis/reports/types';
 import { STATUS_COLORS, STATUS_ICONS, formatDate } from '../../utils';
 

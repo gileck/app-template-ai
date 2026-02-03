@@ -23,8 +23,8 @@
  */
 
 import { useState } from 'react';
-import { Badge } from '@/client/components/ui/badge';
-import { Button } from '@/client/components/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
+import { Button } from '@/client/components/template/ui/button';
 import { X, Filter, GitBranch, Link2Off, Clock, CalendarClock, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/client/lib/utils';
 import type { FeatureRequestPriority } from '@/apis/feature-requests/types';

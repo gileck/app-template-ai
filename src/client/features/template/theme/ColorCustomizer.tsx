@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { RotateCcw, Sun, Moon } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Label } from '@/client/components/ui/label';
+import { Button } from '@/client/components/template/ui/button';
+import { Label } from '@/client/components/template/ui/label';
 import { useThemeStore, useEffectiveColors, useHasCustomColors } from './store';
 import { hslToHex, hexToHsl } from './utils';
 import type { ThemeColors } from './types';

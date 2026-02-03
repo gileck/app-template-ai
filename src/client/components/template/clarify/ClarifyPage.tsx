@@ -11,10 +11,10 @@ import type { QuestionAnswer } from '@/apis/clarification/types';
 import { getClarification, submitAnswer } from '@/apis/clarification/client';
 import { QuestionCard } from './QuestionCard';
 import { SuccessState } from './SuccessState';
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import { AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Pencil } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/client/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/client/components/template/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/template/ui/card';
 
 interface ClarifyPageProps {
     issueNumber: number;

@@ -3,16 +3,16 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
-import { Badge } from '@/client/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
 import { Bug, AlertCircle, ChevronDown, ChevronUp, Clock, MoreVertical, Search, CheckCircle, XCircle, Trash2, Loader2 } from 'lucide-react';
 import type { GroupedReport } from '../utils';
 import type { ReportStatus } from '@/apis/reports/types';
 import { formatDate } from '../utils';
 import { ReportCard } from './ReportCard';
 import { useBatchUpdateStatus, useBatchDeleteReports } from '../hooks';
-import { ConfirmDialog } from '@/client/components/ui/confirm-dialog';
+import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 
 interface GroupedReportCardProps {
     group: GroupedReport;

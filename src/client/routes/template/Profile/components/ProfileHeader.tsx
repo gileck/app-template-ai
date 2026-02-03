@@ -4,8 +4,8 @@
  */
 
 import { Camera, Loader2 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/client/components/ui/avatar';
-import { Button } from '@/client/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/client/components/template/ui/avatar';
+import { Button } from '@/client/components/template/ui/button';
 
 interface ProfileHeaderProps {
     username: string;

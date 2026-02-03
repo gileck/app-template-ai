@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import { FeatureRequestCard } from './FeatureRequestCard';
 import type { FeatureRequestClient } from '@/apis/feature-requests/types';
 

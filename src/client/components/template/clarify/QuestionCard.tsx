@@ -7,15 +7,15 @@
 
 import { useState, useEffect } from 'react';
 import type { ParsedQuestion, QuestionAnswer } from '@/apis/clarification/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/ui/card';
-import { Label } from '@/client/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/client/components/ui/radio-group';
-import { Textarea } from '@/client/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/client/components/template/ui/card';
+import { Label } from '@/client/components/template/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/client/components/template/ui/radio-group';
+import { Textarea } from '@/client/components/template/ui/textarea';
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
-} from '@/client/components/ui/collapsible';
+} from '@/client/components/template/ui/collapsible';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface QuestionCardProps {

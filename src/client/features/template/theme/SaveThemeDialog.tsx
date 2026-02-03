@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Save } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Input } from '@/client/components/ui/input';
-import { Label } from '@/client/components/ui/label';
+import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
+import { Label } from '@/client/components/template/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -11,7 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from '@/client/components/ui/dialog';
+} from '@/client/components/template/ui/dialog';
 import { useThemeStore, useHasAnyCustomColors } from './store';
 
 interface SaveThemeDialogProps {

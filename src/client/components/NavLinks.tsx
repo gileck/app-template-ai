@@ -1,39 +1,19 @@
 /**
- * Project Navigation Items
+ * Navigation Items
  *
- * This file defines the app's navigation menus.
- * Admin items and utilities are imported from NavLinks.template.tsx (synced from template).
- *
- * Customize navItems and menuItems for your project's needs.
+ * This file combines template and project navigation items.
+ * - NavLinks.template.tsx: Template items (synced from template)
+ * - NavLinks.project.ts: Project items (your custom items)
  */
 
-import { NavItem } from './layout/types';
-import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
+import { templateAdminMenuItems, filterAdminNavItems } from './template/NavLinks.template';
+import { projectAdminMenuItems, navItems, menuItems } from './project/NavLinks.project';
 
-// Re-export template items and utilities
-import { adminMenuItems as templateAdminMenuItems, filterAdminNavItems } from './NavLinks.template';
-export { filterAdminNavItems };
+// Re-export for use by Layout
+export { navItems, menuItems, filterAdminNavItems };
 
-/** Admin-only menu items (includes template items + project-specific) */
-export const adminMenuItems: NavItem[] = [
+/** Combined admin menu items (template + project) */
+export const adminMenuItems = [
   ...templateAdminMenuItems,
-  { path: '/admin/dashboard', label: 'Dashboard', icon: <BarChart3 size={18} /> },
-];
-
-/** Bottom navigation bar items */
-export const navItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <Home size={18} /> },
-  { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
-  { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
-  { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
-];
-
-/** Regular app menu items (non-admin) */
-export const menuItems: NavItem[] = [
-  { path: '/', label: 'Home', icon: <Home size={18} /> },
-  { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
-  { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
-  { path: '/my-requests', label: 'My Requests', icon: <Lightbulb size={18} /> },
-  { path: '/theme', label: 'Theme', icon: <Palette size={18} /> },
-  { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
+  ...projectAdminMenuItems,
 ];

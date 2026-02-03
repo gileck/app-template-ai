@@ -11,15 +11,15 @@ import {
     DialogHeader,
     DialogTitle,
     DialogDescription,
-} from '@/client/components/ui/dialog';
-import { Button } from '@/client/components/ui/button';
-import { Label } from '@/client/components/ui/label';
-import { Input } from '@/client/components/ui/input';
-import { Textarea } from '@/client/components/ui/textarea';
+} from '@/client/components/template/ui/dialog';
+import { Button } from '@/client/components/template/ui/button';
+import { Label } from '@/client/components/template/ui/label';
+import { Input } from '@/client/components/template/ui/input';
+import { Textarea } from '@/client/components/template/ui/textarea';
 import { Lightbulb, Send, Loader2 } from 'lucide-react';
 import { useFeatureRequestStore } from './store';
 import { useSubmitFeatureRequest } from './hooks';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features';
 
 export function FeatureRequestDialog() {

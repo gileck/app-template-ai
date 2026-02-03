@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { RotateCcw, Sun, Moon, ChevronDown, ChevronRight, Palette } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Label } from '@/client/components/ui/label';
-import { Card } from '@/client/components/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Label } from '@/client/components/template/ui/label';
+import { Card } from '@/client/components/template/ui/card';
 import { useThemeStore, useEffectiveColors, useHasCustomColors, useHasAnyCustomColors } from './store';
 import { hslToHex, hexToHsl } from './utils';
 import { SaveThemeDialog } from './SaveThemeDialog';

@@ -7,8 +7,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { submitErrorReport } from '../bug-report';
 import { logger } from '../session-logs';
-import { Button } from '@/client/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/client/components/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/client/components/template/ui/card';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Props {

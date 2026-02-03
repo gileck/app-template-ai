@@ -6,9 +6,9 @@
  */
 
 import { useRouter } from '@/client/features';
-import { ClarifyPage } from '@/client/components/clarify';
+import { ClarifyPage } from '@/client/components/template/clarify';
 import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/client/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/client/components/template/ui/alert';
 
 export function Clarify() {
     const { routeParams, queryParams } = useRouter();

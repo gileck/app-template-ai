@@ -1,7 +1,7 @@
 import { useState, ReactNode } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/client/components/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Card, CardContent, CardHeader } from '@/client/components/template/ui/card';
 
 interface CollapsibleSectionProps {
     title: string;

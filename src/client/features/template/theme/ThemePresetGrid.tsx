@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Check, MoreVertical, Pencil, Trash2, Palette } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Input } from '@/client/components/ui/input';
+import { Button } from '@/client/components/template/ui/button';
+import { Input } from '@/client/components/template/ui/input';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/client/components/ui/dropdown-menu';
+} from '@/client/components/template/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -15,7 +15,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/client/components/ui/dialog';
+} from '@/client/components/template/ui/dialog';
 import { themePresets, getPresetColors } from './presets';
 import { useThemeStore, useSavedCustomThemes } from './store';
 import { ColorEditorDialog } from './ColorEditorDialog';

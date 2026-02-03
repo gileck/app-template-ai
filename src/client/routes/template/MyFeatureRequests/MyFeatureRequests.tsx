@@ -1,4 +1,4 @@
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import { Loader2, Lightbulb, Inbox } from 'lucide-react';
 import { MyRequestCard } from './components/MyRequestCard';
 import { useMyFeatureRequests } from './hooks';

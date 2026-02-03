@@ -6,11 +6,11 @@
  */
 
 import { useState, useRef } from 'react';
-import { Card, CardContent } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
-import { Badge } from '@/client/components/ui/badge';
-import { LinearProgress } from '@/client/components/ui/linear-progress';
-import { Input } from '@/client/components/ui/input';
+import { Card, CardContent } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
+import { LinearProgress } from '@/client/components/template/ui/linear-progress';
+import { Input } from '@/client/components/template/ui/input';
 import {
     ArrowLeft,
     Calendar,
@@ -27,7 +27,7 @@ import { CelebrationEffect } from '../Todos/components/CelebrationEffect';
 import { DatePickerDialog } from '../Todos/components/DatePickerDialog';
 import { DeleteTodoDialog } from '../Todos/components/DeleteTodoDialog';
 import { formatDueDate, isToday, isOverdue, formatRelativeTime } from '../Todos/utils/dateUtils';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import { prefersReducedMotion } from '../Todos/animations';
 import { logger } from '@/client/features';
 

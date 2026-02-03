@@ -5,15 +5,15 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Calendar } from '@/client/components/ui/calendar';
-import { Button } from '@/client/components/ui/button';
+import { Calendar } from '@/client/components/template/ui/calendar';
+import { Button } from '@/client/components/template/ui/button';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogFooter,
-} from '@/client/components/ui/dialog';
+} from '@/client/components/template/ui/dialog';
 import { getQuickDates } from '../utils/dateUtils';
 
 interface DatePickerDialogProps {

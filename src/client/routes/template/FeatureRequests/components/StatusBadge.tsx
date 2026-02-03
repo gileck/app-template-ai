@@ -1,4 +1,4 @@
-import { Badge } from '@/client/components/ui/badge';
+import { Badge } from '@/client/components/template/ui/badge';
 import type { FeatureRequestStatus } from '@/apis/feature-requests/types';
 import {
     CircleDot,

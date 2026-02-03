@@ -1,4 +1,4 @@
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import { CheckCircle, Eye } from 'lucide-react';
 interface PrimaryActionButtonProps {
     canApprove: boolean;

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Bell, Check, Star, Trash2 } from 'lucide-react';
-import { Button } from '@/client/components/ui/button';
-import { Card } from '@/client/components/ui/card';
-import { Switch } from '@/client/components/ui/switch';
+import { Button } from '@/client/components/template/ui/button';
+import { Card } from '@/client/components/template/ui/card';
+import { Switch } from '@/client/components/template/ui/switch';
 
 /**
  * Live preview of current theme settings

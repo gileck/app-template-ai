@@ -2,7 +2,7 @@
  * Reports Header Component
  */
 
-import { Button } from '@/client/components/ui/button';
+import { Button } from '@/client/components/template/ui/button';
 import { Filter, Trash2 } from 'lucide-react';
 import type { ReportClient } from '@/apis/reports/types';
 import { groupReports } from '../utils';

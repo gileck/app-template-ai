@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check, Type } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { fontPresets } from './fonts';
 import { useThemeStore } from './store';
 

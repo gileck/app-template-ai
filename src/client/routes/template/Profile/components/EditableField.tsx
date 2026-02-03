@@ -5,10 +5,10 @@
 
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { ChevronRight, Info, Loader2 } from 'lucide-react';
-import { Input } from '@/client/components/ui/input';
-import { Button } from '@/client/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/client/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/ui/dialog';
+import { Input } from '@/client/components/template/ui/input';
+import { Button } from '@/client/components/template/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/client/components/template/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/template/ui/dialog';
 import { useIOSKeyboardOffset } from '@/client/lib/hooks';
 
 interface EditableFieldProps {

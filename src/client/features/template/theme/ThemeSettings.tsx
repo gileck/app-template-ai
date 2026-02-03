@@ -1,8 +1,8 @@
 import React from 'react';
 import { Moon, Sun, RotateCcw } from 'lucide-react';
-import { Card } from '@/client/components/ui/card';
-import { Button } from '@/client/components/ui/button';
-import { Separator } from '@/client/components/ui/separator';
+import { Card } from '@/client/components/template/ui/card';
+import { Button } from '@/client/components/template/ui/button';
+import { Separator } from '@/client/components/template/ui/separator';
 import { useThemeStore } from './store';
 import { ThemePresetGrid } from './ThemePresetGrid';
 import { FontSelector } from './FontSelector';

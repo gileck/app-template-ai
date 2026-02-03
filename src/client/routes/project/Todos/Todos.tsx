@@ -8,9 +8,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button } from '@/client/components/ui/button';
-import { Alert } from '@/client/components/ui/alert';
-import { LinearProgress } from '@/client/components/ui/linear-progress';
+import { Button } from '@/client/components/template/ui/button';
+import { Alert } from '@/client/components/template/ui/alert';
+import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { RefreshCcw, Loader2 } from 'lucide-react';
 import { useTodos, useDeleteTodo } from './hooks';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';

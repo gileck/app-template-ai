@@ -5,14 +5,14 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/ui/dialog';
-import { Button } from '@/client/components/ui/button';
-import { Label } from '@/client/components/ui/label';
-import { Input } from '@/client/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/client/components/template/ui/dialog';
+import { Button } from '@/client/components/template/ui/button';
+import { Label } from '@/client/components/template/ui/label';
+import { Input } from '@/client/components/template/ui/input';
 import { Bug, Upload, X, Send, Loader2, Gauge, Clipboard } from 'lucide-react';
 import { useBugReportStore } from './store';
 import { useSubmitBugReport } from './hooks';
-import { toast } from '@/client/components/ui/toast';
+import { toast } from '@/client/components/template/ui/toast';
 import { compressImage, formatBytes } from '@/client/utils/imageCompression';
 import type { BugCategory } from './types';
 

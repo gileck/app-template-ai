@@ -2,8 +2,8 @@
  * Delete Todo Confirmation Dialog
  */
 
-import { Button } from '@/client/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/ui/dialog';
+import { Button } from '@/client/components/template/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/client/components/template/ui/dialog';
 import type { TodoItemClient } from '@/server/database/collections/todos/types';
 
 interface DeleteTodoDialogProps {

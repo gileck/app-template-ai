@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { getAllModels, type AIModelDefinition } from '@/common/ai/models';
 import { useSettingsStore } from '@/client/features';
 
