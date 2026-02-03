@@ -1,0 +1,48 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/pages/**/*.{ts,tsx}",
+    "src/client/features/index.ts",
+    "src/client/routes/index.ts",
+    "src/apis/index.ts",
+    "src/agents/index.ts",
+    "scripts/**/*.{ts,js}",
+    "config/**/*.{ts,mjs,js}",
+    "eslint.config.mjs"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,js}",
+    "config/**/*.{ts,mjs,js}"
+  ],
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.d.ts",
+    "src/pages/api/**",
+    "node_modules/**"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "tailwindcss",
+    "@tailwindcss/*",
+    "postcss",
+    "autoprefixer",
+    "sharp",
+    "tsx",
+    "@eslint/eslintrc",
+    "eslint-config-next",
+    "eslint-plugin-boundaries",
+    "@playwright/mcp"
+  ],
+  "ignoreBinaries": [
+    "madge"
+  ],
+  "next": {
+    "entry": [
+      "src/pages/**/*.{ts,tsx}",
+      "next.config.ts",
+      "config/next/*.ts"
+    ]
+  }
+}

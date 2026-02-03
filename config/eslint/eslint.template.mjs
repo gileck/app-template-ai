@@ -8,6 +8,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
+import boundaries from "eslint-plugin-boundaries";
 import apiGuidelinesPlugin from "../../eslint-plugin-api-guidelines/index.js";
 import stateManagementPlugin from "../../eslint-plugin-state-management/index.js";
 
@@ -127,6 +128,58 @@ const eslintTemplateConfig = [
     files: ["src/client/stores/**/*.ts"],
     rules: {
       "no-restricted-imports": "off"
+    }
+  },
+  // Module boundaries rules
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: {
+      boundaries
+    },
+    settings: {
+      "boundaries/elements": [
+        { type: "client-features-template", pattern: "src/client/features/template/**" },
+        { type: "client-features-project", pattern: "src/client/features/project/**" },
+        { type: "client-routes-template", pattern: "src/client/routes/template/**" },
+        { type: "client-routes-project", pattern: "src/client/routes/project/**" },
+        { type: "client-components-template", pattern: "src/client/components/template/**" },
+        { type: "client-components-project", pattern: "src/client/components/project/**" },
+        { type: "client-utils", pattern: "src/client/utils/**" },
+        { type: "client-stores", pattern: "src/client/stores/**" },
+        { type: "client-other", pattern: "src/client/**" },
+        { type: "server", pattern: "src/server/**" },
+        { type: "apis", pattern: "src/apis/**" },
+        { type: "agents", pattern: "src/agents/**" },
+        { type: "pages", pattern: "src/pages/**" },
+        { type: "common", pattern: "src/common/**" },
+      ],
+      "boundaries/ignore": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/node_modules/**"
+      ]
+    },
+    rules: {
+      // Prevent client code from importing server code
+      "boundaries/element-types": ["error", {
+        default: "allow",
+        rules: [
+          {
+            // Client code cannot import from server (except via apis)
+            // Only value imports are disallowed; type imports are fine (compile-time only)
+            from: ["client-features-template", "client-features-project", "client-routes-template", "client-routes-project", "client-components-template", "client-components-project", "client-utils", "client-stores", "client-other"],
+            disallow: ["server", "agents"],
+            importKind: "value",
+            message: "Client code cannot import from server or agents. Use APIs instead. (type imports are allowed)"
+          },
+          {
+            // Template code cannot import from project code
+            from: ["client-features-template", "client-routes-template", "client-components-template"],
+            disallow: ["client-features-project", "client-routes-project", "client-components-project"],
+            message: "Template code cannot import from project code. Template must remain project-agnostic."
+          }
+        ]
+      }]
     }
   }
 ];
