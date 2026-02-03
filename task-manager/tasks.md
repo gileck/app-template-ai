@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 39
-- **Open:** 14
+- **Open:** 13
 - **In Progress:** 0
-- **Done:** 25
+- **Done:** 26
 
 ---
 
-## 📋 Open Tasks (14)
+## 📋 Open Tasks (13)
 
 ### 🟠 High Priority
 
@@ -36,7 +36,6 @@
 | 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
-| 39 | Split telegram-webhook.ts into smaller modules | M | Medium |
 
 ### 🟢 Low Priority
 
@@ -45,10 +44,11 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (25)
+## ✅ Completed Tasks (26)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 39 | ~~Split telegram-webhook.ts into smaller modules~~ | 2026-02-03 | `e9c6438` |
 | 37 | ~~Implement Feature Branch Workflow with Phase PRs~~ | 2026-02-03 | `374bf1c` |
 | 36 | ~~Improve sync-template with Interactive Conflict Resolution~~ | 2026-02-01 | `51c495c` |
 | 35 | ~~Add PR Merge Success Notification with Revert Button~~ | 2026-02-01 | - |

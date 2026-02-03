@@ -1,11 +1,14 @@
 ---
 number: 39
-title: "Split telegram-webhook.ts into smaller modules"
+title: Split telegram-webhook.ts into smaller modules
 priority: Medium
 size: M
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-02-02
+dateUpdated: 2026-02-03
+dateCompleted: 2026-02-03
+completionCommit: e9c6438
 ---
 
 # Task 39: Split telegram-webhook.ts into smaller modules
