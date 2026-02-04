@@ -74,16 +74,16 @@ function updateEnvLocal(bucketName: string): boolean {
 }
 
 /**
- * Sync env vars to Vercel using vercel-cli
+ * Set S3 bucket env var in Vercel using vercel-cli
  */
-function syncToVercel(): boolean {
+function syncToVercel(bucketName: string): boolean {
     try {
-        console.log('   Running yarn vercel-cli env:sync...');
-        execSync('yarn vercel-cli env:sync', { stdio: 'inherit' });
+        console.log(`   Setting ${ENV_VAR_NAME}=${bucketName} in Vercel...`);
+        execSync(`yarn vercel-cli env:set --name ${ENV_VAR_NAME} --value "${bucketName}"`, { stdio: 'inherit' });
         return true;
     } catch (error) {
-        console.error('❌ Failed to sync to Vercel');
-        console.error('   You can manually run: yarn vercel-cli env:sync');
+        console.error('❌ Failed to set env var in Vercel');
+        console.error(`   You can manually run: yarn vercel-cli env:set --name ${ENV_VAR_NAME} --value "${bucketName}"`);
         return false;
     }
 }
@@ -263,8 +263,8 @@ async function main() {
     updateEnvLocal(bucketName);
 
     // Sync to Vercel
-    console.log('\n☁️  Syncing to Vercel...');
-    const vercelSynced = syncToVercel();
+    console.log('\n☁️  Setting env var in Vercel...');
+    const vercelSynced = syncToVercel(bucketName);
 
     // Add to GitHub Actions
     console.log('\n🐙 Adding to GitHub Actions...');
@@ -279,7 +279,7 @@ async function main() {
     console.log('');
     console.log('Updated:');
     console.log('   ✓ .env.local');
-    console.log(vercelSynced ? '   ✓ Vercel' : '   ⚠ Vercel (run: yarn vercel-cli env:sync)');
+    console.log(vercelSynced ? '   ✓ Vercel' : `   ⚠ Vercel (run: yarn vercel-cli env:set --name ${ENV_VAR_NAME} --value "${bucketName}")`);
     console.log('   ✓ GitHub Actions (as variable)');
     console.log('');
     console.log('Required IAM permissions:');
