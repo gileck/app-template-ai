@@ -67,7 +67,7 @@ Update options:
 
 Log options:
   <issue-number>          Required: GitHub issue number
-  --output <path>         Optional: Output file path (default: agent-logs/issue-{N}.md)
+  --output <path>         Optional: Output file path (default: temp-agent-logs/issue-{N}.md)
 
 Workflow:
   Default (no flags):

@@ -37,8 +37,8 @@ export async function handleLog(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    // Determine output path
-    const defaultOutput = path.join('agent-logs', `issue-${issueNumber}.md`);
+    // Determine output path (temp-agent-logs is gitignored, separate from synced agent-logs)
+    const defaultOutput = path.join('temp-agent-logs', `issue-${issueNumber}.md`);
     const outputPath = parsed.output || defaultOutput;
 
     console.log(`\nDownloading log for issue #${issueNumber}...`);
