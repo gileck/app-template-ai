@@ -57,7 +57,8 @@ This is a **comprehensive audit**. Before starting, understand:
 8. [pending] Phase 3.6: Audit E2E Workflow (phases, artifacts, communication)
 9. [pending] Phase 3.7: Audit Telegram Webhooks (status updates, actions)
 10. [pending] Phase 3.8: Audit Clarification Flow (Telegram→UI→GitHub)
-11. [pending] Phase 4: Documentation Audit
+11. [pending] Phase 3.9: Audit Code Duplication & Shared Patterns
+12. [pending] Phase 4: Documentation Audit
 12. [pending] Phase 5: Doc-Code Consistency Check
 13. [pending] Phase 6: Generate Final Audit Report
 ```
@@ -87,6 +88,7 @@ Phase 3: Systematic Code Review
     | - 3.6: E2E Workflow (phases, artifacts)
     | - 3.7: Telegram Webhooks (status updates)
     | - 3.8: Clarification Flow (Telegram→UI→GitHub)
+    | - 3.9: Code Duplication & Shared Patterns
     v
 Phase 4: Documentation Audit
     | - Completeness
@@ -1605,6 +1607,246 @@ Trace the complete flow:
 
 ---
 
+### 3.9: Code Duplication & Shared Pattern Audit
+
+This section identifies duplicated code and similar patterns across agents that should be refactored into shared utilities. Code duplication increases maintenance burden and leads to inconsistent behavior.
+
+**Primary locations to compare**:
+- `src/agents/core-agents/*/index.ts` - Agent implementations
+- `src/agents/shared/` - Existing shared code
+- `src/agents/lib/` - Library abstractions
+
+#### 3.9.1: Cross-Agent Pattern Discovery
+
+```bash
+# Find similar function patterns across agents
+grep -r "async function\|const.*=.*async" src/agents/core-agents/ --include="*.ts" | head -30
+
+# Find similar imports across agents
+grep -r "^import" src/agents/core-agents/*/index.ts | sort | uniq -c | sort -rn | head -20
+
+# Find repeated utility patterns
+grep -r "try.*catch\|\.map(\|\.filter(\|\.reduce(" src/agents/core-agents/ --include="*.ts" | head -30
+
+# Find similar error handling patterns
+grep -r "catch.*error\|Error\(" src/agents/core-agents/ --include="*.ts" -A2 | head -40
+```
+
+**Create pattern inventory:**
+
+| Pattern | Agents Using It | Lines of Code | Shared? | Consolidation Priority |
+|---------|-----------------|---------------|---------|------------------------|
+| | | | | |
+
+#### 3.9.2: Duplication Categories
+
+Identify duplication in these categories:
+
+##### CLI Setup Patterns
+
+```bash
+# Compare CLI setup code across agents
+grep -r "new Command\|program\." src/agents/core-agents/ --include="*.ts" -A5 | head -50
+```
+
+| Check | Status |
+|-------|--------|
+| Similar Commander.js setup code | |
+| Repeated option definitions | |
+| Similar validation logic | |
+| Repeated help text patterns | |
+
+**Potential for shared CLI factory?** [ ] Yes [ ] No
+
+##### GitHub API Interactions
+
+```bash
+# Find GitHub API calls
+grep -r "octokit\|github\." src/agents/core-agents/ --include="*.ts" | head -30
+
+# Find issue/PR operations
+grep -r "createIssue\|createPR\|updateIssue\|getIssue" src/agents/ --include="*.ts" | head -30
+```
+
+| Check | Status |
+|-------|--------|
+| Similar issue fetching logic | |
+| Repeated PR creation patterns | |
+| Similar comment posting code | |
+| Repeated label operations | |
+
+**Potential for shared GitHub helpers?** [ ] Yes [ ] No
+
+##### Data Transformation Patterns
+
+```bash
+# Find data parsing/transformation
+grep -r "JSON.parse\|JSON.stringify\|\.split(\|\.join(" src/agents/core-agents/ --include="*.ts" | head -30
+
+# Find markdown processing
+grep -r "markdown\|##\|```" src/agents/core-agents/ --include="*.ts" | head -20
+```
+
+| Check | Status |
+|-------|--------|
+| Similar JSON parsing logic | |
+| Repeated markdown generation | |
+| Similar data extraction patterns | |
+| Repeated string formatting | |
+
+**Potential for shared formatters?** [ ] Yes [ ] No
+
+##### Validation Patterns
+
+```bash
+# Find validation code
+grep -r "if.*!\|throw\|assert\|validate" src/agents/core-agents/ --include="*.ts" | head -30
+```
+
+| Check | Status |
+|-------|--------|
+| Similar input validation | |
+| Repeated null/undefined checks | |
+| Similar option validation | |
+| Repeated type guards | |
+
+**Potential for shared validators?** [ ] Yes [ ] No
+
+##### State Management Patterns
+
+```bash
+# Find status/state management
+grep -r "status\|state\|phase" src/agents/core-agents/ --include="*.ts" | head -30
+```
+
+| Check | Status |
+|-------|--------|
+| Similar status checking logic | |
+| Repeated state transitions | |
+| Similar phase management | |
+| Repeated MongoDB queries | |
+
+**Potential for shared state helpers?** [ ] Yes [ ] No
+
+#### 3.9.3: Line-by-Line Similarity Analysis
+
+For each agent pair, compare main functions:
+
+| Agent A | Agent B | Similar Blocks | Estimated Duplicated Lines |
+|---------|---------|----------------|---------------------------|
+| implementAgent | productDesignAgent | | |
+| implementAgent | technicalDesignAgent | | |
+| implementAgent | prReviewAgent | | |
+| productDesignAgent | technicalDesignAgent | | |
+| productDesignAgent | prReviewAgent | | |
+| technicalDesignAgent | prReviewAgent | | |
+
+#### 3.9.4: Existing Shared Code Usage
+
+Check if agents properly use existing shared utilities:
+
+```bash
+# Check usage of shared modules
+grep -r "from.*shared\|from.*lib" src/agents/core-agents/ --include="*.ts" | head -30
+
+# Find inline implementations that could use shared code
+grep -r "console.log\|console.error" src/agents/core-agents/ --include="*.ts" | head -20
+```
+
+| Shared Module | Expected Usage | Actual Usage | Gap |
+|---------------|----------------|--------------|-----|
+| notifications.ts | All agents | | |
+| config.ts | All agents | | |
+| utils.ts | As needed | | |
+| types.ts | All agents | | |
+| lib/logging | All agents | | |
+| lib/phases.ts | Multi-phase agents | | |
+| lib/artifacts.ts | Design agents | | |
+
+#### 3.9.5: Refactoring Opportunities
+
+Based on findings, identify consolidation opportunities:
+
+##### High-Value Refactoring (Shared by 3+ agents)
+
+| Pattern | Current State | Proposed Shared Module | Impact |
+|---------|---------------|----------------------|--------|
+| | | | |
+
+##### Medium-Value Refactoring (Shared by 2 agents)
+
+| Pattern | Current State | Proposed Shared Module | Impact |
+|---------|---------------|----------------------|--------|
+| | | | |
+
+##### Low-Value / Not Worth Refactoring
+
+| Pattern | Reason Not to Refactor |
+|---------|----------------------|
+| | |
+
+#### 3.9.6: Copy-Paste Detection
+
+Look for obvious copy-paste indicators:
+
+```bash
+# Find identical multi-line blocks (manual inspection needed)
+# Look for comments that suggest copy-paste
+grep -r "TODO\|FIXME\|copied from\|same as" src/agents/core-agents/ --include="*.ts"
+
+# Find suspiciously similar variable names
+grep -r "const.*Result\|const.*Data\|const.*Response" src/agents/core-agents/ --include="*.ts" | head -20
+```
+
+| Check | Status |
+|-------|--------|
+| No copy-paste comments found | |
+| No identical code blocks (>10 lines) | |
+| No redundant helper functions | |
+| Variable naming is consistent (not copied with different names) | |
+
+#### 3.9.7: Abstraction Opportunities
+
+Identify patterns that could become abstractions:
+
+| Current Pattern | Abstraction Type | Benefit |
+|-----------------|------------------|---------|
+| Multiple agents do X | Factory function | Consistency, less code |
+| Multiple agents configure Y | Config object | Single source of truth |
+| Multiple agents handle Z error | Error handler class | Consistent error handling |
+| Multiple agents format W | Formatter utility | Consistent output |
+
+#### 3.9.8: Duplication Metrics
+
+| Metric | Value |
+|--------|-------|
+| Total agent code lines | |
+| Estimated duplicated lines | |
+| Duplication percentage | |
+| Number of patterns to consolidate | |
+| Estimated lines saved after refactoring | |
+
+#### 3.9.9: Code Duplication Summary
+
+| Aspect | Score (1-5) | Notes |
+|--------|-------------|-------|
+| CLI Pattern Consistency | | |
+| GitHub API Abstraction | | |
+| Data Transformation Reuse | | |
+| Validation Reuse | | |
+| State Management Reuse | | |
+| Overall Shared Code Usage | | |
+| **Overall Duplication Score** | | (lower is better) |
+
+**Rating Scale:**
+- 5: Minimal duplication - shared code used effectively
+- 4: Low duplication - minor refactoring opportunities
+- 3: Moderate duplication - several patterns should be shared
+- 2: High duplication - significant refactoring needed
+- 1: Critical duplication - major code consolidation required
+
+---
+
 ## Phase 4: Documentation Audit
 
 ### 4.1: Completeness Check
@@ -1762,6 +2004,7 @@ Use this template for the final report:
 | E2E Workflow | X | X | X | XX% |
 | Telegram Webhooks | X | X | X | XX% |
 | Clarification Flow | X | X | X | XX% |
+| Code Duplication | X | X | X | XX% |
 | Documentation | X | X | X | XX% |
 | Doc-Code Sync | X | X | X | XX% |
 | **Total** | **X** | **X** | **X** | **XX%** |
@@ -1921,6 +2164,14 @@ Complete after ALL fixes are implemented:
 - [ ] Telegram notification has ANSWER QUESTIONS button
 - [ ] Full E2E flow works (agent→Telegram→UI→GitHub→agent)
 
+### Code Duplication
+- [ ] No duplicated CLI setup code (use shared factory)
+- [ ] No repeated GitHub API patterns (use shared helpers)
+- [ ] No copy-pasted error handling (use shared utilities)
+- [ ] All agents use existing shared modules
+- [ ] No identical multi-line code blocks across agents
+- [ ] Shared code opportunities identified and documented
+
 ### Documentation
 - [ ] All CLI options documented
 - [ ] All status constants documented
@@ -1980,6 +2231,7 @@ Complete ALL items to finish the audit:
 - [ ] Audited E2E workflow (phases, artifacts, communication)
 - [ ] Audited Telegram webhooks (buttons, status updates, security)
 - [ ] Audited clarification flow (Telegram→UI→GitHub)
+- [ ] Audited code duplication & shared patterns
 
 ### Phase 4: Documentation Audit
 - [ ] Checked completeness
@@ -2089,6 +2341,21 @@ Complete ALL items to finish the audit:
 | No scroll to top | Check onSuccess callback | Add window.scrollTo |
 | Missing Telegram button | Check notifyAgentNeedsClarification | Add URL button with token |
 | Wrong app URL | Check getAppUrl usage | Use correct production URL |
+
+### Code Duplication Violations
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Duplicated CLI setup | Compare `new Command()` blocks across agents | Create shared CLI factory in `shared/cli.ts` |
+| Repeated GitHub API calls | Search for similar `octokit` patterns | Create shared GitHub helpers in `lib/github.ts` |
+| Copy-pasted error handling | Compare try/catch blocks | Create shared error handler utility |
+| Duplicated validation logic | Search for similar `if (!x)` checks | Create shared validators in `shared/validators.ts` |
+| Repeated data transformation | Search for similar `.map()/.filter()` | Create shared transformers |
+| Inline implementations of shared code | Check imports from `shared/` | Use existing shared utilities |
+| Similar status checking | Compare status/state code | Use `lib/phases.ts` consistently |
+| Duplicated markdown formatting | Search for similar template literals | Create shared formatters |
+| Copy-paste comments | Search for "copied from", "same as" | Refactor to shared function |
+| Identical multi-line blocks | Manual comparison of agents | Extract to shared module |
 
 ---
 
