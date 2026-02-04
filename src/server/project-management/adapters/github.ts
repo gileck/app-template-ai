@@ -1546,4 +1546,59 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
             options: field.options,
         }));
     }
+
+    // ============================================================
+    // FILE OPERATIONS
+    // ============================================================
+
+    /**
+     * Create or update a file in the repository via GitHub Contents API
+     * Used for committing log files from Vercel serverless functions
+     */
+    async createOrUpdateFileContents(
+        path: string,
+        content: string,
+        message: string
+    ): Promise<void> {
+        const oc = this.getBotOctokit(); // Use bot token for commits
+        const { owner, repo } = this.config.github;
+
+        // Encode content to base64
+        const base64Content = Buffer.from(content, 'utf-8').toString('base64');
+
+        // Try to get existing file to get its SHA (needed for updates)
+        let sha: string | undefined;
+        try {
+            const { data: existingFile } = await oc.repos.getContent({
+                owner,
+                repo,
+                path,
+            });
+
+            // getContent returns different types for files vs directories
+            if (!Array.isArray(existingFile) && existingFile.type === 'file') {
+                sha = existingFile.sha;
+            }
+        } catch (error: unknown) {
+            // File doesn't exist yet, that's fine - we'll create it
+            const is404 = error instanceof Error &&
+                'status' in error &&
+                (error as { status: number }).status === 404;
+            if (!is404) {
+                throw error;
+            }
+        }
+
+        // Create or update the file
+        await oc.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path,
+            message,
+            content: base64Content,
+            sha, // Include SHA if updating existing file
+        });
+
+        console.log(`  [LOG:GITHUB] File ${sha ? 'updated' : 'created'}: ${path}`);
+    }
 }

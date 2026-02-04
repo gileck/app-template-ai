@@ -23,6 +23,7 @@ import {
     logWebhookPhaseEnd,
     logExternalError,
     logExists,
+    syncLogToRepoAndCleanup,
 } from '@/agents/lib/logging';
 import { editMessageText } from '../telegram-api';
 import { escapeHtml, findItemByIssueNumber } from '../utils';
@@ -167,6 +168,11 @@ export async function handleMergeFinalPRCallback(
                     prNumber,
                 });
             }
+
+            // Sync S3 log to repo and cleanup (non-blocking)
+            syncLogToRepoAndCleanup(issueNumber).catch((err) => {
+                console.error(`  [LOG:S3_SYNC] Failed to sync log for issue #${issueNumber}:`, err);
+            });
         }
 
         const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
@@ -498,6 +504,11 @@ export async function handleMergeCallback(
                     prNumber,
                 });
             }
+
+            // Sync S3 log to repo and cleanup (non-blocking)
+            syncLogToRepoAndCleanup(issueNumber).catch((err) => {
+                console.error(`  [LOG:S3_SYNC] Failed to sync log for issue #${issueNumber}:`, err);
+            });
 
             const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
             if (featureRequest) {
