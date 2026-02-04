@@ -49,6 +49,7 @@
     "verify-credentials": "tsx scripts/template/verify-credentials.ts",
     "verify-production": "tsx scripts/template/verify-production.ts",
     "setup-s3-logging": "tsx scripts/template/setup-s3-logging.ts",
+    "test-s3-logging": "tsx scripts/template/test-s3-logging.ts",
     "init-agents-copy": "tsx scripts/template/init-agents-copy-project.ts",
     "copy-to-agents": "tsx scripts/template/copy-non-git-files-to-agents-copy.ts",
     "test-cursor-adapter": "tsx scripts/template/test-cursor-adapter.ts",
