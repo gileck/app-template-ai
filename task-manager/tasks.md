@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 40
-- **Open:** 14
+- **Total Tasks:** 41
+- **Open:** 15
 - **In Progress:** 0
 - **Done:** 26
 
 ---
 
-## 📋 Open Tasks (14)
+## 📋 Open Tasks (15)
 
 ### 🟠 High Priority
 
@@ -23,6 +23,7 @@
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 25 | Phase PRs Target Issue Branch Instead of Master | L | High |
 | 38 | Implement AWS S3 Issue Log System for Agent Workflow | M | Medium |
+| 41 | Add Admin Feedback Form for PR Request Changes via Telegram | M | Medium |
 
 ### 🟡 Medium Priority
 
