@@ -999,29 +999,81 @@ export class GitHubProjectsAdapter implements ProjectManagementAdapter {
         const oc = this.getBotOctokit(); // Use bot token for creating PRs
         const { owner, repo } = this.config.github;
 
-        const { data } = await oc.pulls.create({
-            owner,
-            repo,
-            head,
-            base,
-            title,
-            body,
-        });
-
-        // Request reviewers if provided
-        if (reviewers && reviewers.length > 0) {
-            await oc.pulls.requestReviewers({
+        try {
+            const { data } = await oc.pulls.create({
                 owner,
                 repo,
-                pull_number: data.number,
-                reviewers,
+                head,
+                base,
+                title,
+                body,
             });
-        }
 
-        return {
-            number: data.number,
-            url: data.html_url,
-        };
+            // Request reviewers if provided
+            if (reviewers && reviewers.length > 0) {
+                await oc.pulls.requestReviewers({
+                    owner,
+                    repo,
+                    pull_number: data.number,
+                    reviewers,
+                });
+            }
+
+            return {
+                number: data.number,
+                url: data.html_url,
+            };
+        } catch (error: unknown) {
+            // Check if error is "PR already exists"
+            const isAlreadyExistsError = error instanceof Error &&
+                'status' in error &&
+                (error as { status: number }).status === 422 &&
+                error.message.includes('pull request already exists');
+
+            if (isAlreadyExistsError) {
+                // Find and return the existing PR
+                const existingPR = await this.findOpenPRForBranch(head);
+                if (existingPR) {
+                    console.log(`  ℹ️  PR #${existingPR.prNumber} already exists for branch ${head}, using existing PR`);
+                    return {
+                        number: existingPR.prNumber,
+                        url: `https://github.com/${owner}/${repo}/pull/${existingPR.prNumber}`,
+                    };
+                }
+            }
+
+            // Re-throw other errors
+            throw error;
+        }
+    }
+
+    /**
+     * Find an open PR for a specific branch
+     */
+    async findOpenPRForBranch(branchName: string): Promise<{ prNumber: number; branchName: string } | null> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+
+        try {
+            const { data: prs } = await oc.pulls.list({
+                owner,
+                repo,
+                head: `${owner}:${branchName}`,
+                state: 'open',
+                per_page: 1,
+            });
+
+            if (prs.length > 0) {
+                return {
+                    prNumber: prs[0].number,
+                    branchName: prs[0].head.ref,
+                };
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
     }
 
     async getPRReviewComments(prNumber: number): Promise<PRReviewComment[]> {
