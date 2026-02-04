@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 39
-- **Open:** 13
+- **Total Tasks:** 40
+- **Open:** 14
 - **In Progress:** 0
 - **Done:** 26
 
 ---
 
-## 📋 Open Tasks (13)
+## 📋 Open Tasks (14)
 
 ### 🟠 High Priority
 
@@ -36,6 +36,7 @@
 | 28 | sync-template: Warn When Overwriting Local Project Changes | M | Medium |
 | 32 | Display Design Docs and PR Links from GitHub Issue Artifacts | M | Medium |
 | 33 | Add sendAgentNotification() Function for Agent-Specific Telegram Notifications | S | Low |
+| 40 | Extract Shared Git Utilities to src/agents/lib/git.ts | S | Low |
 
 ### 🟢 Low Priority
 
@@ -77,4 +78,4 @@
 
 ---
 
-*Last updated: 2026-02-03*
+*Last updated: 2026-02-04*
