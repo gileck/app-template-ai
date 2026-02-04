@@ -17,6 +17,9 @@
  *   - GitHub CLI authenticated (for GitHub Actions)
  */
 
+// Load environment variables from .env.local
+import '../../src/agents/shared/loadEnv';
+
 import {
     S3Client,
     CreateBucketCommand,
