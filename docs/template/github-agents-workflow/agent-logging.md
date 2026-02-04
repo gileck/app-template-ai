@@ -528,10 +528,12 @@ This handles concurrent writes from multiple sources (e.g., local agent + webhoo
 
 ### Log Lifecycle
 
-1. **Workflow starts:** Log file created in S3 (`agent-logs/issue-{N}.md`)
-2. **During workflow:** All sources append to the same S3 file
+1. **Issue created:** When admin approves and GitHub issue is created (in `sync-core.ts`), the log file is initialized with header
+2. **During workflow:** All sources (local agents, webhooks, GitHub Actions) append to the same S3 file
 3. **Status → Done:** Log synced to repo via GitHub API, S3 file deleted
 4. **Result:** Log persisted in `agent-logs/issue-{N}.md` in the repository
+
+**Important:** The log is initialized at issue creation time (when admin approves), BEFORE any agents run. This ensures the file exists for all subsequent writes.
 
 ### API Functions
 
