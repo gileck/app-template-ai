@@ -40,6 +40,7 @@ export async function handleDesignReviewAction(
     const item = await findItemByIssueNumber(adapter, issueNumber);
 
     if (!item) {
+        console.warn(`[LOG:DESIGN_REVIEW] Issue #${issueNumber} not found in project`);
         return { success: false, error: `Issue #${issueNumber} not found in project` };
     }
 

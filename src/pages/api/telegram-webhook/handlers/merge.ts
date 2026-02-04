@@ -115,6 +115,7 @@ export async function handleMergeFinalPRCallback(
 
         const prInfo = await adapter.getPRInfo(prNumber);
         if (!prInfo) {
+            console.warn(`[LOG:MERGE] Could not fetch PR info for PR #${prNumber}, issue #${issueNumber}`);
             return { success: false, error: 'Could not fetch PR info' };
         }
 
@@ -280,11 +281,13 @@ export async function handleMergeCallback(
 
         const commitComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
         if (!commitComment) {
+            console.warn(`[LOG:MERGE] Commit message not found on PR #${prNumber} for issue #${issueNumber}`);
             return { success: false, error: 'Commit message not found on PR. Please run PR Review again.' };
         }
 
         const commitMsg = parseCommitMessageComment(commitComment.body);
         if (!commitMsg) {
+            console.warn(`[LOG:MERGE] Could not parse commit message on PR #${prNumber} for issue #${issueNumber}`);
             return { success: false, error: 'Could not parse commit message. Please run PR Review again.' };
         }
 
@@ -629,7 +632,10 @@ Run <code>yarn agent:implement</code> to continue.`;
 
         return { success: true };
     } catch (error) {
-        console.error('Error handling merge:', error);
+        console.error(`[LOG:MERGE] Error handling merge for PR #${prNumber}, issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -656,10 +662,25 @@ export async function handleRevertMerge(
 
         const fullSha = await adapter.getMergeCommitSha(prNumber);
         if (!fullSha) {
+            console.warn(`[LOG:REVERT] Could not find merge commit SHA for PR #${prNumber}, issue #${issueNumber}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'revert_failed', `Could not find merge commit SHA for PR #${prNumber}`, {
+                    prNumber,
+                    shortSha,
+                });
+            }
             return { success: false, error: 'Could not find merge commit SHA' };
         }
 
         if (!fullSha.startsWith(shortSha)) {
+            console.warn(`[LOG:REVERT] Merge commit SHA mismatch for PR #${prNumber}, issue #${issueNumber}: expected ${shortSha}*, got ${fullSha}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'revert_failed', `Merge commit SHA mismatch for PR #${prNumber}`, {
+                    prNumber,
+                    expectedPrefix: shortSha,
+                    actualSha: fullSha,
+                });
+            }
             return { success: false, error: 'Merge commit SHA mismatch' };
         }
 
@@ -667,6 +688,13 @@ export async function handleRevertMerge(
 
         const revertResult = await adapter.createRevertPR(fullSha, prNumber, issueNumber);
         if (!revertResult) {
+            console.warn(`[LOG:REVERT] Failed to create revert PR for PR #${prNumber}, issue #${issueNumber}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'revert_failed', `Failed to create revert PR for PR #${prNumber} - may have conflicts`, {
+                    prNumber,
+                    mergeCommitSha: fullSha,
+                });
+            }
             return { success: false, error: 'Failed to create revert PR. There may be conflicts - please revert manually.' };
         }
 
@@ -760,9 +788,18 @@ export async function handleRevertMerge(
         });
 
         console.log(`Telegram webhook: completed revert handling for PR #${prNumber}`);
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'revert_initiated', `Revert initiated for PR #${prNumber}`, {
+                prNumber,
+                shortSha,
+            });
+        }
         return { success: true };
     } catch (error) {
-        console.error('Error handling revert:', error);
+        console.error(`[LOG:REVERT] Error handling revert for PR #${prNumber}, issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -786,17 +823,21 @@ export async function handleMergeRevertPR(
 
         const prInfo = await adapter.getPRInfo(revertPrNumber);
         if (!prInfo) {
+            console.warn(`[LOG:REVERT] Revert PR #${revertPrNumber} not found for issue #${issueNumber}`);
             return { success: false, error: 'Revert PR not found' };
         }
 
         const prDetails = await adapter.getPRDetails(revertPrNumber);
         if (!prDetails) {
+            console.warn(`[LOG:REVERT] Could not get revert PR #${revertPrNumber} details for issue #${issueNumber}`);
             return { success: false, error: 'Could not get revert PR details' };
         }
         if (prDetails.merged) {
+            console.warn(`[LOG:REVERT] Revert PR #${revertPrNumber} already merged for issue #${issueNumber}`);
             return { success: false, error: 'Revert PR already merged' };
         }
         if (prDetails.state === 'closed') {
+            console.warn(`[LOG:REVERT] Revert PR #${revertPrNumber} is closed for issue #${issueNumber}`);
             return { success: false, error: 'Revert PR is closed' };
         }
 
@@ -836,9 +877,17 @@ export async function handleMergeRevertPR(
         }
 
         console.log(`Telegram webhook: completed merge revert PR #${revertPrNumber}`);
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'revert_merged', `Revert PR #${revertPrNumber} merged`, {
+                revertPrNumber,
+            });
+        }
         return { success: true };
     } catch (error) {
-        console.error('Error merging revert PR:', error);
+        console.error(`[LOG:REVERT] Error merging revert PR #${revertPrNumber} for issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)

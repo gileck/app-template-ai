@@ -16,6 +16,7 @@ import {
     logWebhookAction,
     logWebhookPhaseStart,
     logWebhookPhaseEnd,
+    logExternalError,
     logExists,
 } from '@/agents/lib/logging';
 import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
@@ -169,7 +170,10 @@ export async function handleDesignPRApproval(
         console.log(`Telegram webhook: merged ${designType} design PR #${prNumber} for issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling design PR approval:', error);
+        console.error(`[LOG:DESIGN_PR] Error handling design PR #${prNumber} approval for issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -194,6 +198,7 @@ export async function handleDesignPRRequestChanges(
 
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
+            console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for request changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
@@ -245,7 +250,10 @@ export async function handleDesignPRRequestChanges(
         console.log(`Telegram webhook: requested changes for ${designType} design PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling design PR request changes:', error);
+        console.error(`[LOG:DESIGN_PR] Error handling design PR #${prNumber} request changes for issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -269,6 +277,7 @@ export async function handleRequestChangesCallback(
 
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
+            console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for implementation changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
@@ -315,7 +324,10 @@ export async function handleRequestChangesCallback(
         console.log(`Telegram webhook: requested changes for PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling request changes:', error);
+        console.error(`[LOG:DESIGN_PR] Error handling request changes for PR #${prNumber}, issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)

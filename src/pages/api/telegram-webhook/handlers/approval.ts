@@ -28,11 +28,13 @@ export async function handleFeatureRequestApproval(
     const request = await featureRequests.findFeatureRequestById(requestId);
 
     if (!request) {
+        console.warn(`[LOG:APPROVAL] Feature request not found: ${requestId}`);
         return { success: false, error: 'Feature request not found' };
     }
 
     // Verify the token exists (token was stored in database when request was created)
     if (!request.approvalToken) {
+        console.warn(`[LOG:APPROVAL] Invalid approval token for request: ${requestId}`);
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
@@ -57,6 +59,7 @@ export async function handleFeatureRequestApproval(
     const result = await approveFeatureRequest(requestId);
 
     if (!result.success) {
+        console.error(`[LOG:APPROVAL] Failed to approve feature request ${requestId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
 
@@ -106,11 +109,13 @@ export async function handleBugReportApproval(
     const report = await reports.findReportById(reportId);
 
     if (!report) {
+        console.warn(`[LOG:APPROVAL] Bug report not found: ${reportId}`);
         return { success: false, error: 'Bug report not found' };
     }
 
     // Verify the token exists (token was stored in database when report was created)
     if (!report.approvalToken) {
+        console.warn(`[LOG:APPROVAL] Invalid approval token for report: ${reportId}`);
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
@@ -135,6 +140,7 @@ export async function handleBugReportApproval(
     const result = await approveBugReport(reportId);
 
     if (!result.success) {
+        console.error(`[LOG:APPROVAL] Failed to approve bug report ${reportId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
 

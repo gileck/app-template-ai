@@ -9,6 +9,7 @@ import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
 import { sendNotificationToOwner } from '@/server/telegram';
 import {
     logWebhookAction,
+    logExternalError,
     logExists,
 } from '@/agents/lib/logging';
 import { editMessageText } from '../telegram-api';
@@ -28,6 +29,13 @@ export async function handleUndoRequestChanges(
 ): Promise<HandlerResult> {
     try {
         if (!isUndoValid(timestamp)) {
+            console.warn(`[LOG:UNDO] Undo window expired for PR #${prNumber}, issue #${issueNumber}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'undo_expired', `Undo window expired for PR #${prNumber}`, {
+                    prNumber,
+                    timestamp,
+                });
+            }
             return { success: false, error: 'Undo window expired (5 minutes)' };
         }
 
@@ -36,6 +44,7 @@ export async function handleUndoRequestChanges(
 
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
+            console.warn(`[LOG:UNDO] Issue #${issueNumber} not found in project for undo request changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
@@ -117,7 +126,10 @@ export async function handleUndoRequestChanges(
         console.log(`Telegram webhook: undid request changes for PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling undo request changes:', error);
+        console.error(`[LOG:UNDO] Error handling undo request changes for PR #${prNumber}, issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -139,6 +151,14 @@ export async function handleUndoDesignChanges(
 ): Promise<HandlerResult> {
     try {
         if (!isUndoValid(timestamp)) {
+            console.warn(`[LOG:UNDO] Undo window expired for design PR #${prNumber}, issue #${issueNumber}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'undo_expired', `Undo window expired for design PR #${prNumber}`, {
+                    prNumber,
+                    designType,
+                    timestamp,
+                });
+            }
             return { success: false, error: 'Undo window expired (5 minutes)' };
         }
 
@@ -147,6 +167,7 @@ export async function handleUndoDesignChanges(
 
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
+            console.warn(`[LOG:UNDO] Issue #${issueNumber} not found in project for undo design changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
@@ -204,7 +225,10 @@ export async function handleUndoDesignChanges(
         console.log(`Telegram webhook: undid design changes for ${designType} PR #${prNumber}, issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling undo design changes:', error);
+        console.error(`[LOG:UNDO] Error handling undo design changes for PR #${prNumber}, issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -226,6 +250,13 @@ export async function handleUndoDesignReview(
 ): Promise<HandlerResult> {
     try {
         if (!isUndoValid(timestamp)) {
+            console.warn(`[LOG:UNDO] Undo window expired for design review, issue #${issueNumber}`);
+            if (logExists(issueNumber)) {
+                logWebhookAction(issueNumber, 'undo_expired', `Undo window expired for design review ${originalAction}`, {
+                    originalAction,
+                    timestamp,
+                });
+            }
             return { success: false, error: 'Undo window expired (5 minutes)' };
         }
 
@@ -234,6 +265,7 @@ export async function handleUndoDesignReview(
 
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
+            console.warn(`[LOG:UNDO] Issue #${issueNumber} not found in project for undo design review`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
@@ -295,7 +327,10 @@ export async function handleUndoDesignReview(
         console.log(`Telegram webhook: undid ${originalAction} for issue #${issueNumber}`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling undo design review:', error);
+        console.error(`[LOG:UNDO] Error handling undo design review for issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)

@@ -32,11 +32,13 @@ export async function handleFeatureRouting(
     // Get feature request from MongoDB
     const request = await featureRequests.findFeatureRequestById(requestId);
     if (!request || !request.githubProjectItemId) {
+        console.warn(`[LOG:ROUTING] Feature request not found or not synced: ${requestId}`);
         return { success: false, error: 'Feature request not found or not synced' };
     }
 
     const targetStatus = FEATURE_ROUTING_STATUS_MAP[destination];
     if (!targetStatus) {
+        console.warn(`[LOG:ROUTING] Invalid routing destination: ${destination} for request ${requestId}`);
         return { success: false, error: 'Invalid destination' };
     }
 
@@ -96,11 +98,13 @@ export async function handleBugRouting(
     // Get bug report from MongoDB
     const report = await reports.findReportById(reportId);
     if (!report || !report.githubProjectItemId) {
+        console.warn(`[LOG:ROUTING] Bug report not found or not synced: ${reportId}`);
         return { success: false, error: 'Bug report not found or not synced' };
     }
 
     const targetStatus = BUG_ROUTING_STATUS_MAP[destination];
     if (!targetStatus) {
+        console.warn(`[LOG:ROUTING] Invalid routing destination: ${destination} for report ${reportId}`);
         return { success: false, error: 'Invalid destination' };
     }
 

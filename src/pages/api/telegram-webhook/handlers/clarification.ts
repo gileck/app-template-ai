@@ -7,6 +7,7 @@ import { getProjectManagementAdapter } from '@/server/project-management';
 import { REVIEW_STATUSES } from '@/server/project-management/config';
 import {
     logWebhookAction,
+    logExternalError,
     logExists,
 } from '@/agents/lib/logging';
 import { answerCallbackQuery, editMessageText } from '../telegram-api';
@@ -31,11 +32,13 @@ export async function handleClarificationReceived(
         const item = await findItemByIssueNumber(adapter, issueNumber);
 
         if (!item) {
+            console.warn(`[LOG:CLARIFICATION] Item not found in GitHub Projects: issue #${issueNumber}`);
             return { success: false, error: 'Item not found in GitHub Projects' };
         }
 
         // 3. Verify current status
         if (item.reviewStatus !== REVIEW_STATUSES.waitingForClarification) {
+            console.warn(`[LOG:CLARIFICATION] Issue #${issueNumber} not waiting for clarification (current: ${item.reviewStatus || 'none'})`);
             return {
                 success: false,
                 error: `Item is not waiting for clarification (current: ${item.reviewStatus || 'none'})`
@@ -83,7 +86,10 @@ export async function handleClarificationReceived(
         console.log(`Telegram webhook: clarification received for issue #${issueNumber} (item ${item.itemId})`);
         return { success: true };
     } catch (error) {
-        console.error('Error handling clarification received:', error);
+        console.error(`[LOG:CLARIFICATION] Error handling clarification for issue #${issueNumber}:`, error);
+        if (logExists(issueNumber)) {
+            logExternalError(issueNumber, 'telegram', error instanceof Error ? error : new Error(String(error)));
+        }
         return {
             success: false,
             error: error instanceof Error ? error.message : String(error)
