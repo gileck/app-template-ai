@@ -146,12 +146,12 @@ async function main() {
         },
     });
 
-    // Check if bucket exists
+    // Check if bucket exists and we own it
     let bucketExists = false;
     try {
         await client.send(new HeadBucketCommand({ Bucket: bucketName }));
         bucketExists = true;
-        console.log('✅ Bucket already exists');
+        console.log('✅ Bucket already exists (you own it)');
     } catch (error: unknown) {
         if (error instanceof Error && 'name' in error && error.name === 'NotFound') {
             console.log('ℹ️  Bucket does not exist, creating...');
@@ -160,8 +160,9 @@ async function main() {
             if (metadata?.httpStatusCode === 404) {
                 console.log('ℹ️  Bucket does not exist, creating...');
             } else if (metadata?.httpStatusCode === 403) {
-                console.error('❌ Access denied. Check your AWS credentials and permissions.');
-                process.exit(1);
+                // 403 could mean: bucket exists but owned by someone else, OR we don't have permission
+                // We'll try to create it - if it fails with BucketAlreadyExists, we know it's owned by others
+                console.log('ℹ️  Bucket not accessible, attempting to create...');
             } else {
                 throw error;
             }
@@ -189,9 +190,26 @@ async function main() {
 
             await client.send(new CreateBucketCommand(createParams));
             console.log('✅ Bucket created successfully');
-        } catch (error) {
-            console.error('❌ Failed to create bucket:', error);
-            process.exit(1);
+        } catch (error: unknown) {
+            // Check if bucket name is taken by someone else
+            const errorCode = (error as { Code?: string })?.Code;
+            if (errorCode === 'BucketAlreadyExists' || errorCode === 'BucketAlreadyOwnedByYou') {
+                if (errorCode === 'BucketAlreadyOwnedByYou') {
+                    console.log('✅ Bucket already exists (you own it)');
+                    bucketExists = true;
+                } else {
+                    console.error('❌ Bucket name already taken by another AWS account');
+                    console.error('');
+                    console.error('   S3 bucket names are globally unique across ALL AWS accounts.');
+                    console.error('   Try a more unique name, for example:');
+                    console.error(`     yarn setup-s3-logging ${bucketName}-${Math.random().toString(36).slice(2, 8)}`);
+                    console.error(`     yarn setup-s3-logging my-company-agent-logs-${Date.now()}`);
+                    process.exit(1);
+                }
+            } else {
+                console.error('❌ Failed to create bucket:', error);
+                process.exit(1);
+            }
         }
     }
 
