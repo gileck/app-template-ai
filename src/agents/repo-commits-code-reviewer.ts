@@ -320,7 +320,9 @@ function formatIssueDescription(finding: CodeReviewFinding): string {
         .map(f => `- \`${f}\``)
         .join('\n');
 
-    return `**Priority:** ${capitalize(finding.priority)} | **Size:** ${finding.size} | **Complexity:** ${finding.complexity}
+    return `**Priority:** ${capitalize(finding.priority)} | **Size:** ${finding.size} | **Complexity:** ${finding.complexity} | **Risk:** ${finding.riskLevel}
+
+> ${finding.riskDescription}
 
 ## Description
 ${finding.description}
@@ -430,7 +432,7 @@ async function main() {
     if (output.findings.length > 0) {
         console.log('\n  All findings:');
         for (const f of output.findings) {
-            console.log(`    [${f.severity}] [${f.type}] ${f.title}`);
+            console.log(`    [${f.severity}] [${f.type}] [${f.size}] [Risk: ${f.riskLevel}] ${f.title}`);
         }
     }
 

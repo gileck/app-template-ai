@@ -396,7 +396,7 @@ export interface CodeReviewFinding {
     /** Priority for issue creation (maps to agent-workflow --priority) */
     priority: 'critical' | 'high' | 'medium' | 'low';
     /** Estimated fix size */
-    size: 'S' | 'M' | 'L';
+    size: 'XS' | 'S' | 'M' | 'L';
     /** Estimated fix complexity */
     complexity: 'Low' | 'Medium' | 'High';
     /** Short actionable title (max 80 chars) */
@@ -409,6 +409,10 @@ export interface CodeReviewFinding {
     relatedCommit: string;
     /** Whether this finding warrants creating an issue */
     shouldCreateIssue: boolean;
+    /** How likely this issue is to cause real problems */
+    riskLevel: 'High' | 'Medium' | 'Low';
+    /** Short explanation of when/how the risk manifests (e.g., "Crashes on every bot restart") */
+    riskDescription: string;
 }
 
 /**
@@ -453,8 +457,8 @@ export const CODE_REVIEW_OUTPUT_FORMAT = {
                         },
                         size: {
                             type: 'string',
-                            enum: ['S', 'M', 'L'],
-                            description: 'Estimated fix size: S (few lines), M (moderate changes), L (significant work)',
+                            enum: ['XS', 'S', 'M', 'L'],
+                            description: 'Estimated fix size: XS (trivial, <10 lines), S (small, 10-50 lines), M (moderate changes), L (significant work)',
                         },
                         complexity: {
                             type: 'string',
@@ -482,8 +486,17 @@ export const CODE_REVIEW_OUTPUT_FORMAT = {
                             type: 'boolean',
                             description: 'Whether this finding warrants creating an issue. Set to false for low-severity informational findings.',
                         },
+                        riskLevel: {
+                            type: 'string',
+                            enum: ['High', 'Medium', 'Low'],
+                            description: 'How likely this is to cause real problems. High: affects every user or crashes in production. Medium: affects some users or specific conditions. Low: theoretical edge case, unlikely in practice.',
+                        },
+                        riskDescription: {
+                            type: 'string',
+                            description: 'One sentence explaining when/how the risk manifests. E.g., "Crashes on every bot restart", "Only triggers if JSON file is manually corrupted", "Theoretical overflow after years of continuous use".',
+                        },
                     },
-                    required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'affectedFiles', 'relatedCommit', 'shouldCreateIssue'],
+                    required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'affectedFiles', 'relatedCommit', 'shouldCreateIssue', 'riskLevel', 'riskDescription'],
                 },
             },
             summary: {
