@@ -23,7 +23,7 @@
  */
 
 import './shared/loadEnv';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { runAgent } from './lib';
@@ -297,12 +297,17 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
     }
 
     try {
-        const titleArg = finding.title.replace(/"/g, '\\"');
-        const descArg = description.replace(/"/g, '\\"');
-        execSync(
-            `yarn agent-workflow create --type ${type} --title "${titleArg}" --priority ${finding.priority} --description "${descArg}"`,
-            { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' }
-        );
+        const result = spawnSync('yarn', [
+            'agent-workflow', 'create',
+            '--type', type,
+            '--title', finding.title,
+            '--priority', finding.priority,
+            '--description', description,
+        ], { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' });
+
+        if (result.status !== 0) {
+            throw new Error(result.stderr || result.stdout || `Exit code ${result.status}`);
+        }
         console.log(`  Created ${type}: ${finding.title}`);
     } catch (error) {
         console.error(`  Failed to create issue: ${finding.title}`);
