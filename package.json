@@ -10,7 +10,7 @@
     "lint": "next lint",
     "check:circular": "madge --circular --extensions ts,tsx --ts-config tsconfig.json src/",
     "check:unused": "knip",
-    "check:unused:ci": "knip --include dependencies,unlisted,unresolved",
+    "check:unused:ci": "knip --include unresolved",
     "init-project": "node scripts/template/init-project.js",
     "push": "git add .;git commit -am 'commit' && git push",
     "ts": "tsc --noEmit",
