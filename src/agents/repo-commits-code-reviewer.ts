@@ -229,11 +229,34 @@ function buildReviewPrompt(commits: Array<{ hash: string; subject: string; diff:
 ## Your Task
 Review the following ${commits.length} commit(s) for bugs, issues, and improvements.
 
+## CRITICAL: Understand the Full Context Before Reviewing
+
+You have read-only tools (Read, Glob, Grep) available. **You MUST use them before making any judgments.**
+
+### Step 1: Read Project Guidelines
+Start by reading the project's guidelines and architecture docs:
+- Read \`CLAUDE.md\` in the project root — this is the source of truth for all coding standards, patterns, and architectural decisions.
+- Based on the files changed in the commits, read the relevant docs from \`docs/\` and skill rules from \`.ai/skills/\` that apply (e.g., if the commit touches React components, read the React component organization rules; if it touches API code, read the client-server communication docs).
+
+### Step 2: Read the Full Source Files
+For each file modified in the commits, **read the full file** (not just the diff). The diff shows what changed, but you need the surrounding code to understand:
+- Whether the change is consistent with existing patterns in that file
+- Whether error handling exists elsewhere that covers the changed code
+- Whether the change breaks or conflicts with nearby logic
+
+### Step 3: Read Related Code
+Use Grep and Glob to explore code related to the changes:
+- If a function signature changed, find all callers
+- If a type was modified, find all usages
+- If a hook or store was changed, find all consumers
+
+Only after completing these steps should you form your findings.
+
 ## What to Look For
 - **Bugs**: Missing error handling, null/undefined access, race conditions, logic errors, off-by-one errors
 - **Security Issues**: Injection vulnerabilities, exposed secrets, insecure patterns
 - **Performance**: Unnecessary re-renders, missing memoization on hot paths, N+1 queries
-- **Architectural Violations**: Direct API calls instead of React Query, hardcoded colors instead of theme tokens, useState where Zustand/React Query should be used
+- **Architectural Violations**: Patterns that contradict the project guidelines in CLAUDE.md and docs/
 - **Missing Edge Cases**: Unhandled empty states, missing loading states, missing offline handling
 
 ## What to Ignore
@@ -241,13 +264,14 @@ Review the following ${commits.length} commit(s) for bugs, issues, and improveme
 - Trivial optimizations that don't matter in practice
 - Subjective style choices
 - Files in docs/, agent-logs/, .ai/ directories (already filtered)
+- Issues that are consistent with the project's established patterns (even if you'd do it differently)
 
 ## Guidelines
 - Be conservative — better to miss a minor issue than create noise
 - Consolidate related findings (don't create 3 issues for the same underlying problem)
 - Set shouldCreateIssue to false for low-severity informational findings
 - Focus on things that could cause real problems in production
-- Use the read-only tools (Read, Glob, Grep) to explore surrounding code for context when needed
+- Do NOT flag something as a violation if the project docs explicitly endorse that pattern
 
 ## Commits to Review
 
