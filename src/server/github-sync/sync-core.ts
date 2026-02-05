@@ -66,8 +66,9 @@ export async function syncItemToGitHub<T extends GitHubSyncedFields>(
         // 5. Add issue to project
         const projectItemId = await adapter.addIssueToProject(issueNodeId);
 
-        // 6. Set status to Backlog
-        await adapter.updateItemStatus(projectItemId, STATUSES.backlog);
+        // 6. Set initial status (defaults to Backlog)
+        const initialStatus = config.initialStatus || STATUSES.backlog;
+        await adapter.updateItemStatus(projectItemId, initialStatus);
 
         // 7. Create empty artifact comment (design docs and implementation PRs will be tracked here)
         await ensureArtifactComment(adapter, issueNumber);
