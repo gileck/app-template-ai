@@ -424,20 +424,19 @@ async function main() {
     console.log('\n' + '='.repeat(50));
     console.log('📊 Review Summary');
     console.log(`  Commits reviewed: ${output.summary.commitsReviewed}`);
-    console.log(`  Bugs found: ${output.summary.bugsFound}`);
-    console.log(`  Improvements found: ${output.summary.improvementsFound}`);
     console.log(`  Total findings: ${output.findings.length}`);
+
+    // Log all findings with their status
+    if (output.findings.length > 0) {
+        console.log('\n  All findings:');
+        for (const f of output.findings) {
+            const action = f.shouldCreateIssue ? '→ create issue' : '→ skip (informational)';
+            console.log(`    [${f.severity}] [${f.type}] ${f.title} ${action}`);
+        }
+    }
 
     // Process findings
     const issueFindings = output.findings.filter(f => f.shouldCreateIssue);
-    const infoFindings = output.findings.filter(f => !f.shouldCreateIssue);
-
-    if (infoFindings.length > 0) {
-        console.log(`\n  ℹ️  Informational findings (no issue created):`);
-        for (const f of infoFindings) {
-            console.log(`    - [${f.severity}] ${f.title}`);
-        }
-    }
 
     if (issueFindings.length > 0) {
         console.log(`\n  📝 Creating ${issueFindings.length} issue(s)...`);
