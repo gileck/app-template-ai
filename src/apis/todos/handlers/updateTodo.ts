@@ -39,7 +39,7 @@ export const updateTodo = async (
         }
 
         if (request.completed !== undefined) {
-            updateData.completed = !request.completed;
+            updateData.completed = request.completed;
         }
 
         if (request.dueDate !== undefined) {

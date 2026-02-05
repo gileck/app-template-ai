@@ -55,7 +55,7 @@ export function TodoItem({
         setMutatingTodoId(todo._id);
 
         updateTodoMutation.mutate(
-            { todoId: todo._id, completed: newCompletedState },
+            { todoId: todo._id, completed: !newCompletedState },
             {
                 onSettled: () => setMutatingTodoId(null),
                 onSuccess: () => {
