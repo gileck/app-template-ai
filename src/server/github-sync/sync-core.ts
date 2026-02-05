@@ -80,8 +80,8 @@ export async function syncItemToGitHub<T extends GitHubSyncedFields>(
             githubProjectItemId: projectItemId,
         });
 
-        // 9. Send routing notification (unless skipped for CLI auto-routing)
-        if (!options?.skipNotification) {
+        // 9. Send routing notification (unless skipped or auto-routed via initialStatus)
+        if (!options?.skipNotification && !config.initialStatus) {
             try {
                 await config.sendRoutingNotification(item, { number: issueNumber, url: issueUrl });
             } catch (error) {
