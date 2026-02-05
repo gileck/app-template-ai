@@ -141,10 +141,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid routing data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleFeatureRouting(botToken, callback_query, requestId, destination);
-            if (!result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Routing...');
+            await handleFeatureRouting(botToken, callback_query, requestId, destination);
             return res.status(200).json({ ok: true });
         }
 
@@ -156,10 +154,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid routing data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleBugRouting(botToken, callback_query, reportId, destination);
-            if (!result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Routing...');
+            await handleBugRouting(botToken, callback_query, reportId, destination);
             return res.status(200).json({ ok: true });
         }
 
@@ -170,10 +166,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleDesignReviewAction(botToken, callback_query, action as ReviewAction, issueNumber);
-            if (!result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+            await handleDesignReviewAction(botToken, callback_query, action as ReviewAction, issueNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -184,10 +178,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleClarificationReceived(botToken, callback_query, issueNumber);
-            if (!result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Updating status...');
+            await handleClarificationReceived(botToken, callback_query, issueNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -199,12 +191,11 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleMergeCallback(botToken, callback_query, issueNumber, prNumber);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Merged!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Merging PR...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging PR...</b>', 'HTML');
             }
+            await handleMergeCallback(botToken, callback_query, issueNumber, prNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -216,12 +207,11 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleMergeFinalPRCallback(botToken, callback_query, issueNumber, prNumber);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Final PR Merged!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Merging final PR...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging final PR...</b>', 'HTML');
             }
+            await handleMergeFinalPRCallback(botToken, callback_query, issueNumber, prNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -233,12 +223,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue or PR number');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleRequestChangesCallback(botToken, callback_query, issueNumber, prNumber);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '🔄 Marked for changes');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+            await handleRequestChangesCallback(botToken, callback_query, issueNumber, prNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -251,12 +237,11 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleDesignPRApproval(botToken, callback_query, prNumber, issueNumber, designType);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Merged!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Merging design PR...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging design PR...</b>', 'HTML');
             }
+            await handleDesignPRApproval(botToken, callback_query, prNumber, issueNumber, designType);
             return res.status(200).json({ ok: true });
         }
 
@@ -269,12 +254,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid callback data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleDesignPRRequestChanges(botToken, callback_query, prNumber, issueNumber, designType);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '🔄 Changes requested');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+            await handleDesignPRRequestChanges(botToken, callback_query, prNumber, issueNumber, designType);
             return res.status(200).json({ ok: true });
         }
 
@@ -289,12 +270,11 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid revert data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleRevertMerge(botToken, callback_query, issueNumber, prNumber, shortSha, prevStatus, phase);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '↩️ Revert PR created!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Creating revert PR...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating revert PR...</b>', 'HTML');
             }
+            await handleRevertMerge(botToken, callback_query, issueNumber, prNumber, shortSha, prevStatus, phase);
             return res.status(200).json({ ok: true });
         }
 
@@ -306,12 +286,11 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid merge data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleMergeRevertPR(botToken, callback_query, issueNumber, revertPrNumber);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Revert PR merged!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Merging revert PR...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging revert PR...</b>', 'HTML');
             }
+            await handleMergeRevertPR(botToken, callback_query, issueNumber, revertPrNumber);
             return res.status(200).json({ ok: true });
         }
 
@@ -324,12 +303,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleUndoRequestChanges(botToken, callback_query, issueNumber, prNumber, timestamp);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+            await handleUndoRequestChanges(botToken, callback_query, issueNumber, prNumber, timestamp);
             return res.status(200).json({ ok: true });
         }
 
@@ -343,12 +318,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleUndoDesignChanges(botToken, callback_query, prNumber, issueNumber, designType, timestamp);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+            await handleUndoDesignChanges(botToken, callback_query, prNumber, issueNumber, designType, timestamp);
             return res.status(200).json({ ok: true });
         }
 
@@ -362,12 +333,8 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid undo data');
                 return res.status(200).json({ ok: true });
             }
-            const result = await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '↩️ Undone!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+            await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
             return res.status(200).json({ ok: true });
         }
 

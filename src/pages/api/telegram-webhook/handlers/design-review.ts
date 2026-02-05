@@ -10,7 +10,7 @@ import {
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { answerCallbackQuery, editMessageText, editMessageWithUndoButton } from '../telegram-api';
+import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
 import { escapeHtml, findItemByIssueNumber } from '../utils';
 import {
     STATUS_TRANSITIONS,
@@ -100,12 +100,6 @@ export async function handleDesignReviewAction(
     } else if (action === 'reject') {
         statusDetails = `\n\n❌ <b>Rejected</b>\n📊 Status: ${finalStatus}\n📋 Review Status: ${finalReviewStatus}\n\n<i>Changed your mind? Click Undo within 5 minutes.</i>`;
     }
-
-    // Acknowledge the button click (toast notification)
-    const toastMessage = advancedTo
-        ? `✅ Approved → ${advancedTo}`
-        : `${ACTION_EMOJIS[action]} ${ACTION_LABELS[action]}`;
-    await answerCallbackQuery(botToken, callbackQuery.id, toastMessage);
 
     // Edit the message to show the action taken with full details
     if (callbackQuery.message) {
