@@ -276,29 +276,31 @@ export async function sendFeatureRequestNotification(request: FeatureRequestDocu
 
     const message = messageParts.join('\n');
 
-    // Add approve button
+    // Add buttons
     const inlineKeyboard: InlineKeyboardButton[][] = [];
     const baseUrl = getBaseUrl();
 
     if (baseUrl.startsWith('https') && request.approvalToken) {
-        // Callback data format: "approve_request:requestId"
-        // Note: Token is verified from database when webhook is called
-        // (Telegram has 64-byte limit on callback_data, so we can't include the token)
         inlineKeyboard.push([{
             text: '✅ Approve & Create GitHub Issue',
             callback_data: `approve_request:${request._id}`,
         }]);
     } else if (request.approvalToken) {
-        // Fallback to URL button for non-HTTPS
         inlineKeyboard.push([{
             text: '✅ Approve & Create GitHub Issue',
             url: `${baseUrl}/api/feature-requests/approve/${request._id}?token=${request.approvalToken}`,
         }]);
     }
 
+    // View details link
+    inlineKeyboard.push([{
+        text: '🔍 View Full Details',
+        url: `${baseUrl}/admin/feature-requests/${request._id}`,
+    }]);
+
     return sendNotificationToOwner(message, {
         parseMode: 'HTML',
-        inlineKeyboard: inlineKeyboard.length > 0 ? inlineKeyboard : undefined,
+        inlineKeyboard,
     });
 }
 
@@ -325,29 +327,31 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
 
     const message = messageParts.join('\n');
 
-    // Add approve button if we have HTTPS (for callback support)
+    // Add buttons
     const inlineKeyboard: InlineKeyboardButton[][] = [];
     const baseUrl = getBaseUrl();
 
     if (baseUrl.startsWith('https') && report.approvalToken) {
-        // Callback data format: "approve_bug:reportId"
-        // Note: Token is verified from database when webhook is called
-        // (Telegram has 64-byte limit on callback_data, so we can't include the token)
         inlineKeyboard.push([{
             text: '✅ Approve & Create GitHub Issue',
             callback_data: `approve_bug:${report._id}`,
         }]);
     } else if (report.approvalToken) {
-        // Fallback to URL button for non-HTTPS
         inlineKeyboard.push([{
             text: '✅ Approve & Create GitHub Issue',
             url: `${baseUrl}/api/reports/approve/${report._id}?token=${report.approvalToken}`,
         }]);
     }
 
+    // View details link (goes to reports list since no detail page exists yet)
+    inlineKeyboard.push([{
+        text: '🔍 View Full Details',
+        url: `${baseUrl}/admin/reports`,
+    }]);
+
     return sendNotificationToOwner(message, {
         parseMode: 'HTML',
-        inlineKeyboard: inlineKeyboard.length > 0 ? inlineKeyboard : undefined,
+        inlineKeyboard,
     });
 }
 

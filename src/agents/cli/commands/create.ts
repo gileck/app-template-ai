@@ -174,7 +174,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
     const report = await reports.createReport({
         type: 'bug',
         status: options.autoApprove ? 'investigating' : 'new',
-        description: options.title, // Use title as description for CLI-created bugs
+        description: options.description ? `${options.title}\n\n${options.description}` : options.title,
         sessionLogs: [],
         browserInfo: {
             userAgent: 'CLI',
