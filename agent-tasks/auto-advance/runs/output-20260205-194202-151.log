@@ -1,0 +1,26 @@
+> app-template-ai@0.1.0 github-workflows-agent
+> tsx src/agents/index.ts --auto-advance --stream --reset
+📁 Working directory: /Users/gileck/Projects/agents-copy/app-template-ai
+🔄 Resetting to clean main branch...
+  Fetching from remote...
+  Checking out main...
+  Hard reset to origin/main...
+  Cleaning untracked files...
+✅ Reset to clean main
+============================================================
+Running: auto-advance
+============================================================
+============================================================
+Auto-Advance Agent
+============================================================
+No items to process.
+============================================================
+Syncing agent logs to dev repo...
+============================================================
+============================================================
+Syncing agent-logs for: app-template-ai
+============================================================
+📝 Syncing 21 log file(s) from agents-copy...
+✅ Done! Synced 21 log file(s) to /Users/gileck/Projects/agents-copy/app-template-ai/agent-logs
+✅ Agent logs synced successfully to ~/Projects/app-template-ai/agent-logs
+Done!

@@ -1,0 +1,37 @@
+{
+  "name": "Agent(app-template-ai): Auto Advance",
+  "uniqueKey": "app-template:agent:auto-advance",
+  "description": "Runs the auto-advance agent every 10 minutes",
+  "script": {
+    "path": "github-workflows-agent",
+    "args": ["--auto-advance", "--stream", "--reset"],
+    "interpreter": "npm",
+    "workingDirectory": "/Users/gileck/Projects/agents-copy/app-template-ai"
+  },
+  "schedule": {
+    "type": "interval",
+    "value": "600000"
+  },
+  "retry": {
+    "enabled": true,
+    "maxAttempts": 3,
+    "backoffType": "exponential",
+    "initialDelayMs": 10000,
+    "maxDelayMs": 60000
+  },
+  "timeout": { "ms": 900000 },
+  "notifications": {
+    "onStart": false,
+    "onSuccess": false,
+    "onFailure": true
+  },
+  "options": {
+    "enabled": true,
+    "allowParallelRuns": false,
+    "requiresInternet": true
+  },
+  "output": {
+    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/auto-advance/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/auto-advance/runs/status.json"
+  }
+}

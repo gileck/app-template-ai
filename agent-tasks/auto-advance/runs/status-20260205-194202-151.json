@@ -1,0 +1,11 @@
+{
+  "taskId": "ca39ff62-522c-4a66-b4d6-2f25f49f95cb",
+  "taskName": "Agent: Auto Advance",
+  "runId": "501dae53-7b75-453f-847f-3abac4dccea0",
+  "status": "completed",
+  "exitCode": 0,
+  "startedAt": "2026-02-05T14:12:02.151Z",
+  "finishedAt": "2026-02-05T14:12:11.725Z",
+  "durationMs": 9574,
+  "duration": "9s"
+}
