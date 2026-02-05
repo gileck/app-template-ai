@@ -5,7 +5,7 @@
  * All functions return new arrays without mutating the input.
  */
 
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 import type { TodoSortBy, TodoDueDateFilter } from './store';
 import { isToday, isDueThisWeek, isOverdue } from './utils/dateUtils';
 

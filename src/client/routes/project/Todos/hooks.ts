@@ -7,7 +7,7 @@
  */
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { getTodos, getTodo, createTodo, updateTodo, deleteTodo } from '@/apis/todos/client';
+import { getTodos, getTodo, createTodo, updateTodo, deleteTodo } from '@/apis/project/todos/client';
 import { useQueryDefaults } from '@/client/query/defaults';
 import { generateId } from '@/client/utils/id';
 import type {
@@ -15,8 +15,8 @@ import type {
     GetTodoResponse,
     UpdateTodoRequest,
     DeleteTodoRequest,
-} from '@/apis/todos/types';
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
+} from '@/apis/project/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 
 // ============================================================================
 // Query Keys

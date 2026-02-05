@@ -6,16 +6,10 @@
  */
 
 import { mergeApiHandlers } from "./registry";
-import { chatApiHandlers } from "./chat/server";
-import { todosApiHandlers } from "./todos/server";
-import { clarificationApiHandlers } from "./clarification/server";
-import { dashboardApiHandlers } from "./dashboard/server";
-import { bugFixSelectApiHandlers } from "./bug-fix-select/server";
+import { chatApiHandlers } from "./project/chat/server";
+import { todosApiHandlers } from "./project/todos/server";
 
 export const projectApiHandlers = mergeApiHandlers(
   chatApiHandlers,
-  todosApiHandlers,
-  clarificationApiHandlers,
-  dashboardApiHandlers,
-  bugFixSelectApiHandlers
+  todosApiHandlers
 );

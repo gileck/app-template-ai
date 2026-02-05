@@ -7,7 +7,7 @@
 
 import { Card } from '@/client/components/template/ui/card';
 import { Badge } from '@/client/components/template/ui/badge';
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 import { isToday, isOverdue } from '../utils/dateUtils';
 
 interface TodoStatsProps {

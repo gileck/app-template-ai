@@ -10,7 +10,7 @@ import { Badge } from '@/client/components/template/ui/badge';
 import { Eye, Save, X, Pencil, Trash2, Check, Calendar } from 'lucide-react';
 import { useRouter } from '@/client/features';
 import { useUpdateTodo } from '../hooks';
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 import { logger } from '@/client/features';
 import { toast } from '@/client/components/template/ui/toast';
 import { CelebrationEffect } from './CelebrationEffect';

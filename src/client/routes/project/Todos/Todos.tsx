@@ -13,7 +13,7 @@ import { Alert } from '@/client/components/template/ui/alert';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { RefreshCcw, Loader2 } from 'lucide-react';
 import { useTodos, useDeleteTodo } from './hooks';
-import type { TodoItemClient } from '@/server/database/collections/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 import { logger } from '@/client/features';
 import { TodoItem } from './components/TodoItem';
 import { CreateTodoForm } from './components/CreateTodoForm';

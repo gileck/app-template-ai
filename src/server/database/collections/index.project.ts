@@ -9,4 +9,4 @@
  */
 
 // Template demo collections (not synced to child projects):
-export * as todos from './todos';
+export * as todos from './project/todos';

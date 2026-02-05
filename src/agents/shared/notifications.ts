@@ -7,8 +7,8 @@
 
 import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
 import { appConfig } from '../../app.config';
-import { generateClarificationToken } from '@/apis/clarification/utils';
-import { generateBugFixToken } from '@/apis/bug-fix-select/utils';
+import { generateClarificationToken } from '@/apis/template/clarification/utils';
+import { generateBugFixToken } from '@/apis/template/bug-fix-select/utils';
 
 // ============================================================
 // TELEGRAM API
