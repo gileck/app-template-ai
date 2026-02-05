@@ -1,0 +1,39 @@
+{
+  "name": "Agent(app-template-ai): Repo Commits Code Reviewer",
+  "uniqueKey": "app-template:agent:repo-commits-code-reviewer",
+  "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
+  "script": {
+    "path": "github-workflows-agent",
+    "args": ["--repo-commits-code-reviewer", "--stream"],
+    "interpreter": "npm",
+    "workingDirectory": "/Users/gileck/Projects/app-template-ai"
+  },
+  "schedule": {
+    "type": "interval",
+    "value": "14400000"
+  },
+  "retry": {
+    "enabled": true,
+    "maxAttempts": 2,
+    "backoffType": "exponential",
+    "initialDelayMs": 30000,
+    "maxDelayMs": 120000
+  },
+  "timeout": {
+    "ms": 600000
+  },
+  "notifications": {
+    "onStart": false,
+    "onSuccess": false,
+    "onFailure": true
+  },
+  "options": {
+    "enabled": true,
+    "allowParallelRuns": false,
+    "requiresInternet": true
+  },
+  "output": {
+    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/repo-commits-code-reviewer/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/repo-commits-code-reviewer/runs/status.json"
+  }
+}
