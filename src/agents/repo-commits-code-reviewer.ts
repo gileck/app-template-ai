@@ -269,7 +269,6 @@ Only after completing these steps should you form your findings.
 ## Guidelines
 - Be conservative — better to miss a minor issue than create noise
 - Consolidate related findings (don't create 3 issues for the same underlying problem)
-- Set shouldCreateIssue to false for low-severity informational findings
 - Focus on things that could cause real problems in production
 - Do NOT flag something as a violation if the project docs explicitly endorse that pattern
 
@@ -427,21 +426,18 @@ async function main() {
     console.log(`  Commits reviewed: ${output.summary.commitsReviewed}`);
     console.log(`  Total findings: ${output.findings.length}`);
 
-    // Log all findings with their status
+    // Log all findings
     if (output.findings.length > 0) {
         console.log('\n  All findings:');
         for (const f of output.findings) {
-            const action = f.shouldCreateIssue ? '→ create issue' : '→ skip (informational)';
-            console.log(`    [${f.severity}] [${f.type}] ${f.title} ${action}`);
+            console.log(`    [${f.severity}] [${f.type}] ${f.title}`);
         }
     }
 
-    // Process findings
-    const issueFindings = output.findings.filter(f => f.shouldCreateIssue);
-
-    if (issueFindings.length > 0) {
-        console.log(`\n  📝 Creating ${issueFindings.length} issue(s)...`);
-        for (const finding of issueFindings) {
+    // Create issues for all findings — admin decides go/no-go via Telegram
+    if (output.findings.length > 0) {
+        console.log(`\n  📝 Creating ${output.findings.length} issue(s)...`);
+        for (const finding of output.findings) {
             createIssue(finding, options.dryRun);
         }
     } else {
