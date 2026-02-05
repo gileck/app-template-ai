@@ -1,17 +1,20 @@
 ---
 number: 42
-title: "Create Bug Investigator Agent for GitHub Workflow"
+title: Create Bug Investigator Agent for GitHub Workflow
 priority: High
-complexity: High
 size: L
-status: TODO
+complexity: High
+status: Done
 dateAdded: "2026-02-04"
+dateUpdated: 2026-02-05
+dateCompleted: 2026-02-05
+completionCommit: c973913
 planFile: task-manager/plans/task-42-plan.md
 ---
 
-## Summary
+# Task 42: Create Bug Investigator Agent for GitHub Workflow
 
-Create a read-only bug-investigator agent (similar to `scripts/template/investigate-bugs.ts`) that investigates bug root causes, outputs investigation summaries with multiple fix options, and integrates with the existing GitHub agents workflow.
+**Summary:** 
 
 ## Details
 
@@ -69,17 +72,12 @@ New agent file: `src/agents/core-agents/bugInvestigatorAgent/index.ts`
 
 ## Files to Modify
 
-### New Files
 - `src/agents/core-agents/bugInvestigatorAgent/index.ts` - New agent (primary)
 - `src/agents/shared/prompts/bug-investigation.ts` - New prompt builders
-
-### Modified Files
 - `src/agents/shared/index.ts` - Export new prompts
 - `src/agents/index.ts` - Export new agent
 - `src/agents/auto-advance.ts` - Add bug investigation column handling
 - `docs/template/github-agents-workflow/overview.md` - Document new workflow step
-
-### Tech Design Agent Cleanup (Remove Bug Handling)
 - `src/agents/core-agents/technicalDesignAgent/index.ts` - Remove ALL bug-related code
 - `src/agents/core-agents/technicalDesignAgent/AGENTS.md` - Remove bug documentation
 - `src/agents/shared/prompts/bug-fix.ts` - Delete or repurpose for bug-investigator
@@ -90,13 +88,6 @@ New agent file: `src/agents/core-agents/bugInvestigatorAgent/index.ts`
 - Existing GitHub adapter for issue comments
 - Claude Code SDK for agent execution
 - Clarify flow infrastructure (if using for option selection)
-
-## Risks/Blockers
-
-- Architectural decision needed: Read-only vs allowing logging PRs
-- Need to define exact GitHub Project column for "Bug Investigation" status
-- Complex state machine for iterative investigation cycles
-- Need clear handoff criteria to downstream agents
 
 ## Notes
 

@@ -1,10 +1,10 @@
 {
-  "name": "Agent(app-template-ai): Implement",
-  "uniqueKey": "app-template:agent:implement",
-  "description": "Runs the implement agent every 10 minutes",
+  "name": "Agent(app-template-ai): All",
+  "uniqueKey": "app-template:agent:all",
+  "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
-    "args": ["--implement", "--stream", "--reset"],
+    "args": ["--all", "--global-limit", "--stream", "--reset"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/agents-copy/app-template-ai"
   },
@@ -31,7 +31,7 @@
     "requiresInternet": true
   },
   "output": {
-    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/implement/runs/output.log",
-    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/implement/runs/status.json"
+    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/all/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/all/runs/status.json"
   }
 }
