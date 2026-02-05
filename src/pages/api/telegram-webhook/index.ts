@@ -102,14 +102,14 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid request ID');
                 return res.status(200).json({ ok: true });
             }
+            // Show loading state immediately
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Creating GitHub issue...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
+            }
             const result = await handleFeatureRequestApproval(botToken, callback_query, requestId);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Approved!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-                if (callback_query.message) {
-                    await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
-                }
+            if (!result.success && callback_query.message) {
+                await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
             }
             return res.status(200).json({ ok: true });
         }
@@ -121,14 +121,14 @@ export default async function handler(
                 await answerCallbackQuery(botToken, callback_query.id, 'Invalid report ID');
                 return res.status(200).json({ ok: true });
             }
+            // Show loading state immediately
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Creating GitHub issue...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
+            }
             const result = await handleBugReportApproval(botToken, callback_query, reportId);
-            if (result.success) {
-                await answerCallbackQuery(botToken, callback_query.id, '✅ Approved!');
-            } else {
-                await answerCallbackQuery(botToken, callback_query.id, `❌ ${result.error?.slice(0, 150)}`);
-                if (callback_query.message) {
-                    await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
-                }
+            if (!result.success && callback_query.message) {
+                await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
             }
             return res.status(200).json({ ok: true });
         }
