@@ -3,9 +3,9 @@
   "uniqueKey": "app-template:agent:repo-commits-code-reviewer",
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
-    "path": "github-workflows-agent",
-    "args": ["--repo-commits-code-reviewer", "--stream"],
-    "interpreter": "npm",
+    "path": "tsx",
+    "args": ["src/agents/repo-commits-code-reviewer.ts", "--stream"],
+    "interpreter": "npx",
     "workingDirectory": "/Users/gileck/Projects/app-template-ai"
   },
   "schedule": {

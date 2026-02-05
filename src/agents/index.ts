@@ -44,7 +44,6 @@ const SCRIPTS = {
     'implement': resolve(__dirname, 'core-agents/implementAgent/index.ts'),
     'pr-review': resolve(__dirname, 'core-agents/prReviewAgent/index.ts'),
     'auto-advance': resolve(__dirname, 'auto-advance.ts'),
-    'repo-commits-code-reviewer': resolve(__dirname, 'repo-commits-code-reviewer.ts'),
 };
 
 // Order for --all flag
@@ -164,7 +163,6 @@ Usage:
   yarn github-workflows-agent --implement [options]         Run implementation agent
   yarn github-workflows-agent --pr-review [options]         Run PR review agent
   yarn github-workflows-agent --auto-advance [options]      Run auto-advance script
-  yarn github-workflows-agent --repo-commits-code-reviewer [options]  Run code reviewer (standalone)
   yarn github-workflows-agent --all [options]               Run all in sequence
 
 Options:
@@ -263,8 +261,6 @@ async function main() {
             scriptsToRun.push('pr-review');
         } else if (arg === '--auto-advance') {
             scriptsToRun.push('auto-advance');
-        } else if (arg === '--repo-commits-code-reviewer') {
-            scriptsToRun.push('repo-commits-code-reviewer');
         } else if (arg === '--skip-pull') {
             skipPull = true;
         } else if (arg === '--reset') {
@@ -278,7 +274,7 @@ async function main() {
     }
 
     if (scriptsToRun.length === 0) {
-        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --auto-advance, --repo-commits-code-reviewer, or --all\n');
+        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --auto-advance, or --all\n');
         printUsage();
         process.exit(1);
     }
