@@ -168,7 +168,7 @@ export async function handleBugReportApproval(
             callbackQuery.message.message_id,
             callbackQuery.message.text || '',
             true,
-            `GitHub issue created for "${description}"`,
+            `GitHub issue created for "${description}"\n🔍 Routed to: Bug Investigation`,
             result.githubResult?.issueUrl
         );
     }
