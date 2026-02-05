@@ -60,6 +60,10 @@ template-diff-summary.md
 /agent-logs/
 /temp-agent-logs/
 
+# agent runtime state and output
+agent-tasks/*/state.json
+agent-tasks/*/runs/
+
 # child projects config (local only)
 child-projects.json
 .env*.local
