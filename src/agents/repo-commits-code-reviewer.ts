@@ -278,7 +278,8 @@ Only after completing these steps should you form your findings.
 ${commitDiffs}
 
 ## Output
-Return your findings as structured JSON matching the output schema.`;
+Return your findings as structured JSON matching the output schema.
+IMPORTANT: Every finding you mention in your reasoning MUST appear in the findings array. Do not describe issues in text without including them in the structured output.`;
 }
 
 // ============================================================
