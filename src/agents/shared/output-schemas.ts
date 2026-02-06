@@ -413,6 +413,8 @@ export interface CodeReviewFinding {
     riskLevel: 'High' | 'Medium' | 'Low';
     /** Short explanation of when/how the risk manifests (e.g., "Crashes on every bot restart") */
     riskDescription: string;
+    /** Client route affected by this bug (e.g., "/settings", "/home"). Only set if bug is in route-specific code. */
+    route?: string;
 }
 
 /**
@@ -494,6 +496,10 @@ export const CODE_REVIEW_OUTPUT_FORMAT = {
                         riskDescription: {
                             type: 'string',
                             description: 'One sentence explaining when/how the risk manifests. E.g., "Crashes on every bot restart", "Only triggers if JSON file is manually corrupted", "Theoretical overflow after years of continuous use".',
+                        },
+                        route: {
+                            type: 'string',
+                            description: 'Client route affected by this bug (e.g., "/settings", "/home"). Only set if the bug is in route-specific code under src/client/routes/. Leave empty/omit for server-only, shared, or non-route code.',
                         },
                     },
                     required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'affectedFiles', 'relatedCommit', 'shouldCreateIssue', 'riskLevel', 'riskDescription'],

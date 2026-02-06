@@ -26,7 +26,8 @@ export interface CreateOptions {
     title: string;
     description: string;
     priority?: string;
-    route?: string;
+    route?: string;        // Workflow routing (product-dev, tech-design, etc.)
+    clientRoute?: string;  // Affected client route for bugs (e.g., "/settings")
     dryRun?: boolean;
     autoApprove?: boolean;
 }
@@ -58,6 +59,7 @@ export async function handleCreate(args: string[]): Promise<void> {
         description: parsed.description!,
         priority: parsed.priority,
         route: parsed.route,
+        clientRoute: parsed.clientRoute,
         dryRun: parsed.dryRun,
         autoApprove,
     };
@@ -181,7 +183,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
             viewport: { width: 0, height: 0 },
             language: 'en',
         },
-        route: '',  // Empty - CLI bugs aren't tied to a specific route
+        route: options.clientRoute || '',  // Affected client route (if any)
         networkStatus: 'online',
         occurrenceCount: 1,
         firstOccurrence: new Date(),

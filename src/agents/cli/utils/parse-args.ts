@@ -9,6 +9,7 @@ export interface ParsedArgs {
     title?: string;
     description?: string;
     route?: string;
+    clientRoute?: string;  // The affected client route (e.g., "/settings") for bugs
     priority?: string;
     dryRun?: boolean;
     autoApprove?: boolean;
@@ -57,6 +58,9 @@ export function parseArgs(args: string[]): ParsedArgs {
             i += 2;
         } else if (arg === '--priority' && args[i + 1]) {
             result.priority = args[i + 1];
+            i += 2;
+        } else if (arg === '--client-route' && args[i + 1]) {
+            result.clientRoute = args[i + 1];
             i += 2;
         } else if (arg === '--dry-run') {
             result.dryRun = true;

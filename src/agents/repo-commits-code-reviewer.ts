@@ -297,13 +297,20 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
     }
 
     try {
-        const result = spawnSync('yarn', [
+        const args = [
             'agent-workflow', 'create',
             '--type', type,
             '--title', finding.title,
             '--priority', finding.priority,
             '--description', description,
-        ], { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' });
+        ];
+
+        // Add client route if the finding is route-specific
+        if (finding.route) {
+            args.push('--client-route', finding.route);
+        }
+
+        const result = spawnSync('yarn', args, { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' });
 
         if (result.status !== 0) {
             throw new Error(result.stderr || result.stdout || `Exit code ${result.status}`);
