@@ -8,13 +8,13 @@
 ## Summary
 
 - **Total Tasks:** 44
-- **Open:** 14
+- **Open:** 12
 - **In Progress:** 0
-- **Done:** 30
+- **Done:** 32
 
 ---
 
-## 📋 Open Tasks (14)
+## 📋 Open Tasks (12)
 
 ### 🟠 High Priority
 
@@ -22,8 +22,6 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 41 | Add Admin Feedback Form for PR Request Changes via Telegram | M | Medium |
-| 43 | Add Delete Button to Telegram Approval Message | S | Medium |
-| 44 | Add Item Detail Page with Approve/Delete Actions | M | Medium |
 
 ### 🟡 Medium Priority
 
@@ -45,10 +43,12 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (30)
+## ✅ Completed Tasks (32)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
+| 44 | ~~Add Item Detail Page with Approve/Delete Actions~~ | 2026-02-06 | - |
+| 43 | ~~Add Delete Button to Telegram Approval Message~~ | 2026-02-06 | - |
 | 42 | ~~Create Bug Investigator Agent for GitHub Workflow~~ | 2026-02-05 | `c973913` |
 | 39 | ~~Split telegram-webhook.ts into smaller modules~~ | 2026-02-03 | `e9c6438` |
 | 38 | ~~Implement AWS S3 Issue Log System for Agent Workflow~~ | 2026-02-05 | `bc17467` |

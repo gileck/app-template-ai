@@ -4,8 +4,10 @@ title: Add Item Detail Page with Approve/Delete Actions
 priority: High
 size: M
 complexity: Medium
-status: TODO
+status: Done
 dateAdded: 2026-02-06
+dateUpdated: 2026-02-06
+dateCompleted: 2026-02-06
 planFile: task-manager/plans/task-43-44-plan.md
 ---
 
