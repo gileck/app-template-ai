@@ -272,6 +272,30 @@ Only after completing these steps should you form your findings.
 - Focus on things that could cause real problems in production
 - Do NOT flag something as a violation if the project docs explicitly endorse that pattern
 
+## Title and Description Format
+
+**Title format:** Use a prefix indicating the feature/area affected, similar to commit message conventions:
+- \`bug(feature-name): short description\` for bugs
+- \`improvement(feature-name): short description\` for improvements
+
+Examples:
+- \`bug(telegram-agent): session not persisted after restart\`
+- \`bug(auth): missing null check in JWT validation\`
+- \`improvement(settings): add validation for theme preference\`
+
+**Description format:** Start with context explaining WHERE the issue is, then WHAT it does wrong:
+\`\`\`
+In the [FEATURE NAME], there is a [bug/issue] in [FILE NAME] that [DOES SOMETHING WRONG].
+
+[Additional details about the problem and suggested fix]
+\`\`\`
+
+Examples:
+- "In the telegram-agent feature, there is a bug in telegram-claude-code/sessions.ts that fails to persist sessions when the bot restarts because the file write happens after the process exits."
+- "In the auth feature, there is a missing null check in src/server/auth/jwt.ts that causes a crash when the token payload is malformed."
+
+This context helps readers quickly understand which part of the codebase is affected without reading the full description.
+
 ## Commits to Review
 
 ${commitDiffs}
