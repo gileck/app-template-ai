@@ -317,23 +317,22 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
 
 function formatIssueDescription(finding: CodeReviewFinding): string {
     const filesSection = finding.affectedFiles
-        .map(f => `- \`${f}\``)
+        .map(f => `• <code>${f}</code>`)
         .join('\n');
 
-    return `**Priority:** ${capitalize(finding.priority)} | **Size:** ${finding.size} | **Complexity:** ${finding.complexity} | **Risk:** ${finding.riskLevel}
+    return `<b>Priority:</b> ${capitalize(finding.priority)} | <b>Size:</b> ${finding.size} | <b>Complexity:</b> ${finding.complexity} | <b>Risk:</b> ${finding.riskLevel}
 
-> ${finding.riskDescription}
+<i>${finding.riskDescription}</i>
 
-## Description
+<b>Description</b>
 ${finding.description}
 
-## Affected Files
+<b>Affected Files</b>
 ${filesSection}
 
-**Related Commit:** ${finding.relatedCommit.slice(0, 8)}
+<b>Related Commit:</b> ${finding.relatedCommit.slice(0, 8)}
 
----
-_Detected by repo-commits-code-reviewer agent_`;
+<i>Detected by repo-commits-code-reviewer agent</i>`;
 }
 
 function capitalize(s: string): string {
