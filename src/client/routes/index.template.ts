@@ -16,6 +16,7 @@ import { NotFound } from './template/NotFound';
 import { Theme } from './template/Theme';
 import { Clarify } from './template/Clarify';
 import { BugFix } from './template/BugFix';
+import { ItemDetail } from './template/ItemDetail';
 import { Routes } from '../features/template/router';
 
 /**
@@ -40,6 +41,7 @@ export const templateRoutes: Routes = {
   '/admin/reports': Reports,
   '/admin/feature-requests': FeatureRequests,
   '/admin/feature-requests/:requestId': FeatureRequestDetail,
+  '/admin/item/:id': ItemDetail,
 
   // Fallback
   '/not-found': NotFound,

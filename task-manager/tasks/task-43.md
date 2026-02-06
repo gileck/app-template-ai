@@ -6,6 +6,7 @@ size: S
 complexity: Medium
 status: TODO
 dateAdded: 2026-02-06
+planFile: task-manager/plans/task-43-44-plan.md
 ---
 
 # Task 43: Add Delete Button to Telegram Approval Message

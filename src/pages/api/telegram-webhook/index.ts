@@ -42,6 +42,8 @@ import { parseCallbackData, escapeHtml } from './utils';
 import {
     handleFeatureRequestApproval,
     handleBugReportApproval,
+    handleFeatureRequestDeletion,
+    handleBugReportDeletion,
     handleFeatureRouting,
     handleBugRouting,
     handleDesignReviewAction,
@@ -127,6 +129,40 @@ export default async function handler(
                 await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
             }
             const result = await handleBugReportApproval(botToken, callback_query, reportId);
+            if (!result.success && callback_query.message) {
+                await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+            }
+            return res.status(200).json({ ok: true });
+        }
+
+        if (action === 'delete_request' && parts.length === 2) {
+            const requestId = parsed.getString(1);
+            if (!requestId) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid request ID');
+                return res.status(200).json({ ok: true });
+            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Deleting...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Deleting...</b>', 'HTML');
+            }
+            const result = await handleFeatureRequestDeletion(botToken, callback_query, requestId);
+            if (!result.success && callback_query.message) {
+                await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+            }
+            return res.status(200).json({ ok: true });
+        }
+
+        if (action === 'delete_bug' && parts.length === 2) {
+            const reportId = parsed.getString(1);
+            if (!reportId) {
+                await answerCallbackQuery(botToken, callback_query.id, 'Invalid report ID');
+                return res.status(200).json({ ok: true });
+            }
+            await answerCallbackQuery(botToken, callback_query.id, '⏳ Deleting...');
+            if (callback_query.message) {
+                await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Deleting...</b>', 'HTML');
+            }
+            const result = await handleBugReportDeletion(botToken, callback_query, reportId);
             if (!result.success && callback_query.message) {
                 await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
             }

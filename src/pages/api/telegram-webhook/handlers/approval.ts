@@ -11,7 +11,8 @@ import {
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { editMessageWithResult } from '../telegram-api';
+import { editMessageText, editMessageWithResult } from '../telegram-api';
+import { escapeHtml } from '../utils';
 import type { TelegramCallbackQuery, HandlerResult } from '../types';
 
 /**
@@ -174,5 +175,94 @@ export async function handleBugReportApproval(
     }
 
     console.log(`Telegram webhook: approved bug report ${reportId}`);
+    return { success: true };
+}
+
+/**
+ * Handle feature request deletion
+ * Callback format: "delete_request:requestId"
+ * Completely removes the feature request from MongoDB
+ */
+export async function handleFeatureRequestDeletion(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    requestId: string
+): Promise<HandlerResult> {
+    const request = await featureRequests.findFeatureRequestById(requestId);
+
+    if (!request) {
+        if (callbackQuery.message) {
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(callbackQuery.message.text || '') + '\n\n⚠️ <b>Already deleted</b>',
+                'HTML'
+            );
+        }
+        return { success: true };
+    }
+
+    if (request.githubIssueUrl) {
+        return { success: false, error: 'Cannot delete: already synced to GitHub' };
+    }
+
+    const deleted = await featureRequests.deleteFeatureRequest(requestId);
+
+    if (!deleted) {
+        return { success: false, error: 'Failed to delete feature request' };
+    }
+
+    if (callbackQuery.message) {
+        const newText = escapeHtml(callbackQuery.message.text || '') + `\n\n🗑 <b>Deleted</b>\nFeature request "${request.title}" has been deleted.`;
+        await editMessageText(botToken, callbackQuery.message.chat.id, callbackQuery.message.message_id, newText, 'HTML');
+    }
+
+    console.log(`Telegram webhook: deleted feature request ${requestId}`);
+    return { success: true };
+}
+
+/**
+ * Handle bug report deletion
+ * Callback format: "delete_bug:reportId"
+ * Completely removes the bug report from MongoDB
+ */
+export async function handleBugReportDeletion(
+    botToken: string,
+    callbackQuery: TelegramCallbackQuery,
+    reportId: string
+): Promise<HandlerResult> {
+    const report = await reports.findReportById(reportId);
+
+    if (!report) {
+        if (callbackQuery.message) {
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                escapeHtml(callbackQuery.message.text || '') + '\n\n⚠️ <b>Already deleted</b>',
+                'HTML'
+            );
+        }
+        return { success: true };
+    }
+
+    if (report.githubIssueUrl) {
+        return { success: false, error: 'Cannot delete: already synced to GitHub' };
+    }
+
+    const deleted = await reports.deleteReport(reportId);
+
+    if (!deleted) {
+        return { success: false, error: 'Failed to delete bug report' };
+    }
+
+    const description = report.description?.slice(0, 50) || 'Bug Report';
+    if (callbackQuery.message) {
+        const newText = escapeHtml(callbackQuery.message.text || '') + `\n\n🗑 <b>Deleted</b>\nBug report "${description}" has been deleted.`;
+        await editMessageText(botToken, callbackQuery.message.chat.id, callbackQuery.message.message_id, newText, 'HTML');
+    }
+
+    console.log(`Telegram webhook: deleted bug report ${reportId}`);
     return { success: true };
 }

@@ -6,6 +6,7 @@ size: M
 complexity: Medium
 status: TODO
 dateAdded: 2026-02-06
+planFile: task-manager/plans/task-43-44-plan.md
 ---
 
 # Task 44: Add Item Detail Page with Approve/Delete Actions
