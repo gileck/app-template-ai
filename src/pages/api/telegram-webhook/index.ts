@@ -5,30 +5,34 @@
  * Handles callback queries from inline keyboard buttons in Telegram notifications.
  * Supports multiple flows:
  *
- * 1. Initial Feature Request Approval:
- *    - Callback: "approve_request:requestId"
- *    - Creates GitHub issue from feature request
+ * 1. Initial Feature Request / Bug Report Approval:
+ *    - Callback: "approve_request:requestId" - Creates GitHub issue from feature request
+ *    - Callback: "approve_bug:reportId" - Creates GitHub issue from bug report
  *
- * 2. Design Review Actions (Product/Tech Design):
+ * 2. Delete Feature Request / Bug Report:
+ *    - Callback: "delete_request:requestId" - Delete feature request from MongoDB
+ *    - Callback: "delete_bug:reportId" - Delete bug report from MongoDB
+ *
+ * 3. Design Review Actions (Product/Tech Design):
  *    - Callback: "approve:issueNumber" | "changes:issueNumber" | "reject:issueNumber"
  *    - Updates GitHub Project review status
  *
- * 3. PR Merge Flow (after PR Review approval):
+ * 4. PR Merge Flow (after PR Review approval):
  *    - Callback: "merge:issueNumber:prNumber" - Squash merge PR with saved commit message
  *    - Callback: "reqchanges:issueNumber:prNumber" - Send back to implementation
  *
- * 4. Clarification Flow:
+ * 5. Clarification Flow:
  *    - Callback: "clarified:issueNumber" - Mark clarification as received
  *
- * 5. Routing (after initial sync):
+ * 6. Routing (after initial sync):
  *    - Callback: "route_feature:requestId:destination" | "route_bug:reportId:destination"
  *
- * 6. Undo Actions (5-minute window to revert accidental clicks):
+ * 7. Undo Actions (5-minute window to revert accidental clicks):
  *    - Callback: "u_rc:issueNumber:prNumber:timestamp" - Undo implementation PR request changes
  *    - Callback: "u_dc:prNumber:issueNumber:type:timestamp" - Undo design PR request changes
  *    - Callback: "u_dr:issueNumber:action:previousStatus:timestamp" - Undo design review changes/reject
  *
- * 7. Revert Merge:
+ * 8. Revert Merge:
  *    - Callback: "rv:issueNumber:prNumber:shortSha:prevStatus:phase" - Create revert PR and reset status
  *    - Callback: "merge_rv:issueNumber:revertPrNumber" - Merge the revert PR
  *

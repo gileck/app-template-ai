@@ -676,9 +676,12 @@ action:param1:param2:...
 ```
 
 **Examples:**
-- `approve_feature:45` - Approve feature request #45
-- `reject_feature:45` - Reject feature request #45
-- `route:45:product-design` - Route issue #45 to product design
+- `approve_request:requestId` - Approve feature request and create GitHub issue
+- `approve_bug:reportId` - Approve bug report and create GitHub issue
+- `delete_request:requestId` - Delete feature request from MongoDB
+- `delete_bug:reportId` - Delete bug report from MongoDB
+- `route_feature:requestId:destination` - Route feature to destination
+- `route_bug:reportId:destination` - Route bug to destination
 - `approve_design:45:123` - Approve design PR #123 for issue #45
 - `reject_design:45:123` - Reject design PR #123 for issue #45
 - `merge_pr:45:124` - Merge implementation PR #124 for issue #45

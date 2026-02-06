@@ -11,13 +11,9 @@
  *   --dry-run  Show what would happen without writing to MongoDB
  */
 
+// Load env vars BEFORE any other imports (dynamic imports used below)
 import dotenv from 'dotenv';
-dotenv.config();
-
-import { GitHubProjectsAdapter } from '../../src/server/project-management/adapters/github';
-import { IMPLEMENTATION_PHASE_FIELD } from '../../src/server/project-management/config';
-import * as featureRequests from '../../src/server/database/collections/template/feature-requests/feature-requests';
-import * as reports from '../../src/server/database/collections/template/reports/reports';
+dotenv.config({ path: '.env.local' });
 
 const isDryRun = process.argv.includes('--dry-run');
 
@@ -29,6 +25,12 @@ interface MigrationStats {
 }
 
 async function migrate() {
+    // Dynamic imports so dotenv.config() runs first
+    const { GitHubProjectsAdapter } = await import('../../src/server/project-management/adapters/github');
+    const { IMPLEMENTATION_PHASE_FIELD } = await import('../../src/server/project-management/config');
+    const featureRequests = await import('../../src/server/database/collections/template/feature-requests/feature-requests');
+    const reports = await import('../../src/server/database/collections/template/reports/reports');
+
     console.log(`\n🔄 Migrating GitHub Projects V2 → MongoDB Workflow Fields`);
     console.log(`   Mode: ${isDryRun ? '🏃 DRY RUN (no writes)' : '✍️  LIVE (writing to MongoDB)'}\n`);
 
@@ -40,7 +42,7 @@ async function migrate() {
 
     // 2. Fetch all items from GitHub Projects
     console.log('2. Fetching items from GitHub Projects...');
-    const items = await adapter.listItems({ limit: 200 });
+    const items = await adapter.listItems({ limit: 100 });
     console.log(`   Found ${items.length} items\n`);
 
     const stats: MigrationStats = { total: items.length, migrated: 0, skipped: 0, errors: 0 };
