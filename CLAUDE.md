@@ -31,16 +31,6 @@ Auto-generate CLAUDE.md from docs and skills. Run this after creating or updatin
 
 ---
 
-## Exit Codes
-
-How to properly check command success/failure. Use this when running shell commands.
-
-**Summary:** **CRITICAL: Never parse command output to determine success/failure. Always use exit codes.** Exit code 0 = Success, non-zero = Failure. Use try/catch with execSync.
-
-**Docs:** [exit-codes-guide.md](docs/template/exit-codes-guide.md)
-
----
-
 ## Project Structure Guidelines
 
 Where to put your project code and what not to modify. Use this when adding new features or modifying the codebase.
@@ -51,13 +41,13 @@ Where to put your project code and what not to modify. Use this when adding new 
 
 ---
 
-## Validation & Quality Checks
+## Project Validation
 
-Code validation and linting requirements. Use this before completing any work.
+Complete guide to code validation - what checks exist, how they run locally and in CI, and how to use them programmatically.
 
-**Summary:** **CRITICAL: Always run `yarn checks` before completing work.** Runs both TypeScript and ESLint checks, shows ALL errors at once. Must pass with 0 errors before committing, creating PRs, or deploying.
+**Summary:** **CRITICAL: Always run `yarn checks` before completing work.** Runs 4 checks in parallel: TypeScript, ESLint, circular dependencies, unused dependencies. Must pass with 0 errors before committing, creating PRs, or deploying.
 
-**Docs:** [validation-planning-mode.md](docs/template/validation-planning-mode.md)
+**Docs:** [project-validation.md](docs/template/project-validation.md)
 
 ---
 
