@@ -30,6 +30,24 @@ import { appConfig } from '@/app.config';
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
 
+/**
+ * Convert basic Markdown to Telegram HTML.
+ * Handles: **bold**, `code`, _italic_, > blockquote, ## headers
+ */
+function markdownToTelegramHtml(text: string): string {
+    return text
+        // Escape HTML special chars first (except our markdown)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        // Then convert markdown to HTML
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')      // **bold**
+        .replace(/`(.+?)`/g, '<code>$1</code>')      // `code`
+        .replace(/_(.+?)_/g, '<i>$1</i>')            // _italic_
+        .replace(/^## (.+)$/gm, '<b>$1</b>')         // ## header
+        .replace(/^&gt; (.+)$/gm, '<i>$1</i>');      // > blockquote (already escaped)
+}
+
 export interface InlineKeyboardButton {
     text: string;
     url?: string;
@@ -257,8 +275,9 @@ function getBaseUrl(): string {
  */
 export async function sendFeatureRequestNotification(request: FeatureRequestDocument): Promise<SendMessageResult> {
     const priorityEmoji = request.priority === 'critical' ? '🔴' : request.priority === 'high' ? '🟠' : '🟡';
-    const description = request.description?.slice(0, 200) || 'No description';
+    const rawDescription = request.description?.slice(0, 200) || 'No description';
     const truncated = (request.description?.length || 0) > 200 ? '...' : '';
+    const description = markdownToTelegramHtml(rawDescription);
 
     const messageParts = [
         '✨ <b>New Feature Request!</b>',
@@ -310,8 +329,9 @@ export async function sendFeatureRequestNotification(request: FeatureRequestDocu
  */
 export async function sendBugReportNotification(report: ReportDocument): Promise<SendMessageResult> {
     const category = report.category === 'performance' ? '⚡ Performance' : '🐛 Bug';
-    const description = report.description?.slice(0, 200) || 'No description';
+    const rawDescription = report.description?.slice(0, 200) || 'No description';
     const truncated = (report.description?.length || 0) > 200 ? '...' : '';
+    const description = markdownToTelegramHtml(rawDescription);
 
     const messageParts = [
         `${category} <b>New Bug Report!</b>`,
