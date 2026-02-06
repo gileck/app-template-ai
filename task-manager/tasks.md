@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 42
-- **Open:** 12
+- **Total Tasks:** 44
+- **Open:** 14
 - **In Progress:** 0
 - **Done:** 30
 
 ---
 
-## 📋 Open Tasks (12)
+## 📋 Open Tasks (14)
 
 ### 🟠 High Priority
 
@@ -22,6 +22,8 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 41 | Add Admin Feedback Form for PR Request Changes via Telegram | M | Medium |
+| 43 | Add Delete Button to Telegram Approval Message | S | Medium |
+| 44 | Add Item Detail Page with Approve/Delete Actions | M | Medium |
 
 ### 🟡 Medium Priority
 
@@ -80,4 +82,4 @@
 
 ---
 
-*Last updated: 2026-02-05*
+*Last updated: 2026-02-06*
