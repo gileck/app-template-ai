@@ -264,4 +264,5 @@ When admin clicks "Request Changes":
 - **[setup-guide.md](./setup-guide.md)** - Step-by-step setup for GitHub Projects and environment
 - **[mongodb-github-status.md](./mongodb-github-status.md)** - Two-tier status tracking system
 - **[agent-logging.md](./agent-logging.md)** - Complete logging system documentation (CRITICAL)
+- **[repo-commits-code-reviewer.md](./repo-commits-code-reviewer.md)** - Standalone agent that reviews commits for bugs/improvements (separate from workflow)
 - **Main integration docs**: [../github-projects-integration.md](../github-projects-integration.md)
