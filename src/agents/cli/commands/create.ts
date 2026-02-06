@@ -181,7 +181,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
             viewport: { width: 0, height: 0 },
             language: 'en',
         },
-        route: 'cli',
+        route: '',  // Empty - CLI bugs aren't tied to a specific route
         networkStatus: 'online',
         occurrenceCount: 1,
         firstOccurrence: new Date(),

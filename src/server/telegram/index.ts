@@ -337,9 +337,11 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
         `${category} <b>New Bug Report!</b>`,
         '',
         `📋 ${description}${truncated}`,
-        '',
-        `📍 Route: ${report.route}`,
     ];
+
+    if (report.route) {
+        messageParts.push('', `📍 Route: ${report.route}`);
+    }
 
     if (report.userInfo?.username) {
         messageParts.push(`👤 Reported by: ${report.userInfo.username}`);
