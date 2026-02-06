@@ -454,22 +454,6 @@ Complete setup instructions for GitHub Projects and AI agents. Use this when set
 
 ---
 
-## Repo Commits Code Reviewer
-
-Standalone agent that reviews git commits for bugs and improvements. Use this to understand the automated code review system.
-
-**Summary:** Reviews commits using diff-budget batching, creates issues via agent-workflow for admin approval. Runs every 4 hours, NOT part of the GitHub Projects workflow pipeline.
-
-**Key Points:**
-- Diff-budget approach: ~1500 lines per run, walks commits chronologically
-- Creates issues via `yarn agent-workflow create` for Telegram approval
-- Output includes priority, size (XS/S/M/L), complexity, and risk assessment
-- State tracked in agent-tasks/repo-commits-code-reviewer/state.json
-
-**Docs:** [repo-commits-code-reviewer.md](docs/template/github-agents-workflow/repo-commits-code-reviewer.md)
-
----
-
 ## GitHub Agents Workflow E2E Scenarios
 
 Visual workflows for all workflow scenarios. Use this to understand specific flows like multi-phase features, request changes, or rejections.
@@ -500,6 +484,24 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 - Routes to Tech Design (complex fixes) or Implementation (simple fixes)
 
 **Docs:** [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md)
+
+---
+
+# standalone-agents
+
+## Repo Commits Code Reviewer
+
+Standalone agent that reviews git commits for bugs and improvements. Use this to understand the automated code review system.
+
+**Summary:** Reviews commits using diff-budget batching, creates issues via agent-workflow for admin approval. Runs every 4 hours, NOT part of the GitHub Projects workflow pipeline.
+
+**Key Points:**
+- Diff-budget approach: ~1500 lines per run, walks commits chronologically
+- Creates issues via `yarn agent-workflow create` for Telegram approval
+- Output includes priority, size (XS/S/M/L), complexity, and risk assessment
+- State tracked in agent-tasks/repo-commits-code-reviewer/state.json
+
+**Docs:** [repo-commits-code-reviewer.md](docs/template/standalone-agents/repo-commits-code-reviewer.md)
 
 ---
 
