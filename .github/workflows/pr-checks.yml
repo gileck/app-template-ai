@@ -42,7 +42,23 @@ jobs:
       - run: yarn install
 
       - name: Run TypeScript check
-        run: yarn ts
+        id: check
+        run: |
+          set +e
+          OUTPUT=$(yarn ts 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          # Save output for artifact
+          echo "$OUTPUT" > typescript-output.txt
+          exit $EXIT_CODE
+
+      - name: Upload error output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-errors
+          path: typescript-output.txt
+          retention-days: 1
 
   # ESLint code quality
   lint:
@@ -68,7 +84,23 @@ jobs:
       - run: yarn install
 
       - name: Run ESLint check
-        run: yarn lint
+        id: check
+        run: |
+          set +e
+          OUTPUT=$(yarn lint 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          # Save output for artifact
+          echo "$OUTPUT" > eslint-output.txt
+          exit $EXIT_CODE
+
+      - name: Upload error output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-errors
+          path: eslint-output.txt
+          retention-days: 1
 
   # Circular dependency detection
   circular:
@@ -94,7 +126,23 @@ jobs:
       - run: yarn install
 
       - name: Run circular dependency check
-        run: yarn check:circular
+        id: check
+        run: |
+          set +e
+          OUTPUT=$(yarn check:circular 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          # Save output for artifact
+          echo "$OUTPUT" > circular-output.txt
+          exit $EXIT_CODE
+
+      - name: Upload error output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: circular-errors
+          path: circular-output.txt
+          retention-days: 1
 
   # Unused dependencies detection
   unused:
@@ -120,7 +168,23 @@ jobs:
       - run: yarn install
 
       - name: Run unused dependencies check
-        run: yarn check:unused:ci --no-config-hints
+        id: check
+        run: |
+          set +e
+          OUTPUT=$(yarn check:unused:ci --no-config-hints 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          # Save output for artifact
+          echo "$OUTPUT" > unused-output.txt
+          exit $EXIT_CODE
+
+      - name: Upload error output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unused-errors
+          path: unused-output.txt
+          retention-days: 1
 
   # Summary job - runs after all checks complete
   summary:
@@ -129,7 +193,13 @@ jobs:
     needs: [typescript, lint, circular, unused]
     if: always()
     steps:
-      - name: Check results
+      - name: Download error artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: errors
+        continue-on-error: true
+
+      - name: Check results and build comment
         id: results
         run: |
           # Collect results from all jobs
@@ -138,29 +208,90 @@ jobs:
           CIRCULAR_RESULT="${{ needs.circular.result }}"
           UNUSED_RESULT="${{ needs.unused.result }}"
 
-          # Build failure message
+          # Build failure list
           FAILURES=""
           if [ "$TS_RESULT" != "success" ]; then FAILURES="$FAILURES TypeScript"; fi
           if [ "$LINT_RESULT" != "success" ]; then FAILURES="$FAILURES ESLint"; fi
           if [ "$CIRCULAR_RESULT" != "success" ]; then FAILURES="$FAILURES Circular"; fi
           if [ "$UNUSED_RESULT" != "success" ]; then FAILURES="$FAILURES Unused"; fi
 
-          # Set outputs
+          # Set status output
           if [ -z "$FAILURES" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
-            echo "failures=" >> $GITHUB_OUTPUT
           else
             echo "status=failure" >> $GITHUB_OUTPUT
-            echo "failures=$FAILURES" >> $GITHUB_OUTPUT
           fi
+          echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+
+          # Build error details section
+          ERROR_DETAILS=""
+
+          if [ -f "errors/typescript-errors/typescript-output.txt" ]; then
+            TS_ERRORS=$(cat errors/typescript-errors/typescript-output.txt | grep -E "error TS|Error:" | head -10)
+            if [ -n "$TS_ERRORS" ]; then
+              ERROR_DETAILS="${ERROR_DETAILS}
+          ### TypeScript Errors
+          \`\`\`
+          ${TS_ERRORS}
+          \`\`\`
+          "
+            fi
+          fi
+
+          if [ -f "errors/eslint-errors/eslint-output.txt" ]; then
+            LINT_ERRORS=$(cat errors/eslint-errors/eslint-output.txt | grep -E "Error:|Warning:" | head -10)
+            if [ -n "$LINT_ERRORS" ]; then
+              ERROR_DETAILS="${ERROR_DETAILS}
+          ### ESLint Errors
+          \`\`\`
+          ${LINT_ERRORS}
+          \`\`\`
+          "
+            fi
+          fi
+
+          if [ -f "errors/circular-errors/circular-output.txt" ]; then
+            CIRCULAR_ERRORS=$(cat errors/circular-errors/circular-output.txt | grep -E "circular|>" | head -10)
+            if [ -n "$CIRCULAR_ERRORS" ]; then
+              ERROR_DETAILS="${ERROR_DETAILS}
+          ### Circular Dependencies
+          \`\`\`
+          ${CIRCULAR_ERRORS}
+          \`\`\`
+          "
+            fi
+          fi
+
+          if [ -f "errors/unused-errors/unused-output.txt" ]; then
+            UNUSED_ERRORS=$(cat errors/unused-errors/unused-output.txt | grep -v "^$" | head -10)
+            if [ -n "$UNUSED_ERRORS" ]; then
+              ERROR_DETAILS="${ERROR_DETAILS}
+          ### Unused Dependencies
+          \`\`\`
+          ${UNUSED_ERRORS}
+          \`\`\`
+          "
+            fi
+          fi
+
+          # Save error details to file (multiline output)
+          echo "$ERROR_DETAILS" > error_details.txt
 
       - name: Comment on PR (failure)
         if: steps.results.outputs.status == 'failure'
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const failures = '${{ steps.results.outputs.failures }}'.trim().split(' ').filter(Boolean);
             const failureList = failures.map(f => `- ${f}`).join('\n');
+
+            let errorDetails = '';
+            try {
+              errorDetails = fs.readFileSync('error_details.txt', 'utf8');
+            } catch (e) {
+              // No error details file
+            }
 
             const body = `## :x: Code Quality Checks Failed
 
@@ -174,7 +305,14 @@ jobs:
             | Circular Dependencies | ${{ needs.circular.result == 'success' && ':white_check_mark:' || ':x:' }} |
             | Unused Dependencies | ${{ needs.unused.result == 'success' && ':white_check_mark:' || ':x:' }} |
 
-            > Click on the failed job above to see details.
+            ${errorDetails ? `<details>
+            <summary>📋 Error Details (click to expand)</summary>
+
+            ${errorDetails}
+
+            </details>` : ''}
+
+            > Click on the failed job above to see full details.
             `;
 
             github.rest.issues.createComment({
