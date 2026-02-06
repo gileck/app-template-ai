@@ -305,9 +305,9 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
             '--description', description,
         ];
 
-        // Add client route if the finding is route-specific
+        // Add client page route if the finding is route-specific
         if (finding.route) {
-            args.push('--client-route', finding.route);
+            args.push('--client-page-route', finding.route);
         }
 
         const result = spawnSync('yarn', args, { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' });

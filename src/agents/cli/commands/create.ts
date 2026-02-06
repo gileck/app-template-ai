@@ -26,8 +26,8 @@ export interface CreateOptions {
     title: string;
     description: string;
     priority?: string;
-    route?: string;        // Workflow routing (product-dev, tech-design, etc.)
-    clientRoute?: string;  // Affected client route for bugs (e.g., "/settings")
+    workflowRoute?: string;    // Workflow routing (product-dev, tech-design, etc.)
+    clientPageRoute?: string;  // Affected client page route for bugs (e.g., "/settings")
     dryRun?: boolean;
     autoApprove?: boolean;
 }
@@ -51,15 +51,15 @@ export async function handleCreate(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    // --route implies --auto-approve (can't route without syncing to GitHub first)
-    const autoApprove = parsed.autoApprove || !!parsed.route;
+    // --workflow-route implies --auto-approve (can't route without syncing to GitHub first)
+    const autoApprove = parsed.autoApprove || !!parsed.workflowRoute;
 
     const options: CreateOptions = {
         title: parsed.title!,
         description: parsed.description!,
         priority: parsed.priority,
-        route: parsed.route,
-        clientRoute: parsed.clientRoute,
+        workflowRoute: parsed.workflowRoute,
+        clientPageRoute: parsed.clientPageRoute,
         dryRun: parsed.dryRun,
         autoApprove,
     };
@@ -82,7 +82,7 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
         console.log(`  Priority: ${options.priority || 'medium'}`);
         console.log(`  Auto-approve: ${options.autoApprove ? 'yes' : 'no (sends approval notification)'}`);
         if (options.autoApprove) {
-            console.log(`  Route: ${options.route || 'Telegram (for routing decision)'}`);
+            console.log(`  Route: ${options.workflowRoute || 'Telegram (for routing decision)'}`);
         }
         return;
     }
@@ -125,7 +125,7 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
     // 2. Sync to GitHub (creates issue)
     // Skip routing notification if we're auto-routing (we'll set the status directly)
     const result = await syncFeatureRequestToGitHub(request._id.toString(), {
-        skipNotification: !!options.route,
+        skipNotification: !!options.workflowRoute,
     });
 
     if (!result.success) {
@@ -137,8 +137,8 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
     console.log(`  URL: ${result.issueUrl}`);
 
     // 3. Route to phase if specified (otherwise Telegram routing notification was already sent)
-    if (options.route && result.projectItemId) {
-        const targetStatus = ROUTE_TO_STATUS[options.route];
+    if (options.workflowRoute && result.projectItemId) {
+        const targetStatus = ROUTE_TO_STATUS[options.workflowRoute];
         if (targetStatus) {
             const adapter = getProjectManagementAdapter();
             await adapter.init();
@@ -162,7 +162,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
         console.log(`  Description: ${options.description}`);
         console.log(`  Auto-approve: ${options.autoApprove ? 'yes' : 'no (sends approval notification)'}`);
         if (options.autoApprove) {
-            console.log(`  Route: ${options.route || 'Telegram (for routing decision)'}`);
+            console.log(`  Route: ${options.workflowRoute || 'Telegram (for routing decision)'}`);
         }
         return;
     }
@@ -183,7 +183,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
             viewport: { width: 0, height: 0 },
             language: 'en',
         },
-        route: options.clientRoute || '',  // Affected client route (if any)
+        route: options.clientPageRoute || '',  // Affected client route (if any)
         networkStatus: 'online',
         occurrenceCount: 1,
         firstOccurrence: new Date(),
@@ -211,7 +211,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
     // 2. Sync to GitHub (creates issue)
     // Skip routing notification if we're auto-routing (we'll set the status directly)
     const result = await syncBugReportToGitHub(report._id.toString(), {
-        skipNotification: !!options.route,
+        skipNotification: !!options.workflowRoute,
     });
 
     if (!result.success) {
@@ -223,8 +223,8 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
     console.log(`  URL: ${result.issueUrl}`);
 
     // 3. Route to phase if specified (otherwise Telegram routing notification was already sent)
-    if (options.route && result.projectItemId) {
-        const targetStatus = ROUTE_TO_STATUS[options.route];
+    if (options.workflowRoute && result.projectItemId) {
+        const targetStatus = ROUTE_TO_STATUS[options.workflowRoute];
         if (targetStatus) {
             const adapter = getProjectManagementAdapter();
             await adapter.init();
