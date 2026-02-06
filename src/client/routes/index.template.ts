@@ -17,6 +17,7 @@ import { Theme } from './template/Theme';
 import { Clarify } from './template/Clarify';
 import { BugFix } from './template/BugFix';
 import { ItemDetail } from './template/ItemDetail';
+import { WorkflowItems } from './template/Workflow';
 import { Routes } from '../features/template/router';
 
 /**
@@ -42,6 +43,7 @@ export const templateRoutes: Routes = {
   '/admin/feature-requests': FeatureRequests,
   '/admin/feature-requests/:requestId': FeatureRequestDetail,
   '/admin/item/:id': ItemDetail,
+  '/admin/workflow': WorkflowItems,
 
   // Fallback
   '/not-found': NotFound,
