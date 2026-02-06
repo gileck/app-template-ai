@@ -13,7 +13,7 @@ import {
     formatFixDecisionComment,
     findBugInvestigationItem,
 } from '../utils';
-import { GitHubProjectsAdapter } from '@/server/project-management/adapters/github';
+import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES } from '@/server/project-management/config';
 
 /**
@@ -51,8 +51,8 @@ export async function submitFixSelection(
     }
 
     try {
-        // Initialize GitHub adapter
-        const adapter = new GitHubProjectsAdapter();
+        // Initialize adapter
+        const adapter = getProjectManagementAdapter();
         await adapter.init();
 
         // Verify the issue is ready

@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import type { ParsedFixOption, ParsedInvestigation } from './types';
-import { GitHubProjectsAdapter } from '@/server/project-management/adapters/github';
+import type { ProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
 
 // ============================================================
@@ -44,7 +44,7 @@ export function validateBugFixToken(issueNumber: number, token: string): boolean
  * Bug Investigation status with Waiting for Review.
  */
 export async function findBugInvestigationItem(
-    adapter: GitHubProjectsAdapter,
+    adapter: ProjectManagementAdapter,
     issueNumber: number
 ): Promise<{ valid: boolean; error?: string; itemId?: string }> {
     const items = await adapter.listItems({});

@@ -63,8 +63,12 @@ export async function syncItemToGitHub<T extends GitHubSyncedFields>(
         const issueType = labels[0] || 'unknown'; // 'feature' or 'bug'
         writeLogHeader(issueNumber, title, issueType);
 
-        // 5. Add issue to project
-        const projectItemId = await adapter.addIssueToProject(issueNodeId);
+        // 5. Add issue to project (pass context for MongoDB-backed adapters)
+        const itemType = labels.includes('bug') ? 'report' : 'feature';
+        const projectItemId = await adapter.addIssueToProject(issueNodeId, {
+            type: itemType as 'feature' | 'report',
+            mongoId: itemId,
+        });
 
         // 6. Set initial status (defaults to Backlog)
         const initialStatus = config.initialStatus || STATUSES.backlog;
@@ -78,6 +82,7 @@ export async function syncItemToGitHub<T extends GitHubSyncedFields>(
             githubIssueUrl: issueUrl,
             githubIssueNumber: issueNumber,
             githubProjectItemId: projectItemId,
+            githubIssueTitle: title,
         });
 
         // 9. Send routing notification (unless skipped or auto-routed via initialStatus)

@@ -292,8 +292,9 @@ export interface ProjectManagementAdapter {
 
     /**
      * Add an issue to the project board
+     * @param context - Optional context for MongoDB-backed adapters to know which collection to update
      */
-    addIssueToProject(issueNodeId: string): Promise<string>;
+    addIssueToProject(issueNodeId: string, context?: { type: 'feature' | 'report'; mongoId: string }): Promise<string>;
 
     /**
      * Find an issue comment by marker
