@@ -28,6 +28,7 @@ Replace `<repo-name>` with the project's repository name (e.g., `my-app`, `book-
 {
   "name": "Agent(<repo-name>): All",
   "uniqueKey": "<repo-name>:agent:all",
+  "groupName": "<repo-name>",
   "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
@@ -78,6 +79,7 @@ task-cli get <repo-name>:agent:all
 
 ### Key configuration points
 
+- **`groupName`** — Use the repo name to group all agents for this project together in task-cli.
 - **`script.workingDirectory`** — Must point to the project's agents copy (e.g., `/Users/gileck/Projects/agents-copy/<repo-name>`). Create it with `yarn init-agents-copy` if it doesn't exist.
 - **`output.logFile` / `output.statusFile`** — Must point to the project's own `agent-tasks/all/runs/` folder, not the template's.
 - **`uniqueKey`** — Use `<repo-name>:agent:all` to avoid conflicts with other projects.
@@ -109,6 +111,7 @@ Replace `<repo-name>` with the project's repository name:
 {
   "name": "Agent(<repo-name>): Repo Commits Code Reviewer",
   "uniqueKey": "<repo-name>:agent:repo-commits-code-reviewer",
+  "groupName": "<repo-name>",
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
     "path": "agent:code-reviewer",

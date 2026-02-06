@@ -1,6 +1,7 @@
 {
   "name": "Agent(app-template-ai): All",
   "uniqueKey": "app-template:agent:all",
+  "groupName": "app-template-ai",
   "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
