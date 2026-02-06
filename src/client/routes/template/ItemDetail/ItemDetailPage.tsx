@@ -8,7 +8,7 @@ import { Badge } from '@/client/components/template/ui/badge';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features/template/router';
-import { useItemDetail, useApproveItem, useDeleteItem } from './hooks';
+import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from './hooks';
 import type { ItemType } from './hooks';
 
 interface ItemDetailPageProps {
@@ -17,6 +17,7 @@ interface ItemDetailPageProps {
 
 export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const { navigate } = useRouter();
+    const { mongoId } = parseItemId(id);
     const { item, isLoading, error } = useItemDetail(id);
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
@@ -92,9 +93,9 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const handleApprove = async () => {
         try {
             if (isFeature) {
-                await approveFeature(id);
+                await approveFeature(mongoId);
             } else {
-                await approveBug(id);
+                await approveBug(mongoId);
             }
             toast.success('Item approved and synced to GitHub');
             navigateBack(type);
@@ -107,9 +108,9 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const handleDelete = async () => {
         try {
             if (isFeature) {
-                await deleteFeature(id);
+                await deleteFeature(mongoId);
             } else {
-                await deleteBug(id);
+                await deleteBug(mongoId);
             }
             toast.success('Item deleted');
             navigateBack(type);

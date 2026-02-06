@@ -2,7 +2,7 @@
  * Workflow Items Page
  *
  * Admin page showing all workflow items with their statuses.
- * Read-only view - items are sorted by workflow status column order.
+ * Read-only view - items are sorted by date (newest first).
  */
 
 import { useMemo } from 'react';
@@ -12,22 +12,10 @@ import { useRouter } from '@/client/features';
 import { useWorkflowItems } from './hooks';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
-const STATUS_ORDER: string[] = [
-    'Backlog',
-    'Product Development',
-    'Product Design',
-    'Bug Investigation',
-    'Technical Design',
-    'Ready for development',
-    'PR Review',
-    'Final Review',
-    'Done',
-];
-
-function getStatusIndex(status: string | null): number {
-    if (!status) return -1;
-    const index = STATUS_ORDER.indexOf(status);
-    return index === -1 ? STATUS_ORDER.length : index;
+function formatDate(dateStr: string | null): string {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function getTypeBadge(labels?: string[]): { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline' } {
@@ -64,11 +52,18 @@ function WorkflowCard({ item }: { item: WorkflowItem }) {
                         <span className="text-sm font-medium leading-tight line-clamp-2">
                             {item.content?.title || 'Untitled'}
                         </span>
-                        {item.content?.number && (
-                            <span className="text-xs text-muted-foreground shrink-0">
-                                #{item.content.number}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {item.createdAt && (
+                                <span className="text-xs text-muted-foreground">
+                                    {formatDate(item.createdAt)}
+                                </span>
+                            )}
+                            {item.content?.number && (
+                                <span className="text-xs text-muted-foreground">
+                                    #{item.content.number}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={typeBadge.variant} className="text-xs">
@@ -94,7 +89,11 @@ export function WorkflowItems() {
 
     const sortedItems = useMemo(() => {
         if (!items) return [];
-        return [...items].sort((a, b) => getStatusIndex(a.status) - getStatusIndex(b.status));
+        return [...items].sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+        });
     }, [items]);
 
     if (isLoading || items === undefined) {

@@ -14,23 +14,41 @@ export interface ItemDetail {
     report?: ReportClient;
 }
 
+/**
+ * Parse an item ID which may be a composite ID (e.g., "feature:mongoId")
+ * or a plain MongoDB ObjectId. Returns the resolved mongoId and known type if any.
+ */
+export function parseItemId(id: string): { mongoId: string; knownType: 'feature' | 'report' | null } {
+    const colonIndex = id.indexOf(':');
+    if (colonIndex !== -1) {
+        const prefix = id.substring(0, colonIndex);
+        const mongoId = id.substring(colonIndex + 1);
+        if (prefix === 'feature' || prefix === 'report') {
+            return { mongoId, knownType: prefix };
+        }
+    }
+    return { mongoId: id, knownType: null };
+}
+
 export function useItemDetail(id: string | undefined) {
+    const { mongoId, knownType } = id ? parseItemId(id) : { mongoId: undefined, knownType: null };
+
     const featureQuery = useQuery({
-        queryKey: ['item-detail-feature', id],
+        queryKey: ['item-detail-feature', mongoId],
         queryFn: async () => {
-            const response = await getFeatureRequest({ requestId: id! });
+            const response = await getFeatureRequest({ requestId: mongoId! });
             return response.data?.featureRequest ?? null;
         },
-        enabled: !!id,
+        enabled: !!mongoId && knownType !== 'report',
     });
 
     const reportQuery = useQuery({
-        queryKey: ['item-detail-report', id],
+        queryKey: ['item-detail-report', mongoId],
         queryFn: async () => {
-            const response = await getReport({ reportId: id! });
+            const response = await getReport({ reportId: mongoId! });
             return response.data?.report ?? null;
         },
-        enabled: !!id,
+        enabled: !!mongoId && knownType !== 'feature',
     });
 
     const isLoading = featureQuery.isLoading || reportQuery.isLoading;

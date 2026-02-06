@@ -22,6 +22,7 @@ export interface WorkflowItem {
     status: string | null;
     reviewStatus: string | null;
     content: WorkflowItemContent | null;
+    createdAt: string | null;
 }
 
 // ============================================================================
