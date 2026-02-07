@@ -25,37 +25,33 @@ export async function handleFeatureRequestApproval(
     callbackQuery: TelegramCallbackQuery,
     requestId: string
 ): Promise<HandlerResult> {
-    // Fetch the feature request
-    const request = await featureRequests.findFeatureRequestById(requestId);
+    // Atomically claim the approval token to prevent double-click race conditions.
+    // Only the first concurrent request will succeed; subsequent ones get null.
+    const request = await featureRequests.claimApprovalToken(requestId);
 
     if (!request) {
-        console.warn(`[LOG:APPROVAL] Feature request not found: ${requestId}`);
-        return { success: false, error: 'Feature request not found' };
-    }
-
-    // Verify the token exists (token was stored in database when request was created)
-    if (!request.approvalToken) {
-        console.warn(`[LOG:APPROVAL] Invalid approval token for request: ${requestId}`);
+        // Either not found, no token, or already claimed by another request.
+        // Check if already approved to show a friendly message.
+        const existingRequest = await featureRequests.findFeatureRequestById(requestId);
+        if (existingRequest?.githubIssueUrl) {
+            if (callbackQuery.message) {
+                await editMessageWithResult(
+                    botToken,
+                    callbackQuery.message.chat.id,
+                    callbackQuery.message.message_id,
+                    callbackQuery.message.text || '',
+                    true,
+                    'Already approved!',
+                    existingRequest.githubIssueUrl
+                );
+            }
+            return { success: true };
+        }
+        console.warn(`[LOG:APPROVAL] Invalid or already-claimed approval token for request: ${requestId}`);
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
-    // Check if already approved
-    if (request.githubIssueUrl) {
-        // Already approved - still success, show the existing issue
-        if (callbackQuery.message) {
-            await editMessageWithResult(
-                botToken,
-                callbackQuery.message.chat.id,
-                callbackQuery.message.message_id,
-                callbackQuery.message.text || '',
-                true,
-                'Already approved!',
-                request.githubIssueUrl
-            );
-        }
-        return { success: true };
-    }
-
+    // Token is now claimed - no other concurrent request can pass this point.
     // Approve the request (updates status + creates GitHub issue)
     const result = await approveFeatureRequest(requestId);
 
@@ -63,9 +59,6 @@ export async function handleFeatureRequestApproval(
         console.error(`[LOG:APPROVAL] Failed to approve feature request ${requestId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
-
-    // Clear the approval token (one-time use)
-    await featureRequests.updateApprovalToken(requestId, null);
 
     // Log to agent log file (now that we have the issue number)
     const issueNumber = result.githubResult?.issueNumber;
@@ -106,37 +99,33 @@ export async function handleBugReportApproval(
     callbackQuery: TelegramCallbackQuery,
     reportId: string
 ): Promise<HandlerResult> {
-    // Fetch the bug report
-    const report = await reports.findReportById(reportId);
+    // Atomically claim the approval token to prevent double-click race conditions.
+    // Only the first concurrent request will succeed; subsequent ones get null.
+    const report = await reports.claimApprovalToken(reportId);
 
     if (!report) {
-        console.warn(`[LOG:APPROVAL] Bug report not found: ${reportId}`);
-        return { success: false, error: 'Bug report not found' };
-    }
-
-    // Verify the token exists (token was stored in database when report was created)
-    if (!report.approvalToken) {
-        console.warn(`[LOG:APPROVAL] Invalid approval token for report: ${reportId}`);
+        // Either not found, no token, or already claimed by another request.
+        // Check if already approved to show a friendly message.
+        const existingReport = await reports.findReportById(reportId);
+        if (existingReport?.githubIssueUrl) {
+            if (callbackQuery.message) {
+                await editMessageWithResult(
+                    botToken,
+                    callbackQuery.message.chat.id,
+                    callbackQuery.message.message_id,
+                    callbackQuery.message.text || '',
+                    true,
+                    'Already approved!',
+                    existingReport.githubIssueUrl
+                );
+            }
+            return { success: true };
+        }
+        console.warn(`[LOG:APPROVAL] Invalid or already-claimed approval token for report: ${reportId}`);
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
-    // Check if already approved
-    if (report.githubIssueUrl) {
-        // Already approved - still success, show the existing issue
-        if (callbackQuery.message) {
-            await editMessageWithResult(
-                botToken,
-                callbackQuery.message.chat.id,
-                callbackQuery.message.message_id,
-                callbackQuery.message.text || '',
-                true,
-                'Already approved!',
-                report.githubIssueUrl
-            );
-        }
-        return { success: true };
-    }
-
+    // Token is now claimed - no other concurrent request can pass this point.
     // Approve the bug report (updates status + creates GitHub issue)
     const result = await approveBugReport(reportId);
 
@@ -144,9 +133,6 @@ export async function handleBugReportApproval(
         console.error(`[LOG:APPROVAL] Failed to approve bug report ${reportId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
-
-    // Clear the approval token (one-time use)
-    await reports.updateApprovalToken(reportId, null);
 
     // Log to agent log file (now that we have the issue number)
     const issueNumber = result.githubResult?.issueNumber;
