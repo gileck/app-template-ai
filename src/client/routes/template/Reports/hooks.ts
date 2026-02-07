@@ -9,6 +9,7 @@ import { getReports, updateReportStatus, deleteReport, deleteAllReports, batchUp
 import type { GetReportsRequest, ReportStatus } from '@/apis/template/reports/types';
 import { useQueryDefaults } from '@/client/query';
 import { toast } from '@/client/components/template/ui/toast';
+import { errorToast } from '@/client/features/template/error-tracking';
 
 const reportsBaseQueryKey = ['reports'] as const;
 
@@ -84,12 +85,12 @@ export function useDeleteReport() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to delete report');
+            errorToast('Failed to delete report', err);
         },
         // NOTE: Toast here is UI feedback only, NOT a state update.
         // This does NOT violate the optimistic-only pattern.
@@ -153,12 +154,12 @@ export function useBatchUpdateStatus() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to update reports');
+            errorToast('Failed to update reports', err);
         },
         onSuccess: (_data, { reportIds, status }) => {
             toast.success(`Updated ${reportIds.length} report(s) to ${status}`);
@@ -189,12 +190,12 @@ export function useBatchDeleteReports() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to delete reports');
+            errorToast('Failed to delete reports', err);
         },
         onSuccess: (_data, reportIds) => {
             toast.success(`Deleted ${reportIds.length} report(s)`);

@@ -11,6 +11,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { Badge } from '@/client/components/template/ui/badge';
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { useWorkflowItems } from './hooks';
 import type { PendingItem, WorkflowItem } from '@/apis/template/workflow/types';
@@ -195,9 +196,7 @@ export function WorkflowItems() {
         return (
             <div className="p-4">
                 <h1 className="text-lg font-semibold mb-4">Workflow</h1>
-                <div className="text-sm text-destructive">
-                    Failed to load workflow items: {error.message}
-                </div>
+                <ErrorDisplay error={error} title="Failed to load workflow items" variant="inline" />
             </div>
         );
     }

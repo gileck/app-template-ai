@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/client/components/template/ui/card';
 import { Badge } from '@/client/components/template/ui/badge';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
+import { ErrorDisplay, errorToast } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features/template/router';
 import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from './hooks';
 
@@ -46,14 +47,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     if (error) {
         return (
             <div className="container mx-auto max-w-4xl px-3 py-6">
-                <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-destructive">Error loading item: {error.message}</p>
-                        <Button variant="outline" className="mt-4" onClick={() => navigateBack()}>
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-                        </Button>
-                    </CardContent>
-                </Card>
+                <ErrorDisplay error={error} title="Error loading item" onBack={navigateBack} />
             </div>
         );
     }
@@ -99,7 +93,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
             toast.success('Item approved and synced to GitHub');
             navigateBack();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to approve');
+            errorToast('Failed to approve', err);
         }
         setShowApproveDialog(false);
     };
@@ -114,7 +108,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
             toast.success('Item deleted');
             navigateBack();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to delete');
+            errorToast('Failed to delete', err);
         }
         setShowDeleteDialog(false);
     };

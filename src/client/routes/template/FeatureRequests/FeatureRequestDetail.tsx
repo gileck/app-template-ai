@@ -1,6 +1,7 @@
 import { ArrowLeft, Calendar, User, FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
 import { Card, CardContent } from '@/client/components/template/ui/card';
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { StatusBadge, PriorityBadge } from './components/StatusBadge';
 import { CollapsibleSection } from './components/CollapsibleSection';
@@ -54,17 +55,12 @@ export function FeatureRequestDetail() {
     if (error) {
         return (
             <div className="container mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8">
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                        <p className="mb-4 text-lg font-medium text-destructive">
-                            {error instanceof Error ? error.message : 'Failed to load feature request'}
-                        </p>
-                        <Button onClick={handleBack}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back to Feature Requests
-                        </Button>
-                    </CardContent>
-                </Card>
+                <ErrorDisplay
+                    error={error}
+                    title="Failed to load feature request"
+                    onBack={handleBack}
+                    backLabel="Back to Feature Requests"
+                />
             </div>
         );
     }

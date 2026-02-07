@@ -22,7 +22,8 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/client/components/template/ui/collapsible';
-import { AlertCircle, Loader2, Check, ChevronDown, ChevronUp, GitBranch, Copy, CheckCheck } from 'lucide-react';
+import { AlertCircle, Loader2, Check, ChevronDown, ChevronUp, GitBranch } from 'lucide-react';
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { OptionCard } from './OptionCard';
 
 interface DecisionPageProps {
@@ -43,9 +44,6 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
     const [submitted, setSubmitted] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for collapsible
     const [contextOpen, setContextOpen] = useState(true);
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for copy feedback
-    const [copied, setCopied] = useState(false);
-
     // Fetch decision data
     const {
         data: decisionResponse,
@@ -123,14 +121,10 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
 
     // Error state
     if (fetchError || decisionResponse?.error) {
-        const errorMessage = fetchError?.message || decisionResponse?.error || 'Unknown error';
+        const errorObj = fetchError || new Error(decisionResponse?.error || 'Unknown error');
         return (
             <div className="p-3 sm:p-4 max-w-2xl mx-auto">
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{errorMessage}</AlertDescription>
-                </Alert>
+                <ErrorDisplay error={errorObj} title="Failed to load decision" variant="inline" />
             </div>
         );
     }
@@ -309,28 +303,7 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
 
                     {/* Submit error */}
                     {submitMutation.error && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Submission Failed</AlertTitle>
-                            <AlertDescription className="space-y-2">
-                                <p>{submitMutation.error.message}</p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(submitMutation.error!.message);
-                                        setCopied(true);
-                                        setTimeout(() => setCopied(false), 2000);
-                                    }}
-                                >
-                                    {copied
-                                        ? <><CheckCheck className="h-3 w-3 mr-1" /> Copied</>
-                                        : <><Copy className="h-3 w-3 mr-1" /> Copy Error</>
-                                    }
-                                </Button>
-                            </AlertDescription>
-                        </Alert>
+                        <ErrorDisplay error={submitMutation.error} title="Submission Failed" variant="inline" />
                     )}
                 </CardContent>
             </Card>

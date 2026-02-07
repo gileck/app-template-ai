@@ -29,6 +29,7 @@ import type {
 } from '@/apis/template/feature-requests/types';
 import { useQueryDefaults } from '@/client/query';
 import { toast } from '@/client/components/template/ui/toast';
+import { errorToast } from '@/client/features/template/error-tracking';
 
 const featureRequestsBaseQueryKey = ['feature-requests'] as const;
 
@@ -93,12 +94,12 @@ export function useUpdateFeatureRequestStatus() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to update status');
+            errorToast('Failed to update status', err);
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -135,12 +136,12 @@ export function useUpdatePriority() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to update priority');
+            errorToast('Failed to update priority', err);
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -169,12 +170,12 @@ export function useDeleteFeatureRequest() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to delete feature request');
+            errorToast('Failed to delete feature request', err);
         },
         onSuccess: () => {
             toast.success('Feature request deleted');
@@ -219,12 +220,12 @@ export function useAddAdminComment() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to add comment');
+            errorToast('Failed to add comment', err);
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -258,12 +259,12 @@ export function useApproveFeatureRequest() {
 
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to approve feature request');
+            errorToast('Failed to approve feature request', err);
         },
         onSuccess: (data) => {
             // Update with actual GitHub data
@@ -390,8 +391,8 @@ export function useUpdateGitHubStatus() {
             queryClient.invalidateQueries({ queryKey: ['github-status', requestId] });
             toast.success('GitHub status updated');
         },
-        onError: () => {
-            toast.error('Failed to update GitHub status');
+        onError: (err) => {
+            errorToast('Failed to update GitHub status', err);
         },
     });
 }
@@ -425,12 +426,12 @@ export function useUpdateGitHubReviewStatus() {
 
             return { previous };
         },
-        onError: (_err, { requestId }, context) => {
+        onError: (err, { requestId }, context) => {
             // Rollback on error
             if (context?.previous) {
                 queryClient.setQueryData(['github-status', requestId], context.previous);
             }
-            toast.error('Failed to update GitHub review status');
+            errorToast('Failed to update GitHub review status', err);
         },
         onSuccess: () => {
             toast.success('GitHub review status updated');
@@ -468,12 +469,12 @@ export function useClearGitHubReviewStatus() {
 
             return { previous };
         },
-        onError: (_err, { requestId }, context) => {
+        onError: (err, { requestId }, context) => {
             // Rollback on error
             if (context?.previous) {
                 queryClient.setQueryData(['github-status', requestId], context.previous);
             }
-            toast.error('Failed to clear GitHub review status');
+            errorToast('Failed to clear GitHub review status', err);
         },
         onSuccess: () => {
             toast.success('GitHub review status cleared');
@@ -527,13 +528,13 @@ export function useCreateFeatureRequest() {
             toast.success('Feature request created successfully');
             return { previous };
         },
-        onError: (_err, _variables, context) => {
+        onError: (err, _variables, context) => {
             // Rollback on error
             if (!context?.previous) return;
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            toast.error('Failed to create feature request');
+            errorToast('Failed to create feature request', err);
         },
         onSuccess: () => {}, // EMPTY - never update from server response
         onSettled: () => {}, // EMPTY - never invalidateQueries
