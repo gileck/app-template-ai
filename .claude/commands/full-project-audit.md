@@ -25,6 +25,25 @@ If the `audits/` folder doesn't exist, create it.
 
 ---
 
+## Audit Scope Selection
+
+Before starting the audit, determine the scope. The user may have specified a scope when invoking the command (e.g. `/full-project-audit project only`). If not, ask the user which scope to audit:
+
+| Scope | What to scan | What to skip |
+|-------|-------------|--------------|
+| **Project only** | `*/project/**`, `*.project.ts`, `src/pages/` | All `*/template/**` and `*.template.ts` paths |
+| **Template only** | `*/template/**`, `*.template.ts`, `src/pages/` | All `*/project/**` and `*.project.ts` paths |
+| **Project + Template** | Everything in `src/` | Nothing |
+
+The ownership model is defined in `docs/template/project-structure-guidelines.md`. In short:
+- **Template-owned**: `src/client/features/template/`, `src/client/routes/template/`, `src/client/components/template/`, `src/apis/template/`, `src/server/database/collections/template/`, `*.template.ts`
+- **Project-owned**: `src/client/features/project/`, `src/client/routes/project/`, `src/client/components/project/`, `src/apis/project/`, `src/server/database/collections/project/`, `*.project.ts`
+- **Shared infrastructure** (`src/pages/`, `src/server/utils/`, `src/client/utils/`, `src/client/stores/`, `src/client/query/`) is included in all scopes.
+
+When searching, filter results to only include files within the selected scope.
+
+---
+
 ## ⚠️ CRITICAL: Read This First
 
 This is a **comprehensive audit report**. Before starting, understand:
