@@ -119,11 +119,12 @@ The agent processes items that match:
     - Use structuredOutput.comment
     - Add agent prefix: [Technical Design Agent]
 
-11. Post phases comment (L/XL features only)
+11. Save phases to MongoDB and post comment (L/XL features only)
     - Check if phases exist (length >= 2)
+    - Save to MongoDB via `savePhasesToDB()` (primary storage)
     - Check idempotency (hasPhaseComment)
     - Format phases using formatPhasesToComment()
-    - Post with marker: <!-- AGENT_PHASES_V1 -->
+    - Post with marker: <!-- AGENT_PHASES_V1 --> (for human readability)
 
 12. Set Review Status
     - Update to "Waiting for Review"
@@ -598,9 +599,15 @@ import { getIssueType } from '../../shared';
 
 **Functions:**
 - `formatPhasesToComment(phases)` - Converts ImplementationPhase[] to markdown
-- `parsePhasesFromComment(comments)` - Extracts phases from comment (used by Implementation Agent)
+- `parsePhasesFromComment(comments)` - Extracts phases from comment (fallback for backward compat)
 - `hasPhaseComment(comments)` - Checks if phases already posted
 - `getPhaseCommentMarker()` - Returns `<!-- AGENT_PHASES_V1 -->`
+
+**File:** `src/agents/lib/workflow-db.ts` (DB helpers - primary storage)
+
+**Functions:**
+- `savePhasesToDB(issueNumber, phases)` - Save phases to MongoDB artifacts
+- `getPhasesFromDB(issueNumber)` - Read phases from MongoDB (primary source)
 
 ## Configuration
 

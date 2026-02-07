@@ -186,9 +186,9 @@ yarn vercel-cli logs | grep "github-webhook"
 
 **Solutions:**
 
-#### a) Verify Phase Comment Exists
-- Open the GitHub issue
-- Look for comment with `<!-- AGENT_PHASES_V1 -->`
+#### a) Verify Phase Data Exists
+- Check `artifacts.phases` in the workflow-item MongoDB document (primary source)
+- Fallback: open the GitHub issue and look for comment with `<!-- AGENT_PHASES_V1 -->`
 - Comment should have deterministic format:
 ```markdown
 ## Implementation Phases

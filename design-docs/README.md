@@ -30,9 +30,9 @@ design-docs/
 
 Each issue gets its own directory: `issue-{N}/`
 
-## Artifact Comments
+## Artifact Storage
 
-After a design PR is merged, an artifact comment is posted on the GitHub issue:
+After a design PR is merged, design metadata is saved to MongoDB `artifacts.designs` on the workflow-item document (primary storage) and an artifact comment is posted on the GitHub issue for human readability:
 
 ```markdown
 <!-- ISSUE_ARTIFACT_V1 -->
@@ -46,4 +46,4 @@ After a design PR is merged, an artifact comment is posted on the GitHub issue:
 
 ## Backward Compatibility
 
-The implementation agent falls back to reading designs from issue body if no artifact comment exists. This maintains compatibility with issues created before this workflow was implemented.
+The implementation agent reads design paths from MongoDB `artifacts.designs` first, then falls back to parsing the GitHub issue artifact comment if no DB artifacts exist. This maintains compatibility with issues created before the DB-first approach was implemented. See [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md) for details.

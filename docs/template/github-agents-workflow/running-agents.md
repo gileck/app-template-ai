@@ -166,10 +166,10 @@ yarn agent:tech-design --issue 123
 ```
 
 **Phase Generation (L/XL issues):**
-- Agent posts phases as GitHub issue comment
-- Uses deterministic format with marker `<!-- AGENT_PHASES_V1 -->`
+- Phases saved to MongoDB `artifacts.phases` and posted as GitHub issue comment
+- Comment uses deterministic format with marker `<!-- AGENT_PHASES_V1 -->` (for human readability)
 - Each phase is independently implementable and mergeable
-- Implementation agent reads phases from comment
+- Implementation agent reads phases from DB (with comment fallback for backward compat)
 
 ### 5. Implementation Agent
 
@@ -244,7 +244,7 @@ If Playwright MCP is unavailable:
 
 **Phase-Aware Implementation:**
 - Automatically detects current phase from GitHub status
-- Reads phase details from issue comment (reliable) or markdown (fallback)
+- Reads phase details from MongoDB artifacts (primary) or issue comment/markdown (fallback)
 - Creates PR title: `feat: [phase X/Y] - description`
 - Next phase starts automatically after previous PR merges
 
@@ -275,7 +275,7 @@ yarn agent:pr-review --pr 123
 **Workflow:**
 1. Agent reviews PR code
 2. Agent generates commit message
-3. Agent saves message to PR comment (marker: `<!-- AGENT_COMMIT_MESSAGE -->`)
+3. Agent saves message to MongoDB artifacts and PR comment (marker: `<!-- AGENT_COMMIT_MESSAGE -->`)
 4. Agent approves PR
 5. Admin receives Telegram notification with Merge/Request Changes buttons
 6. Merge: Uses saved commit message, squash merges
