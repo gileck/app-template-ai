@@ -44,6 +44,28 @@ export async function handleDesignReviewAction(
         return { success: false, error: `Issue #${issueNumber} not found in project` };
     }
 
+    // Validate item is in a design phase that can be reviewed
+    // This prevents stale Telegram buttons from causing wrong state transitions
+    const designPhases = [
+        'Product Development',
+        'Product Design',
+        'Bug Investigation',
+        'Technical Design',
+    ];
+    if (item.status && !designPhases.includes(item.status)) {
+        console.warn(`[LOG:DESIGN_REVIEW] Issue #${issueNumber} is no longer in a design phase (current status: ${item.status}). Action ignored.`);
+        if (callbackQuery.message) {
+            await editMessageText(
+                botToken,
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                `${escapeHtml(callbackQuery.message.text || '')}\n\n⚠️ <b>Action no longer valid</b>\nThis item has moved to "${escapeHtml(item.status)}" and can no longer be reviewed from this message.`,
+                'HTML'
+            );
+        }
+        return { success: false, error: `Item is no longer in a reviewable design phase (current status: ${item.status})` };
+    }
+
     // Update the review status
     await adapter.updateItemReviewStatus(item.itemId, reviewStatus);
 

@@ -400,7 +400,7 @@ Handling npm package issues in Wix corporate network. Use this if experiencing l
 
 Architecture and flow of the AI-powered feature/bug pipeline. Use this to understand the agent workflow system.
 
-**Summary:** 6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically.
+**Summary:** 9-status workflow (Backlog → Product Development → Product Design → Bug Investigation → Tech Design → Ready for development → PR Review → Final Review → Done) with AI agents at each stage. Items enter via UI or CLI, get approved via Telegram, and progress through design and implementation phases automatically.
 
 **Key Points:**
 - Entry points: UI feature request, UI bug report, or CLI

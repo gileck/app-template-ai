@@ -30,6 +30,7 @@
     "agent:product-design": "tsx src/agents/core-agents/productDesignAgent/index.ts",
     "agent:tech-design": "tsx src/agents/core-agents/technicalDesignAgent/index.ts",
     "agent:implement": "tsx src/agents/core-agents/implementAgent/index.ts",
+    "agent:bug-investigator": "tsx src/agents/core-agents/bugInvestigatorAgent/index.ts",
     "agent:pr-review": "tsx src/agents/core-agents/prReviewAgent/index.ts",
     "agent:auto-advance": "tsx src/agents/auto-advance.ts",
     "agent:code-reviewer": "tsx src/agents/repo-commits-code-reviewer.ts",

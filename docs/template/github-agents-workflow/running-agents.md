@@ -4,13 +4,14 @@ This document explains how to run the AI agents, when to run them, the agents co
 
 ## Overview
 
-The workflow includes five AI agents that automate different phases of the development pipeline:
+The workflow includes six AI agents that automate different phases of the development pipeline:
 
 1. **Product Development Agent** (Optional) - Transforms vague ideas into concrete product specs
 2. **Product Design Agent** - Generates UX/UI designs and mockups
-3. **Tech Design Agent** - Creates technical architecture documents
-4. **Implementation Agent** - Writes code and creates PRs
-5. **PR Review Agent** - Reviews implementation PRs and generates commit messages
+3. **Bug Investigator Agent** - Investigates bug reports, identifies root causes, and proposes fix options
+4. **Tech Design Agent** - Creates technical architecture documents
+5. **Implementation Agent** - Writes code and creates PRs
+6. **PR Review Agent** - Reviews implementation PRs and generates commit messages
 
 ## Running Agents with Agents Copy (Recommended)
 
@@ -144,6 +145,33 @@ yarn agent:product-design --issue 123
 **Trigger:**
 - Manually: Run command when ready
 - Automated: Via cron job (if configured)
+
+### 3. Bug Investigator Agent
+
+**When to run:** Item is in "Bug Investigation" column (bugs are auto-routed here on approval)
+
+**What it does:**
+- Reads bug report, session logs, stack traces, and error diagnostics
+- Performs read-only codebase investigation (no git operations)
+- Uses TRACE/IDENTIFY/SCOPE/PROPOSE methodology
+- Posts root cause analysis with fix options to GitHub issue
+- Sends Telegram notification with link to fix selection web UI
+- Admin selects fix approach, which routes to Tech Design or Implementation
+
+**Command:**
+```bash
+yarn agent:bug-investigator
+
+# Or with specific issue:
+yarn agent:bug-investigator --id <item-id>
+```
+
+**Important:** This agent operates in **read-only mode** -- it does not create branches, modify files, or create PRs. Investigation results are posted as GitHub issue comments.
+
+**Output:**
+- Root cause analysis with confidence level (low/medium/high)
+- Fix options with complexity estimates and affected files
+- Recommended fix approach
 
 ### 4. Tech Design Agent
 
@@ -494,6 +522,7 @@ jobs:
 **Running Agents:**
 - `yarn agent:product-development` - Transform vague ideas into product specs (optional)
 - `yarn agent:product-design` - Generate UX/UI designs
+- `yarn agent:bug-investigator` - Investigate bugs and propose fix options
 - `yarn agent:tech-design` - Create architecture docs
 - `yarn agent:implement` - Write code and create PRs
 - `yarn agent:pr-review` - Review PRs (automated via cron)
