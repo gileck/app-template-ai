@@ -14,10 +14,12 @@
  *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --simulate-telegram-buttons
  *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent
  *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent --simulate-telegram-buttons
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --no-cleanup
  *
  * Options:
  *   --simulate-telegram-buttons  Auto-select the recommended fix option (no manual Telegram interaction)
  *   --skip-agent                 Skip running the bug investigator (assumes it already ran)
+ *   --no-cleanup                 Skip cleanup (leave the test issue open for inspection)
  */
 
 import '../../agents/shared/loadEnv';
@@ -417,6 +419,44 @@ async function waitForAdminDecision(projectItemId: string): Promise<{
 }
 
 /**
+ * Cleanup: Close the GitHub issue and move to Done
+ */
+async function cleanup(issueNumber: number, projectItemId: string): Promise<void> {
+    logSection('Cleanup');
+
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    // Move item to Done status
+    try {
+        await adapter.updateItemStatus(projectItemId, STATUSES.done);
+        log(`Project item moved to "${STATUSES.done}"`);
+    } catch (error) {
+        log(`Warning: Could not move item to Done: ${error instanceof Error ? error.message : error}`);
+    }
+
+    // Close the GitHub issue via gh CLI
+    const owner = process.env.GITHUB_OWNER;
+    const repo = process.env.GITHUB_REPO;
+    if (owner && repo) {
+        const result = await runCommand('gh', [
+            'issue', 'close', String(issueNumber),
+            '--repo', `${owner}/${repo}`,
+            '--comment', '[E2E Test] Closing test issue after automated test run.',
+        ]);
+        if (result.code === 0) {
+            log(`GitHub issue #${issueNumber} closed`);
+        } else {
+            log(`Warning: Could not close issue #${issueNumber} via gh CLI`);
+        }
+    } else {
+        log('Warning: GITHUB_OWNER/GITHUB_REPO not set, skipping issue close');
+    }
+
+    log('Cleanup complete');
+}
+
+/**
  * Step 6: Verify final state after routing
  */
 function verifyFinalState(finalStatus: string, finalReviewStatus: string | null): void {
@@ -449,6 +489,7 @@ async function main(): Promise<void> {
     const args = process.argv.slice(2);
     const skipAgent = args.includes('--skip-agent');
     const simulateButtons = args.includes('--simulate-telegram-buttons');
+    const noCleanup = args.includes('--no-cleanup');
 
     console.log('\n========================================');
     console.log('  Agent Decision E2E Test');
@@ -509,6 +550,13 @@ async function main(): Promise<void> {
         // Step 6: Verify final state
         verifyFinalState(finalStatus, finalReviewStatus);
 
+        // Cleanup
+        if (!noCleanup && ctx.issueNumber && ctx.projectItemId) {
+            await cleanup(ctx.issueNumber, ctx.projectItemId);
+        } else if (noCleanup) {
+            log('\n--no-cleanup flag set, leaving test issue open');
+        }
+
         // Summary
         logSection('Test Complete');
         log(`GitHub Issue: #${ctx.issueNumber} (${ctx.issueUrl})`);
@@ -519,6 +567,15 @@ async function main(): Promise<void> {
         log('RESULT: PASS');
 
     } catch (error) {
+        // Attempt cleanup even on failure
+        if (!noCleanup && ctx.issueNumber && ctx.projectItemId) {
+            try {
+                await cleanup(ctx.issueNumber, ctx.projectItemId);
+            } catch (cleanupError) {
+                log(`Cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : cleanupError}`);
+            }
+        }
+
         logSection('Test Failed');
         const message = error instanceof Error ? error.message : String(error);
         log(`ERROR: ${message}`);
