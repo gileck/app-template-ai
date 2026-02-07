@@ -16,6 +16,7 @@ import { agentLogApiHandlers } from "./template/agent-log/server";
 import { clarificationApiHandlers } from "./template/clarification/server";
 import { dashboardApiHandlers } from "./template/dashboard/server";
 import { bugFixSelectApiHandlers } from "./template/bug-fix-select/server";
+import { agentDecisionApiHandlers } from "./template/agent-decision/server";
 import { workflowApiHandlers } from "./template/workflow/server";
 
 export const templateApiHandlers = mergeApiHandlers(
@@ -27,5 +28,6 @@ export const templateApiHandlers = mergeApiHandlers(
   clarificationApiHandlers,
   dashboardApiHandlers,
   bugFixSelectApiHandlers,
+  agentDecisionApiHandlers,
   workflowApiHandlers
 );

@@ -121,6 +121,7 @@ export {
     notifyAgentStarted,
     notifyPhaseComplete,
     notifyBugInvestigationReady,
+    notifyDecisionNeeded,
 } from './notifications';
 
 // Prompts

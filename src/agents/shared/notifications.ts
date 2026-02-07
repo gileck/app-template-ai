@@ -9,6 +9,7 @@ import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
 import { appConfig } from '../../app.config';
 import { generateClarificationToken } from '@/apis/template/clarification/utils';
 import { generateBugFixToken } from '@/apis/template/bug-fix-select/utils';
+import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
 
 // ============================================================
 // TELEGRAM API
@@ -883,6 +884,61 @@ ${escapeHtml(truncatedSummary)}`;
         inline_keyboard: [
             [
                 { text: '🔧 Choose Fix Option', url: bugFixUrl },
+            ],
+            [
+                { text: '📋 View Issue', url: issueUrl },
+            ],
+            [
+                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+            ],
+        ],
+    };
+
+    return sendToAdmin(message, buttons);
+}
+
+/**
+ * Notify admin that an agent decision is ready and needs selection.
+ * Generic version that works for any agent decision type.
+ */
+export async function notifyDecisionNeeded(
+    phase: string,
+    title: string,
+    issueNumber: number,
+    summary: string,
+    optionsCount: number,
+    itemType: 'bug' | 'feature' = 'feature',
+    isRevision: boolean = false
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const status = isRevision ? '🔄 Revised' : '✅ Decision Ready';
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug' : 'Feature';
+
+    // Generate decision URL with token
+    const token = generateDecisionToken(issueNumber);
+    const decisionUrl = `${getAppUrl()}/decision/${issueNumber}?token=${token}`;
+
+    // Truncate summary for Telegram (max 2800 chars to leave room for header)
+    const truncatedSummary = summary.length > 2800
+        ? summary.slice(0, 2800) + '...'
+        : summary;
+
+    const message = `<b>Agent (${escapeHtml(phase)}):</b> ${status}
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber}
+📊 Options: ${optionsCount}
+
+<b>Summary:</b>
+${escapeHtml(truncatedSummary)}`;
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🔧 Choose Option', url: decisionUrl },
             ],
             [
                 { text: '📋 View Issue', url: issueUrl },

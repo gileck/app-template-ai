@@ -16,6 +16,7 @@ import { NotFound } from './template/NotFound';
 import { Theme } from './template/Theme';
 import { Clarify } from './template/Clarify';
 import { BugFix } from './template/BugFix';
+import { Decision } from './template/Decision';
 import { ItemDetail } from './template/ItemDetail';
 import { WorkflowItems } from './template/Workflow';
 import { Routes } from '../features/template/router';
@@ -29,8 +30,11 @@ export const templateRoutes: Routes = {
   // Clarification page (public, full-screen - no header/navbar)
   '/clarify/:issueNumber': { component: Clarify, public: true, fullScreen: true },
 
-  // Bug fix selection page (public, full-screen - no header/navbar)
+  // Bug fix selection page (redirects to /decision/)
   '/bug-fix/:issueNumber': { component: BugFix, public: true, fullScreen: true },
+
+  // Agent decision page (public, full-screen - no header/navbar)
+  '/decision/:issueNumber': { component: Decision, public: true, fullScreen: true },
 
   // Template protected routes
   '/settings': Settings,
