@@ -203,14 +203,14 @@ export async function handleMergeFinalPRCallback(
             }
         }
 
-        const phasesToCheck = 10;
-        for (let i = 1; i <= phasesToCheck; i++) {
+        const totalPhases = artifact?.implementation?.phases?.length || 0;
+        for (let i = 1; i <= totalPhases; i++) {
             const phaseBranch = `feature/task-${issueNumber}-phase-${i}`;
             try {
                 await adapter.deleteBranch(phaseBranch);
                 console.log(`  [LOG:FEATURE_BRANCH] Deleted branch: ${phaseBranch}`);
             } catch {
-                // Branch doesn't exist
+                // Branch doesn't exist, continue to next
             }
         }
 
