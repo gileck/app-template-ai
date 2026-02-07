@@ -1,4 +1,4 @@
-import { TodoItemClient } from '@/server/database/collections/project/todos/types';
+import type { TodoItemClient } from '@/server/database/collections/project/todos/types';
 
 // Get todos
 export interface GetTodosRequest {
