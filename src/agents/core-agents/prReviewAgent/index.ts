@@ -22,8 +22,6 @@
  */
 
 import '../../shared/loadEnv';
-import { execSync } from 'child_process';
-import { Command } from 'commander';
 import {
     // Config
     STATUSES,
@@ -47,6 +45,13 @@ import {
     getIssueType,
     // Agent Identity
     addAgentPrefix,
+    // Git utilities
+    git,
+    hasUncommittedChanges,
+    checkoutBranch,
+    getCurrentBranch,
+    // CLI
+    createCLI,
 } from '../../shared';
 import {
     createLogContext,
@@ -137,51 +142,6 @@ const PR_REVIEW_OUTPUT_FORMAT = {
         required: ['decision', 'summary', 'reviewText'],
     },
 };
-
-// ============================================================
-// GIT UTILITIES
-// ============================================================
-
-/**
- * Execute a git command and return the output
- */
-function git(command: string, options: { cwd?: string; silent?: boolean } = {}): string {
-    try {
-        const result = execSync(`git ${command}`, {
-            cwd: options.cwd || process.cwd(),
-            encoding: 'utf-8',
-            stdio: options.silent ? 'pipe' : ['pipe', 'pipe', 'pipe'],
-        });
-        return result.trim();
-    } catch (error) {
-        if (error instanceof Error && 'stderr' in error) {
-            throw new Error((error as { stderr: string }).stderr || error.message);
-        }
-        throw error;
-    }
-}
-
-/**
- * Get current branch name
- */
-function getCurrentBranch(): string {
-    return git('branch --show-current', { silent: true });
-}
-
-/**
- * Checkout a branch
- */
-function checkoutBranch(branchName: string): void {
-    git(`checkout ${branchName}`);
-}
-
-/**
- * Check if there are uncommitted changes
- */
-function hasUncommittedChanges(): boolean {
-    const status = git('status --porcelain', { silent: true });
-    return status.length > 0;
-}
 
 // ============================================================
 // PR FINDING
@@ -537,13 +497,6 @@ async function processItem(
 // ============================================================
 
 async function run(options: PRReviewOptions): Promise<void> {
-    console.log('PR Review Agent');
-    console.log('================\n');
-
-    if (options.dryRun) {
-        console.log('🔍 DRY RUN MODE - No changes will be made\n');
-    }
-
     const adapter = getProjectManagementAdapter();
     await adapter.init();
 
@@ -695,24 +648,29 @@ async function run(options: PRReviewOptions): Promise<void> {
 // CLI
 // ============================================================
 
-const program = new Command();
-
-program
-    .name('pr-review')
-    .description('Review Pull Requests for GitHub Project items')
-    .option('--id <item-id>', 'Process specific item by ID')
-    .option('--dry-run', 'Preview without making changes')
-    .option('--stream', 'Stream Claude output')
-    .option('--verbose', 'Show verbose output')
-    .option('--skip-checkout', 'Skip git checkout operations (for testing)')
-    .action(async (options: PRReviewOptions) => {
-        try {
-            await run(options);
-            process.exit(0);
-        } catch (error) {
-            console.error('Fatal error:', error);
-            process.exit(1);
-        }
+async function main(): Promise<void> {
+    const { options: baseOptions, extra } = createCLI({
+        name: 'pr-review',
+        displayName: 'PR Review Agent',
+        description: 'Review Pull Requests for GitHub Project items',
+        additionalOptions: [
+            { flag: '--skip-checkout', description: 'Skip git checkout operations (for testing)', defaultValue: false },
+        ],
     });
+    const options: PRReviewOptions = {
+        ...baseOptions,
+        skipCheckout: Boolean(extra.skipCheckout),
+    };
 
-program.parse();
+    await run(options);
+}
+
+// Run
+main()
+    .then(() => {
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error('Fatal error:', error);
+        process.exit(1);
+    });
