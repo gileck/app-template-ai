@@ -1,0 +1,427 @@
+#!/usr/bin/env npx tsx
+/**
+ * E2E Test: Agent Decision System (Bug Investigation → Fix Selection → Routing)
+ *
+ * Tests the full flow:
+ * 1. Creates a test bug report via CLI (MongoDB + GitHub + Bug Investigation status)
+ * 2. Runs the bug investigator agent
+ * 3. Verifies investigation comment posted + review status set
+ * 4. Prints decision URL and waits for admin to select a fix via Telegram
+ * 5. Polls until item status changes (routed to Implementation or Tech Design)
+ * 6. Verifies final state
+ *
+ * Usage:
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent   # Skip agent run, just create + wait
+ */
+
+import '../../agents/shared/loadEnv';
+import { spawn } from 'child_process';
+import { getProjectManagementAdapter, STATUSES, REVIEW_STATUSES } from '@/server/project-management';
+import { generateDecisionToken, isDecisionComment } from '@/apis/template/agent-decision/utils';
+
+// ============================================================
+// CONFIG
+// ============================================================
+
+const POLL_INTERVAL_MS = 5000;        // 5 seconds between polls
+const MAX_POLL_DURATION_MS = 600000;  // 10 minutes max wait for admin action
+const AGENT_TIMEOUT_SECONDS = 300;    // 5 minutes for bug investigator
+
+const TEST_BUG_TITLE = '[E2E Test] Agent Decision Flow';
+const TEST_BUG_DESCRIPTION = `Automated E2E test for the agent decision system.
+
+## Steps to Reproduce
+1. Navigate to the settings page
+2. Toggle the theme to dark mode
+3. Refresh the page
+
+## Expected Behavior
+Dark theme should persist after page refresh.
+
+## Actual Behavior
+Theme reverts to light mode on refresh.`;
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function log(msg: string): void {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${msg}`);
+}
+
+function logSection(title: string): void {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`  ${title}`);
+    console.log(`${'='.repeat(60)}`);
+}
+
+async function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Run a CLI command and stream output, return exit code + captured output
+ */
+function runCommand(command: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+        const proc = spawn(command, args, {
+            cwd: process.cwd(),
+            env: { ...process.env },
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout?.on('data', (data: Buffer) => {
+            const text = data.toString();
+            stdout += text;
+            process.stdout.write(text);
+        });
+
+        proc.stderr?.on('data', (data: Buffer) => {
+            const text = data.toString();
+            stderr += text;
+            process.stderr.write(text);
+        });
+
+        proc.on('close', (code) => {
+            resolve({ code: code ?? 1, stdout, stderr });
+        });
+
+        proc.on('error', (error) => {
+            resolve({ code: 1, stdout, stderr: error.message });
+        });
+    });
+}
+
+// ============================================================
+// TEST STEPS
+// ============================================================
+
+interface TestContext {
+    issueNumber?: number;
+    issueUrl?: string;
+    projectItemId?: string;
+    decisionUrl?: string;
+    finalStatus?: string;
+    finalReviewStatus?: string | null;
+}
+
+/**
+ * Step 1: Create test bug via CLI (handles MongoDB + GitHub sync + routing to Bug Investigation)
+ */
+async function createTestBugViaCLI(): Promise<{ issueNumber: number; issueUrl: string; projectItemId: string }> {
+    logSection('Step 1: Create Test Bug via CLI');
+
+    log('Running: yarn agent-workflow create --type bug --auto-approve ...');
+    log('');
+
+    const result = await runCommand('yarn', [
+        'agent-workflow', 'create',
+        '--type', 'bug',
+        '--title', TEST_BUG_TITLE,
+        '--description', TEST_BUG_DESCRIPTION,
+        '--auto-approve',
+    ]);
+
+    if (result.code !== 0) {
+        throw new Error(`CLI create failed with exit code ${result.code}`);
+    }
+
+    // Extract issue number and URL from CLI output
+    const issueNumberMatch = result.stdout.match(/GitHub issue created: #(\d+)/);
+    const issueUrlMatch = result.stdout.match(/URL: (https:\/\/github\.com\/[^\s]+)/);
+
+    if (!issueNumberMatch) {
+        throw new Error('Could not extract issue number from CLI output');
+    }
+
+    const issueNumber = parseInt(issueNumberMatch[1], 10);
+    const issueUrl = issueUrlMatch?.[1] || `https://github.com/issues/${issueNumber}`;
+
+    // Find the project item ID for this issue
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    const items = await adapter.listItems({ status: STATUSES.bugInvestigation });
+    const item = items.find(i =>
+        i.content?.type === 'Issue' && i.content.number === issueNumber
+    );
+
+    if (!item) {
+        throw new Error(`Could not find project item for issue #${issueNumber} in Bug Investigation`);
+    }
+
+    log(`\nIssue #${issueNumber} created and routed to Bug Investigation`);
+    log(`Project item ID: ${item.id}`);
+
+    return { issueNumber, issueUrl, projectItemId: item.id };
+}
+
+/**
+ * Step 2: Verify item is in the expected initial state
+ */
+async function verifyInitialStatus(projectItemId: string): Promise<void> {
+    logSection('Step 2: Verify Initial Status');
+
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    const item = await adapter.getItem(projectItemId);
+    if (!item) {
+        throw new Error(`Project item not found: ${projectItemId}`);
+    }
+
+    log(`Status: ${item.status}`);
+    log(`Review Status: ${item.reviewStatus || '(empty)'}`);
+
+    if (item.status !== STATUSES.bugInvestigation) {
+        throw new Error(`Expected status "${STATUSES.bugInvestigation}", got "${item.status}"`);
+    }
+
+    if (item.reviewStatus) {
+        log('Warning: Review status is not empty, clearing it...');
+        await adapter.updateItemReviewStatus(projectItemId, '');
+    }
+
+    log('Initial status verified');
+}
+
+/**
+ * Step 3: Run the bug investigator agent
+ */
+async function runBugInvestigator(projectItemId: string): Promise<void> {
+    logSection('Step 3: Run Bug Investigator Agent');
+
+    log(`Running: yarn agent:bug-investigator --id ${projectItemId} --stream`);
+    log('(This may take a few minutes...)\n');
+
+    const result = await runCommand('yarn', [
+        'agent:bug-investigator',
+        '--id', projectItemId,
+        '--stream',
+        '--timeout', String(AGENT_TIMEOUT_SECONDS),
+    ]);
+
+    if (result.code !== 0) {
+        throw new Error(`Bug investigator agent failed with exit code ${result.code}`);
+    }
+
+    log('\nBug investigator agent completed');
+}
+
+/**
+ * Step 4: Verify investigation results (comment posted, review status set)
+ */
+async function verifyInvestigation(projectItemId: string, issueNumber: number): Promise<string> {
+    logSection('Step 4: Verify Investigation Results');
+
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    // Check item status
+    const item = await adapter.getItem(projectItemId);
+    if (!item) {
+        throw new Error(`Project item not found: ${projectItemId}`);
+    }
+
+    log(`Status: ${item.status}`);
+    log(`Review Status: ${item.reviewStatus || '(empty)'}`);
+
+    if (item.reviewStatus !== REVIEW_STATUSES.waitingForReview) {
+        throw new Error(`Expected review status "${REVIEW_STATUSES.waitingForReview}", got "${item.reviewStatus}"`);
+    }
+
+    // Check for decision comment on the issue
+    const comments = await adapter.getIssueComments(issueNumber);
+    const decisionComment = comments.find(c => isDecisionComment(c.body));
+
+    if (!decisionComment) {
+        throw new Error('No agent decision comment found on the issue');
+    }
+
+    log(`Decision comment found (${decisionComment.body.length} chars)`);
+
+    // Generate decision URL
+    const token = generateDecisionToken(issueNumber);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    const decisionUrl = `${baseUrl}/decision/${issueNumber}?token=${token}`;
+
+    log(`Decision URL: ${decisionUrl}`);
+
+    return decisionUrl;
+}
+
+/**
+ * Step 5: Wait for admin to select a fix option via Telegram/Decision UI
+ */
+async function waitForAdminDecision(projectItemId: string): Promise<{
+    finalStatus: string;
+    finalReviewStatus: string | null;
+}> {
+    logSection('Step 5: Wait for Admin Decision');
+
+    log('Waiting for you to:');
+    log('  1. Click "Choose Option" in the Telegram notification');
+    log('  2. Select a fix option in the Decision UI');
+    log('  3. Click "Submit Selection"');
+    log('');
+    log(`Polling every ${POLL_INTERVAL_MS / 1000}s for up to ${MAX_POLL_DURATION_MS / 60000} minutes...`);
+    log('');
+
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    const startTime = Date.now();
+    let lastReviewStatus: string = REVIEW_STATUSES.waitingForReview;
+
+    while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
+        const item = await adapter.getItem(projectItemId);
+        if (!item) {
+            throw new Error('Project item disappeared during polling');
+        }
+
+        const currentStatus = item.status || '';
+        const currentReviewStatus = item.reviewStatus || '';
+
+        // Check if status changed from Bug Investigation (item was routed)
+        if (currentStatus !== STATUSES.bugInvestigation) {
+            process.stdout.write('\n');
+            log(`Status changed: "${STATUSES.bugInvestigation}" -> "${currentStatus}"`);
+            log(`Review Status: "${currentReviewStatus || '(empty)'}"`);
+            return {
+                finalStatus: currentStatus!,
+                finalReviewStatus: item.reviewStatus,
+            };
+        }
+
+        // Log intermediate review status changes
+        if (currentReviewStatus !== lastReviewStatus) {
+            process.stdout.write('\n');
+            log(`Review status changed: "${lastReviewStatus}" -> "${currentReviewStatus || '(empty)'}"`);
+            lastReviewStatus = currentReviewStatus;
+        }
+
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        process.stdout.write(`\r  Polling... (${elapsed}s elapsed)`);
+
+        await sleep(POLL_INTERVAL_MS);
+    }
+
+    throw new Error(`Timed out waiting for admin decision after ${MAX_POLL_DURATION_MS / 60000} minutes`);
+}
+
+/**
+ * Step 6: Verify final state after routing
+ */
+function verifyFinalState(finalStatus: string, finalReviewStatus: string | null): void {
+    logSection('Step 6: Verify Final State');
+
+    const validDestinations = [STATUSES.implementation, STATUSES.techDesign];
+
+    log(`Final Status: ${finalStatus}`);
+    log(`Final Review Status: ${finalReviewStatus || '(empty)'}`);
+
+    if (!validDestinations.includes(finalStatus as typeof validDestinations[number])) {
+        log(`WARNING: Unexpected destination "${finalStatus}"`);
+        log(`Expected one of: ${validDestinations.join(', ')}`);
+    } else {
+        log(`Correctly routed to: ${finalStatus}`);
+    }
+
+    if (finalReviewStatus) {
+        log(`WARNING: Review status should be empty after routing, got "${finalReviewStatus}"`);
+    } else {
+        log('Review status correctly cleared');
+    }
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+
+async function main(): Promise<void> {
+    const args = process.argv.slice(2);
+    const skipAgent = args.includes('--skip-agent');
+
+    console.log('\n========================================');
+    console.log('  Agent Decision E2E Test');
+    console.log('  (Bug Investigation -> Fix Selection)');
+    console.log('========================================\n');
+
+    const ctx: TestContext = {};
+
+    try {
+        // Step 1: Create test bug via CLI
+        const { issueNumber, issueUrl, projectItemId } = await createTestBugViaCLI();
+        ctx.issueNumber = issueNumber;
+        ctx.issueUrl = issueUrl;
+        ctx.projectItemId = projectItemId;
+
+        // Step 2: Verify initial status
+        await verifyInitialStatus(projectItemId);
+
+        // Step 3: Run bug investigator (unless skipped)
+        if (skipAgent) {
+            log('\n--skip-agent flag set, skipping bug investigator agent run');
+        } else {
+            await runBugInvestigator(projectItemId);
+        }
+
+        // Step 4: Verify investigation
+        const decisionUrl = await verifyInvestigation(projectItemId, issueNumber);
+        ctx.decisionUrl = decisionUrl;
+
+        // Step 5: Wait for admin decision
+        log('\n========================================');
+        log('  ACTION REQUIRED: Select a fix option');
+        log('========================================');
+        log(`\n  Decision URL: ${decisionUrl}`);
+        log(`  Issue: ${issueUrl}`);
+        log('  Check your Telegram for the notification.\n');
+
+        const { finalStatus, finalReviewStatus } = await waitForAdminDecision(projectItemId);
+        ctx.finalStatus = finalStatus;
+        ctx.finalReviewStatus = finalReviewStatus;
+
+        // Step 6: Verify final state
+        verifyFinalState(finalStatus, finalReviewStatus);
+
+        // Summary
+        logSection('Test Complete');
+        log(`GitHub Issue: #${ctx.issueNumber} (${ctx.issueUrl})`);
+        log(`Project Item: ${ctx.projectItemId}`);
+        log(`Decision URL: ${ctx.decisionUrl}`);
+        log(`Final Routing: ${ctx.finalStatus}`);
+        log('');
+        log('RESULT: PASS');
+
+    } catch (error) {
+        logSection('Test Failed');
+        const message = error instanceof Error ? error.message : String(error);
+        log(`ERROR: ${message}`);
+
+        if (ctx.issueNumber) {
+            log(`\nTest artifacts:`);
+            log(`  GitHub Issue: #${ctx.issueNumber} (${ctx.issueUrl})`);
+            log(`  Project Item: ${ctx.projectItemId}`);
+        }
+
+        log('\nRESULT: FAIL');
+        process.exit(1);
+    }
+}
+
+// Handle process termination
+process.on('SIGINT', () => {
+    console.log('\n\nInterrupted. Test artifacts may need manual cleanup.');
+    process.exit(1);
+});
+
+main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+});
