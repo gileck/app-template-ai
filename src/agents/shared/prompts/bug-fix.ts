@@ -9,7 +9,12 @@
 import type { ProjectItemContent } from '@/server/project-management';
 import type { GitHubComment } from '../types';
 import type { BugDiagnostics } from '../utils';
-import { AMBIGUITY_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS } from './shared-instructions';
+import {
+    AMBIGUITY_INSTRUCTIONS,
+    MARKDOWN_FORMATTING_INSTRUCTIONS,
+    WRITE_MODE_BUG_FIX_INSTRUCTIONS,
+    buildCommentsSection,
+} from './shared-instructions';
 
 /**
  * Build prompt for implementing a bug fix
@@ -53,9 +58,7 @@ Note: No technical design phase. Implement the fix based on the product design a
         implementationSource = 'the bug diagnostics and issue description';
     }
 
-    const commentsSection = comments && comments.length > 0
-        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
-        : '';
+    const commentsSection = buildCommentsSection(comments);
 
     // Include limited diagnostics in implementation prompt (full diagnostics are in tech design)
     const quickDiagnostics = `
@@ -65,7 +68,7 @@ ${diagnostics.stackTrace ? `**Stack Trace:** ${diagnostics.stackTrace.slice(0, 3
 
     return `You are implementing a ${categoryLabel} FIX.
 
-IMPORTANT: You are in WRITE mode. You CAN and SHOULD create and modify files to fix this bug.
+${WRITE_MODE_BUG_FIX_INSTRUCTIONS}
 
 ## Issue Details
 

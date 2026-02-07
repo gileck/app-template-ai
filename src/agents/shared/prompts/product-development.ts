@@ -8,7 +8,17 @@
 
 import type { ProjectItemContent } from '@/server/project-management';
 import type { GitHubComment } from '../types';
-import { AMBIGUITY_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS } from './shared-instructions';
+import {
+    AMBIGUITY_INSTRUCTIONS,
+    MARKDOWN_FORMATTING_INSTRUCTIONS,
+    READ_ONLY_MODE_INSTRUCTIONS,
+    PRODUCT_DEVELOPMENT_FOCUS_WARNING,
+    FEEDBACK_HISTORY_INSTRUCTIONS,
+    buildCommentsSection,
+    buildFeedbackSection,
+    buildIssueDetailsHeader,
+    formatCommentsList,
+} from './shared-instructions';
 
 /**
  * Build prompt for generating a new product development document
@@ -18,45 +28,19 @@ import { AMBIGUITY_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS } from './shar
  * NOT how it looks (that's Product Design) or how to implement (that's Tech Design).
  */
 export function buildProductDevelopmentPrompt(issue: ProjectItemContent, comments?: GitHubComment[]): string {
-    const commentsSection = comments && comments.length > 0
-        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
-        : '';
+    const commentsSection = buildCommentsSection(comments);
 
     return `You are creating a Product Development document for a GitHub issue. This is an OPTIONAL phase for vague feature ideas that need to be transformed into concrete product specifications.
 
-IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
+${READ_ONLY_MODE_INSTRUCTIONS}
 
-## Issue Details
-
-**Title:** ${issue.title}
-**Number:** #${issue.number || 'Draft'}
-**Labels:** ${issue.labels?.join(', ') || 'None'}
-
-**Description:**
-${issue.body || 'No description provided'}
+${buildIssueDetailsHeader(issue, { includeLabels: true })}
 ${commentsSection}
 ## Your Task
 
 Create a Product Development document that transforms the vague feature idea into a concrete product specification. Your document should answer: **WHAT** are we building and **WHY**?
 
-**CRITICAL - PRODUCT DEVELOPMENT vs PRODUCT DESIGN:**
-
-This is a PRODUCT DEVELOPMENT document, NOT a product design document:
-- Product Development: WHAT to build & WHY (requirements, business value, acceptance criteria)
-- Product Design: HOW it looks & feels (UI/UX, user flows, interface elements)
-
-Do NOT include:
-- UI mockups or interface descriptions
-- Visual design decisions
-- Specific component layouts
-- Color schemes or styling
-
-Focus ONLY on:
-- Business requirements and objectives
-- User needs and target audience
-- Acceptance criteria (what "done" looks like)
-- Scope boundaries (what's in and what's out)
-- Success metrics
+${PRODUCT_DEVELOPMENT_FOCUS_WARNING}
 
 **Required sections:**
 1. **Size Estimate** - S (small, few hours) / M (medium, 1-2 days) / L (large, multiple days) / XL (epic, weeks)
@@ -145,21 +129,13 @@ export function buildProductDevelopmentRevisionPrompt(
     existingDocument: string,
     feedbackComments: GitHubComment[]
 ): string {
-    const feedbackSection = feedbackComments
-        .map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`)
-        .join('\n\n---\n\n');
+    const feedbackSection = buildFeedbackSection(feedbackComments);
 
     return `You are revising a Product Development document based on admin feedback.
 
-IMPORTANT: You are in READ-ONLY mode. Do NOT make any changes to files. Only use Read, Glob, Grep, and WebFetch tools.
+${READ_ONLY_MODE_INSTRUCTIONS}
 
-## Issue Details
-
-**Title:** ${issue.title}
-**Number:** #${issue.number || 'Draft'}
-
-**Original Description:**
-${issue.body || 'No description provided'}
+${buildIssueDetailsHeader(issue, { descriptionLabel: 'Original Description' })}
 
 ## Existing Product Development Document
 
@@ -167,11 +143,7 @@ ${existingDocument}
 
 ## Feedback History
 
-The comments below are sorted chronologically (oldest first, newest last).
-- **"✅ Addressed Feedback" markers** - these indicate what was addressed in previous iterations
-- **Focus on ALL comments since the last marker** - if a marker exists, address all feedback that came after it
-- **If no marker exists** - address all feedback comments (this is the first revision)
-- **Older comments before the marker** - use for context only, they have already been addressed
+${FEEDBACK_HISTORY_INSTRUCTIONS}
 
 ${feedbackSection}
 
@@ -223,7 +195,7 @@ export function buildProductDevelopmentClarificationPrompt(
     clarification: { body: string; author: string; createdAt: string }
 ): string {
     const commentsSection = issueComments.length > 0
-        ? `\n## All Issue Comments\n\n${issueComments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        ? `\n## All Issue Comments\n\n${formatCommentsList(issueComments)}\n`
         : '';
 
     return `You previously asked for clarification while working on the product development document for this feature.
