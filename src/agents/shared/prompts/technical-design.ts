@@ -112,22 +112,36 @@ Only split into phases when the feature is genuinely L/XL. When you do split, sp
 
 **Example: Notifications System (L/XL)**
 
-| Phase | Schema | API | UI | What Works |
-|-------|--------|-----|-----|------------|
-| 1: Foundation | Basic fields (message, read, createdAt) | list, markRead | Simple list | User can see and mark notifications |
-| 2: Add Complexity | Add types, priority, actions | filtering, markAllRead, delete | Filters, actions, badges | Richer notification experience |
-| 3: Advanced | Add channels, preferences | real-time, preferences API | Real-time updates, settings | Full-featured system |
+- **Phase 1: Foundation**
+  - Schema: Basic fields (message, read, createdAt)
+  - API: list, markRead
+  - UI: Simple list
+  - What Works: User can see and mark notifications
+
+- **Phase 2: Add Complexity**
+  - Schema: Add types, priority, actions
+  - API: filtering, markAllRead, delete
+  - UI: Filters, actions, badges
+  - What Works: Richer notification experience
+
+- **Phase 3: Advanced**
+  - Schema: Add channels, preferences
+  - API: real-time, preferences API
+  - UI: Real-time updates, settings
+  - What Works: Full-featured system
 
 Each phase is independently mergeable, deployable, and delivers increasing value.
 
 **Example: When to use phases vs single PR**
 
-| Feature | Size | Phases? | Reasoning |
-|---------|------|---------|-----------
-| Notes feature (collection + CRUD + UI) | M | No | Standard pattern, 1-2 days work |
-| User preferences page | M | No | Straightforward settings UI |
-| Complex notifications with types, real-time, preferences | L | Yes | High complexity, split by sophistication |
-| Multi-step workflow builder | XL | Yes | Very complex, needs incremental delivery |
+- **Notes feature (collection + CRUD + UI)** - Size: M, Phases: No
+  - Reasoning: Standard pattern, 1-2 days work
+- **User preferences page** - Size: M, Phases: No
+  - Reasoning: Straightforward settings UI
+- **Complex notifications with types, real-time, preferences** - Size: L, Phases: Yes
+  - Reasoning: High complexity, split by sophistication
+- **Multi-step workflow builder** - Size: XL, Phases: Yes
+  - Reasoning: Very complex, needs incremental delivery
 
 **IMPORTANT**: Only include phases for L/XL features. For S/M features, do NOT include phases - they will be implemented in a single PR.
 
@@ -241,10 +255,10 @@ Example for a SMALL feature (S):
 Add logout menu item that calls existing auth API and redirects.
 
 ## Files to Modify
-| File | Changes |
-|------|---------|
-| \`src/client/components/UserMenu.tsx\` | Add logout menu item with onClick handler |
-| \`src/client/features/auth/hooks.ts\` | Add useLogout hook (calls auth/logout API) |
+- \`src/client/components/UserMenu.tsx\`
+  - Add logout menu item with onClick handler
+- \`src/client/features/auth/hooks.ts\`
+  - Add useLogout hook (calls auth/logout API)
 
 ## Implementation Plan
 
@@ -265,16 +279,16 @@ Example for a MEDIUM/LARGE feature:
 [Brief technical approach]
 
 ## Files to Create
-| File | Purpose |
-|------|---------|
-| \`src/apis/feature-name/types.ts\` | Types |
-| \`src/apis/feature-name/handlers/create.ts\` | Create handler |
-| \`src/client/routes/FeatureName/index.tsx\` | Main component |
+- \`src/apis/feature-name/types.ts\`
+  - Purpose: Types
+- \`src/apis/feature-name/handlers/create.ts\`
+  - Purpose: Create handler
+- \`src/client/routes/FeatureName/index.tsx\`
+  - Purpose: Main component
 
 ## Files to Modify
-| File | Changes |
-|------|---------|
-| \`src/client/routes/index.ts\` | Add route |
+- \`src/client/routes/index.ts\`
+  - Add route
 
 ## Data Model (if needed)
 \`\`\`typescript

@@ -49,6 +49,12 @@ export async function handleUndoRequestChanges(
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
+        // Idempotency check: if already undone (status is PR Review with no review status), skip
+        if (item.status === STATUSES.prReview && !item.reviewStatus) {
+            console.log(`[LOG:UNDO] Undo already performed for PR #${prNumber}, issue #${issueNumber}`);
+            return { success: true };
+        }
+
         await adapter.updateItemStatus(item.itemId, STATUSES.prReview);
         await adapter.clearItemReviewStatus(item.itemId);
 
@@ -178,6 +184,12 @@ export async function handleUndoDesignChanges(
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
+        // Idempotency check: if review status is already cleared, skip
+        if (!item.reviewStatus) {
+            console.log(`[LOG:UNDO] Undo already performed for design PR #${prNumber}, issue #${issueNumber}`);
+            return { success: true };
+        }
+
         await adapter.clearItemReviewStatus(item.itemId);
 
         const designLabel = designType === 'product-dev'
@@ -274,6 +286,12 @@ export async function handleUndoDesignReview(
         if (!item) {
             console.warn(`[LOG:UNDO] Issue #${issueNumber} not found in project for undo design review`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        }
+
+        // Idempotency check: if review status is already cleared, skip
+        if (!item.reviewStatus) {
+            console.log(`[LOG:UNDO] Undo already performed for design review, issue #${issueNumber}`);
+            return { success: true };
         }
 
         await adapter.clearItemReviewStatus(item.itemId);
