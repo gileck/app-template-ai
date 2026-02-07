@@ -64,7 +64,7 @@ Items can enter the workflow through three paths (all converge into the same pip
 
 **Key concepts:**
 - **Board columns**: Backlog → Product Design → Bug Investigation → Technical Design → Ready for development → PR Review → Done
-- **Unified workflow**: Both bugs and features use the same GitHub Projects board and workflow
+- **Unified workflow**: Both bugs and features use the same workflow pipeline
 - **Flexible routing**: Features get admin routing choice; bugs are auto-routed to Bug Investigation
 - **Bug Investigation**: Read-only agent investigates root cause, proposes fix options, admin selects approach via web UI
 - **Type-aware agents**: Agents detect bugs vs features and use specialized prompts
@@ -267,7 +267,7 @@ When admin clicks "Request Changes":
 
 ## Related Documentation
 
-- **[setup-guide.md](./setup-guide.md)** - Step-by-step setup for GitHub Projects and environment
+- **[setup-guide.md](./setup-guide.md)** - Step-by-step setup for environment and tokens
 - **[workflow-items-architecture.md](./workflow-items-architecture.md)** - Workflow items data model and pipeline tracking
 - **[agent-logging.md](./agent-logging.md)** - Complete logging system documentation (CRITICAL)
 - **Main integration docs**: [../github-projects-integration.md](../github-projects-integration.md)

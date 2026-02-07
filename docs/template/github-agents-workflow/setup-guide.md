@@ -15,7 +15,7 @@ related_docs:
 
 # GitHub Agents Workflow - Setup Guide
 
-Complete step-by-step setup instructions for the GitHub Projects integration and AI agents workflow.
+Complete step-by-step setup instructions for the GitHub agents workflow.
 
 ## Prerequisites
 

@@ -15,7 +15,7 @@ related_docs:
 
 # GitHub Agents Workflow - End-to-End Scenarios
 
-This document provides comprehensive visual workflows for all scenarios in the GitHub Projects integration, from initial submission to completion.
+This document provides comprehensive visual workflows for all scenarios in the agents workflow, from initial submission to completion.
 
 ---
 
@@ -98,7 +98,7 @@ This document provides comprehensive visual workflows for all scenarios in the G
               │ Admin clicks "Ready for development"
               ▼
 ┌─────────────────────────────────────┐
-│ GITHUB PROJECTS BOARD               │
+│ WORKFLOW PIPELINE               │
 │ - Column: Ready for development     │
 │ - Review Status: (empty)            │
 └─────────────┬───────────────────────┘
@@ -1621,4 +1621,4 @@ This document covers all major workflow scenarios:
 - Complete status transition table
 - Decision point guide
 
-Use this document to understand the complete end-to-end workflow for any scenario in the GitHub Projects integration.
+Use this document to understand the complete end-to-end workflow for any scenario in the agents workflow pipeline.
