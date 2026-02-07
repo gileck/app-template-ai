@@ -13,7 +13,7 @@ related_docs:
   - cli.md
   - workflow-e2e.md
   - bug-investigation.md
-  - mongodb-github-status.md
+  - workflow-items-architecture.md
   - agent-logging.md
   - telegram-integration.md
   - running-agents.md
@@ -259,7 +259,7 @@ When admin clicks "Request Changes":
 4. Admin receives new notification
 
 **For detailed workflow information, see:**
-- [mongodb-github-status.md](./mongodb-github-status.md) - Status tracking architecture
+- [workflow-items-architecture.md](./workflow-items-architecture.md) - Workflow items data model
 - [setup-guide.md](./setup-guide.md) - Complete setup instructions
 - [design-workflow.md](./design-workflow.md) - Design document details
 - [implementation-workflow.md](./implementation-workflow.md) - Implementation process
@@ -268,6 +268,6 @@ When admin clicks "Request Changes":
 ## Related Documentation
 
 - **[setup-guide.md](./setup-guide.md)** - Step-by-step setup for GitHub Projects and environment
-- **[mongodb-github-status.md](./mongodb-github-status.md)** - Two-tier status tracking system
+- **[workflow-items-architecture.md](./workflow-items-architecture.md)** - Workflow items data model and pipeline tracking
 - **[agent-logging.md](./agent-logging.md)** - Complete logging system documentation (CRITICAL)
 - **Main integration docs**: [../github-projects-integration.md](../github-projects-integration.md)

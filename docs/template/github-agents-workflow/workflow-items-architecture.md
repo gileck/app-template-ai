@@ -1,6 +1,10 @@
-# Workflow Data Model & Status Tracking
+# Workflow Items Architecture
 
-The workflow system uses three MongoDB collections with clear separation of concerns:
+How workflow items are stored, connected to feature requests and bug reports, and tracked through the pipeline.
+
+The system uses a dedicated `workflow-items` MongoDB collection to own the pipeline lifecycle. Source collections (`feature-requests`, `reports`) remain as intake storage. Items from any entry point (UI, CLI) flow into the same pipeline.
+
+## Collections
 
 | Collection | Purpose | Who writes |
 |------------|---------|-----------|

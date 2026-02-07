@@ -442,5 +442,5 @@ yarn agent:pr-review
 ## Related Documentation
 
 - **[overview.md](./overview.md)** - System architecture and workflow
-- **[mongodb-github-status.md](./mongodb-github-status.md)** - Status tracking system
+- **[workflow-items-architecture.md](./workflow-items-architecture.md)** - Workflow items data model
 - **[Main integration docs](../github-projects-integration.md)** - Complete reference

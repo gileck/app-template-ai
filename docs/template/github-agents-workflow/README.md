@@ -35,11 +35,11 @@ Complete guide to the AI-powered feature request and bug fix workflow using GitH
 - `--auto-approve` and `--route` options
 - Workflow modes and examples
 
-**[MongoDB vs GitHub Status](./mongodb-github-status.md)** - Status tracking architecture
-- Why two status systems
-- MongoDB statuses (4 values: new → in_progress → done → rejected)
-- GitHub Project statuses (6 workflow stages)
-- Review Status field for sub-states within each phase
+**[Workflow Items Architecture](./workflow-items-architecture.md)** - Data model and pipeline tracking
+- Dedicated `workflow-items` collection for pipeline status
+- How items connect to feature-requests, reports, and CLI
+- Cross-collection relationships and entry points
+- Admin UI (Pending Approval + Pipeline sections)
 
 ### Workflow Execution
 

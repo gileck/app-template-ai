@@ -408,7 +408,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 - Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
 - All actions logged to agent-logs/issue-N.md
 
-**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [mongodb-github-status.md](docs/template/github-agents-workflow/mongodb-github-status.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md)
+**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md)
 
 ---
 
@@ -456,7 +456,7 @@ Visual workflows for all workflow scenarios. Use this to understand specific flo
 - Request Changes triggers revision cycle on same PR
 - 5-minute undo window for accidental Request Changes clicks
 
-**Docs:** [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [overview.md](docs/template/github-agents-workflow/overview.md), [mongodb-github-status.md](docs/template/github-agents-workflow/mongodb-github-status.md)
+**Docs:** [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md)
 
 ---
 

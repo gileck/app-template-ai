@@ -10,7 +10,7 @@ key_points:
   - 5-minute undo window for accidental Request Changes clicks
 related_docs:
   - overview.md
-  - mongodb-github-status.md
+  - workflow-items-architecture.md
 ---
 
 # GitHub Agents Workflow - End-to-End Scenarios

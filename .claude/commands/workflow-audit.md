@@ -241,7 +241,7 @@ ls -la docs/github-agents-workflow/
 | telegram-integration.md | Notifications | | |
 | troubleshooting.md | Common issues | | |
 | feedback-and-reviews.md | Feedback system | | |
-| mongodb-github-status.md | Status tracking | | |
+| workflow-items-architecture.md | Workflow items data model | | |
 | workflow-e2e.md | E2E workflow | | |
 
 ### Step 2.5: Update TODO List With Discoveries
