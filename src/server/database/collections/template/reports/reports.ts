@@ -354,6 +354,28 @@ export const getReportCounts = async (): Promise<Record<ReportStatus, number>> =
 };
 
 /**
+ * Atomically claim (consume) the approval token.
+ * Uses findOneAndUpdate with a condition so only the first caller succeeds.
+ * Returns the document (with token) if claimed, null if already claimed or missing.
+ */
+export const claimApprovalToken = async (
+    reportId: ObjectId | string
+): Promise<ReportDocument | null> => {
+    const collection = await getReportsCollection();
+    const reportIdObj = typeof reportId === 'string' ? new ObjectId(reportId) : reportId;
+
+    // $ne: null is valid MongoDB but conflicts with TypeScript's strict typing for optional string fields
+    const filter = { _id: reportIdObj, approvalToken: { $exists: true, $ne: null } } as unknown as Filter<ReportDocument>;
+    const result = await collection.findOneAndUpdate(
+        filter,
+        { $unset: { approvalToken: '' }, $set: { updatedAt: new Date() } },
+        { returnDocument: 'before' }
+    );
+
+    return result || null;
+};
+
+/**
  * Update approval token (or remove it by passing null)
  * @param reportId - The ID of the report to update
  * @param token - The new token, or null to remove it

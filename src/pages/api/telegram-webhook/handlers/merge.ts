@@ -502,17 +502,23 @@ export async function handleMergeCallback(
         }
 
         if (!isMultiPhaseMiddle && item) {
-            await adapter.updateItemStatus(item.itemId, STATUSES.done);
+            // Step 1: Update workflow-item status (independent try-catch - PR is already merged)
+            try {
+                await adapter.updateItemStatus(item.itemId, STATUSES.done);
 
-            if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                await adapter.clearItemReviewStatus(item.itemId);
-            }
+                if (adapter.hasReviewStatusField() && item.reviewStatus) {
+                    await adapter.clearItemReviewStatus(item.itemId);
+                }
 
-            if (logExists(issueNumber)) {
-                logWebhookAction(issueNumber, 'status_done', 'Issue marked as Done', {
-                    status: STATUSES.done,
-                    prNumber,
-                });
+                if (logExists(issueNumber)) {
+                    logWebhookAction(issueNumber, 'status_done', 'Issue marked as Done', {
+                        status: STATUSES.done,
+                        prNumber,
+                    });
+                }
+            } catch (error) {
+                console.error(`[MERGE:CRITICAL] Failed to update workflow-item status to Done for issue #${issueNumber}:`, error);
+                // Continue - the PR is already merged, we still need to try updating the source document
             }
 
             // Sync S3 log to repo and cleanup (non-blocking)
@@ -520,24 +526,30 @@ export async function handleMergeCallback(
                 console.error(`  [LOG:S3_SYNC] Failed to sync log for issue #${issueNumber}:`, err);
             });
 
-            const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
-            if (featureRequest) {
-                await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'done');
-                if (logExists(issueNumber)) {
-                    logWebhookAction(issueNumber, 'mongodb_updated', 'Feature request marked as done in database', {
-                        featureRequestId: featureRequest._id.toString(),
-                    });
-                }
-            } else {
-                const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
-                if (bugReport) {
-                    await reports.updateReport(bugReport._id.toString(), { status: 'resolved' });
+            // Step 2: Update source document status (independent try-catch - PR is already merged)
+            try {
+                const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
+                if (featureRequest) {
+                    await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'done');
                     if (logExists(issueNumber)) {
-                        logWebhookAction(issueNumber, 'mongodb_updated', 'Bug report marked as resolved in database', {
-                            bugReportId: bugReport._id.toString(),
+                        logWebhookAction(issueNumber, 'mongodb_updated', 'Feature request marked as done in database', {
+                            featureRequestId: featureRequest._id.toString(),
                         });
                     }
+                } else {
+                    const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
+                    if (bugReport) {
+                        await reports.updateReport(bugReport._id.toString(), { status: 'resolved' });
+                        if (logExists(issueNumber)) {
+                            logWebhookAction(issueNumber, 'mongodb_updated', 'Bug report marked as resolved in database', {
+                                bugReportId: bugReport._id.toString(),
+                            });
+                        }
+                    }
                 }
+            } catch (error) {
+                console.error(`[MERGE:CRITICAL] Failed to update source document status for issue #${issueNumber}:`, error);
+                // Log but continue - merge is done, Telegram message should still show success
             }
         }
 
