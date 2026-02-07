@@ -698,9 +698,8 @@ yarn agent:tech-design --id <project-item-id>
 
 - **Overall workflow:** `docs/github-projects-integration.md`
 - **Bug Investigation workflow:** `docs/template/github-agents-workflow/bug-investigation.md`
-- **Multi-PR workflow:** `docs/github-projects-integration.md#multi-pr-workflow-lxl-features`
-- **Phase architecture:** `docs/github-projects-integration.md#phase-storage--retrieval`
-- **Setup guide:** `docs/init-github-projects-workflow.md`
+- **Multi-PR workflow:** `docs/template/github-agents-workflow/multi-phase-features.md`
+- **Setup guide:** `docs/template/github-agents-workflow/setup-guide.md`
 - **Prompts:** `src/agents/shared/prompts/`
 - **Output schemas:** `src/agents/shared/output-schemas.ts`
 - **Phase utilities:** `src/agents/lib/phases.ts`

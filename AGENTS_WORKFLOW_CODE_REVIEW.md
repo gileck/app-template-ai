@@ -548,7 +548,7 @@ yarn agent:product-design --id <item-id>
    - Clear explanation of rejection handling
    - Manual cleanup options documented
 
-2. **Review Status requirements** - `docs/init-github-projects-workflow.md`
+2. **Review Status requirements** - `docs/template/github-agents-workflow/setup-guide.md`
    - Emphasized "Waiting for Clarification" is required
    - Added warning about common mistakes
    - Linked to `yarn verify-setup`

@@ -468,9 +468,8 @@ If issues persist after trying these solutions:
    ```
 
 3. **Review Documentation:**
-   - Main guide: `docs/github-projects-integration.md`
-   - Setup guide: `docs/init-github-projects-workflow.md`
-   - Technical reference: `docs/github-agents-workflow/reference.md`
+   - Setup guide: `docs/template/github-agents-workflow/setup-guide.md`
+   - Technical reference: `docs/template/github-agents-workflow/reference.md`
 
 4. **Test Components Individually:**
    ```bash

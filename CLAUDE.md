@@ -343,16 +343,6 @@ Isolated development with clean commit history. Use this for feature/fix develop
 
 ---
 
-## GitHub Agents Workflow
-
-AI-powered feature request and bug fix pipeline. Use this for automated feature/bug workflows.
-
-**Summary:** 6-column workflow (Backlog → Product Design → Tech Design → Ready → PR Review → Done) with AI agents at each stage. Multi-phase features split into sequential PRs.
-
-**Docs:** [init-github-projects-workflow.md](docs/template/init-github-projects-workflow.md)
-
----
-
 ## GitHub PR CLI Tool
 
 CLI for managing GitHub pull requests. Use this when creating/managing PRs programmatically.
