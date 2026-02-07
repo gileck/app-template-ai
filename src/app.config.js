@@ -16,9 +16,8 @@ export const appConfig = {
     // Telegram Chat IDs for different notification categories
     // Get these by running: yarn telegram-setup
     //
-    // Defaults to AGENT_TELEGRAM_CHAT_ID env var, then falls back to ownerTelegramChatId
+    // Defaults to OWNER_TELEGRAM_CHAT_ID env var, then falls back to ownerTelegramChatId
     // If not set, uses the hardcoded fallback below
-    ownerTelegramChatId: process.env.AGENT_TELEGRAM_CHAT_ID ||
-                          process.env.ownerTelegramChatId ||
-                          '-1003829878375:2'  // Fallback (includes topic thread ID)
+    ownerTelegramChatId: process.env.OWNER_TELEGRAM_CHAT_ID 
+                          
 };
