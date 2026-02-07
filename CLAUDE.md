@@ -440,7 +440,23 @@ Complete setup instructions for GitHub Projects and AI agents. Use this when set
 - Two tokens: GITHUB_TOKEN (admin/projects) + GITHUB_BOT_TOKEN (PRs/issues)
 - Optional: Telegram topics for organized notifications
 
-**Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
+**Docs:** [setup-guide-legacy-github-projects.md](docs/template/github-agents-workflow/setup-guide-legacy-github-projects.md), [overview.md](docs/template/github-agents-workflow/overview.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
+
+---
+
+## GitHub Agents Workflow Setup
+
+Complete setup instructions for the GitHub agents workflow. Use this when setting up the workflow for the first time.
+
+**Summary:** Setup requires: GitHub tokens (admin + bot), MongoDB connection, optional Telegram integration. Pipeline status tracked in workflow-items MongoDB collection. Run `yarn verify-setup` to check configuration.
+
+**Key Points:**
+- Two tokens: GITHUB_TOKEN (admin/PR reviews) + GITHUB_BOT_TOKEN (PRs/issues)
+- Pipeline status tracked in workflow-items MongoDB collection (no GitHub Projects setup needed)
+- Optional: Telegram topics for organized notifications
+- Optional: Claude GitHub App for automated PR reviews
+
+**Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
 
 ---
 
