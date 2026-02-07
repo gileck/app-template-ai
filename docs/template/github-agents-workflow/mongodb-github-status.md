@@ -1,87 +1,148 @@
-# MongoDB Status vs GitHub Project Status
+# MongoDB Status vs Workflow Status
 
-The system uses a **two-tier status tracking** approach to eliminate duplication while providing both high-level lifecycle tracking and detailed workflow visibility.
+The system uses a **two-tier status tracking** approach with three MongoDB collections:
 
-## MongoDB Statuses (4 values)
+1. **Source collections** (`feature-requests`, `reports`) - intake/approval lifecycle
+2. **Workflow-items collection** - detailed workflow pipeline tracking
 
-MongoDB tracks the high-level lifecycle state of each submission and stores rich diagnostic data for bugs.
+## Source Collection Statuses (4 values)
+
+Source collections track the high-level lifecycle state and store rich diagnostic data.
 
 ### Feature Requests
 | Status | Meaning |
 |--------|---------|
-| `new` | Feature request submitted, not yet synced to GitHub |
-| `in_progress` | Synced to GitHub (detailed status tracked in GitHub Projects) |
+| `new` | Feature request submitted, not yet approved |
+| `in_progress` | Approved and synced to GitHub (detailed status in workflow-items) |
 | `done` | Completed and merged |
 | `rejected` | Not going to implement |
 
 ### Bug Reports
 | Status | Meaning |
 |--------|---------|
-| `new` | Bug report submitted, not yet synced to GitHub |
-| `investigating` | Synced to GitHub (detailed status tracked in GitHub Projects) |
+| `new` | Bug report submitted, not yet approved |
+| `investigating` | Approved and synced to GitHub (detailed status in workflow-items) |
 | `resolved` | Fixed and merged |
 | `closed` | Won't fix, duplicate, or not a bug |
 
-## GitHub Project Statuses (6 values)
+## Workflow-Items Collection (Pipeline Tracking)
 
-GitHub Projects tracks the detailed workflow steps through the development pipeline.
+The `workflow-items` collection tracks detailed workflow steps through the development pipeline. Each document represents an active item in the pipeline.
 
+### Schema
+```typescript
+{
+    _id: ObjectId,
+    type: 'feature' | 'bug' | 'task',
+    title: string,
+    description?: string,
+    status: string,                // Pipeline status (see below)
+    reviewStatus?: string,         // Sub-state within each phase
+    implementationPhase?: string,  // '1/3', '2/3', etc. for multi-phase features
+    sourceRef?: {                  // Back-reference to source document (null for CLI tasks)
+        collection: 'feature-requests' | 'reports',
+        id: ObjectId,
+    },
+    githubIssueNumber?: number,
+    githubIssueUrl?: string,
+    githubIssueTitle?: string,
+    labels?: string[],
+    createdAt: Date,
+    updatedAt: Date,
+}
+```
+
+### Pipeline Statuses
 | Status | Meaning |
 |--------|---------|
 | `Backlog` | New items, not yet started |
 | `Product Design` | AI generates product design, human reviews |
+| `Bug Investigation` | AI investigates bug root cause |
 | `Technical Design` | AI generates tech design, human reviews |
 | `Ready for development` | AI implements feature (picked up by implement agent) |
 | `PR Review` | PR created, waiting for human review/merge |
 | `Done` | Completed and merged |
 
+### Review Status (sub-state)
+| Status | Meaning |
+|--------|---------|
+| `Waiting for Review` | Agent completed work, waiting for admin |
+| `Approved` | Admin approved |
+| `Request Changes` | Admin requested changes |
+| `Rejected` | Admin rejected |
+| `Waiting for Clarification` | Needs more info |
+| `Clarification Received` | Info provided, ready to resume |
+
+## How Items Flow Between Collections
+
+### Creation Flow
+```
+1. User submits feature/bug via UI or CLI
+   → Created in feature-requests or reports (status: 'new')
+
+2. Admin approves via Telegram
+   → Source doc status: 'in_progress' / 'investigating'
+   → GitHub issue created
+   → Workflow-item document created (status: 'Backlog' or routed phase)
+   → Source doc's githubProjectItemId updated to workflow-item _id
+
+3. Agents process the item through pipeline
+   → Only workflow-items.status and workflow-items.reviewStatus change
+   → Source doc status stays 'in_progress' / 'investigating'
+
+4. PR merged, item complete
+   → Workflow-item status: 'Done'
+   → Source doc status: 'done' / 'resolved'
+```
+
+### Key Relationships
+- Source doc `githubProjectItemId` points to `workflow-items._id`
+- Workflow-item `sourceRef` points back to source doc `_id` and collection
+- All pipeline agents read/write workflow-items (not source collections)
+- Source collections store diagnostic data (session logs, stack traces, etc.)
+
 ## Why This Split?
 
-This two-tier approach provides clear separation of concerns:
+### Source Collections' Role
+- **Tracks approval state and lifecycle**: new -> in progress -> done
+- **Stores rich diagnostics for bugs**: Session logs, screenshots, stack traces
+- **Separate collections**: Features and bugs have different data shapes
+- **Provides user-facing API**: App UI displays source status for new/done/rejected items
 
-### MongoDB's Role
-- **Tracks approval state and lifecycle**: new → in progress → done
-- **Stores rich diagnostics for bugs**: Session logs, screenshots, stack traces, browser info
-- **Separate collections**: `feature-requests` and `reports` (bugs need different data)
-- **Provides user-facing API**: App UI displays MongoDB status for new/done/rejected items
-
-### GitHub Projects' Role
-- **Tracks detailed workflow steps**: Product Design → Tech Design → Ready for development → etc.
+### Workflow-Items Collection's Role
+- **Tracks detailed workflow steps**: Backlog -> Product Design -> Tech Design -> etc.
+- **Single collection queries**: No need to merge feature-requests + reports
 - **Enables agent coordination**: Each agent knows what phase to process
-- **Review Status sub-tracking**: Within each phase (empty → Waiting for Review → Approved/etc.)
-- **Provides admin workflow visibility**: Kanban board view of all items in progress
-
-### No Duplication
-When an item is `in_progress`/`investigating` in MongoDB, you check GitHub Projects for the detailed status. The app UI automatically shows GitHub Project status for synced items.
+- **Review Status sub-tracking**: Within each phase (empty -> Waiting for Review -> Approved)
+- **Extensible**: New item types (tasks) don't require new source collections
 
 ### Benefits
-
-1. **Clean separation**: MongoDB = approval & diagnostics, GitHub = workflow
-2. **No sync conflicts**: MongoDB status only changes at major lifecycle events (new → in_progress, in_progress → done)
-3. **Flexible workflow**: Can change GitHub workflow columns without touching MongoDB schema
-4. **Rich bug data**: Bug reports store session logs and diagnostics that features don't need
-5. **Simple app UI**: Shows MongoDB status for new/done items, GitHub status for in-progress items
+1. **Clean separation**: Source = approval & diagnostics, Workflow = pipeline
+2. **Single-collection queries**: List all pipeline items with one query
+3. **No sync conflicts**: Source status only changes at major lifecycle events
+4. **Flexible workflow**: Can change pipeline columns without touching source schema
+5. **Extensible**: CLI-created tasks can enter pipeline without a source collection
 
 ## Status Transitions
 
 ### Feature Request Lifecycle
 ```
-new → (admin approves) → in_progress → (PR merges) → done
-                              ↓
-                      (admin rejects) → rejected
+new -> (admin approves) -> in_progress -> (PR merges) -> done
+                                |
+                        (admin rejects) -> rejected
 ```
 
 ### Bug Report Lifecycle
 ```
-new → (admin approves) → investigating → (fix merges) → resolved
-                               ↓
-                      (admin closes) → closed
+new -> (admin approves) -> investigating -> (fix merges) -> resolved
+                                 |
+                        (admin closes) -> closed
 ```
 
-### GitHub Workflow (while in_progress/investigating)
+### Workflow Pipeline (while in_progress/investigating)
 ```
-Backlog → Product Design → Technical Design → Ready for development → PR Review → Done
-     ↓         ↓                  ↓                   ↓                    ↓
+Backlog -> Product Design -> Technical Design -> Ready for development -> PR Review -> Done
+     |         |                  |                   |                    |
    (can skip phases based on admin routing decision)
 ```
 

@@ -1,7 +1,7 @@
 /**
  * Workflow Route Hooks
  *
- * React Query hook for fetching workflow items.
+ * React Query hook for fetching workflow items (pending + pipeline).
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -20,7 +20,10 @@ export function useWorkflowItems() {
             if (result.data.error) {
                 throw new Error(result.data.error);
             }
-            return result.data.items || [];
+            return {
+                pendingItems: result.data.pendingItems || [],
+                workflowItems: result.data.workflowItems || [],
+            };
         },
         ...queryDefaults,
     });

@@ -8,12 +8,11 @@
  */
 
 import { NavItem } from './layout/types';
-import { ClipboardList, Lightbulb, Workflow } from 'lucide-react';
+import { ClipboardList, Workflow } from 'lucide-react';
 
 /** Template admin-only menu items */
 export const templateAdminMenuItems: NavItem[] = [
   { path: '/admin/reports', label: 'Reports', icon: <ClipboardList size={18} /> },
-  { path: '/admin/feature-requests', label: 'Feature Requests', icon: <Lightbulb size={18} /> },
   { path: '/admin/workflow', label: 'Workflow', icon: <Workflow size={18} /> },
 ];
 

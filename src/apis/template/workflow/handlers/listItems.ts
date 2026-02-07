@@ -1,16 +1,16 @@
 /**
  * List Workflow Items Handler
  *
- * Returns all workflow items from the project management adapter,
- * enriched with creation dates from the underlying MongoDB documents.
+ * Returns pending items (awaiting approval) and active workflow items
+ * from the workflow-items collection.
  */
 
 import { ApiHandlerContext } from '@/apis/types';
-import { getProjectManagementAdapter } from '@/server/project-management';
-import { findByWorkflowStatus as findFeatures } from '@/server/database/collections/template/feature-requests/feature-requests';
-import { findByWorkflowStatus as findReports } from '@/server/database/collections/template/reports/reports';
+import { findFeatureRequests } from '@/server/database/collections/template/feature-requests/feature-requests';
+import { findReports } from '@/server/database/collections/template/reports/reports';
+import { findAllWorkflowItems } from '@/server/database/collections/template/workflow-items/workflow-items';
 import { toStringId } from '@/server/utils';
-import type { ListWorkflowItemsResponse, WorkflowItem } from '../types';
+import type { ListWorkflowItemsResponse, PendingItem, WorkflowItem } from '../types';
 
 export async function listItems(
     _params: unknown,
@@ -21,50 +21,72 @@ export async function listItems(
     }
 
     try {
-        const adapter = getProjectManagementAdapter();
-        if (!adapter.isInitialized()) {
-            await adapter.init();
-        }
-
-        const [projectItems, features, reports] = await Promise.all([
-            adapter.listItems(),
-            findFeatures(),
-            findReports(),
+        const [newFeatures, newReports, workflowDocs] = await Promise.all([
+            findFeatureRequests({ status: 'new' }),
+            findReports({ status: 'new' }),
+            findAllWorkflowItems(),
         ]);
 
-        // Build a map of mongoId -> createdAt ISO string from the raw documents
-        const dateMap = new Map<string, string>();
-        for (const f of features) {
-            dateMap.set(toStringId(f._id), new Date(f.createdAt).toISOString());
-        }
-        for (const r of reports) {
-            dateMap.set(toStringId(r._id), new Date(r.createdAt).toISOString());
+        // Build pending items from new feature requests and bug reports
+        const pendingItems: PendingItem[] = [];
+
+        for (const f of newFeatures) {
+            // Skip features that are already in the workflow pipeline
+            if (f.githubProjectItemId) continue;
+            pendingItems.push({
+                id: `feature:${toStringId(f._id)}`,
+                type: 'feature',
+                title: f.title,
+                source: f.source,
+                createdAt: new Date(f.createdAt).toISOString(),
+            });
         }
 
-        const items: WorkflowItem[] = projectItems.map((item) => {
-            // Extract mongoId from composite ID (e.g., "feature:abc123" -> "abc123")
-            const colonIndex = item.id.indexOf(':');
-            const mongoId = colonIndex !== -1 ? item.id.substring(colonIndex + 1) : item.id;
+        for (const r of newReports) {
+            // Skip reports that are already in the workflow pipeline
+            if (r.githubProjectItemId) continue;
+            // Only include bug reports (not auto error reports that haven't been triaged)
+            if (r.type !== 'bug') continue;
+            pendingItems.push({
+                id: `report:${toStringId(r._id)}`,
+                type: 'bug',
+                title: r.description?.split('\n')[0]?.slice(0, 100) || r.errorMessage || 'Bug Report',
+                source: r.source,
+                createdAt: new Date(r.createdAt).toISOString(),
+            });
+        }
+
+        // Build workflow items from workflow-items collection
+        const workflowItems: WorkflowItem[] = workflowDocs.map((doc) => {
+            const docId = toStringId(doc._id);
+            const labels = doc.labels || (doc.type === 'feature' ? ['feature'] : doc.type === 'bug' ? ['bug'] : ['task']);
+
+            // Build composite sourceId for navigation to detail page
+            let sourceId: string | null = null;
+            if (doc.sourceRef) {
+                const prefix = doc.sourceRef.collection === 'feature-requests' ? 'feature' : 'report';
+                sourceId = `${prefix}:${toStringId(doc.sourceRef.id)}`;
+            }
 
             return {
-                id: item.id,
-                status: item.status,
-                reviewStatus: item.reviewStatus,
-                content: item.content
-                    ? {
-                          type: item.content.type,
-                          number: item.content.number,
-                          title: item.content.title,
-                          url: item.content.url,
-                          state: item.content.state,
-                          labels: item.content.labels,
-                      }
-                    : null,
-                createdAt: dateMap.get(mongoId) ?? null,
+                id: docId,
+                sourceId,
+                type: doc.type,
+                status: doc.status || null,
+                reviewStatus: doc.reviewStatus || null,
+                content: {
+                    type: 'Issue' as const,
+                    number: doc.githubIssueNumber,
+                    title: doc.githubIssueTitle || doc.title,
+                    url: doc.githubIssueUrl,
+                    state: 'OPEN' as const,
+                    labels,
+                },
+                createdAt: new Date(doc.createdAt).toISOString(),
             };
         });
 
-        return { items };
+        return { pendingItems, workflowItems };
     } catch (error) {
         return {
             error: error instanceof Error ? error.message : 'Failed to list workflow items',

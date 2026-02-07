@@ -63,11 +63,15 @@ export async function syncItemToGitHub<T extends GitHubSyncedFields>(
         const issueType = labels[0] || 'unknown'; // 'feature' or 'bug'
         writeLogHeader(issueNumber, title, issueType);
 
-        // 5. Add issue to project (pass context for MongoDB-backed adapters)
-        const itemType = labels.includes('bug') ? 'report' : 'feature';
+        // 5. Add issue to project (creates workflow-item document)
+        const itemType = labels.includes('bug') ? 'bug' : 'feature';
         const projectItemId = await adapter.addIssueToProject(issueNodeId, {
-            type: itemType as 'feature' | 'report',
+            type: itemType as 'feature' | 'bug',
             mongoId: itemId,
+            title,
+            labels,
+            githubIssueNumber: issueNumber,
+            githubIssueUrl: issueUrl,
         });
 
         // 6. Set initial status (defaults to Backlog)

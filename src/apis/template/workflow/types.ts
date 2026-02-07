@@ -8,6 +8,17 @@
 // Shared Types
 // ============================================================================
 
+/**
+ * A pending item (feature request or bug report awaiting approval)
+ */
+export interface PendingItem {
+    id: string;
+    type: 'feature' | 'bug';
+    title: string;
+    source?: string;
+    createdAt: string;
+}
+
 export interface WorkflowItemContent {
     type: 'Issue' | 'DraftIssue' | 'PullRequest';
     number?: number;
@@ -19,6 +30,10 @@ export interface WorkflowItemContent {
 
 export interface WorkflowItem {
     id: string;
+    /** Composite ID for navigation to detail page (e.g., "feature:mongoId" or "report:mongoId") */
+    sourceId: string | null;
+    /** Item type: feature, bug, or task */
+    type: 'feature' | 'bug' | 'task';
     status: string | null;
     reviewStatus: string | null;
     content: WorkflowItemContent | null;
@@ -32,6 +47,7 @@ export interface WorkflowItem {
 export type ListWorkflowItemsRequest = Record<string, never>;
 
 export interface ListWorkflowItemsResponse {
-    items?: WorkflowItem[];
+    pendingItems?: PendingItem[];
+    workflowItems?: WorkflowItem[];
     error?: string;
 }

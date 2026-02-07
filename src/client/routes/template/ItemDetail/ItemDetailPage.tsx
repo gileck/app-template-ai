@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features/template/router';
 import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from './hooks';
-import type { ItemType } from './hooks';
 
 interface ItemDetailPageProps {
     id: string;
@@ -27,8 +26,8 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral modal open state
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    const navigateBack = (type?: ItemType) => {
-        navigate(type === 'bug' ? '/admin/reports' : '/admin/feature-requests');
+    const navigateBack = () => {
+        navigate('/admin/workflow');
     };
 
     // Loading state
@@ -98,7 +97,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 await approveBug(mongoId);
             }
             toast.success('Item approved and synced to GitHub');
-            navigateBack(type);
+            navigateBack();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to approve');
         }
@@ -113,7 +112,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 await deleteBug(mongoId);
             }
             toast.success('Item deleted');
-            navigateBack(type);
+            navigateBack();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to delete');
         }
@@ -127,7 +126,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigateBack(type)}
+                    onClick={() => navigateBack()}
                 >
                     <ArrowLeft className="mr-1 h-4 w-4" />
                     Back

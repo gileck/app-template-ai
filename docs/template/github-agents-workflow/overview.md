@@ -6,7 +6,7 @@ priority: 2
 key_points:
   - "Entry points: UI feature request, UI bug report, or CLI"
   - "Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review"
-  - "Status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)"
+  - "Status tracking: Source collections (high-level) + workflow-items collection (pipeline)"
   - "All actions logged to agent-logs/issue-N.md"
 related_docs:
   - setup-guide.md
@@ -74,8 +74,8 @@ Items can enter the workflow through three paths (all converge into the same pip
 - **Implement agent auto-moves to PR Review**: After creating a PR, the item moves from "Ready for development" to "PR Review"
 - **Single webhook**: All Telegram approval and routing buttons use `/api/telegram-webhook` for instant in-app feedback
 - **Post-merge revert**: One-click revert button on merge success → creates revert PR (not direct push) → restores status for agent to fix
-- **Simplified MongoDB schema**: MongoDB stores only high-level status (4 values), GitHub Projects tracks detailed workflow
-- **Separate MongoDB collections**: `feature-requests` and `reports` collections (bugs need session logs, screenshots, diagnostics)
+- **Three-tier MongoDB storage**: Source collections (`feature-requests`, `reports`) store intake data, `workflow-items` collection tracks pipeline status
+- **Separate source collections**: `feature-requests` and `reports` (bugs need session logs, screenshots, diagnostics)
 - **Design documents as files**: Stored in `design-docs/issue-{N}/` with PR-based review workflow
 - **Artifact comments**: Track design docs and implementation PRs with status (pending → in-review → approved → merged)
 - **Complete workflow logging**: ALL phases and actions logged to `agent-logs/issue-{N}.md` with structured markers
@@ -135,10 +135,10 @@ When adding new workflow functionality:
 
 ```
 ┌─────────────────┐      ┌──────────────────┐      ┌─────────────────────┐
-│  App UI         │      │  MongoDB         │      │  GitHub Projects    │
-│  (User/Admin)   │ ───► │  (Submissions)   │      │  (Design + Dev)     │
-└─────────────────┘      └──────────────────┘      └─────────────────────┘
-        │                        │                          ▲
+│  App UI         │      │  MongoDB         │      │  GitHub             │
+│  (User/Admin)   │ ───► │  Source Cols     │      │  (Issues + PRs)     │
+└─────────────────┘      │  + workflow-items│      └─────────────────────┘
+        │                └──────────────────┘              ▲
         │                        │                          │
         ▼                        ▼                          │
 ┌─────────────────┐      ┌──────────────────┐              │
@@ -150,11 +150,17 @@ When adding new workflow functionality:
 │  Project Management Abstraction (src/server/project-management/)       │
 │  ┌────────────────────────────────────────────────────────────────────┐│
 │  │ ProjectManagementAdapter interface (adapter pattern)               ││
-│  │ └── adapters/github.ts  # GitHub implementation                   ││
-│  │ ├── types.ts            # Domain types                            ││
-│  │ ├── config.ts           # Status constants, project config        ││
-│  │ └── index.ts            # Singleton factory + exports             ││
+│  │ ├── adapters/app-project.ts  # MongoDB workflow-items (recommended)││
+│  │ ├── adapters/github.ts       # GitHub Projects V2 (legacy)        ││
+│  │ ├── types.ts                 # Domain types                       ││
+│  │ ├── config.ts                # Status constants, project config   ││
+│  │ └── index.ts                 # Singleton factory + exports        ││
 │  └────────────────────────────────────────────────────────────────────┘│
+│                                                                         │
+│  MongoDB Collections:                                                   │
+│  ├── feature-requests  # Intake: title, description, priority, status  │
+│  ├── reports           # Intake: error, stack trace, session logs       │
+│  └── workflow-items    # Pipeline: workflow status, review status       │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐

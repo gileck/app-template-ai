@@ -1,14 +1,14 @@
 /**
  * App Project Adapter
  *
- * Implements ProjectManagementAdapter using MongoDB for workflow status tracking
- * and GitHubClient for all GitHub operations (issues, PRs, branches, files).
+ * Implements ProjectManagementAdapter using a dedicated workflow-items MongoDB collection
+ * for workflow status tracking and GitHubClient for all GitHub operations.
  *
- * Status fields (workflowStatus, workflowReviewStatus, implementationPhase)
- * are stored directly on FeatureRequestDocument and ReportDocument in MongoDB.
- * GitHub Issues, PRs, branches, and comments remain on GitHub via GitHubClient.
+ * Status fields (status, reviewStatus, implementationPhase) are stored on WorkflowItemDocument.
+ * Source collections (feature-requests, reports) remain as intake/detail storage.
  */
 
+import { ObjectId } from 'mongodb';
 import { GitHubClient } from '../github-client';
 import { STATUSES, REVIEW_STATUSES, REVIEW_STATUS_FIELD, IMPLEMENTATION_PHASE_FIELD } from '../config';
 import type {
@@ -25,34 +25,14 @@ import type {
     GitHubIssueDetails,
 } from '../types';
 import type { Status, ReviewStatus } from '../config';
-import { findFeatureRequestById, findByWorkflowStatus as findFeaturesByWorkflowStatus, updateWorkflowFields as updateFeatureWorkflowFields } from '@/server/database/collections/template/feature-requests/feature-requests';
-import { findReportById, findByWorkflowStatus as findReportsByWorkflowStatus, updateWorkflowFields as updateReportWorkflowFields } from '@/server/database/collections/template/reports/reports';
-import type { FeatureRequestDocument } from '@/server/database/collections/template/feature-requests/types';
-import type { ReportDocument } from '@/server/database/collections/template/reports/types';
+import {
+    createWorkflowItem,
+    findWorkflowItemById,
+    findAllWorkflowItems,
+    updateWorkflowFields,
+} from '@/server/database/collections/template/workflow-items/workflow-items';
+import type { WorkflowItemDocument } from '@/server/database/collections/template/workflow-items/types';
 import { getProjectConfig } from '../config';
-
-// ============================================================
-// COMPOSITE ID HELPERS
-// ============================================================
-
-function buildCompositeId(type: 'feature' | 'report', mongoId: string): string {
-    return `${type}:${mongoId}`;
-}
-
-function parseCompositeId(id: string): { type: 'feature' | 'report'; mongoId: string } {
-    const colonIndex = id.indexOf(':');
-    if (colonIndex === -1) {
-        throw new Error(`Invalid composite ID (missing type prefix): ${id}`);
-    }
-    const type = id.substring(0, colonIndex);
-    const mongoId = id.substring(colonIndex + 1);
-
-    if (type !== 'feature' && type !== 'report') {
-        throw new Error(`Invalid composite ID type: ${type}. Expected 'feature' or 'report'.`);
-    }
-
-    return { type, mongoId };
-}
 
 // ============================================================
 // ADAPTER
@@ -81,26 +61,14 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     }
 
     // --------------------------------------------------------
-    // Project Items (MongoDB-backed)
+    // Project Items (workflow-items collection)
     // --------------------------------------------------------
 
     async listItems(options?: ListItemsOptions): Promise<ProjectItem[]> {
-        const [features, reports] = await Promise.all([
-            findFeaturesByWorkflowStatus(options?.status, options?.reviewStatus),
-            findReportsByWorkflowStatus(options?.status, options?.reviewStatus),
-        ]);
+        const docs = await findAllWorkflowItems(options?.status, options?.reviewStatus);
 
-        const items: ProjectItem[] = [];
+        const items = docs.map((doc) => this.workflowItemToProjectItem(doc));
 
-        for (const f of features) {
-            items.push(this.featureToProjectItem(f));
-        }
-
-        for (const r of reports) {
-            items.push(this.reportToProjectItem(r));
-        }
-
-        // Apply limit
         if (options?.limit && items.length > options.limit) {
             return items.slice(0, options.limit);
         }
@@ -109,21 +77,13 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     }
 
     async getItem(itemId: string): Promise<ProjectItem | null> {
-        const { type, mongoId } = parseCompositeId(itemId);
-
-        if (type === 'feature') {
-            const doc = await findFeatureRequestById(mongoId);
-            if (!doc) return null;
-            return this.featureToProjectItem(doc);
-        } else {
-            const doc = await findReportById(mongoId);
-            if (!doc) return null;
-            return this.reportToProjectItem(doc);
-        }
+        const doc = await findWorkflowItemById(itemId);
+        if (!doc) return null;
+        return this.workflowItemToProjectItem(doc);
     }
 
     // --------------------------------------------------------
-    // Status Management (MongoDB-backed)
+    // Status Management (workflow-items collection)
     // --------------------------------------------------------
 
     async getAvailableStatuses(): Promise<string[]> {
@@ -139,25 +99,19 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     }
 
     async updateItemStatus(itemId: string, status: string): Promise<void> {
-        const { type, mongoId } = parseCompositeId(itemId);
-        const updateFn = type === 'feature' ? updateFeatureWorkflowFields : updateReportWorkflowFields;
-        await updateFn(mongoId, { workflowStatus: status });
+        await updateWorkflowFields(itemId, { workflowStatus: status });
     }
 
     async updateItemReviewStatus(itemId: string, reviewStatus: string): Promise<void> {
-        const { type, mongoId } = parseCompositeId(itemId);
-        const updateFn = type === 'feature' ? updateFeatureWorkflowFields : updateReportWorkflowFields;
-        await updateFn(mongoId, { workflowReviewStatus: reviewStatus });
+        await updateWorkflowFields(itemId, { workflowReviewStatus: reviewStatus });
     }
 
     async clearItemReviewStatus(itemId: string): Promise<void> {
-        const { type, mongoId } = parseCompositeId(itemId);
-        const updateFn = type === 'feature' ? updateFeatureWorkflowFields : updateReportWorkflowFields;
-        await updateFn(mongoId, { workflowReviewStatus: null });
+        await updateWorkflowFields(itemId, { workflowReviewStatus: null });
     }
 
     // --------------------------------------------------------
-    // Implementation Phase (MongoDB-backed)
+    // Implementation Phase (workflow-items collection)
     // --------------------------------------------------------
 
     hasImplementationPhaseField(): boolean {
@@ -165,27 +119,16 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     }
 
     async getImplementationPhase(itemId: string): Promise<string | null> {
-        const { type, mongoId } = parseCompositeId(itemId);
-
-        if (type === 'feature') {
-            const doc = await findFeatureRequestById(mongoId);
-            return doc?.implementationPhase || null;
-        } else {
-            const doc = await findReportById(mongoId);
-            return doc?.implementationPhase || null;
-        }
+        const doc = await findWorkflowItemById(itemId);
+        return doc?.implementationPhase || null;
     }
 
     async setImplementationPhase(itemId: string, value: string): Promise<void> {
-        const { type, mongoId } = parseCompositeId(itemId);
-        const updateFn = type === 'feature' ? updateFeatureWorkflowFields : updateReportWorkflowFields;
-        await updateFn(mongoId, { implementationPhase: value });
+        await updateWorkflowFields(itemId, { implementationPhase: value });
     }
 
     async clearImplementationPhase(itemId: string): Promise<void> {
-        const { type, mongoId } = parseCompositeId(itemId);
-        const updateFn = type === 'feature' ? updateFeatureWorkflowFields : updateReportWorkflowFields;
-        await updateFn(mongoId, { implementationPhase: null });
+        await updateWorkflowFields(itemId, { implementationPhase: null });
     }
 
     // --------------------------------------------------------
@@ -214,13 +157,44 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
 
     async addIssueToProject(
         _issueNodeId: string,
-        context?: { type: 'feature' | 'report'; mongoId: string }
+        context?: {
+            type: 'feature' | 'bug' | 'task';
+            mongoId: string;
+            title: string;
+            description?: string;
+            labels?: string[];
+            githubIssueNumber: number;
+            githubIssueUrl: string;
+        }
     ): Promise<string> {
         if (!context) {
-            throw new Error('AppProjectAdapter.addIssueToProject requires context (type + mongoId)');
+            throw new Error('AppProjectAdapter.addIssueToProject requires context');
         }
-        // Return composite key as the projectItemId
-        return buildCompositeId(context.type, context.mongoId);
+
+        // Determine sourceRef based on type
+        const sourceCollection = context.type === 'feature' ? 'feature-requests' as const
+            : context.type === 'bug' ? 'reports' as const
+            : undefined;
+
+        const now = new Date();
+        const doc = await createWorkflowItem({
+            type: context.type,
+            title: context.title,
+            description: context.description,
+            status: STATUSES.backlog,
+            sourceRef: sourceCollection ? {
+                collection: sourceCollection,
+                id: new ObjectId(context.mongoId),
+            } : undefined,
+            githubIssueNumber: context.githubIssueNumber,
+            githubIssueUrl: context.githubIssueUrl,
+            githubIssueTitle: context.title,
+            labels: context.labels,
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        return doc._id.toHexString();
     }
 
     async findIssueCommentByMarker(issueNumber: number, marker: string): Promise<{
@@ -387,80 +361,43 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     }
 
     // ============================================================
-    // PRIVATE: Document → ProjectItem Conversion
+    // PRIVATE: WorkflowItemDocument -> ProjectItem Conversion
     // ============================================================
 
-    private featureToProjectItem(doc: FeatureRequestDocument): ProjectItem {
-        const mongoId = doc._id.toHexString();
-        const compositeId = buildCompositeId('feature', mongoId);
+    private workflowItemToProjectItem(doc: WorkflowItemDocument): ProjectItem {
+        const itemId = doc._id.toHexString();
         const { owner, repo } = getProjectConfig().github;
 
         const fieldValues: ProjectItemFieldValue[] = [];
-        if (doc.workflowStatus) {
-            fieldValues.push({ fieldId: 'status', fieldName: 'Status', value: doc.workflowStatus });
+        if (doc.status) {
+            fieldValues.push({ fieldId: 'status', fieldName: 'Status', value: doc.status });
         }
-        if (doc.workflowReviewStatus) {
-            fieldValues.push({ fieldId: 'review-status', fieldName: REVIEW_STATUS_FIELD, value: doc.workflowReviewStatus });
+        if (doc.reviewStatus) {
+            fieldValues.push({ fieldId: 'review-status', fieldName: REVIEW_STATUS_FIELD, value: doc.reviewStatus });
         }
         if (doc.implementationPhase) {
             fieldValues.push({ fieldId: 'implementation-phase', fieldName: IMPLEMENTATION_PHASE_FIELD, value: doc.implementationPhase });
         }
 
+        const labels = doc.labels || (doc.type === 'feature' ? ['feature'] : doc.type === 'bug' ? ['bug'] : ['task']);
+
         const content: ProjectItemContent = {
             type: 'Issue',
-            id: compositeId,
+            id: itemId,
             number: doc.githubIssueNumber,
             title: doc.githubIssueTitle || doc.title,
-            body: `${doc.title}\n\n${doc.description}`,
+            body: doc.description || '',
             url: doc.githubIssueUrl,
             state: 'OPEN',
-            labels: ['feature'],
+            labels,
             repoOwner: owner,
             repoName: repo,
         };
 
         return {
-            id: compositeId,
-            status: (doc.workflowStatus as Status) || null,
-            reviewStatus: (doc.workflowReviewStatus as ReviewStatus) || null,
-            content,
-            fieldValues,
-        };
-    }
-
-    private reportToProjectItem(doc: ReportDocument): ProjectItem {
-        const mongoId = doc._id.toHexString();
-        const compositeId = buildCompositeId('report', mongoId);
-        const { owner, repo } = getProjectConfig().github;
-
-        const fieldValues: ProjectItemFieldValue[] = [];
-        if (doc.workflowStatus) {
-            fieldValues.push({ fieldId: 'status', fieldName: 'Status', value: doc.workflowStatus });
-        }
-        if (doc.workflowReviewStatus) {
-            fieldValues.push({ fieldId: 'review-status', fieldName: REVIEW_STATUS_FIELD, value: doc.workflowReviewStatus });
-        }
-        if (doc.implementationPhase) {
-            fieldValues.push({ fieldId: 'implementation-phase', fieldName: IMPLEMENTATION_PHASE_FIELD, value: doc.implementationPhase });
-        }
-
-        const content: ProjectItemContent = {
-            type: 'Issue',
-            id: compositeId,
-            number: doc.githubIssueNumber,
-            title: doc.githubIssueTitle || doc.description || doc.errorMessage || 'Bug Report',
-            body: `${doc.description || ''}\n\n${doc.errorMessage || ''}`.trim(),
-            url: doc.githubIssueUrl,
-            state: 'OPEN',
-            labels: ['bug'],
-            repoOwner: owner,
-            repoName: repo,
-        };
-
-        return {
-            id: compositeId,
-            status: (doc.workflowStatus as Status) || null,
-            reviewStatus: (doc.workflowReviewStatus as ReviewStatus) || null,
+            id: itemId,
+            status: (doc.status as Status) || null,
+            reviewStatus: (doc.reviewStatus as ReviewStatus) || null,
             content,
             fieldValues,
         };

@@ -45,9 +45,10 @@ export function getProjectManagementAdapter(): ProjectManagementAdapter {
             case 'github':
             default:
                 adapter = new GitHubProjectsAdapter();
+                break;
         }
     }
-    return adapter;
+    return adapter as ProjectManagementAdapter;
 }
 
 /**
