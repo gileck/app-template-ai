@@ -7,14 +7,14 @@
 
 ## Summary
 
-- **Total Tasks:** 44
-- **Open:** 12
+- **Total Tasks:** 45
+- **Open:** 13
 - **In Progress:** 0
 - **Done:** 32
 
 ---
 
-## 📋 Open Tasks (12)
+## 📋 Open Tasks (13)
 
 ### 🟠 High Priority
 
@@ -22,6 +22,7 @@
 |---|-------|------|------------|
 | 17 | Add QA Verification Step Using Playwright MCP | M | Medium |
 | 41 | Add Admin Feedback Form for PR Request Changes via Telegram | M | Medium |
+| 45 | Fix Template Audit Issues (2026-02-07) | L | Medium |
 
 ### 🟡 Medium Priority
 
@@ -82,4 +83,4 @@
 
 ---
 
-*Last updated: 2026-02-06*
+*Last updated: 2026-02-07*

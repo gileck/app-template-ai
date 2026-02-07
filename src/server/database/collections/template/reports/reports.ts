@@ -488,3 +488,37 @@ export const updateWorkflowFields = async (
     await collection.updateOne({ _id: reportIdObj }, update);
 };
 
+/**
+ * Find multiple reports by their IDs
+ */
+export const findReportsByIds = async (reportIds: string[]): Promise<ReportDocument[]> => {
+    const collection = await getReportsCollection();
+    const objectIds = reportIds.map(id => new ObjectId(id));
+    return collection.find({ _id: { $in: objectIds } }).toArray();
+};
+
+/**
+ * Batch update status for multiple reports
+ */
+export const batchUpdateStatuses = async (
+    reportIds: string[],
+    status: ReportStatus
+): Promise<number> => {
+    const collection = await getReportsCollection();
+    const objectIds = reportIds.map(id => new ObjectId(id));
+    const result = await collection.updateMany(
+        { _id: { $in: objectIds } },
+        { $set: { status, updatedAt: new Date() } }
+    );
+    return result.modifiedCount;
+};
+
+/**
+ * Batch delete reports by their IDs
+ */
+export const batchDeleteByIds = async (reportIds: string[]): Promise<number> => {
+    const collection = await getReportsCollection();
+    const objectIds = reportIds.map(id => new ObjectId(id));
+    const result = await collection.deleteMany({ _id: { $in: objectIds } });
+    return result.deletedCount;
+};

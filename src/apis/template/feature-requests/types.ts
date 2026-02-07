@@ -34,6 +34,7 @@ export interface GetMyFeatureRequestsResponse {
 export interface AddUserCommentRequest {
     requestId: string;
     content: string;
+    commentId?: string;
 }
 
 export interface AddUserCommentResponse {
@@ -86,6 +87,7 @@ export interface UpdateFeatureRequestStatusResponse {
 export interface AddAdminCommentRequest {
     requestId: string;
     content: string;
+    commentId?: string;
 }
 
 export interface AddAdminCommentResponse {

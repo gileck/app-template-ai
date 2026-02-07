@@ -11,7 +11,8 @@ import { useReports, useDeleteAllReports } from './hooks';
 import { useReportsStore } from './store';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
-import { ErrorDisplay, errorToast } from '@/client/features/template/error-tracking';
+import { Alert, AlertDescription, AlertTitle } from '@/client/components/template/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import { ReportsHeader } from './components/ReportsHeader';
 import { ReportsFilters } from './components/ReportsFilters';
 import { ReportCard } from './components/ReportCard';
@@ -61,8 +62,8 @@ export function Reports() {
                 toast.success(`Successfully deleted ${data.deletedCount || 0} reports`);
                 setShowDeleteAllDialog(false);
             },
-            onError: (err) => {
-                errorToast('Failed to delete reports', err);
+            onError: () => {
+                toast.error('Failed to delete reports');
             },
         });
     };
@@ -108,7 +109,11 @@ export function Reports() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : error ? (
-                <ErrorDisplay error={error} title="Failed to load reports" />
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error instanceof Error ? error.message : 'Failed to load reports'}</AlertDescription>
+                </Alert>
             ) : reports?.length === 0 ? (
                 <Card>
                     <CardContent className="py-12 text-center">

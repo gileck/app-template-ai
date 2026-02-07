@@ -29,7 +29,7 @@ import type {
 } from '@/apis/template/feature-requests/types';
 import { useQueryDefaults } from '@/client/query';
 import { toast } from '@/client/components/template/ui/toast';
-import { errorToast } from '@/client/features/template/error-tracking';
+import { generateId } from '@/client/utils/id';
 
 const featureRequestsBaseQueryKey = ['feature-requests'] as const;
 
@@ -99,7 +99,7 @@ export function useUpdateFeatureRequestStatus() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to update status', err);
+            toast.error('Failed to update status');
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -141,7 +141,7 @@ export function useUpdatePriority() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to update priority', err);
+            toast.error('Failed to update priority');
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -175,7 +175,7 @@ export function useDeleteFeatureRequest() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to delete feature request', err);
+            toast.error('Failed to delete feature request');
         },
         onSuccess: () => {
             toast.success('Feature request deleted');
@@ -188,20 +188,20 @@ export function useAddAdminComment() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ requestId, content }: { requestId: string; content: string }) => {
-            const result = await addAdminComment({ requestId, content });
+        mutationFn: async ({ requestId, content, commentId }: { requestId: string; content: string; commentId: string }) => {
+            const result = await addAdminComment({ requestId, content, commentId });
             if (result.data.error) {
                 throw new Error(result.data.error);
             }
             return result.data.featureRequest;
         },
-        onMutate: async ({ requestId, content }) => {
+        onMutate: async ({ requestId, content, commentId }) => {
             await queryClient.cancelQueries({ queryKey: featureRequestsBaseQueryKey });
             const previous = queryClient.getQueriesData({ queryKey: featureRequestsBaseQueryKey });
 
             // Optimistically add the comment
             const newComment = {
-                id: `temp-${Date.now()}`,
+                id: commentId,
                 authorId: 'admin',
                 authorName: 'Admin',
                 isAdmin: true,
@@ -225,7 +225,7 @@ export function useAddAdminComment() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to add comment', err);
+            toast.error('Failed to add comment');
         },
         onSuccess: () => {},
         onSettled: () => {},
@@ -247,12 +247,12 @@ export function useApproveFeatureRequest() {
             await queryClient.cancelQueries({ queryKey: featureRequestsBaseQueryKey });
             const previous = queryClient.getQueriesData({ queryKey: featureRequestsBaseQueryKey });
 
-            // Optimistically update status to product_design
+            // Optimistically update status to in_progress
             queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
                 if (!Array.isArray(old)) return old;
                 return old.map((request) =>
                     request._id === requestId
-                        ? { ...request, status: 'product_design' as FeatureRequestStatus }
+                        ? { ...request, status: 'in_progress' as FeatureRequestStatus }
                         : request
                 );
             });
@@ -264,18 +264,9 @@ export function useApproveFeatureRequest() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to approve feature request', err);
+            toast.error('Failed to approve feature request');
         },
         onSuccess: (data) => {
-            // Update with actual GitHub data
-            if (data.featureRequest) {
-                queryClient.setQueriesData({ queryKey: featureRequestsBaseQueryKey }, (old) => {
-                    if (!Array.isArray(old)) return old;
-                    return old.map((request) =>
-                        request._id === data.featureRequest?._id ? data.featureRequest : request
-                    );
-                });
-            }
             if (data.githubIssueUrl) {
                 toast.success(`Approved! GitHub Issue #${data.githubIssueNumber} created`);
             } else {
@@ -290,7 +281,12 @@ export function useApproveFeatureRequest() {
  * Hook to fetch GitHub Project status for a feature request
  * Only enabled when there's a GitHub project item ID
  */
+// GitHub status changes frequently, use shorter staleTime when SWR is enabled
+const GITHUB_STATUS_STALE_TIME = 30_000;
+
 export function useGitHubStatus(requestId: string | null, enabled: boolean = true) {
+    const queryDefaults = useQueryDefaults();
+
     return useQuery({
         queryKey: ['github-status', requestId],
         queryFn: async () => {
@@ -302,7 +298,8 @@ export function useGitHubStatus(requestId: string | null, enabled: boolean = tru
             return result.data;
         },
         enabled: enabled && !!requestId,
-        staleTime: 30000, // 30 seconds - status can change frequently
+        ...queryDefaults,
+        staleTime: queryDefaults.staleTime > 0 ? GITHUB_STATUS_STALE_TIME : 0,
         refetchOnWindowFocus: true,
     });
 }
@@ -312,6 +309,8 @@ export function useGitHubStatus(requestId: string | null, enabled: boolean = tru
  * Used by the list view to get all statuses for filtering
  */
 export function useBatchGitHubStatuses(requestIds: string[]) {
+    const queryDefaults = useQueryDefaults();
+
     return useQuery({
         queryKey: ['github-statuses-batch', requestIds],
         queryFn: async () => {
@@ -342,7 +341,8 @@ export function useBatchGitHubStatuses(requestIds: string[]) {
             return statusMap;
         },
         enabled: requestIds.length > 0,
-        staleTime: 30000, // 30 seconds
+        ...queryDefaults,
+        staleTime: queryDefaults.staleTime > 0 ? GITHUB_STATUS_STALE_TIME : 0,
         refetchOnWindowFocus: true,
         // Handle rate limit errors gracefully
         retry: (failureCount, error) => {
@@ -359,6 +359,8 @@ export function useBatchGitHubStatuses(requestIds: string[]) {
  * Hook to fetch available GitHub Project statuses
  */
 export function useGitHubStatuses() {
+    const queryDefaults = useQueryDefaults();
+
     return useQuery({
         queryKey: ['github-statuses'],
         queryFn: async () => {
@@ -368,7 +370,7 @@ export function useGitHubStatuses() {
             }
             return result.data;
         },
-        staleTime: 5 * 60 * 1000, // 5 minutes - statuses rarely change
+        ...queryDefaults,
     });
 }
 
@@ -386,14 +388,25 @@ export function useUpdateGitHubStatus() {
             }
             return result.data;
         },
-        onSuccess: (_data, { requestId }) => {
-            // Invalidate the GitHub status query to refetch
-            queryClient.invalidateQueries({ queryKey: ['github-status', requestId] });
+        onMutate: async ({ requestId, status }) => {
+            await queryClient.cancelQueries({ queryKey: ['github-status', requestId] });
+            const previous = queryClient.getQueryData(['github-status', requestId]);
+            queryClient.setQueryData(['github-status', requestId], (old: unknown) => ({
+                ...(old as Record<string, unknown>),
+                status,
+            }));
+            return { previous, requestId };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous !== undefined) {
+                queryClient.setQueryData(['github-status', context.requestId], context.previous);
+            }
+            toast.error('Failed to update GitHub status');
+        },
+        onSuccess: () => {
             toast.success('GitHub status updated');
         },
-        onError: (err) => {
-            errorToast('Failed to update GitHub status', err);
-        },
+        onSettled: () => {},
     });
 }
 
@@ -431,7 +444,7 @@ export function useUpdateGitHubReviewStatus() {
             if (context?.previous) {
                 queryClient.setQueryData(['github-status', requestId], context.previous);
             }
-            errorToast('Failed to update GitHub review status', err);
+            toast.error('Failed to update GitHub review status');
         },
         onSuccess: () => {
             toast.success('GitHub review status updated');
@@ -474,7 +487,7 @@ export function useClearGitHubReviewStatus() {
             if (context?.previous) {
                 queryClient.setQueryData(['github-status', requestId], context.previous);
             }
-            errorToast('Failed to clear GitHub review status', err);
+            toast.error('Failed to clear GitHub review status');
         },
         onSuccess: () => {
             toast.success('GitHub review status cleared');
@@ -509,7 +522,7 @@ export function useCreateFeatureRequest() {
                 if (!Array.isArray(old)) return old;
 
                 const newRequest = {
-                    _id: `temp-${Date.now()}`, // Temporary ID
+                    _id: generateId(),
                     ...params,
                     status: 'new',
                     priority: null,
@@ -534,7 +547,7 @@ export function useCreateFeatureRequest() {
             for (const [key, data] of context.previous) {
                 queryClient.setQueryData(key, data);
             }
-            errorToast('Failed to create feature request', err);
+            toast.error('Failed to create feature request');
         },
         onSuccess: () => {}, // EMPTY - never update from server response
         onSettled: () => {}, // EMPTY - never invalidateQueries
