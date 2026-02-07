@@ -23,13 +23,13 @@ import {
 } from '@/server/database/collections/template/workflow-items';
 import type {
     DesignArtifactRecord,
+    ImplementationStatus,
     PhaseArtifactRecord,
     WorkflowItemArtifacts,
 } from '@/server/database/collections/template/workflow-items/types';
 import type {
     ArtifactComment,
     DesignArtifact,
-    ImplementationStatus,
 } from './artifacts';
 import { parseArtifactComment } from './artifacts';
 
@@ -109,27 +109,30 @@ export async function getCommitMessage(
 
 /**
  * Save a design artifact to DB.
+ * Maps DesignArtifact (domain type) to DesignArtifactRecord (DB type).
+ * The `satisfies` check ensures field additions to either type cause a compile error.
  */
 export async function saveDesignArtifactToDB(
     issueNumber: number,
     design: DesignArtifact
 ): Promise<void> {
-    const dbRecord: DesignArtifactRecord = {
+    const dbRecord = {
         type: design.type,
         path: design.path,
         status: design.status,
         lastUpdated: design.lastUpdated,
         prNumber: design.prNumber,
-    };
+    } satisfies DesignArtifactRecord;
     await updateDesignArtifactInDB(issueNumber, dbRecord);
 }
 
 /**
  * Save implementation phases to DB.
+ * Accepts ImplementationPhase[] (shared output schema type) and maps to PhaseArtifactRecord[] (DB type).
  */
 export async function savePhasesToDB(
     issueNumber: number,
-    phases: Array<{ order: number; name: string; description?: string; files?: string[]; estimatedSize?: 'S' | 'M' }>
+    phases: (Pick<ImplementationPhase, 'order' | 'name'> & Partial<Pick<ImplementationPhase, 'description' | 'files' | 'estimatedSize'>>)[]
 ): Promise<void> {
     const dbPhases: PhaseArtifactRecord[] = phases.map(p => ({
         order: p.order,

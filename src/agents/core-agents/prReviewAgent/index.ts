@@ -471,11 +471,11 @@ async function processItem(
             }
         }
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`  Error: ${errorMessage}`);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`  Error: ${errorMsg}`);
 
         // Log error
-        logError(logCtx, error instanceof Error ? error : errorMessage, true);
+        logError(logCtx, error instanceof Error ? error : errorMsg, true);
         logExecutionEnd(logCtx, {
             success: false,
             toolCallsCount: 0,
@@ -484,10 +484,10 @@ async function processItem(
         });
 
         if (!options.dryRun) {
-            await notifyAgentError('PR Review', content.title, issueNumber, errorMessage);
+            await notifyAgentError('PR Review', content.title, issueNumber, errorMsg);
         }
 
-        return { success: false, error: errorMessage };
+        return { success: false, error: errorMsg };
     }
     });
 }
