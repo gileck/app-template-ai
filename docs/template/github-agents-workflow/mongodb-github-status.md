@@ -1,152 +1,191 @@
-# MongoDB Status vs Workflow Status
+# Workflow Data Model & Status Tracking
 
-The system uses a **two-tier status tracking** approach with three MongoDB collections:
+The workflow system uses three MongoDB collections with clear separation of concerns:
 
-1. **Source collections** (`feature-requests`, `reports`) - intake/approval lifecycle
-2. **Workflow-items collection** - detailed workflow pipeline tracking
+| Collection | Purpose | Who writes |
+|------------|---------|-----------|
+| `feature-requests` | Intake, approval lifecycle, user-facing data | UI, CLI, Telegram webhook |
+| `reports` | Intake, diagnostics (session logs, stack traces) | UI, CLI, auto-capture |
+| `workflow-items` | Pipeline status tracking for active items | Project management adapter, agents |
 
-## Source Collection Statuses (4 values)
+## Collections Overview
 
-Source collections track the high-level lifecycle state and store rich diagnostic data.
+### Source Collections (feature-requests, reports)
 
-### Feature Requests
+These are the **intake** collections. Items start here when submitted via UI or CLI.
+
+**Feature Requests:**
 | Status | Meaning |
 |--------|---------|
-| `new` | Feature request submitted, not yet approved |
-| `in_progress` | Approved and synced to GitHub (detailed status in workflow-items) |
+| `new` | Submitted, not yet approved |
+| `in_progress` | Approved, synced to GitHub (pipeline status in workflow-items) |
 | `done` | Completed and merged |
 | `rejected` | Not going to implement |
 
-### Bug Reports
+**Bug Reports:**
 | Status | Meaning |
 |--------|---------|
-| `new` | Bug report submitted, not yet approved |
-| `investigating` | Approved and synced to GitHub (detailed status in workflow-items) |
+| `new` | Submitted, not yet approved |
+| `investigating` | Approved, synced to GitHub (pipeline status in workflow-items) |
 | `resolved` | Fixed and merged |
 | `closed` | Won't fix, duplicate, or not a bug |
 
-## Workflow-Items Collection (Pipeline Tracking)
+Both collections store a `githubProjectItemId` field that points to the corresponding `workflow-items._id` once the item enters the pipeline.
 
-The `workflow-items` collection tracks detailed workflow steps through the development pipeline. Each document represents an active item in the pipeline.
+### Workflow-Items Collection
 
-### Schema
+This is the **pipeline** collection. Items are created here when approved and synced to GitHub. All agents and the admin workflow UI read/write this collection for pipeline status.
+
 ```typescript
 {
     _id: ObjectId,
-    type: 'feature' | 'bug' | 'task',
+    type: 'feature' | 'bug' | 'task',   // Item type
     title: string,
     description?: string,
-    status: string,                // Pipeline status (see below)
-    reviewStatus?: string,         // Sub-state within each phase
-    implementationPhase?: string,  // '1/3', '2/3', etc. for multi-phase features
-    sourceRef?: {                  // Back-reference to source document (null for CLI tasks)
+    status: string,                       // Pipeline phase (see below)
+    reviewStatus?: string,                // Sub-state within phase
+    implementationPhase?: string,         // '1/3', '2/3' for multi-phase features
+    sourceRef?: {                         // Back-reference (null for standalone tasks)
         collection: 'feature-requests' | 'reports',
         id: ObjectId,
     },
     githubIssueNumber?: number,
     githubIssueUrl?: string,
     githubIssueTitle?: string,
-    labels?: string[],
+    labels?: string[],                    // GitHub issue labels
     createdAt: Date,
     updatedAt: Date,
 }
 ```
 
-### Pipeline Statuses
+**Pipeline statuses:**
 | Status | Meaning |
 |--------|---------|
-| `Backlog` | New items, not yet started |
+| `Backlog` | Approved, not yet started |
 | `Product Design` | AI generates product design, human reviews |
-| `Bug Investigation` | AI investigates bug root cause |
+| `Bug Investigation` | AI investigates root cause, proposes fixes |
 | `Technical Design` | AI generates tech design, human reviews |
-| `Ready for development` | AI implements feature (picked up by implement agent) |
+| `Ready for development` | AI implements the feature/fix |
 | `PR Review` | PR created, waiting for human review/merge |
 | `Done` | Completed and merged |
 
-### Review Status (sub-state)
+**Review statuses** (sub-state within any pipeline phase):
 | Status | Meaning |
 |--------|---------|
+| *(empty)* | Agent is working or item hasn't been picked up |
 | `Waiting for Review` | Agent completed work, waiting for admin |
-| `Approved` | Admin approved |
-| `Request Changes` | Admin requested changes |
+| `Approved` | Admin approved (auto-advances to next phase) |
+| `Request Changes` | Admin requested changes (agent revises) |
 | `Rejected` | Admin rejected |
-| `Waiting for Clarification` | Needs more info |
-| `Clarification Received` | Info provided, ready to resume |
 
-## How Items Flow Between Collections
+## How Items Enter the Pipeline
 
-### Creation Flow
+### Entry Point 1: UI Feature Request
 ```
-1. User submits feature/bug via UI or CLI
-   → Created in feature-requests or reports (status: 'new')
-
-2. Admin approves via Telegram
-   → Source doc status: 'in_progress' / 'investigating'
-   → GitHub issue created
-   → Workflow-item document created (status: 'Backlog' or routed phase)
-   → Source doc's githubProjectItemId updated to workflow-item _id
-
-3. Agents process the item through pipeline
-   → Only workflow-items.status and workflow-items.reviewStatus change
-   → Source doc status stays 'in_progress' / 'investigating'
-
-4. PR merged, item complete
-   → Workflow-item status: 'Done'
-   → Source doc status: 'done' / 'resolved'
+User submits form (/feature-requests page)
+  → feature-requests doc created (status: 'new')
+  → Telegram approval notification sent
+  → Admin approves via Telegram
+  → Source doc status: 'in_progress'
+  → GitHub issue created
+  → workflow-items doc created
+  → Source doc githubProjectItemId = workflow-item _id
 ```
 
-### Key Relationships
-- Source doc `githubProjectItemId` points to `workflow-items._id`
-- Workflow-item `sourceRef` points back to source doc `_id` and collection
-- All pipeline agents read/write workflow-items (not source collections)
-- Source collections store diagnostic data (session logs, stack traces, etc.)
-
-## Why This Split?
-
-### Source Collections' Role
-- **Tracks approval state and lifecycle**: new -> in progress -> done
-- **Stores rich diagnostics for bugs**: Session logs, screenshots, stack traces
-- **Separate collections**: Features and bugs have different data shapes
-- **Provides user-facing API**: App UI displays source status for new/done/rejected items
-
-### Workflow-Items Collection's Role
-- **Tracks detailed workflow steps**: Backlog -> Product Design -> Tech Design -> etc.
-- **Single collection queries**: No need to merge feature-requests + reports
-- **Enables agent coordination**: Each agent knows what phase to process
-- **Review Status sub-tracking**: Within each phase (empty -> Waiting for Review -> Approved)
-- **Extensible**: New item types (tasks) don't require new source collections
-
-### Benefits
-1. **Clean separation**: Source = approval & diagnostics, Workflow = pipeline
-2. **Single-collection queries**: List all pipeline items with one query
-3. **No sync conflicts**: Source status only changes at major lifecycle events
-4. **Flexible workflow**: Can change pipeline columns without touching source schema
-5. **Extensible**: CLI-created tasks can enter pipeline without a source collection
-
-## Status Transitions
-
-### Feature Request Lifecycle
+### Entry Point 2: UI Bug Report
 ```
-new -> (admin approves) -> in_progress -> (PR merges) -> done
-                                |
-                        (admin rejects) -> rejected
+User submits bug report (or auto-captured error)
+  → reports doc created (status: 'new')
+  → Telegram approval notification sent
+  → Admin approves via Telegram
+  → Source doc status: 'investigating'
+  → GitHub issue created
+  → workflow-items doc created (auto-routed to Bug Investigation)
+  → Source doc githubProjectItemId = workflow-item _id
 ```
 
-### Bug Report Lifecycle
+### Entry Point 3: CLI
 ```
-new -> (admin approves) -> investigating -> (fix merges) -> resolved
-                                 |
-                        (admin closes) -> closed
+yarn agent-workflow create --type feature --title "..." --auto-approve
+  → feature-requests doc created (status: 'in_progress')
+  → GitHub issue created
+  → workflow-items doc created
+  → Source doc githubProjectItemId = workflow-item _id
+  → Optional: --workflow-route to set initial pipeline phase
 ```
 
-### Workflow Pipeline (while in_progress/investigating)
+Without `--auto-approve`, the CLI creates the source doc with `status: 'new'` and sends a Telegram notification (same as UI flow).
+
+## Cross-Collection Relationships
+
 ```
-Backlog -> Product Design -> Technical Design -> Ready for development -> PR Review -> Done
-     |         |                  |                   |                    |
-   (can skip phases based on admin routing decision)
+feature-requests / reports              workflow-items
+┌──────────────────────┐               ┌──────────────────────┐
+│ _id: ObjectId        │               │ _id: ObjectId        │
+│ ...                  │  points to    │ type: 'feature'      │
+│ githubProjectItemId ─┼──────────────►│ status: 'Tech Design'│
+│                      │               │ reviewStatus: ...    │
+│                      │  points back  │ sourceRef: {         │
+│                      │◄──────────────┼─  collection, id     │
+│                      │               │ }                    │
+└──────────────────────┘               │ githubIssueNumber    │
+                                       └──────────────────────┘
 ```
+
+- **Source → Workflow**: `githubProjectItemId` stores the workflow-item `_id`
+- **Workflow → Source**: `sourceRef.collection` + `sourceRef.id` points back to source doc
+- **Standalone tasks**: `sourceRef` is null (no source document)
+
+## Admin UI: Workflow Page
+
+The `/admin/workflow` page shows two sections:
+
+**Pending Approval** — Items with `status: 'new'` from source collections that don't have a `githubProjectItemId` yet. Clicking navigates to the item detail page for approval.
+
+**Pipeline** — Active items from the `workflow-items` collection. Shows pipeline status, review status, and type badge. Clicking navigates to the item detail page using the `sourceRef` composite ID.
+
+Filter chips (All / Features / Bugs) filter both sections by item type.
+
+## Project Management Adapter
+
+The `ProjectManagementAdapter` interface abstracts all pipeline operations. The adapter type is configured via `PROJECT_MANAGEMENT_TYPE` env var:
+
+| Value | Adapter | Pipeline Storage |
+|-------|---------|-----------------|
+| `app` (recommended) | `AppProjectAdapter` | `workflow-items` MongoDB collection |
+| `github` (legacy) | `GitHubProjectsAdapter` | GitHub Projects V2 board |
+
+The `app` adapter stores pipeline status in the `workflow-items` collection and delegates GitHub operations (issues, PRs, branches) to `GitHubClient`. The `github` adapter stores pipeline status directly on GitHub Projects V2 cards via GraphQL.
+
+## Code Locations
+
+| What | Where |
+|------|-------|
+| Workflow-items types | `src/server/database/collections/template/workflow-items/types.ts` |
+| Workflow-items CRUD | `src/server/database/collections/template/workflow-items/workflow-items.ts` |
+| AppProjectAdapter | `src/server/project-management/adapters/app-project.ts` |
+| Adapter factory | `src/server/project-management/index.ts` |
+| Sync core (creates workflow-items) | `src/server/github-sync/sync-core.ts` |
+| Workflow API handler | `src/apis/template/workflow/handlers/listItems.ts` |
+| Workflow UI | `src/client/routes/template/Workflow/WorkflowItems.tsx` |
+| Migration script | `scripts/template/migrate-workflow-items.ts` |
+
+## Migration
+
+For existing deployments with items tracked via the old composite ID system, run:
+
+```bash
+# Preview what will be migrated
+npx tsx scripts/template/migrate-workflow-items.ts --dry-run
+
+# Run migration
+npx tsx scripts/template/migrate-workflow-items.ts
+```
+
+The migration creates `workflow-items` documents from existing synced features/reports and updates their `githubProjectItemId` to point to the new workflow-item `_id`.
 
 ## Related Documentation
 
 - **[overview.md](./overview.md)** - Complete system overview
 - **[setup-guide.md](./setup-guide.md)** - Setup instructions
+- **[cli.md](./cli.md)** - CLI usage

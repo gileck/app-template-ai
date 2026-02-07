@@ -405,7 +405,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 **Key Points:**
 - Entry points: UI feature request, UI bug report, or CLI
 - Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review
-- Status tracking: MongoDB (high-level) + GitHub Projects (detailed workflow)
+- Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
 - All actions logged to agent-logs/issue-N.md
 
 **Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [mongodb-github-status.md](docs/template/github-agents-workflow/mongodb-github-status.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md)
