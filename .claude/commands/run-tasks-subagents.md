@@ -74,32 +74,13 @@ Output:
   - Check no existing worktrees conflict: `git worktree list`
   - Verify we're on main branch: `git branch --show-current`
 
-### Step 3: Analyze Conflict Risk and Suggest Merge Order
-
-- **Objective**: Warn user about tasks that may conflict and suggest optimal execution/merge order
-- **Actions**:
-  - For each task, identify likely files/areas to be modified (from task description, task-manager details, or quick codebase scan)
-  - Compare file lists across tasks to detect overlap
-  - If overlap detected, flag it:
-    ```
-    ⚠️ Potential conflict: Task 1 ("Fix login bug") and Task 3 ("Refactor auth flow")
-       both likely modify: src/client/features/auth/
-    ```
-  - Suggest merge order based on conflict risk:
-    - Tasks with no overlap: order doesn't matter
-    - Tasks with overlap: merge the smaller/foundational change first so the second merge can resolve on top
-    - Tasks that other tasks depend on: merge first
-  - If conflict risk is high, suggest running the conflicting tasks sequentially instead of in parallel, or combining them into a single task
-
-### Step 4: Present Plan to User
+### Step 3: Present Plan to User
 
 - **Objective**: Get user confirmation before starting
 - **Actions**:
   - Display all parsed tasks with their indices
   - Show how many worktrees will be created
   - List any task-manager tasks loaded
-  - Show conflict analysis results (if any overlapping files detected)
-  - Show suggested merge order (with reasoning)
   - Ask user to confirm: "Ready to start N tasks in parallel?"
   - Wait for user approval before proceeding
 
@@ -107,7 +88,7 @@ Output:
 
 ## Phase 2: Create All Worktrees
 
-### Step 5: Create Worktrees
+### Step 4: Create Worktrees
 
 - **Objective**: Set up isolated workspaces for all tasks
 - **Actions**:
@@ -129,7 +110,7 @@ Output:
 
 ## Phase 3: Launch Parallel Sub-Agents
 
-### Step 6: Launch Sub-Agents
+### Step 5: Launch Sub-Agents
 
 - **Objective**: Start a sub-agent for each task, all running in parallel
 - **Actions**:
@@ -243,7 +224,7 @@ The main agent will handle merging your worktree to main.
 
 ## Phase 4: Monitor and Relay
 
-### Step 7: Monitor Sub-Agents
+### Step 6: Monitor Sub-Agents
 
 - **Objective**: Track progress and handle clarification requests
 - **Actions**:
@@ -254,7 +235,7 @@ The main agent will handle merging your worktree to main.
     - Error messages → Sub-agent hit a problem
   - Check every 30-60 seconds using Read tool on output files
 
-### Step 8: Handle Clarifications
+### Step 7: Handle Clarifications
 
 - **Objective**: Relay questions between sub-agents and user
 - **Actions**:
@@ -266,7 +247,7 @@ The main agent will handle merging your worktree to main.
   - Continue monitoring other sub-agents while waiting
   - **Note**: The Task tool `resume` parameter takes the agent ID from the original launch. The resumed agent continues with its full previous context preserved.
 
-### Step 9: Handle Errors
+### Step 8: Handle Errors
 
 - **Objective**: Deal with sub-agent failures gracefully
 - **Actions**:
@@ -281,7 +262,7 @@ The main agent will handle merging your worktree to main.
 
 ## Phase 5: User Approval Loop
 
-### Step 10: Collect and Present Results
+### Step 9: Collect and Present Results
 
 - **Objective**: Get user approval for each completed task
 - **Actions**:
@@ -304,7 +285,7 @@ The main agent will handle merging your worktree to main.
 
 ## Phase 6: Sequential Merge
 
-### Step 11: Merge Approved Tasks (One at a Time)
+### Step 10: Merge Approved Tasks (One at a Time)
 
 - **Objective**: Safely merge all approved worktrees to main
 - **CRITICAL**: Merge one task at a time to handle conflicts
@@ -361,7 +342,7 @@ The main agent will handle merging your worktree to main.
 
 ## Phase 7: Cleanup
 
-### Step 12: Remove All Worktrees
+### Step 11: Remove All Worktrees
 
 - **Objective**: Clean up all worktrees and branches
 - **Actions**:
@@ -377,7 +358,7 @@ The main agent will handle merging your worktree to main.
 
 ## Phase 8: Final Verification
 
-### Step 13: Final Checks on Main
+### Step 12: Final Checks on Main
 
 - **Objective**: Ensure everything is clean and working
 - **Actions**:
@@ -386,7 +367,7 @@ The main agent will handle merging your worktree to main.
   - Verify git status is clean
   - Verify git log shows all expected commits
 
-### Step 14: Final Summary to User
+### Step 13: Final Summary to User
 
 - **Objective**: Report overall completion
 - **Actions**:

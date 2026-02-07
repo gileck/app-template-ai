@@ -7,7 +7,17 @@
 
 import type { ProjectItemContent } from '@/server/project-management';
 import type { GitHubComment } from '../types';
-import { AMBIGUITY_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS } from './shared-instructions';
+import {
+    AMBIGUITY_INSTRUCTIONS,
+    MARKDOWN_FORMATTING_INSTRUCTIONS,
+    WRITE_MODE_INSTRUCTIONS,
+    WRITE_MODE_PR_REVISION_INSTRUCTIONS,
+    IMPLEMENTATION_GUIDELINES,
+    THEMING_INSTRUCTIONS,
+    buildCommentsSection,
+    buildIssueDetailsHeader,
+    formatCommentsList,
+} from './shared-instructions';
 
 /**
  * Build prompt for implementing a feature
@@ -50,13 +60,11 @@ Note: No technical design phase for this item. Implement based on the product de
         implementationSource = 'the issue description';
     }
 
-    const commentsSection = comments && comments.length > 0
-        ? `\n## Comments on Issue\n\nThe following comments have been added to the issue. Consider them as additional context:\n\n${comments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
-        : '';
+    const commentsSection = buildCommentsSection(comments);
 
     return `You are implementing a feature${techDesign || productDesign ? ' based on approved design documents' : ''}.
 
-IMPORTANT: You are in WRITE mode. You CAN and SHOULD create and modify files to implement this feature.
+${WRITE_MODE_INSTRUCTIONS}
 
 ## Issue Details
 
@@ -114,21 +122,7 @@ When implementing, you may encounter situations where you're unsure whether to p
 - Existing code uses deprecated pattern → **Proceed** - follow new patterns, don't fix existing code
 - Task requires modifying shared component used elsewhere → **Stop** - ask about scope (might affect other features)
 
-## Implementation Guidelines
-
-**CRITICAL**: Before implementing, read the project guidelines in \`.ai/skills/\`:
-- \`.ai/skills/ui-mobile-first-shadcn/SKILL.md\` - **CRITICAL** Mobile-first UI implementation
-- \`.ai/skills/typescript-guidelines/SKILL.md\` - TypeScript coding standards
-- \`.ai/skills/react-component-organization/SKILL.md\` - Component structure and patterns
-- \`.ai/skills/react-hook-organization/SKILL.md\` - Custom hook patterns
-- \`.ai/skills/state-management-guidelines/SKILL.md\` - Zustand and React Query usage
-- \`.ai/skills/feature-based-structure/SKILL.md\` - File organization by feature
-- \`.ai/skills/ui-design-guidelines/SKILL.md\` - UI/UX patterns
-- \`.ai/skills/shadcn-usage/SKILL.md\` - shadcn/ui component usage
-- \`.ai/skills/theming-guidelines/SKILL.md\` - **CRITICAL** Theming and color usage
-- \`.ai/skills/client-server-communications/SKILL.md\` - API patterns
-- \`.ai/skills/mongodb-usage/SKILL.md\` - Database operations (if applicable)
-- \`.ai/skills/app-guidelines-checklist/SKILL.md\` - Comprehensive checklist
+${IMPLEMENTATION_GUIDELINES}
 
 **CRITICAL - MOBILE-FIRST:**
 This is a mobile-first application. ALL UI must be implemented for mobile (~400px CSS width) FIRST:
@@ -171,13 +165,7 @@ Include the \`visualVerification\` object in your JSON output with:
 - \`skippedReason\`: if skipped, explain why
 - \`issuesFound\`: any issues found and fixed during verification
 
-**THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` before styling)**:
-- **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
-- **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
-- For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
-- **Exceptions**:
-  - Dialog overlays may use \`bg-black/60\` for backdrop opacity
-  - Hardcoded colors ONLY if specifically requested in the task requirements (e.g., brand colors from product team). In this case, add a code comment: \`// Hardcoded per task requirement: "[quote the specific requirement]"\`
+${THEMING_INSTRUCTIONS}
 
 Key principles:
 - Follow the existing code patterns in the codebase
@@ -310,12 +298,9 @@ export function buildPRRevisionPrompt(
 
     return `You are addressing PR review feedback for a feature implementation.
 
-IMPORTANT: You are in WRITE mode. You CAN and SHOULD modify files to address the feedback.
+${WRITE_MODE_PR_REVISION_INSTRUCTIONS}
 
-## Issue Details
-
-**Title:** ${issue.title}
-**Number:** #${issue.number || 'Draft'}
+${buildIssueDetailsHeader(issue, { includeDescription: false })}
 
 ${contextSection}
 
@@ -382,13 +367,7 @@ The reviewer will see your explanation and understand the project convention in 
 
 **Follow project guidelines in \`.ai/skills/\`** (same as initial implementation)
 
-**THEMING (Read \`docs/theming.md\` and \`.ai/skills/theming-guidelines/SKILL.md\` if fixing styling issues)**:
-- **NEVER** use hardcoded colors like \`bg-white\`, \`text-black\`, \`bg-blue-500\`, or hex values
-- **ALWAYS** use semantic tokens: \`bg-background\`, \`bg-card\`, \`text-foreground\`, \`text-muted-foreground\`, \`bg-primary\`, etc.
-- For status colors use: \`text-success\`, \`text-warning\`, \`text-destructive\`, \`text-info\`
-- **Exceptions**:
-  - Dialog overlays may use \`bg-black/60\` for backdrop opacity
-  - Hardcoded colors ONLY if specifically requested in the task requirements (e.g., brand colors from product team). In this case, add a code comment: \`// Hardcoded per task requirement: "[quote the specific requirement]"\`
+${THEMING_INSTRUCTIONS}
 
 Key principles:
 - Address ALL feedback points
@@ -451,7 +430,7 @@ export function buildImplementationClarificationPrompt(
     const productDesignSection = productDesign ? `## Product Design\n\n${productDesign}\n` : '';
     const techDesignSection = techDesign ? `## Technical Design\n\n${techDesign}\n` : '';
     const commentsSection = issueComments.length > 0
-        ? `\n## All Issue Comments\n\n${issueComments.map((c) => `**${c.author}** (${c.createdAt}):\n${c.body}`).join('\n\n---\n\n')}\n`
+        ? `\n## All Issue Comments\n\n${formatCommentsList(issueComments)}\n`
         : '';
 
     return `You previously asked for clarification while implementing this feature.
