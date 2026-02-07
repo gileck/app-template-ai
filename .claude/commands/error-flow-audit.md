@@ -1,9 +1,3 @@
----
-name: error-flow-audit
-description: Audit all error flows in the app for user-friendliness, technical details, and copy-ability
-disable-model-invocation: true
----
-
 # Error Flow Audit
 
 You are performing a comprehensive audit of **every error flow** in the application. The goal is to ensure that every place an error can occur provides:
