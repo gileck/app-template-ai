@@ -208,13 +208,15 @@ async function verifyInitialStatus(projectItemId: string): Promise<void> {
 async function runBugInvestigator(projectItemId: string): Promise<void> {
     logSection('Step 3: Run Bug Investigator Agent');
 
-    log(`Running: yarn agent:bug-investigator --id ${projectItemId} --stream`);
+    log(`Running: yarn github-workflows-agent --bug-investigator --id ${projectItemId} --stream`);
     log('(This may take a few minutes...)\n');
 
     const result = await runCommand('yarn', [
-        'agent:bug-investigator',
+        'github-workflows-agent',
+        '--bug-investigator',
         '--id', projectItemId,
         '--stream',
+        '--skip-pull',
         '--timeout', String(AGENT_TIMEOUT_SECONDS),
     ]);
 
