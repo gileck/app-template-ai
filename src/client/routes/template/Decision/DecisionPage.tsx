@@ -22,7 +22,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/client/components/template/ui/collapsible';
-import { AlertCircle, Loader2, Check, ChevronDown, ChevronUp, GitBranch } from 'lucide-react';
+import { AlertCircle, Loader2, Check, ChevronDown, ChevronUp, GitBranch, Copy, CheckCheck } from 'lucide-react';
 import { OptionCard } from './OptionCard';
 
 interface DecisionPageProps {
@@ -43,6 +43,8 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
     const [submitted, setSubmitted] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for collapsible
     const [contextOpen, setContextOpen] = useState(true);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for copy feedback
+    const [copied, setCopied] = useState(false);
 
     // Fetch decision data
     const {
@@ -310,8 +312,23 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
                             <AlertTitle>Submission Failed</AlertTitle>
-                            <AlertDescription>
-                                {submitMutation.error.message}
+                            <AlertDescription className="space-y-2">
+                                <p>{submitMutation.error.message}</p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(submitMutation.error!.message);
+                                        setCopied(true);
+                                        setTimeout(() => setCopied(false), 2000);
+                                    }}
+                                >
+                                    {copied
+                                        ? <><CheckCheck className="h-3 w-3 mr-1" /> Copied</>
+                                        : <><Copy className="h-3 w-3 mr-1" /> Copy Error</>
+                                    }
+                                </Button>
                             </AlertDescription>
                         </Alert>
                     )}

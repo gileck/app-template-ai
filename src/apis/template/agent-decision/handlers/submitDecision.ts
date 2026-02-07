@@ -111,30 +111,32 @@ export async function submitDecision(
         let routedTo: string | undefined;
 
         if (routing) {
+            // Routing config is present — routing MUST succeed or we fail
             if (selection.selectedOptionId === 'custom') {
-                if (routing.customDestinationStatusMap) {
-                    const dest = selection.customDestination;
-                    if (dest && routing.customDestinationStatusMap[dest]) {
-                        routedTo = routing.customDestinationStatusMap[dest];
-                    } else if (dest) {
-                        console.warn(`  Routing: custom destination "${dest}" not found in customDestinationStatusMap`);
-                    }
-                } else if (decision.customDestinationOptions?.length) {
-                    console.warn(`  Routing: customDestinationOptions present but customDestinationStatusMap missing`);
+                if (!routing.customDestinationStatusMap) {
+                    return { error: `Routing error: custom destination options are configured but no customDestinationStatusMap in routing config` };
                 }
+                const dest = selection.customDestination;
+                if (!dest) {
+                    return { error: `Routing error: custom solution selected but no destination chosen` };
+                }
+                if (!routing.customDestinationStatusMap[dest]) {
+                    return { error: `Routing error: custom destination "${dest}" not found in routing config` };
+                }
+                routedTo = routing.customDestinationStatusMap[dest];
             } else if (selectedOption) {
                 const metaValue = selectedOption.metadata[routing.metadataKey];
-                if (typeof metaValue === 'string' && routing.statusMap[metaValue]) {
-                    routedTo = routing.statusMap[metaValue];
-                } else if (typeof metaValue === 'string') {
-                    console.warn(`  Routing: metadata value "${metaValue}" not found in statusMap`);
+                if (typeof metaValue !== 'string') {
+                    return { error: `Routing error: option "${selectedOption.id}" has no "${routing.metadataKey}" metadata` };
                 }
+                if (!routing.statusMap[metaValue]) {
+                    return { error: `Routing error: metadata value "${metaValue}" not found in routing statusMap` };
+                }
+                routedTo = routing.statusMap[metaValue];
             }
-        }
 
-        if (routedTo) {
             // Route item to target status and clear review status
-            await adapter.updateItemStatus(verification.itemId, routedTo);
+            await adapter.updateItemStatus(verification.itemId, routedTo!);
             console.log(`  Item routed to: ${routedTo}`);
 
             if (adapter.hasReviewStatusField()) {
@@ -142,7 +144,7 @@ export async function submitDecision(
                 console.log(`  Review status cleared`);
             }
         } else {
-            // No routing — set review status to Approved for agent to pick up
+            // No routing config — set review status to Approved for agent to pick up
             if (adapter.hasReviewStatusField()) {
                 await adapter.updateItemReviewStatus(verification.itemId, REVIEW_STATUSES.approved);
                 console.log(`  Review status set to: ${REVIEW_STATUSES.approved}`);
