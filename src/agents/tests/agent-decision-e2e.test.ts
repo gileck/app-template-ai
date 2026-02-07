@@ -6,19 +6,29 @@
  * 1. Creates a test bug report via CLI (MongoDB + GitHub + Bug Investigation status)
  * 2. Runs the bug investigator agent
  * 3. Verifies investigation comment posted + review status set
- * 4. Prints decision URL and waits for admin to select a fix via Telegram
- * 5. Polls until item status changes (routed to Implementation or Tech Design)
- * 6. Verifies final state
+ * 4. Admin selects a fix option (manually via Telegram, or simulated)
+ * 5. Verifies final routing state
  *
  * Usage:
  *   npx tsx src/agents/tests/agent-decision-e2e.test.ts
- *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent   # Skip agent run, just create + wait
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --simulate-telegram-buttons
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent
+ *   npx tsx src/agents/tests/agent-decision-e2e.test.ts --skip-agent --simulate-telegram-buttons
+ *
+ * Options:
+ *   --simulate-telegram-buttons  Auto-select the recommended fix option (no manual Telegram interaction)
+ *   --skip-agent                 Skip running the bug investigator (assumes it already ran)
  */
 
 import '../../agents/shared/loadEnv';
 import { spawn } from 'child_process';
 import { getProjectManagementAdapter, STATUSES, REVIEW_STATUSES } from '@/server/project-management';
-import { generateDecisionToken, isDecisionComment } from '@/apis/template/agent-decision/utils';
+import {
+    generateDecisionToken,
+    isDecisionComment,
+    parseDecision,
+} from '@/apis/template/agent-decision/utils';
+import { submitDecision } from '@/apis/template/agent-decision/handlers/submitDecision';
 
 // ============================================================
 // CONFIG
@@ -256,7 +266,99 @@ async function verifyInvestigation(projectItemId: string, issueNumber: number): 
 }
 
 /**
- * Step 5: Wait for admin to select a fix option via Telegram/Decision UI
+ * Step 5a (simulated): Auto-select the recommended option via submitDecision handler
+ *
+ * This simulates the full "Choose Option" flow:
+ * 1. Parses the decision comment from the GitHub issue (same as the Decision UI)
+ * 2. Picks the recommended option (or first option if none recommended)
+ * 3. Calls submitDecision handler directly (same handler the Decision UI calls)
+ */
+async function simulateDecisionSubmission(issueNumber: number): Promise<{
+    finalStatus: string;
+    finalReviewStatus: string | null;
+}> {
+    logSection('Step 5: Simulate Decision Submission');
+
+    log('Simulating "Choose Option" → select recommended → submit...');
+
+    const adapter = getProjectManagementAdapter();
+    await adapter.init();
+
+    // Find the decision comment (same as Decision UI's getDecision handler)
+    const comments = await adapter.getIssueComments(issueNumber);
+    let decisionCommentBody: string | null = null;
+    for (let i = comments.length - 1; i >= 0; i--) {
+        if (isDecisionComment(comments[i].body)) {
+            decisionCommentBody = comments[i].body;
+            break;
+        }
+    }
+
+    if (!decisionCommentBody) {
+        throw new Error('No decision comment found on the issue');
+    }
+
+    // Parse decision to find options (same as Decision UI)
+    const issueDetails = await adapter.getIssueDetails(issueNumber);
+    const decision = parseDecision(
+        decisionCommentBody,
+        issueNumber,
+        issueDetails?.title || `Issue #${issueNumber}`
+    );
+
+    if (!decision || decision.options.length === 0) {
+        throw new Error('Could not parse decision or no options found');
+    }
+
+    log(`Found ${decision.options.length} option(s):`);
+    for (const opt of decision.options) {
+        const recommended = opt.isRecommended ? ' (recommended)' : '';
+        const dest = typeof opt.metadata['destination'] === 'string' ? opt.metadata['destination'] : 'unknown';
+        log(`  - ${opt.id}: ${opt.title} [${dest}]${recommended}`);
+    }
+
+    // Pick the recommended option, or fall back to first
+    const selectedOption = decision.options.find(o => o.isRecommended) || decision.options[0];
+    log(`\nSelecting: ${selectedOption.id} - "${selectedOption.title}"`);
+
+    // Call submitDecision handler directly (same as Decision UI's submit button)
+    const token = generateDecisionToken(issueNumber);
+    const result = await submitDecision({
+        issueNumber,
+        token,
+        selection: {
+            selectedOptionId: selectedOption.id,
+            notes: '[E2E Test] Auto-selected by --simulate-telegram-buttons',
+        },
+    });
+
+    if (result.error) {
+        throw new Error(`submitDecision failed: ${result.error}`);
+    }
+
+    log(`Decision submitted successfully`);
+    if (result.routedTo) {
+        log(`Routed to: ${result.routedTo}`);
+    }
+
+    // Read back the final state
+    const allItems = await adapter.listItems();
+    const item = allItems.find(i =>
+        i.content?.type === 'Issue' && i.content.number === issueNumber
+    );
+
+    if (!item) {
+        throw new Error('Project item not found after submission');
+    }
+
+    return {
+        finalStatus: item.status!,
+        finalReviewStatus: item.reviewStatus,
+    };
+}
+
+/**
+ * Step 5b (manual): Wait for admin to select a fix option via Telegram/Decision UI
  */
 async function waitForAdminDecision(projectItemId: string): Promise<{
     finalStatus: string;
@@ -346,11 +448,18 @@ function verifyFinalState(finalStatus: string, finalReviewStatus: string | null)
 async function main(): Promise<void> {
     const args = process.argv.slice(2);
     const skipAgent = args.includes('--skip-agent');
+    const simulateButtons = args.includes('--simulate-telegram-buttons');
 
     console.log('\n========================================');
     console.log('  Agent Decision E2E Test');
     console.log('  (Bug Investigation -> Fix Selection)');
-    console.log('========================================\n');
+    console.log('========================================');
+    if (simulateButtons) {
+        console.log('  Mode: SIMULATED (auto-selects recommended option)');
+    } else {
+        console.log('  Mode: MANUAL (waiting for Telegram interaction)');
+    }
+    console.log('');
 
     const ctx: TestContext = {};
 
@@ -375,15 +484,25 @@ async function main(): Promise<void> {
         const decisionUrl = await verifyInvestigation(projectItemId, issueNumber);
         ctx.decisionUrl = decisionUrl;
 
-        // Step 5: Wait for admin decision
-        log('\n========================================');
-        log('  ACTION REQUIRED: Select a fix option');
-        log('========================================');
-        log(`\n  Decision URL: ${decisionUrl}`);
-        log(`  Issue: ${issueUrl}`);
-        log('  Check your Telegram for the notification.\n');
+        // Step 5: Get decision (simulated or manual)
+        let finalStatus: string;
+        let finalReviewStatus: string | null;
 
-        const { finalStatus, finalReviewStatus } = await waitForAdminDecision(projectItemId);
+        if (simulateButtons) {
+            // Simulate: parse decision comment, pick recommended option, call submitDecision
+            ({ finalStatus, finalReviewStatus } = await simulateDecisionSubmission(issueNumber));
+        } else {
+            // Manual: print URL and poll until admin acts
+            log('\n========================================');
+            log('  ACTION REQUIRED: Select a fix option');
+            log('========================================');
+            log(`\n  Decision URL: ${decisionUrl}`);
+            log(`  Issue: ${issueUrl}`);
+            log('  Check your Telegram for the notification.\n');
+
+            ({ finalStatus, finalReviewStatus } = await waitForAdminDecision(projectItemId));
+        }
+
         ctx.finalStatus = finalStatus;
         ctx.finalReviewStatus = finalReviewStatus;
 
