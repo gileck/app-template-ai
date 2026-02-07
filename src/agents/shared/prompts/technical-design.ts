@@ -377,6 +377,26 @@ This feature will be split into 3 PRs:
 6. Wire up forms to auth APIs
 \`\`\`
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the technical design:
+1. Size M - single PR with new collection, 2 API endpoints, and list/form UI
+2. New \`notes\` MongoDB collection with userId index for per-user queries
+3. Two endpoints: \`notes/list\` (GET with pagination) and \`notes/create\` (POST with optimistic update)
+4. New NotesRoute page using React Query for data fetching and Zustand for draft state
+5. Follows existing patterns from the items feature for consistency
+\`\`\`
+
+**BAD comment example (too generic, avoid this):**
+\`\`\`
+Here's the technical design:
+1. Created the design document
+2. Listed the files
+3. Added implementation plan
+\`\`\`
+
 **phases JSON output for L/XL example:**
 \`\`\`json
 [
@@ -479,6 +499,16 @@ Provide your response as structured JSON with these fields:
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's what I revised in the technical design:
+1. [Feedback: missing pagination] → Added cursor-based pagination to the list endpoint with 20-item default
+2. [Feedback: no error handling for duplicate entries] → Added unique index on (userId, name) and 409 conflict response
+3. Updated implementation plan to reflect the new pagination and uniqueness requirements
+\`\`\`
+
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
@@ -539,6 +569,17 @@ If the admin's response is still unclear or raises new ambiguities, you may ask 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Technical Design document in markdown format
 - **comment**: High-level implementation plan to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the technical design (after clarification):
+1. Admin confirmed we should use the existing auth middleware - no new auth system needed
+2. Size S - just adding a new endpoint and connecting it to the existing UI component
+3. New handler at \`src/apis/items/handlers/archive.ts\` with soft-delete pattern
+4. Updated implementation plan to 4 steps including the UI toggle
+\`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 

@@ -218,6 +218,15 @@ Provide your response as structured JSON with ALL fields (complete investigation
 - **additionalLogsNeeded**: If applicable
 - **summary**: Updated summary of investigation
 
+## Output Format Example
+
+**GOOD summary example:**
+\`\`\`
+1. Root cause: the parseInt call in parseItemId() returns NaN when input contains whitespace (confirmed by tracing handler.ts:45)
+2. Confidence: high - reproduced the exact failure path
+3. Recommended fix: Option 2 (Standard Fix) - add input validation at the API boundary in handler.ts
+\`\`\`
+
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
@@ -280,6 +289,15 @@ Provide your response as structured JSON with ALL fields:
 - **filesExamined**: List of files examined
 - **additionalLogsNeeded**: If applicable
 - **summary**: Summary of investigation
+
+## Output Format Example
+
+**GOOD summary example:**
+\`\`\`
+1. Root cause: the useEffect dependency array was missing \`userId\`, causing stale data after login switch
+2. Confidence: high - admin's clarification confirmed this only happens when switching accounts
+3. Recommended fix: Option 1 (Quick Fix, S) - add userId to the dependency array in useItems.ts
+\`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 

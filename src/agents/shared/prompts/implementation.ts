@@ -134,10 +134,22 @@ This is a mobile-first application. ALL UI must be implemented for mobile (~400p
 
 **CRITICAL**: If this PR includes ANY UI changes (new components, styling changes, layout modifications), you MUST visually verify the implementation before completing the task.
 
-**When to verify:**
-- Creating or modifying \`.tsx\` files with visual components
-- Changing styles, layouts, or responsive behavior
-- Adding new UI features or modifying existing ones
+**What counts as a "UI change" (MUST verify):**
+- Any modification to JSX/TSX render output (new elements, changed structure, conditional rendering changes)
+- CSS or Tailwind class changes (including adding, removing, or modifying classes)
+- Component prop changes that affect appearance (e.g., variant, size, className, disabled)
+- New components or pages with visual output
+- Layout changes (flex direction, grid, spacing, padding, margin)
+- Adding new fields to existing forms or lists
+- Changing sort order, filtering, or display logic that affects what users see
+
+**What is NOT a UI change (skip verification):**
+- Pure backend/API handler changes with no render impact
+- Type-only changes (interfaces, type definitions)
+- Utility functions, helpers, or constants with no JSX
+- Test files
+- Configuration files (ESLint, Next.js config, etc.)
+- Database collection files or server-only code
 
 **How to verify:**
 1. Use Playwright MCP (browser automation) to open the app at http://localhost:3000
