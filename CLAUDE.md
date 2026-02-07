@@ -82,6 +82,16 @@ Single API endpoint pattern with React Query. Use this when creating/calling API
 
 ---
 
+## Error Handling
+
+Guidelines for handling and displaying errors across the application. Use this when implementing error states, catch blocks, or user-facing error messages.
+
+**Summary:** Use `ErrorDisplay` for route/page errors, `errorToast`/`errorToastAuto` for mutation failures, and shared `errorUtils` for classification. Stack traces are admin-only. Never show raw error messages to users.
+
+**Docs:** [error-handling.md](docs/template/error-handling.md), [logging-and-error-tracking.md](docs/template/logging-and-error-tracking.md), [react-query-mutations.md](docs/template/react-query-mutations.md)
+
+---
+
 ## Mobile-First Philosophy
 
 All UI must be designed for mobile screens first (~400px width). Use this when implementing any UI.
