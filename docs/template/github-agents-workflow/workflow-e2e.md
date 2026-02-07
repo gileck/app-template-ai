@@ -578,8 +578,8 @@ This document provides comprehensive visual workflows for all scenarios in the G
               │ Admin clicks "Choose Fix Option"
               ▼
 ┌─────────────────────────────────────┐
-│ BUG FIX SELECTION UI                │
-│ /bug-fix/:issueNumber               │
+│ DECISION SELECTION UI               │
+│ /decision/:issueNumber              │
 │ ┌─────────────────────────────────┐ │
 │ │ Choose fix approach:            │ │
 │ │ ○ Add null check (S) → Impl    │ │
@@ -635,7 +635,7 @@ This document provides comprehensive visual workflows for all scenarios in the G
 - **Auto-routed to Bug Investigation** (no routing message shown)
 - Bug Investigator agent uses **read-only** tools (no code changes)
 - Investigation posted as **issue comment** (not a PR)
-- Admin selects fix approach via **web UI** (`/bug-fix/:issueNumber`)
+- Admin selects fix approach via **web UI** (`/decision/:issueNumber`)
 - Can route to **Tech Design** (complex fixes) or **Implementation** (simple fixes)
 - Diagnostics (session logs, stack traces) included in agent prompt (not in GitHub issue)
 
@@ -1378,7 +1378,7 @@ All bugs are automatically routed to **Bug Investigation** on approval. The Bug 
               ▼
 ┌─────────────────────────────────────┐
 │ ADMIN SELECTS FIX OPTION            │
-│ - Via /bug-fix/:issueNumber UI      │
+│ - Via /decision/:issueNumber UI     │
 │ - Chooses "Direct Implementation"   │
 └─────────────┬───────────────────────┘
               │

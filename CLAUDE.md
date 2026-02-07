@@ -470,7 +470,7 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 - Bugs auto-route to Bug Investigation on approval (no routing message)
 - Bug Investigator agent uses read-only tools (Glob, Grep, Read, WebFetch)
 - Investigation posted as GitHub issue comment with fix options
-- Admin selects fix approach via /bug-fix/:issueNumber web UI
+- Admin selects fix approach via /decision/:issueNumber web UI
 - Routes to Tech Design (complex fixes) or Implementation (simple fixes)
 
 **Docs:** [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md)
