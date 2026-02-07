@@ -61,7 +61,11 @@ export {
 } from './implementation';
 
 // Bug Fix prompts (implementation only - bug investigation prompts are in bug-investigation.ts)
-export { buildBugImplementationPrompt } from './bug-fix';
+export {
+    buildBugImplementationPrompt,
+    buildBugFixRevisionPrompt,
+    buildBugFixClarificationPrompt,
+} from './bug-fix';
 
 // Bug Investigation prompts
 export {

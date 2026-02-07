@@ -73,6 +73,26 @@ Provide your response as structured JSON with these fields:
 
 Keep the document concise but complete. The goal is clarity, not length.
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the product development document:
+1. Defined 4 core requirements for the notification system with testable acceptance criteria
+2. Target users: all app users who need timely updates on their items
+3. Success metrics: 80% of notifications read within 24h, reduced support tickets by 30%
+4. Scoped out: real-time push notifications (future phase), email digest
+5. Size estimate: L - requires new data model, multiple API endpoints, and UI
+\`\`\`
+
+**BAD comment example (too generic, avoid this):**
+\`\`\`
+Here's the product development document:
+1. Wrote the requirements
+2. Added success metrics
+3. Defined the scope
+\`\`\`
+
 Example structure:
 
 \`\`\`markdown
@@ -179,6 +199,16 @@ Provide your response as structured JSON with these fields:
 
 Do NOT output just the changes - output the entire revised document. Keep it concise.
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's what I revised in the product development document:
+1. [Feedback: acceptance criteria too vague] → Made each criterion testable with specific conditions
+2. [Feedback: missing offline scenario] → Added R5 covering offline data sync requirements
+3. Narrowed scope: moved "batch operations" to out-of-scope per admin feedback
+\`\`\`
+
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
@@ -246,6 +276,17 @@ Do NOT include UI/UX design or technical implementation details.
 Provide your response as structured JSON with these fields:
 - **document**: Complete Product Development document in markdown format
 - **comment**: High-level summary to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the product development document (after clarification):
+1. Admin clarified this is for internal admin users only - adjusted target users and requirements
+2. Defined 3 core requirements with acceptance criteria focused on admin workflows
+3. Success metric: reduce manual data entry time by 50%
+4. Scoped out public-facing features per admin guidance
+\`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 

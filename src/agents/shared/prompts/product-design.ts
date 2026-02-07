@@ -92,6 +92,25 @@ Provide your response as structured JSON with these fields:
 
 Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the product design:
+1. Added logout button to the user menu dropdown with loading state and error toast
+2. Mobile-first: button placed at bottom of dropdown for easy thumb access (44px touch target)
+3. On success redirects to /login, on error shows non-blocking toast notification
+4. Size estimate: S - simple addition to existing dropdown component
+\`\`\`
+
+**BAD comment example (too generic, avoid this):**
+\`\`\`
+Here's the product design:
+1. Designed the feature
+2. Added UI details
+3. Wrote the document
+\`\`\`
+
 Example for a SMALL feature (S):
 
 \`\`\`markdown
@@ -194,6 +213,16 @@ Provide your response as structured JSON with these fields:
 
 Do NOT output just the changes in design - output the entire revised document. Keep it concise.
 
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's what I revised in the product design:
+1. [Feedback: missing error states] → Added explicit error handling for network failures and invalid input
+2. [Feedback: touch targets too small] → Increased all interactive elements to 44px minimum
+3. Kept the overall flow unchanged, only addressed the specific feedback points
+\`\`\`
+
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
@@ -259,6 +288,17 @@ ${MOBILE_FIRST_INSTRUCTIONS}
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format
 - **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+
+## Output Format Example
+
+**GOOD comment example:**
+\`\`\`
+Here's the product design (after clarification):
+1. Admin clarified the feature should only apply to premium users - scoped the design accordingly
+2. Designed a collapsible filter panel for the settings page with mobile-first layout
+3. Added empty state when no items match filters, with a "clear filters" action
+4. Size estimate: M - requires new UI panel and filter logic
+\`\`\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
