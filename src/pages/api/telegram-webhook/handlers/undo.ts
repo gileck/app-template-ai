@@ -6,6 +6,7 @@
 import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, COMMIT_MESSAGE_MARKER, getIssueUrl } from '@/server/project-management/config';
 import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
+import { getCommitMessage } from '@/agents/lib/workflow-db';
 import { sendNotificationToOwner } from '@/server/telegram';
 import {
     logWebhookAction,
@@ -103,13 +104,19 @@ export async function handleUndoRequestChanges(
             issue_number: prNumber,
         });
 
-        let commitMessage = { title: pr.title, body: pr.body || '' };
-        for (const comment of comments) {
-            if (comment.body?.includes(COMMIT_MESSAGE_MARKER)) {
-                const parsed = parseCommitMessageComment(comment.body);
-                if (parsed) {
-                    commitMessage = parsed;
-                    break;
+        // Try DB first for commit message
+        let commitMessage = await getCommitMessage(issueNumber, prNumber);
+
+        // Fallback to PR comment parsing
+        if (!commitMessage) {
+            commitMessage = { title: pr.title, body: pr.body || '' };
+            for (const comment of comments) {
+                if (comment.body?.includes(COMMIT_MESSAGE_MARKER)) {
+                    const parsed = parseCommitMessageComment(comment.body);
+                    if (parsed) {
+                        commitMessage = parsed;
+                        break;
+                    }
                 }
             }
         }

@@ -274,3 +274,4 @@ export function parseCommitMessageComment(commentBody: string): CommitMessageRes
         body: bodyMatch[1].trim(),
     };
 }
+

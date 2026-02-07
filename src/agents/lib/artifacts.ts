@@ -708,3 +708,4 @@ export async function getTaskBranchFromIssue(
     const artifact = parseArtifactComment(comments);
     return getTaskBranch(artifact);
 }
+

@@ -71,7 +71,7 @@ import {
     logError,
 } from '../../lib/logging';
 import { notifyDecisionNeeded } from '../../shared/notifications';
-import { formatDecisionComment, isDecisionComment as isGenericDecisionComment } from '@/apis/template/agent-decision/utils';
+import { formatDecisionComment, isDecisionComment as isGenericDecisionComment, saveDecisionToDB } from '@/apis/template/agent-decision/utils';
 import type { DecisionOption, MetadataFieldConfig, DestinationOption, RoutingConfig } from '@/apis/template/agent-decision/types';
 
 // ============================================================
@@ -398,6 +398,20 @@ async function processItem(
             await adapter.addIssueComment(issueNumber, prefixedComment);
             console.log('  Investigation comment posted on issue');
             logGitHubAction(logCtx, 'comment', 'Posted bug investigation comment');
+
+            // Save decision to DB
+            const decisionOptions = toDecisionOptions(output);
+            const decisionContext = buildDecisionContext(output);
+            await saveDecisionToDB(
+                issueNumber,
+                'bug-investigator',
+                'bug-fix',
+                decisionContext,
+                decisionOptions,
+                BUG_FIX_METADATA_SCHEMA,
+                BUG_FIX_DESTINATION_OPTIONS,
+                BUG_FIX_ROUTING
+            );
 
             // Update review status
             if (adapter.hasReviewStatusField()) {

@@ -67,10 +67,10 @@ import {
     extractTechDesign,
     generateCommitMessage,
     formatCommitMessageComment,
-    parseArtifactComment,
     getTechDesignPath,
     updateImplementationPhaseArtifact,
 } from '../../lib';
+import { getArtifactsFromIssue, getPhasesFromDB, saveCommitMessage, savePhaseStatusToDB } from '../../lib/workflow-db';
 import {
     readDesignDoc,
 } from '../../lib/design-files';
@@ -390,10 +390,10 @@ async function processItem(
 
                 // Handle approval flow: generate commit message, save to PR comment, notify admin
                 if (decision === 'approved') {
-                    // 1. Update artifact comment to show PR is approved
+                    // 1. Update DB + artifact comment to show PR is approved
                     try {
                         if (processable.phaseInfo) {
-                            // Multi-phase feature
+                            await savePhaseStatusToDB(issueNumber, processable.phaseInfo.current, 'approved', prNumber);
                             await updateImplementationPhaseArtifact(
                                 adapter,
                                 issueNumber,
@@ -404,7 +404,7 @@ async function processItem(
                                 prNumber
                             );
                         } else {
-                            // Single-phase feature - use Phase 1/1 format for consistency
+                            await savePhaseStatusToDB(issueNumber, 1, 'approved', prNumber);
                             await updateImplementationPhaseArtifact(
                                 adapter,
                                 issueNumber,
@@ -429,6 +429,9 @@ async function processItem(
                             : undefined;
                         const commitMsg = generateCommitMessage(prInfo, item.content, phaseInfoForCommit);
                         console.log(`  Generated commit message: ${commitMsg.title}`);
+
+                        // 3b. Save commit message to DB
+                        await saveCommitMessage(issueNumber, prNumber, commitMsg.title, commitMsg.body);
 
                         // 4. Save/update commit message as PR comment
                         const existingComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
@@ -457,9 +460,10 @@ async function processItem(
                         await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
                     }
                 } else {
-                    // Request changes - update artifact and notify
+                    // Request changes - update DB + artifact and notify
                     try {
                         if (processable.phaseInfo) {
+                            await savePhaseStatusToDB(issueNumber, processable.phaseInfo.current, 'changes-requested', prNumber);
                             await updateImplementationPhaseArtifact(
                                 adapter,
                                 issueNumber,
@@ -470,7 +474,7 @@ async function processItem(
                                 prNumber
                             );
                         } else {
-                            // Single-phase feature - use Phase 1/1 format for consistency
+                            await savePhaseStatusToDB(issueNumber, 1, 'changes-requested', prNumber);
                             await updateImplementationPhaseArtifact(
                                 adapter,
                                 issueNumber,
@@ -598,14 +602,11 @@ async function run(options: PRReviewOptions): Promise<void> {
                 updatedAt: c.updatedAt,
             }));
 
-            // Try to get phases from:
-            // 1. Issue comments (most reliable - deterministic format)
-            // 2. Tech design file (new system)
-            // 3. Issue body (old system - fallback)
+            // Try to get phases from DB first, then comments, then markdown
             let techDesign: string | null = null;
 
-            // Try file-based tech design first
-            const artifact = parseArtifactComment(commentsList);
+            // Try DB-first artifact read for tech design path
+            const artifact = await getArtifactsFromIssue(adapter, issueNumber);
             const techPath = getTechDesignPath(artifact);
             if (techPath && artifact?.techDesign?.status === 'approved') {
                 techDesign = readDesignDoc(issueNumber, 'tech');
@@ -616,7 +617,8 @@ async function run(options: PRReviewOptions): Promise<void> {
                 techDesign = extractTechDesign(item.content.body);
             }
 
-            const phases = parsePhasesFromComment(commentsList) ||
+            const phases = await getPhasesFromDB(issueNumber) ||
+                          parsePhasesFromComment(commentsList) ||
                           (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
 
             const currentPhaseDetails = phases?.find(p => p.order === parsed.current);

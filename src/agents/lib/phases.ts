@@ -187,3 +187,4 @@ export function hasPhaseComment(comments: GitHubComment[]): boolean {
 export function getPhaseCommentMarker(): string {
     return PHASE_COMMENT_MARKER;
 }
+

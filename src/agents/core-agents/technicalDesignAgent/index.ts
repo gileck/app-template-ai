@@ -86,9 +86,9 @@ import {
 } from '../../lib/design-files';
 import {
     generateDesignBranchName,
-    parseArtifactComment,
     getProductDesignPath,
 } from '../../lib/artifacts';
+import { getArtifactsFromIssue } from '../../lib/workflow-db';
 
 // ============================================================
 // TYPES
@@ -297,7 +297,7 @@ async function processItem(
 
             // Try to get product design from file first, then fall back to issue body
             let productDesign: string | null = null;
-            const artifact = parseArtifactComment(allComments);
+            const artifact = await getArtifactsFromIssue(adapter, issueNumber);
             const productDesignPath = getProductDesignPath(artifact);
             if (productDesignPath) {
                 productDesign = readDesignDoc(issueNumber, 'product');

@@ -10,11 +10,11 @@ import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
 import {
     parsePhaseString,
     updateImplementationPhaseArtifact,
-    parseArtifactComment,
     getTaskBranch,
     generateTaskBranchName,
     clearTaskBranch,
 } from '@/agents/lib';
+import { getArtifactsFromIssue, getCommitMessage, savePhaseStatusToDB, clearTaskBranchFromDB } from '@/agents/lib/workflow-db';
 import { sendNotificationToOwner } from '@/server/telegram';
 import { appConfig } from '@/app.config';
 import {
@@ -149,8 +149,7 @@ export async function handleMergeFinalPRCallback(
             console.warn(`  [LOG:WARNING] Project item not found for issue #${issueNumber}`);
         }
 
-        const issueComments = await adapter.getIssueComments(issueNumber);
-        const artifact = parseArtifactComment(issueComments);
+        const artifact = await getArtifactsFromIssue(adapter, issueNumber);
         const taskBranch = getTaskBranch(artifact);
 
         if (item) {
@@ -216,6 +215,7 @@ export async function handleMergeFinalPRCallback(
         }
 
         try {
+            await clearTaskBranchFromDB(issueNumber);
             await clearTaskBranch(adapter, issueNumber);
             console.log(`  [LOG:FEATURE_BRANCH] Cleared task branch from artifact`);
         } catch (artifactError) {
@@ -279,16 +279,22 @@ export async function handleMergeCallback(
         const adapter = getProjectManagementAdapter();
         await adapter.init();
 
-        const commitComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
-        if (!commitComment) {
-            console.warn(`[LOG:MERGE] Commit message not found on PR #${prNumber} for issue #${issueNumber}`);
-            return { success: false, error: 'Commit message not found on PR. Please run PR Review again.' };
-        }
+        // Try DB first for commit message
+        let commitMsg = await getCommitMessage(issueNumber, prNumber);
 
-        const commitMsg = parseCommitMessageComment(commitComment.body);
+        // Fallback to PR comment parsing
         if (!commitMsg) {
-            console.warn(`[LOG:MERGE] Could not parse commit message on PR #${prNumber} for issue #${issueNumber}`);
-            return { success: false, error: 'Could not parse commit message. Please run PR Review again.' };
+            const commitComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
+            if (!commitComment) {
+                console.warn(`[LOG:MERGE] Commit message not found on PR #${prNumber} for issue #${issueNumber}`);
+                return { success: false, error: 'Commit message not found on PR. Please run PR Review again.' };
+            }
+
+            commitMsg = parseCommitMessageComment(commitComment.body);
+            if (!commitMsg) {
+                console.warn(`[LOG:MERGE] Could not parse commit message on PR #${prNumber} for issue #${issueNumber}`);
+                return { success: false, error: 'Could not parse commit message. Please run PR Review again.' };
+            }
         }
 
         if (logExists(issueNumber)) {
@@ -332,7 +338,7 @@ export async function handleMergeCallback(
         const item = await findItemByIssueNumber(adapter, issueNumber);
         if (!item) {
             console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
-            if (alreadyMerged || !commitComment) {
+            if (alreadyMerged) {
                 return { success: true };
             }
         } else {
@@ -342,8 +348,7 @@ export async function handleMergeCallback(
         const phase = item ? await adapter.getImplementationPhase(item.itemId) : null;
         const parsedPhase = parsePhaseString(phase);
 
-        const issueComments = await adapter.getIssueComments(issueNumber);
-        const artifact = parseArtifactComment(issueComments);
+        const artifact = await getArtifactsFromIssue(adapter, issueNumber);
         const currentPhaseArtifact = artifact?.implementation?.phases?.find(
             p => parsedPhase && p.phase === parsedPhase.current
         );
@@ -356,6 +361,7 @@ export async function handleMergeCallback(
             const taskBranch = getTaskBranch(artifact);
 
             try {
+                await savePhaseStatusToDB(issueNumber, parsedPhase.current, 'merged', prNumber);
                 await updateImplementationPhaseArtifact(
                     adapter,
                     issueNumber,
@@ -476,6 +482,7 @@ export async function handleMergeCallback(
             }
         } else if (item) {
             try {
+                await savePhaseStatusToDB(issueNumber, 1, 'merged', prNumber);
                 await updateImplementationPhaseArtifact(
                     adapter,
                     issueNumber,

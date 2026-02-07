@@ -270,6 +270,7 @@ export const findReportsInTimeRange = async (
     };
 
     // Exclude specified IDs
+    // Note: Uses `new ObjectId()` instead of `toQueryId()` — $nin requires ObjectId[], see findReportsByIds
     if (excludeIds && excludeIds.length > 0) {
         const objectIds = excludeIds.map(id =>
             typeof id === 'string' ? new ObjectId(id) : id
@@ -490,6 +491,10 @@ export const updateWorkflowFields = async (
 
 /**
  * Find multiple reports by their IDs
+ *
+ * Note: Uses `new ObjectId()` instead of `toQueryId()` because MongoDB's `$in`
+ * operator requires `ObjectId[]`, but `toQueryId()` returns `ObjectId | string`
+ * which is incompatible with that type constraint.
  */
 export const findReportsByIds = async (reportIds: string[]): Promise<ReportDocument[]> => {
     const collection = await getReportsCollection();
@@ -499,6 +504,8 @@ export const findReportsByIds = async (reportIds: string[]): Promise<ReportDocum
 
 /**
  * Batch update status for multiple reports
+ *
+ * Note: Uses `new ObjectId()` instead of `toQueryId()` — see findReportsByIds.
  */
 export const batchUpdateStatuses = async (
     reportIds: string[],
@@ -515,6 +522,8 @@ export const batchUpdateStatuses = async (
 
 /**
  * Batch delete reports by their IDs
+ *
+ * Note: Uses `new ObjectId()` instead of `toQueryId()` — see findReportsByIds.
  */
 export const batchDeleteByIds = async (reportIds: string[]): Promise<number> => {
     const collection = await getReportsCollection();

@@ -78,7 +78,6 @@ import {
     parsePhasesFromComment,
 } from '../../lib/phases';
 import {
-    parseArtifactComment,
     getProductDesignPath,
     getTechDesignPath,
     getTaskBranch,
@@ -87,6 +86,7 @@ import {
     updateImplementationPhaseArtifact,
     setTaskBranch,
 } from '../../lib/artifacts';
+import { getArtifactsFromIssue, getPhasesFromDB, savePhaseStatusToDB, saveTaskBranchToDB } from '../../lib/workflow-db';
 import {
     readDesignDoc,
 } from '../../lib/design-files';
@@ -432,8 +432,8 @@ async function processItem(
         let productDesign: string | null = null;
         let techDesign: string | null = null;
 
-        // Try artifact comment first (new file-based system)
-        const artifact = parseArtifactComment(issueComments);
+        // Try DB-first artifact read, fallback to comment parsing
+        const artifact = await getArtifactsFromIssue(adapter, issueNumber);
         if (artifact) {
             // Try to read from files
             const productPath = getProductDesignPath(artifact);
@@ -490,8 +490,9 @@ async function processItem(
             console.log(`  🌿 ${multiPhaseMsg}`);
             logFeatureBranch(issueNumber, multiPhaseMsg);
 
-            // Try to get phase details from comments first (reliable), then fallback to markdown
-            const parsedPhases = parsePhasesFromComment(issueComments) ||
+            // Try to get phase details from DB first, then comments, then markdown
+            const parsedPhases = await getPhasesFromDB(issueNumber) ||
+                                 parsePhasesFromComment(issueComments) ||
                                  (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
             if (parsedPhases) {
                 currentPhaseDetails = parsedPhases.find(p => p.order === currentPhase);
@@ -500,13 +501,7 @@ async function processItem(
                     total: totalPhases,
                     phases: parsedPhases,
                 };
-
-                // Log which method was used
-                if (parsePhasesFromComment(issueComments)) {
-                    console.log('  Phases loaded from comment (reliable)');
-                } else {
-                    console.log('  Phases loaded from markdown (fallback)');
-                }
+                console.log('  Phases loaded');
             }
 
             // Get task branch from artifact for continuing phases (Phase 2+)
@@ -529,8 +524,9 @@ async function processItem(
             }
         } else if (mode === 'new' && !phaseInfo) {
             // No existing phase - check if we should start multi-phase (only for new implementations)
-            // Try comment first, fallback to markdown
-            const parsedPhases = parsePhasesFromComment(issueComments) ||
+            // Try DB first, then comment, then markdown
+            const parsedPhases = await getPhasesFromDB(issueNumber) ||
+                                 parsePhasesFromComment(issueComments) ||
                                  (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
 
             if (parsedPhases && parsedPhases.length >= 2) {
@@ -540,13 +536,7 @@ async function processItem(
                 const detectedMsg = `Detected multi-phase feature: ${totalPhases} phases`;
                 console.log(`  🌿 ${detectedMsg}`);
                 logFeatureBranch(issueNumber, detectedMsg);
-
-                // Log which method was used
-                if (parsePhasesFromComment(issueComments)) {
-                    console.log('  Phases loaded from comment (reliable)');
-                } else {
-                    console.log('  Phases loaded from markdown (fallback)');
-                }
+                console.log('  Phases loaded');
 
                 // Set phase tracking in GitHub project
                 if (!options.dryRun && adapter.hasImplementationPhaseField()) {
@@ -557,7 +547,8 @@ async function processItem(
                 // Create feature branch for multi-phase workflow (NEW)
                 if (!options.dryRun) {
                     const taskBranchName = await ensureFeatureBranch(adapter, issueNumber, defaultBranch);
-                    // Store task branch in artifact comment for future phases to reference
+                    // Store task branch in DB + artifact comment for future phases to reference
+                    await saveTaskBranchToDB(issueNumber, taskBranchName);
                     await setTaskBranch(adapter, issueNumber, taskBranchName);
                     const storedMsg = `Feature branch stored in artifact: ${taskBranchName}`;
                     console.log(`  🌿 ${storedMsg}`);
@@ -1145,6 +1136,7 @@ See issue #${issueNumber} for full context, product design, and technical design
                 try {
                     if (currentPhase && totalPhases && currentPhaseDetails) {
                         // Multi-phase feature
+                        await savePhaseStatusToDB(issueNumber, currentPhase, 'in-review', prNumber);
                         await updateImplementationPhaseArtifact(
                             adapter,
                             issueNumber,
@@ -1156,6 +1148,7 @@ See issue #${issueNumber} for full context, product design, and technical design
                         );
                     } else {
                         // Single-phase feature - use Phase 1/1 format for consistency
+                        await savePhaseStatusToDB(issueNumber, 1, 'in-review', prNumber);
                         await updateImplementationPhaseArtifact(
                             adapter,
                             issueNumber,
