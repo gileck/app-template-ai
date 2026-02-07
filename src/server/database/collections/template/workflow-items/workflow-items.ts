@@ -344,6 +344,34 @@ export const setDecision = async (
 };
 
 /**
+ * Delete a workflow item by its _id
+ */
+export const deleteWorkflowItem = async (
+    id: ObjectId | string
+): Promise<boolean> => {
+    const collection = await getWorkflowItemsCollection();
+    const idObj = typeof id === 'string' ? new ObjectId(id) : id;
+    const result = await collection.deleteOne({ _id: idObj });
+    return result.deletedCount > 0;
+};
+
+/**
+ * Delete a workflow item by its source reference
+ */
+export const deleteWorkflowItemBySourceRef = async (
+    sourceCollection: 'feature-requests' | 'reports',
+    sourceId: ObjectId | string
+): Promise<boolean> => {
+    const collection = await getWorkflowItemsCollection();
+    const sourceIdObj = typeof sourceId === 'string' ? new ObjectId(sourceId) : sourceId;
+    const result = await collection.deleteOne({
+        'sourceRef.collection': sourceCollection,
+        'sourceRef.id': sourceIdObj,
+    });
+    return result.deletedCount > 0;
+};
+
+/**
  * Set the decision selection within the decision artifact
  */
 export const setDecisionSelection = async (
