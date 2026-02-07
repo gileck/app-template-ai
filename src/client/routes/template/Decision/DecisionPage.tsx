@@ -150,7 +150,7 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
 
     // Success state
     if (submitted) {
-        const routedToLabel = submitMutation.data?.routedToLabel || 'next phase';
+        const routedTo = submitMutation.data?.routedTo;
 
         return (
             <div className="p-3 sm:p-4 max-w-2xl mx-auto">
@@ -163,10 +163,13 @@ export function DecisionPage({ issueNumber, token }: DecisionPageProps) {
                                     Decision Submitted!
                                 </h2>
                                 <p className="text-muted-foreground">
-                                    Issue #{issueNumber} has been routed to {routedToLabel}.
+                                    {routedTo
+                                        ? `Issue #${issueNumber} has been routed to ${routedTo}.`
+                                        : `Your selection for issue #${issueNumber} has been recorded.`
+                                    }
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    The item will be processed in the next workflow run.
+                                    The agent will process this in the next workflow run.
                                 </p>
                             </div>
                         </div>

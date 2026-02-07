@@ -16,6 +16,7 @@ export const API_SUBMIT_DECISION = 'agent-decision/submitDecision';
 export type {
     MetadataFieldConfig,
     DestinationOption,
+    RoutingConfig,
     DecisionOption,
     ParsedDecision,
     GetDecisionRequest,
@@ -34,6 +35,6 @@ export {
     formatDecisionComment,
     formatDecisionSelectionComment,
     findDecisionItem,
-    resolveRouting,
-    DECISION_ROUTING_CONFIG,
+    isSelectionComment,
+    parseSelectionComment,
 } from './utils';

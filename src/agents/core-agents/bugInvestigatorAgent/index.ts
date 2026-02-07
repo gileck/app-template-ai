@@ -72,7 +72,7 @@ import {
 } from '../../lib/logging';
 import { notifyDecisionNeeded } from '../../shared/notifications';
 import { formatDecisionComment, isDecisionComment as isGenericDecisionComment } from '@/apis/template/agent-decision/utils';
-import type { DecisionOption, MetadataFieldConfig, DestinationOption } from '@/apis/template/agent-decision/types';
+import type { DecisionOption, MetadataFieldConfig, DestinationOption, RoutingConfig } from '@/apis/template/agent-decision/types';
 
 // ============================================================
 // TYPES
@@ -102,6 +102,19 @@ const BUG_FIX_DESTINATION_OPTIONS: DestinationOption[] = [
     { value: 'tech-design', label: 'Technical Design' },
     { value: 'implement', label: 'Implementation' },
 ];
+
+/** Routing config: maps option metadata to project statuses */
+const BUG_FIX_ROUTING: RoutingConfig = {
+    metadataKey: 'destination',
+    statusMap: {
+        'Direct Implementation': 'Ready for development',
+        'Technical Design': 'Technical Design',
+    },
+    customDestinationStatusMap: {
+        'implement': 'Ready for development',
+        'tech-design': 'Technical Design',
+    },
+};
 
 /**
  * Convert bug investigation output to generic decision options
@@ -159,7 +172,8 @@ function formatInvestigationComment(output: BugInvestigationOutput): string {
         context,
         options,
         BUG_FIX_METADATA_SCHEMA,
-        BUG_FIX_DESTINATION_OPTIONS
+        BUG_FIX_DESTINATION_OPTIONS,
+        BUG_FIX_ROUTING
     );
 }
 

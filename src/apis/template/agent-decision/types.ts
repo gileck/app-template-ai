@@ -41,6 +41,19 @@ export interface DestinationOption {
     label: string;
 }
 
+/**
+ * Optional routing config embedded in DECISION_META by agents.
+ * Allows the submit handler to auto-route the item to a new status.
+ */
+export interface RoutingConfig {
+    /** Which metadata key on the option contains the routing value */
+    metadataKey: string;
+    /** Maps metadata values to project status names */
+    statusMap: Record<string, string>;
+    /** Maps custom destination values to project status names (for custom solutions) */
+    customDestinationStatusMap?: Record<string, string>;
+}
+
 // ============================================================
 // DECISION OPTION TYPES
 // ============================================================
@@ -82,6 +95,8 @@ export interface ParsedDecision {
     metadataSchema: MetadataFieldConfig[];
     /** Available destination options for custom solutions (if applicable) */
     customDestinationOptions?: DestinationOption[];
+    /** Optional routing config — if present, submit handler auto-routes the item */
+    routing?: RoutingConfig;
 }
 
 // ============================================================
@@ -140,10 +155,8 @@ export interface SubmitDecisionRequest {
 export interface SubmitDecisionResponse {
     /** Whether submission was successful */
     success?: boolean;
-    /** The destination the item was routed to */
+    /** The status the item was routed to (if routing config was present) */
     routedTo?: string;
-    /** Human-readable destination label */
-    routedToLabel?: string;
     /** Error message if failed */
     error?: string;
 }

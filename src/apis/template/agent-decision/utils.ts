@@ -1,7 +1,9 @@
 /**
  * Agent Decision Utilities
  *
- * Utilities for parsing decision comments, validating tokens, and routing.
+ * Utilities for parsing decision comments and validating tokens.
+ * The generic decision system only handles presenting options and recording
+ * the admin's selection. Routing/status changes are the agent's responsibility.
  */
 
 import crypto from 'crypto';
@@ -9,11 +11,12 @@ import type {
     DecisionOption,
     MetadataFieldConfig,
     DestinationOption,
+    RoutingConfig,
     ParsedDecision,
     DecisionSelection,
 } from './types';
 import type { ProjectManagementAdapter } from '@/server/project-management';
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { REVIEW_STATUSES } from '@/server/project-management/config';
 
 // ============================================================
 // TOKEN UTILITIES
@@ -97,6 +100,7 @@ function extractDecisionMeta(body: string): {
     type: string;
     metadataSchema: MetadataFieldConfig[];
     customDestinationOptions?: DestinationOption[];
+    routing?: RoutingConfig;
 } | null {
     const match = body.match(/<!-- DECISION_META:(.*?) -->/);
     if (!match?.[1]) return null;
@@ -219,6 +223,7 @@ export function parseDecision(
         options,
         metadataSchema: meta.metadataSchema,
         customDestinationOptions: meta.customDestinationOptions,
+        routing: meta.routing,
     };
 }
 
@@ -236,12 +241,14 @@ export function formatDecisionComment(
     context: string,
     options: DecisionOption[],
     metadataSchema: MetadataFieldConfig[],
-    customDestinationOptions?: DestinationOption[]
+    customDestinationOptions?: DestinationOption[],
+    routing?: RoutingConfig
 ): string {
     const metaJson = JSON.stringify({
         type: decisionType,
         metadataSchema,
         ...(customDestinationOptions ? { customDestinationOptions } : {}),
+        ...(routing ? { routing } : {}),
     });
 
     let comment = `<!-- AGENT_DECISION_V1:${agentId} -->
@@ -286,28 +293,35 @@ _Please choose an option in the Telegram notification, or add a comment with fee
 
 /**
  * Format a selection comment posted after an admin picks an option.
+ * Includes a machine-readable marker so agents can parse the selection.
  */
 export function formatDecisionSelectionComment(
     selection: DecisionSelection,
-    options: DecisionOption[],
-    routedTo: string,
-    routedToLabel: string
+    options: DecisionOption[]
 ): string {
-    let comment = `## ✅ Decision Made\n\n`;
+    // Machine-readable marker for agents to parse
+    const selectionData = JSON.stringify({
+        selectedOptionId: selection.selectedOptionId,
+        ...(selection.customSolution ? { customSolution: selection.customSolution } : {}),
+        ...(selection.customDestination ? { customDestination: selection.customDestination } : {}),
+        ...(selection.notes ? { notes: selection.notes } : {}),
+    });
+
+    let comment = `<!-- DECISION_SELECTION:${selectionData} -->\n## ✅ Decision Made\n\n`;
 
     if (selection.selectedOptionId === 'custom') {
         comment += `**Selected:** Custom Solution
-**Routed to:** ${routedToLabel}
 
 **Custom Solution:**
 ${selection.customSolution}
 `;
+        if (selection.customDestination) {
+            comment += `**Destination:** ${selection.customDestination}\n`;
+        }
     } else {
         const selectedOption = options.find(o => o.id === selection.selectedOptionId);
         if (selectedOption) {
-            comment += `**Selected:** ${selectedOption.id}: ${selectedOption.title}
-**Routed to:** ${routedToLabel}
-`;
+            comment += `**Selected:** ${selectedOption.id}: ${selectedOption.title}\n`;
         }
     }
 
@@ -320,90 +334,37 @@ ${selection.notes}
 
     comment += `
 ---
-_The item will now proceed to the ${routedToLabel} phase._`;
+_The agent will process this selection in the next workflow run._`;
 
     return comment;
 }
 
 // ============================================================
-// ROUTING CONFIGURATION
+// SELECTION COMMENT PARSING
 // ============================================================
 
-interface RoutingRule {
-    /** Map of destination values to { status, label } */
-    destinations: Record<string, { status: string; label: string }>;
-    /** Default destination if option doesn't specify one */
-    defaultDestination: string;
-    /** Metadata key that determines destination (e.g. "destination") */
-    destinationKey: string;
+const SELECTION_MARKER_PREFIX = '<!-- DECISION_SELECTION:';
+
+/**
+ * Check if a comment is a decision selection comment.
+ */
+export function isSelectionComment(body: string): boolean {
+    return body.includes(SELECTION_MARKER_PREFIX);
 }
 
 /**
- * Routing configuration per decision type.
- * Maps decisionType -> routing rules.
+ * Parse a decision selection from a selection comment.
+ * Returns the DecisionSelection data embedded in the marker.
  */
-export const DECISION_ROUTING_CONFIG: Record<string, RoutingRule> = {
-    'bug-fix': {
-        destinationKey: 'destination',
-        defaultDestination: 'tech-design',
-        destinations: {
-            'implement': { status: STATUSES.implementation, label: 'Implementation' },
-            'Direct Implementation': { status: STATUSES.implementation, label: 'Implementation' },
-            'tech-design': { status: STATUSES.techDesign, label: 'Technical Design' },
-            'Technical Design': { status: STATUSES.techDesign, label: 'Technical Design' },
-        },
-    },
-    'tech-design': {
-        destinationKey: 'destination',
-        defaultDestination: 'implement',
-        destinations: {
-            'implement': { status: STATUSES.implementation, label: 'Implementation' },
-        },
-    },
-    'implementation': {
-        destinationKey: 'destination',
-        defaultDestination: 'implement',
-        destinations: {
-            'implement': { status: STATUSES.implementation, label: 'Implementation' },
-        },
-    },
-};
+export function parseSelectionComment(body: string): DecisionSelection | null {
+    const match = body.match(/<!-- DECISION_SELECTION:(.*?) -->/);
+    if (!match?.[1]) return null;
 
-/**
- * Determine routing for a decision selection.
- */
-export function resolveRouting(
-    decisionType: string,
-    selection: DecisionSelection,
-    options: DecisionOption[]
-): { status: string; label: string; destinationValue: string } | null {
-    const config = DECISION_ROUTING_CONFIG[decisionType];
-    if (!config) {
+    try {
+        return JSON.parse(match[1]);
+    } catch {
         return null;
     }
-
-    let destinationValue: string;
-
-    if (selection.selectedOptionId === 'custom') {
-        destinationValue = selection.customDestination || config.defaultDestination;
-    } else {
-        const selectedOption = options.find(o => o.id === selection.selectedOptionId);
-        if (!selectedOption) {
-            return null;
-        }
-        const rawDest = selectedOption.metadata[config.destinationKey];
-        destinationValue = (typeof rawDest === 'string' ? rawDest : '') || config.defaultDestination;
-    }
-
-    const dest = config.destinations[destinationValue];
-    if (!dest) {
-        // Try the default
-        const defaultDest = config.destinations[config.defaultDestination];
-        if (!defaultDest) return null;
-        return { ...defaultDest, destinationValue: config.defaultDestination };
-    }
-
-    return { ...dest, destinationValue };
 }
 
 // ============================================================

@@ -1,8 +1,10 @@
 /**
  * Submit Decision Handler
  *
- * Posts the admin's decision selection as a GitHub comment and routes
- * the item to the appropriate next phase.
+ * Posts the admin's decision selection as a GitHub comment.
+ * If the decision comment includes a routing config, automatically
+ * routes the item to the target status. Otherwise sets review
+ * status to Approved for the agent to pick up.
  */
 
 import type { SubmitDecisionRequest, SubmitDecisionResponse } from '../types';
@@ -12,19 +14,18 @@ import {
     parseDecision,
     formatDecisionSelectionComment,
     findDecisionItem,
-    resolveRouting,
 } from '../utils';
 import { getProjectManagementAdapter } from '@/server/project-management';
+import { REVIEW_STATUSES } from '@/server/project-management/config';
 
 /**
  * Submit a decision selection.
  *
  * 1. Validates the token
  * 2. Verifies the issue is in the correct state
- * 3. Determines routing via config
- * 4. Posts the decision comment
- * 5. Updates status to route to the selected destination
- * 6. Clears review status for next phase
+ * 3. Posts the selection comment (with machine-readable marker)
+ * 4. If routing config exists: routes item to target status
+ * 5. Otherwise: sets review status to Approved
  */
 export async function submitDecision(
     params: SubmitDecisionRequest
@@ -59,7 +60,7 @@ export async function submitDecision(
             return { error: verification.error };
         }
 
-        // Get the decision comment to extract options
+        // Get the decision comment to extract options for the selection comment
         const comments = await adapter.getIssueComments(issueNumber);
 
         let decisionCommentBody = null;
@@ -86,8 +87,9 @@ export async function submitDecision(
         }
 
         // Validate selected option exists (unless custom)
+        let selectedOption = null;
         if (selection.selectedOptionId !== 'custom') {
-            const selectedOption = decision.options.find(
+            selectedOption = decision.options.find(
                 o => o.id === selection.selectedOptionId
             );
             if (!selectedOption) {
@@ -95,36 +97,59 @@ export async function submitDecision(
             }
         }
 
-        // Determine routing
-        const routing = resolveRouting(decision.decisionType, selection, decision.options);
-        if (!routing) {
-            return { error: `Could not determine routing for decision type: ${decision.decisionType}` };
-        }
-
         // Format and post the selection comment
         const selectionComment = formatDecisionSelectionComment(
             selection,
-            decision.options,
-            routing.destinationValue,
-            routing.label
+            decision.options
         );
 
         await adapter.addIssueComment(issueNumber, selectionComment);
         console.log(`  Posted decision selection comment on issue #${issueNumber}`);
 
-        // Update status to route to the destination
-        await adapter.updateItemStatus(verification.itemId, routing.status);
-        console.log(`  Status updated to: ${routing.status}`);
+        // Resolve routing if config is present
+        const routing = decision.routing;
+        let routedTo: string | undefined;
 
-        // Clear review status for next phase
-        await adapter.clearItemReviewStatus(verification.itemId);
-        console.log('  Review status cleared');
+        if (routing) {
+            if (selection.selectedOptionId === 'custom') {
+                if (routing.customDestinationStatusMap) {
+                    const dest = selection.customDestination;
+                    if (dest && routing.customDestinationStatusMap[dest]) {
+                        routedTo = routing.customDestinationStatusMap[dest];
+                    } else if (dest) {
+                        console.warn(`  Routing: custom destination "${dest}" not found in customDestinationStatusMap`);
+                    }
+                } else if (decision.customDestinationOptions?.length) {
+                    console.warn(`  Routing: customDestinationOptions present but customDestinationStatusMap missing`);
+                }
+            } else if (selectedOption) {
+                const metaValue = selectedOption.metadata[routing.metadataKey];
+                if (typeof metaValue === 'string' && routing.statusMap[metaValue]) {
+                    routedTo = routing.statusMap[metaValue];
+                } else if (typeof metaValue === 'string') {
+                    console.warn(`  Routing: metadata value "${metaValue}" not found in statusMap`);
+                }
+            }
+        }
 
-        return {
-            success: true,
-            routedTo: routing.destinationValue,
-            routedToLabel: routing.label,
-        };
+        if (routedTo) {
+            // Route item to target status and clear review status
+            await adapter.updateItemStatus(verification.itemId, routedTo);
+            console.log(`  Item routed to: ${routedTo}`);
+
+            if (adapter.hasReviewStatusField()) {
+                await adapter.updateItemReviewStatus(verification.itemId, '');
+                console.log(`  Review status cleared`);
+            }
+        } else {
+            // No routing — set review status to Approved for agent to pick up
+            if (adapter.hasReviewStatusField()) {
+                await adapter.updateItemReviewStatus(verification.itemId, REVIEW_STATUSES.approved);
+                console.log(`  Review status set to: ${REVIEW_STATUSES.approved}`);
+            }
+        }
+
+        return { success: true, routedTo };
     } catch (error) {
         console.error('Error submitting decision:', error);
         return {
