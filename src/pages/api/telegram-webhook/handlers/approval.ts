@@ -56,6 +56,10 @@ export async function handleFeatureRequestApproval(
     const result = await approveFeatureRequest(requestId);
 
     if (!result.success) {
+        // Restore the approval token so the user can retry
+        if (request.approvalToken) {
+            await featureRequests.updateApprovalToken(requestId, request.approvalToken);
+        }
         console.error(`[LOG:APPROVAL] Failed to approve feature request ${requestId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
@@ -130,6 +134,10 @@ export async function handleBugReportApproval(
     const result = await approveBugReport(reportId);
 
     if (!result.success) {
+        // Restore the approval token so the user can retry
+        if (report.approvalToken) {
+            await reports.updateApprovalToken(reportId, report.approvalToken);
+        }
         console.error(`[LOG:APPROVAL] Failed to approve bug report ${reportId}: ${result.error}`);
         return { success: false, error: result.error || 'Failed to approve' };
     }
