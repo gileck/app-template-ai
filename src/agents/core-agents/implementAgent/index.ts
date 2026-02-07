@@ -93,7 +93,7 @@ import {
     updateImplementationPhaseArtifact,
     setTaskBranch,
 } from '../../lib/artifacts';
-import { getArtifactsFromIssue, getPhasesFromDB, savePhaseStatusToDB, saveTaskBranchToDB } from '../../lib/workflow-db';
+import { getArtifactsFromIssue, getPhasesFromDB, savePhasesToDB, savePhaseStatusToDB, saveTaskBranchToDB } from '../../lib/workflow-db';
 import {
     readDesignDoc,
 } from '../../lib/design-files';
@@ -1097,7 +1097,8 @@ See issue #${issueNumber} for full context, product design, and technical design
                             prNumber
                         );
                     } else {
-                        // Single-phase feature - use Phase 1/1 format for consistency
+                        // Single-phase feature - initialize phases array then update status
+                        await savePhasesToDB(issueNumber, [{ order: 1, name: '' }]);
                         await savePhaseStatusToDB(issueNumber, 1, 'in-review', prNumber);
                         await updateImplementationPhaseArtifact(
                             adapter,
