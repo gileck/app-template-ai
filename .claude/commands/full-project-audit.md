@@ -81,9 +81,10 @@ This audit is too large to complete without tracking. The TODO list ensures:
 7. [pending] Phase 3.7: Audit Offline PWA Support (CRITICAL)
 8. [pending] Phase 3.8-3.11: Audit Theming, TypeScript, MongoDB, shadcn
 9. [pending] Phase 3.12: Audit React Components (CRITICAL)
-10. [pending] Phase 4: Check Cross-Cutting Concerns
-11. [pending] Phase 5: Check Documentation Sync
-12. [pending] Phase 6: Generate Final Audit Report
+10. [pending] Phase 3.14: Audit Error Handling Patterns
+11. [pending] Phase 4: Check Cross-Cutting Concerns
+12. [pending] Phase 5: Check Documentation Sync
+13. [pending] Phase 6: Generate Final Audit Report
 ```
 
 ### Step 2: Expand TODOs During Discovery
@@ -150,6 +151,7 @@ Phase 3: Systematic Review (Per Area)
     │ - 3.6: 🚨 State Management (React Query vs Zustand)
     │ - 3.7: 🚨 Offline PWA Support
     │ - 3.8-3.11: Theming, TypeScript, MongoDB, shadcn
+    │ - 3.14: Error Handling Patterns
     ▼
 Phase 4: Cross-Cutting Concerns
     │ - Import patterns
@@ -201,6 +203,7 @@ Read these files completely in order:
 7. `docs/template/project-structure-guidelines.md` - Template/project subfolder structure
 8. `docs/authentication.md` - Auth flow details
 9. `docs/caching-strategy.md` - Caching architecture
+10. `docs/template/error-handling.md` - Error handling patterns
 
 #### Rules Files
 10. `.ai/skills/client-server-communications/SKILL.md` - API structure
@@ -236,6 +239,7 @@ After reading, you should understand:
 | **Theming** | Semantic tokens ONLY (`bg-background`, NOT `bg-white`) |
 | **TypeScript** | No `any`, no `as any`, prefer unions over enums |
 | **MongoDB** | All ops in `server/database/collections/`, use ID utilities |
+| **Error Handling** | `ErrorDisplay` for pages, `errorToast`/`errorToastAuto` for mutations, never raw `error.message` |
 
 ---
 
@@ -1990,6 +1994,229 @@ cat .template-sync.json 2>/dev/null | grep -A20 "projectOverrides" || echo "No o
 
 ---
 
+### 3.14: Error Handling Audit
+
+📚 **Reference**: [docs/template/error-handling.md](../../docs/template/error-handling.md)
+
+All error handling flows through shared utilities in `src/client/features/template/error-tracking/`. This audit verifies correct usage of `ErrorDisplay`, `errorToast`/`errorToastAuto`, and shared `errorUtils`.
+
+#### 3.14.1: Find All Error Display Patterns
+
+```bash
+# Find all route/page error states
+grep -r "error)" src/client/routes --include="*.tsx" -B2 -A5
+
+# Find ErrorDisplay usage (CORRECT)
+grep -r "ErrorDisplay" src/client --include="*.tsx" -l
+
+# Find custom error rendering (POTENTIAL VIOLATIONS)
+grep -r "error\.message" src/client/routes --include="*.tsx"
+grep -r "error\.message" src/client/features --include="*.tsx"
+
+# Find error state rendering without ErrorDisplay
+grep -r "if.*error.*return" src/client/routes --include="*.tsx" -A3
+```
+
+**Expected**: All route/page-level error states should use `<ErrorDisplay>`:
+
+```typescript
+// ✅ CORRECT: Use ErrorDisplay for route/page errors
+if (error) {
+    return (
+        <ErrorDisplay
+            error={error}
+            title="Failed to load items"
+            onRetry={() => refetch()}
+        />
+    );
+}
+
+// ❌ WRONG: Custom inline error rendering
+if (error) {
+    return <p className="text-red-500">{error.message}</p>;
+}
+
+// ❌ WRONG: Showing raw error.message
+if (error) {
+    return <div>{error.message}</div>;
+}
+```
+
+**Per-route checklist:**
+
+| Route | Has Error State | Uses ErrorDisplay | Shows Raw Message | Status |
+|-------|----------------|-------------------|-------------------|--------|
+| [Route 1] | ✓/✗ | ✓/✗ | ✓/✗ | |
+| [Route 2] | ✓/✗ | ✓/✗ | ✓/✗ | |
+
+#### 3.14.2: Mutation Error Handling (onError Callbacks)
+
+```bash
+# Find all onError handlers in mutations
+grep -r "onError" src/client --include="*.ts" --include="*.tsx" -A3
+
+# Find errorToast usage (CORRECT for system errors)
+grep -r "errorToast\|errorToastAuto" src/client --include="*.ts" --include="*.tsx" -l
+
+# Find plain toast.error for system errors (POTENTIAL VIOLATIONS)
+grep -r "toast\.error" src/client --include="*.ts" --include="*.tsx" -B3 -A1
+
+# Find catch blocks that don't use errorToast
+grep -r "catch.*{" src/client --include="*.ts" --include="*.tsx" -A5
+```
+
+**Expected patterns:**
+
+```typescript
+// ✅ CORRECT: errorToast with specific message + error object
+onError: (err) => {
+    errorToast('Failed to save changes', err);
+},
+
+// ✅ CORRECT: errorToastAuto for automatic classification
+catch (error) {
+    errorToastAuto(error, 'Failed to submit report.');
+}
+
+// ✅ CORRECT: plain toast.error for VALIDATION errors (no Error object)
+if (!title.trim()) {
+    toast.error('Please enter a title');
+    return;
+}
+
+// ❌ WRONG: plain toast.error for system/mutation errors (no copy action)
+onError: () => {
+    toast.error('Failed to delete item');
+},
+
+// ❌ WRONG: showing raw error message
+onError: (err) => {
+    toast.error(err.message);
+},
+
+// ❌ WRONG: swallowing errors silently
+onError: () => {
+    // nothing
+},
+```
+
+**Key distinction**: `toast.error()` is fine for **validation** (no Error object). For **system/mutation errors**, always use `errorToast(message, error)` or `errorToastAuto(error)` so users get the "Copy Error" action button.
+
+**Per-mutation checklist:**
+
+| Mutation | Has onError | Uses errorToast/errorToastAuto | Passes Error Object | Status |
+|----------|-------------|-------------------------------|---------------------|--------|
+| [Mutation 1] | ✓/✗ | ✓/✗ | ✓/✗ | |
+| [Mutation 2] | ✓/✗ | ✓/✗ | ✓/✗ | |
+
+#### 3.14.3: No Raw Error Messages to Users
+
+```bash
+# Find direct error.message usage in UI (VIOLATIONS)
+grep -r "error\.message" src/client/routes --include="*.tsx"
+grep -r "error\.message" src/client/features --include="*.tsx" --include="*.ts"
+grep -r "err\.message" src/client --include="*.tsx"
+
+# Find cleanErrorMessage usage (CORRECT)
+grep -r "cleanErrorMessage\|getUserFriendlyMessage" src/client --include="*.ts" --include="*.tsx" -l
+```
+
+**Rule**: Never show `error.message` directly to users. Always use `cleanErrorMessage()` or `getUserFriendlyMessage()`. Raw messages often contain API paths, stack traces, or technical jargon.
+
+```typescript
+// ❌ WRONG: Raw error message
+<p>{error.message}</p>
+
+// ✅ CORRECT: Use utility
+import { getUserFriendlyMessage } from '@/client/features/template/error-tracking';
+<p>{getUserFriendlyMessage(error)}</p>
+```
+
+| Check | Status |
+|-------|--------|
+| No `error.message` rendered directly in JSX | |
+| No `err.message` passed to toast without cleaning | |
+| Uses `cleanErrorMessage()` or `getUserFriendlyMessage()` | |
+
+#### 3.14.4: ErrorBoundary Coverage
+
+```bash
+# Check ErrorBoundary usage
+grep -r "ErrorBoundary" src/client --include="*.tsx" -l
+grep -r "ErrorBoundary" src/pages --include="*.tsx" -l
+
+# Verify _app.tsx wraps with ErrorBoundary
+grep -A5 "ErrorBoundary" src/pages/_app.tsx
+```
+
+| Check | Status |
+|-------|--------|
+| `ErrorBoundary` wraps app in `_app.tsx` | |
+| `ErrorBoundary` uses `ErrorDisplay` internally | |
+| Critical route sections have error boundaries | |
+
+#### 3.14.5: Admin-Only Stack Traces
+
+The `ErrorDisplay` component should gate stack trace visibility using `useIsAdmin()`.
+
+```bash
+# Verify ErrorDisplay checks admin status
+grep -A10 "useIsAdmin\|isAdmin" src/client/features/template/error-tracking/ErrorDisplay.tsx
+
+# Check formatErrorForCopy respects admin
+grep -A10 "formatErrorForCopy\|isAdmin" src/client/features/template/error-tracking/errorUtils.ts
+```
+
+| Check | Status |
+|-------|--------|
+| `ErrorDisplay` uses `useIsAdmin()` for stack trace visibility | |
+| "Copy Error" button gives full details to admins only | |
+| Non-admin users see cleaned error message only | |
+| No stack traces leaked to non-admin UI anywhere | |
+
+#### 3.14.6: Error Imports (Circular Dependency Prevention)
+
+```bash
+# Find imports from error-tracking barrel inside bug-report or auth (VIOLATIONS)
+grep -r "from.*error-tracking'" src/client/features/template/bug-report --include="*.ts" --include="*.tsx"
+grep -r "from.*error-tracking'" src/client/features/template/auth --include="*.ts" --include="*.tsx"
+
+# These should import from specific files instead:
+# ✅ from '../error-tracking/errorToast'
+# ✅ from '../error-tracking/errorUtils'
+# ❌ from '../error-tracking' (barrel - causes circular dep)
+```
+
+| Check | Status |
+|-------|--------|
+| `bug-report` does NOT import from `'../error-tracking'` barrel | |
+| `auth` does NOT import from `'../error-tracking'` barrel | |
+| Uses direct file imports (`../error-tracking/errorToast`) | |
+
+#### 3.14.7: Error Handling Summary Table
+
+Create a summary of all error handling patterns found:
+
+| Location | Error Type | Pattern Used | Correct Pattern | Status |
+|----------|-----------|--------------|-----------------|--------|
+| Route: [name] | Query error | `ErrorDisplay` / Custom | `ErrorDisplay` | ✓/✗ |
+| Mutation: [name] | Mutation error | `errorToast` / `toast.error` | `errorToast` | ✓/✗ |
+| Component: [name] | Inline error | raw message / cleaned | `getUserFriendlyMessage` | ✓/✗ |
+
+#### 3.14.8: Common Error Handling Violations
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Custom error rendering in routes | Check `if (error) return` in routes | Use `<ErrorDisplay>` component |
+| `toast.error()` for mutation failures | Check `onError` callbacks | Use `errorToast(message, err)` |
+| Raw `error.message` in UI | `grep -r "error\.message"` in tsx | Use `getUserFriendlyMessage()` |
+| Missing error object in toast | Check `errorToast` calls | Always pass error as second arg |
+| Swallowed errors (empty catch) | Check `catch` blocks | Add `errorToastAuto(error)` |
+| Barrel import in bug-report/auth | Check import paths | Use direct file imports |
+| Stack traces visible to non-admins | Check error rendering | Use `ErrorDisplay` (handles admin gate) |
+
+---
+
 ## Phase 4: Cross-Cutting Concerns
 
 ### 4.1: Import Pattern Compliance
@@ -2111,6 +2338,7 @@ Use this template to generate the final audit report:
 | Theming | X | X | X | XX% |
 | TypeScript | X | X | X | XX% |
 | Components | X | X | X | XX% |
+| Error Handling | X | X | X | XX% |
 | **TOTAL** | **X** | **X** | **X** | **XX%** |
 
 ### Overall Health Score: [X/10]
@@ -2200,7 +2428,8 @@ Areas that fully meet guidelines (brief summary).
 | 4 | Theming Compliance | X hours | X files | ⬜ |
 | 5 | TypeScript Cleanup | X hours | X files | ⬜ |
 | 6 | Component Refactoring | X hours | X files | ⬜ |
-| 7 | Documentation Updates | X hours | X files | ⬜ |
+| 7 | Error Handling Fixes | X hours | X files | ⬜ |
+| 8 | Documentation Updates | X hours | X files | ⬜ |
 
 ---
 
@@ -2357,13 +2586,107 @@ Areas that fully meet guidelines (brief summary).
 
 ---
 
-### Phase 7: Documentation Updates
+### Phase 7: Error Handling Fixes
+
+**Priority**: ⚠️ HIGH
+**Estimated Effort**: X hours
+**Files Affected**: X
+
+#### Task 7.1: Replace custom error rendering with ErrorDisplay
+
+- [ ] **Replace custom error UI** in `path/to/file.tsx`
+
+**Issue**: Route uses custom inline error rendering instead of `<ErrorDisplay>`
+
+<details>
+<summary>View Code Changes</summary>
+
+**Current Code (Non-Compliant)**:
+```typescript
+// Custom error rendering
+if (error) return <p className="text-red-500">{error.message}</p>;
+```
+
+**Required Fix**:
+```typescript
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
+
+if (error) {
+    return (
+        <ErrorDisplay
+            error={error}
+            title="Failed to load items"
+            onRetry={() => refetch()}
+        />
+    );
+}
+```
+
+</details>
+
+---
+
+#### Task 7.2: Replace toast.error with errorToast in mutations
+
+- [ ] **Use errorToast for mutation errors** in `path/to/file.ts`
+
+**Issue**: Mutation `onError` uses `toast.error()` instead of `errorToast()`, losing the "Copy Error" action
+
+<details>
+<summary>View Code Changes</summary>
+
+**Current Code (Non-Compliant)**:
+```typescript
+onError: () => {
+    toast.error('Failed to save changes');
+},
+```
+
+**Required Fix**:
+```typescript
+import { errorToast } from '@/client/features/template/error-tracking';
+
+onError: (err) => {
+    errorToast('Failed to save changes', err);
+},
+```
+
+</details>
+
+---
+
+#### Task 7.3: Remove raw error.message from UI
+
+- [ ] **Replace raw error messages** in `path/to/file.tsx`
+
+**Issue**: Displays `error.message` directly to users
+
+<details>
+<summary>View Code Changes</summary>
+
+**Current Code (Non-Compliant)**:
+```typescript
+<p>{error.message}</p>
+```
+
+**Required Fix**:
+```typescript
+import { getUserFriendlyMessage } from '@/client/features/template/error-tracking';
+
+<p>{getUserFriendlyMessage(error)}</p>
+```
+
+</details>
+
+---
+
+### Phase 8: Documentation Updates
 
 **Priority**: 💡 LOW
 **Estimated Effort**: X hours
 **Files Affected**: X
 
-#### Task 7.1: Update [doc name]
+#### Task 8.1: Update [doc name]
 
 - [ ] **Update documentation** `docs/[name].md`
 
@@ -2386,6 +2709,9 @@ Complete these checks after ALL fixes are implemented:
 - [ ] No hardcoded colors remain
 - [ ] No `any` types remain
 - [ ] All components < 200 lines
+- [ ] All route error states use `ErrorDisplay` component
+- [ ] All mutation `onError` uses `errorToast`/`errorToastAuto` (not plain `toast.error`)
+- [ ] No raw `error.message` displayed to users
 
 ### Manual Testing
 - [ ] Light mode works correctly
@@ -2484,6 +2810,7 @@ Complete ALL items to finish the audit:
 - [ ] Checked project structure (template/project subfolders)
 - [ ] Checked circular imports in features
 - [ ] Verified three-file pattern (index.ts, index.template.ts, index.project.ts)
+- [ ] Checked error handling patterns (ErrorDisplay, errorToast, no raw messages)
 
 ### Phase 4: Cross-Cutting Concerns
 - [ ] Verified import patterns
@@ -2583,6 +2910,18 @@ Complete ALL items to finish the audit:
 | Modified template file without override | Compare with template repo | Add to `projectOverrides` in `.template-sync.json` |
 | No isFetching indicator | Check list components | Add subtle refresh indicator |
 | Fixed pixel widths | `grep -r "w-\[.*px\]"` | Use responsive Tailwind classes |
+
+### ⚠️ HIGH Violations (docs/template/error-handling.md)
+
+| Violation | How to Find | Fix |
+|-----------|-------------|-----|
+| Custom error rendering in routes | Check `if (error) return` in route components | Use `<ErrorDisplay>` component |
+| `toast.error()` for mutation failures | Check `onError` callbacks | Use `errorToast(message, err)` or `errorToastAuto(err)` |
+| Raw `error.message` in UI | `grep -r "error\.message"` in tsx files | Use `getUserFriendlyMessage()` or `cleanErrorMessage()` |
+| Missing error object in errorToast | Check `errorToast` calls | Always pass error as second argument |
+| Swallowed errors (empty catch/onError) | Check `catch` blocks and `onError` | Add `errorToastAuto(error)` |
+| Barrel import in bug-report/auth | `grep "error-tracking'" src/client/features/template/bug-report/` | Use direct file imports (`../error-tracking/errorToast`) |
+| Stack traces visible to non-admins | Check error rendering components | Use `ErrorDisplay` (gates via `useIsAdmin()`) |
 
 ### Other Violations
 
