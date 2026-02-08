@@ -230,9 +230,8 @@ function verifyAllPushed(branchName: string): boolean {
         const unpushedCommits = git(`rev-list origin/${branchName}..HEAD`, { silent: true });
         return unpushedCommits.trim().length === 0;
     } catch {
-        // If the remote branch doesn't exist yet, that's expected for new branches
-        // The push command would have failed if there was an issue
-        return true;
+        // Remote branch doesn't exist yet - commits are not pushed
+        return false;
     }
 }
 
@@ -930,8 +929,11 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
             return { success: true };
         }
 
+        // Re-check for uncommitted changes (fix agent or yarn checks auto-fix may have created new ones)
+        const hasChangesToCommit = hasUncommittedChanges();
+
         // Commit changes (only if there are uncommitted changes)
-        if (hasChanges) {
+        if (hasChangesToCommit) {
             const commitPrefix = issueType === 'bug' ? 'fix' : 'feat';
             const phaseLabel = currentPhase && totalPhases
                 ? ` (Phase ${currentPhase}/${totalPhases})`
@@ -945,27 +947,24 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
 
             console.log('  Committing changes...');
             commitChanges(commitMessage);
+        } else {
+            console.log('  Skipping commit (no uncommitted changes - using existing commits)');
+        }
 
-            // Push to remote
-            if (!options.skipPush) {
+        // Push to remote (always push if there are unpushed commits)
+        if (!options.skipPush) {
+            if (!verifyAllPushed(branchName)) {
                 console.log('  Pushing to remote...');
                 pushBranch(branchName, mode === 'feedback');
 
-                // Verify all commits are pushed
+                // Verify push succeeded
                 console.log('  Verifying all commits are pushed...');
                 if (!verifyAllPushed(branchName)) {
                     return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
                 }
                 console.log('  ✅ All commits pushed successfully');
-            }
-        } else {
-            console.log('  Skipping commit (no uncommitted changes - using existing commits)');
-            // Verify existing commits are already pushed
-            if (!options.skipPush) {
-                console.log('  Verifying existing commits are pushed...');
-                if (!verifyAllPushed(branchName)) {
-                    console.log('  ⚠️ Warning: Some commits may not be pushed to remote');
-                }
+            } else {
+                console.log('  ✅ All commits already pushed');
             }
         }
 
