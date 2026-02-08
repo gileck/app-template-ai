@@ -53,6 +53,23 @@ export function hasUncommittedChanges(excludePaths?: string[]): boolean {
 }
 
 /**
+ * Get the list of uncommitted changes (for diagnostics).
+ * Returns the raw `git status --porcelain` output, optionally excluding paths.
+ */
+export function getUncommittedChanges(excludePaths?: string[]): string {
+    const status = git('status --porcelain', { silent: true });
+    if (!excludePaths || excludePaths.length === 0) {
+        return status;
+    }
+    const lines = status.split('\n').filter(line => line.trim().length > 0);
+    const relevantLines = lines.filter(line => {
+        const filePath = line.slice(3);
+        return !excludePaths.some(exclude => filePath.startsWith(exclude));
+    });
+    return relevantLines.join('\n');
+}
+
+/**
  * Check if a branch exists locally
  */
 export function branchExistsLocally(branchName: string): boolean {

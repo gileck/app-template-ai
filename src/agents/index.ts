@@ -124,10 +124,12 @@ function pullLatestChanges(): void {
 
     // Check for uncommitted changes first
     if (hasUncommittedChanges()) {
+        const status = git('status --porcelain', { silent: true });
         console.error('❌ Error: Uncommitted changes in working directory.');
         console.error('Please commit or stash your changes before running agents.');
-        console.error('Or use --skip-pull to run with current code (not recommended).\n');
+        console.error('Or use --skip-pull to run with current code (not recommended).');
         console.error('Or use --reset to discard all changes and reset to main.\n');
+        console.error('Uncommitted files:\n' + status);
         process.exit(1);
     }
 

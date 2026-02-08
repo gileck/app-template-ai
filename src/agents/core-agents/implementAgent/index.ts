@@ -59,6 +59,7 @@ import {
     // Git utilities (shared)
     git,
     hasUncommittedChanges,
+    getUncommittedChanges,
     checkoutBranch,
     commitChanges,
     pushBranch,
@@ -154,7 +155,8 @@ async function processItem(
         try {
         // Check for uncommitted changes (exclude agent-logs/ since logExecutionStart already modified it)
         if (hasUncommittedChanges(['agent-logs/'])) {
-            return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
+            const changes = getUncommittedChanges(['agent-logs/']);
+            return { success: false, error: `Uncommitted changes in working directory. Please commit or stash them first.\n${changes}` };
         }
 
         const diagnostics = issueType === 'bug'
@@ -751,6 +753,7 @@ async function main(): Promise<void> {
     if (hasUncommittedChanges()) {
         console.error('Error: Uncommitted changes in working directory.');
         console.error('Please commit or stash your changes before running this agent.');
+        console.error('Uncommitted files:\n' + getUncommittedChanges());
         process.exit(1);
     }
 

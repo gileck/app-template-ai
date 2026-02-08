@@ -198,6 +198,7 @@ export {
 export {
     git,
     hasUncommittedChanges,
+    getUncommittedChanges,
     branchExistsLocally,
     checkoutBranch,
     getCurrentBranch,
