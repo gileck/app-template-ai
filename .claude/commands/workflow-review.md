@@ -107,15 +107,125 @@ Use Grep with `[LOG:*]` markers for precise searches:
 | `\[LOG:TOKENS\]` | Token usage entries |
 | `\$[1-9]` | High costs (> $1) |
 
-## Step 3: Analyze Findings
+## Step 3: Cross-Reference with Task Runner Logs (When Needed)
+
+**When to use:** If the issue log is missing information, has unexplained gaps, or errors lack root cause details, inspect the task runner logs in `agent-tasks/all/runs/` for the underlying process-level details.
+
+**IMPORTANT:** The `agent-tasks/all/runs/` directory is relative to the same repo as the issue log file. If the log file is from a child project repo, look for `agent-tasks/all/runs/` in that same child repo, not this template repo.
+
+**The task runner logs contain information NOT in issue logs:**
+- Process crashes before agent logging starts
+- Git fetch/push failures at the runner level
+- GitHub API timeouts during project initialization
+- Script exit codes and stderr output
+- Timeout kills (process killed after 15min)
+- Network connectivity failures
+
+### How to Find the Relevant Run
+
+1. **Get the phase timestamp** from the issue log (from `[LOG:PHASE_START]` or `**Started:**` field)
+2. **List run files around that time:**
+   ```bash
+   # If phase started at 2026-02-07 02:50, look for runs around that time
+   Bash command="ls agent-tasks/all/runs/status-20260207-02*.json"
+   ```
+3. **Check status files** to find the run that was active during the phase:
+   ```bash
+   # Read the status file to see start/end times and status
+   Read file_path="agent-tasks/all/runs/status-YYYYMMDD-HHMMSS-mmm.json"
+   ```
+   Status file contains: `status` (completed/failed/timeout), `exitCode`, `startedAt`, `finishedAt`, `durationMs`
+
+4. **Read the output log** for the matching run:
+   ```bash
+   # Search for the issue number in the output log
+   Grep pattern="issue.*#N\|Processing.*#N\|\[N/\|item.*N" path="agent-tasks/all/runs/output-YYYYMMDD-HHMMSS-mmm.log"
+
+   # Search for errors in the output log
+   Grep pattern="\[ERR\]|Error:|fatal:|failed" path="agent-tasks/all/runs/output-YYYYMMDD-HHMMSS-mmm.log"
+   ```
+
+### Run Log File Structure
+
+**Files in `agent-tasks/all/runs/`:**
+
+| File Pattern | Contents |
+|--------------|----------|
+| `output-YYYYMMDD-HHMMSS-mmm.log` | Raw stdout/stderr from the agent process |
+| `status-YYYYMMDD-HHMMSS-mmm.json` | Run metadata (status, exitCode, timestamps, duration) |
+
+**Timestamp format:** `YYYYMMDD-HHMMSS-mmm` (date-time-milliseconds), embedded in filename.
+
+**Status file schema:**
+```json
+{
+  "taskId": "uuid",
+  "taskName": "Agent(app-template-ai): All",
+  "runId": "uuid",
+  "status": "completed|failed|timeout",
+  "exitCode": 0,
+  "startedAt": "ISO-8601",
+  "finishedAt": "ISO-8601",
+  "durationMs": 30117,
+  "duration": "30s"
+}
+```
+
+**Output log patterns to search:**
+
+| What to Find | Grep Pattern |
+|--------------|--------------|
+| Errors (stderr) | `\[ERR\]` |
+| Git failures | `fatal:.*repository\|Could not read` |
+| API timeouts | `Connect Timeout\|ETIMEDOUT\|UND_ERR_CONNECT_TIMEOUT` |
+| Script failures | `failed with exit code` |
+| Agent processing | `Processing.*item\|Processing issue` |
+| Agent name sections | `Running:` |
+| No work found | `No items to process` |
+
+### Quick Investigation Workflow
+
+```bash
+# 1. Find failed/timeout runs in recent days
+Bash command="for f in agent-tasks/all/runs/status-2026020*.json; do python3 -c \"import json; d=json.load(open('$f')); s=d['status']; print(f'$f: status={s} dur={d.get(\"duration\",\"?\")}')\" 2>/dev/null; done | grep -v completed"
+
+# 2. For a specific failed run, check the output log
+Grep pattern="\[ERR\]" path="agent-tasks/all/runs/output-YYYYMMDD-HHMMSS-mmm.log" output_mode="content"
+
+# 3. Find which run processed a specific issue number
+Grep pattern="issue.*#108\|Processing.*108" path="agent-tasks/all/runs/" output_mode="content"
+```
+
+## Step 4: Analyze Findings
 
 For each red flag found:
 1. Note the line number from Grep
 2. Read only 50-100 lines around that area
 3. Understand context and root cause
-4. Categorize: Error / Inefficiency / Workflow issue / Prompt issue
+4. If root cause is unclear from issue log, cross-reference with task runner logs (Step 3)
+5. Categorize: Error / Inefficiency / Workflow issue / Prompt issue / Infrastructure issue
+6. If root cause is STILL unclear after checking both issue log AND task runner logs, recommend specific logging improvements (see below)
 
-## Step 4: Generate Recommendations
+### Suggesting Logging Improvements
+
+When investigation hits a dead end because logs lack sufficient detail, include **logging improvement recommendations** in the review. The goal is to ensure future occurrences of the same issue are diagnosable.
+
+**Ask yourself:** "What log line, if it existed, would have made this issue obvious?"
+
+**Examples of useful logging suggestions:**
+- "Add error context logging before/after the GitHub API call in `src/agents/core-agents/productDesignAgent/index.ts`"
+- "Log the item ID and status when skipping items in the auto-advance agent"
+- "Add elapsed time logging between agent phases to detect hangs"
+- "Log the git branch state before and after checkout operations"
+- "Add a structured error summary line when a script exits with non-zero code"
+
+**Format in review output:**
+```
+#### 🟠 High Priority
+- [ ] Add logging: [what to log] in [specific file/function] — would have helped diagnose [this specific issue]
+```
+
+## Step 5: Generate Recommendations
 
 **Output**:
 - Summary with severity (Critical / Warning / Info)
@@ -123,12 +233,12 @@ For each red flag found:
 - Actionable improvements
 - Priority ranking
 
-## Step 5: Present Results
+## Step 6: Present Results
 
 **Format**: Structured report with sections
 **Optional**: Offer to create task/issue for major findings
 
-## Step 6: Write Review to Issue Log File (REQUIRED)
+## Step 7: Write Review to Issue Log File (REQUIRED)
 
 **CRITICAL: Always write the review findings to the issue log file after presenting results.**
 
@@ -261,6 +371,23 @@ Grep pattern="\[LOG:FINAL_REVIEW\]" path="agent-logs/issue-{N}.md"
 - ❌ Feature branch not created for multi-phase (should see `Creating feature branch`)
 - ❌ Final PR not created after last phase (should see `Final PR` after all phases complete)
 - ⚠️ Branches not cleaned up after merge (should see `Deleted branch` entries)
+
+### Task Runner Logs (Infrastructure Issues)
+
+When errors in the issue log lack root cause, or when a phase appears to have been skipped/cut short, check the task runner logs:
+
+- [ ] Did the run fail or timeout? (Check `status-*.json` files around the phase timestamp)
+- [ ] Git fetch/push failures? (`Grep pattern="\[ERR\].*fatal\|Could not read from remote" path="agent-tasks/all/runs/output-*.log"`)
+- [ ] GitHub API timeouts? (`Grep pattern="Connect Timeout\|UND_ERR_CONNECT_TIMEOUT" path="agent-tasks/all/runs/output-*.log"`)
+- [ ] Process killed by timeout? (Status file shows `"status": "timeout"`)
+- [ ] Script exit with non-zero code? (`Grep pattern="failed with exit code" path="agent-tasks/all/runs/output-*.log"`)
+- [ ] Agent never started processing? (`Grep pattern="No items to process" path="agent-tasks/all/runs/output-*.log"` for the specific agent phase)
+
+**Common Infrastructure Patterns:**
+- ❌ **Network flap**: Multiple agents fail with `Connect Timeout` in the same run → transient network issue, not an agent bug
+- ❌ **Git SSH failure**: `Could not read from remote repository` → SSH key or network issue
+- ❌ **Run timeout (15min)**: Long-running implementation killed mid-execution → consider increasing timeout or splitting work
+- ⚠️ **Retry succeeded**: Failed run followed by successful run within minutes → transient failure, but should verify no data corruption
 
 ### Prompts
 - [ ] Agent confused? (`Grep pattern="\[LOG:RESPONSE\]"` then read for confusion indicators)
