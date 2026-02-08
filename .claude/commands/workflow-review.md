@@ -123,7 +123,7 @@ Only read specific line ranges when investigating a finding:
 - **Retry-by-stasis**: Failed items stay in their current status and are automatically retried in the next 10-minute cycle. There is no explicit retry queue — the retry IS the next scheduled run picking up the same item.
 - **Task-level retry**: The task runner itself retries crashed runs up to 3 times with exponential backoff.
 - **Batch processor**: Each agent's `runBatch()` catches per-item failures and continues processing remaining items. A single item failure doesn't kill the entire run.
-- **Lock files**: `/tmp/agent-{name}.lock` with PID-based ownership prevents concurrent execution.
+- **Directory lock**: `/tmp/agent-dir-{hash}.lock` with PID-based directory locking prevents concurrent execution.
 - **Agent copy isolation**: Agents run in a separate git worktree (`../[project]-agents`), not in the main repo.
 
 **Also read if relevant to the issue type:**
@@ -255,7 +255,7 @@ Grep pattern="issue.*#108\|Processing.*108" path="agent-tasks/all/runs/" output_
 
 1. **Read context** — Read 50-100 lines around the anomaly to understand what happened before and after
 2. **Identify the relevant system mechanism** — What part of the workflow system is responsible for this area? What should have happened according to the docs you read in Step 0?
-3. **Ask "why didn't the existing mechanism handle this?"** — The system has recovery for most failure modes (`--reset` for dirty state, retry-by-stasis for failed items, batch processor catch for per-item failures, lock files for concurrency). If something failed, the interesting question is why the recovery didn't work.
+3. **Ask "why didn't the existing mechanism handle this?"** — The system has recovery for most failure modes (`--reset` for dirty state, retry-by-stasis for failed items, batch processor catch for per-item failures, directory lock for concurrency). If something failed, the interesting question is why the recovery didn't work.
 4. **Cross-reference with task runner logs** — For ANY failure or missing phase, check `agent-tasks/all/runs/` logs from that time period. The issue log shows the agent's perspective; the task runner log shows the process perspective.
 5. **Read source code if needed** — If the mechanism's behavior is unclear from docs alone, read the relevant source files to understand the actual implementation. Key files:
    - `src/agents/index.ts` — master runner, `--reset` implementation, `pullLatestChanges()`
@@ -452,6 +452,13 @@ Grep pattern="\[LOG:FINAL_REVIEW\]" path="agent-logs/issue-{N}.md"
 - ❌ **Git SSH failure**: `Could not read from remote repository` → SSH key or network issue
 - ❌ **Run timeout (15min)**: Long-running implementation killed mid-execution → consider increasing timeout or splitting work
 - ⚠️ **Retry succeeded**: Failed run followed by successful run within minutes → transient failure, but should verify no data corruption
+
+### Directory Lock
+- [ ] Lock acquired at start? (`Grep pattern="\\[LOCK\\].*acquired" path="agent-tasks/all/runs/output-*.log"`)
+- [ ] Lock released at end? (`Grep pattern="\\[LOCK\\].*released" path="agent-tasks/all/runs/output-*.log"`)
+- [ ] Stale lock force-cleared? (`Grep pattern="\\[LOCK\\].*Stale" path="agent-tasks/all/runs/output-*.log"`) — investigate why previous run didn't release
+- [ ] Lock blocked run? (`Grep pattern="\\[LOCK\\].*held by" path="agent-tasks/all/runs/output-*.log"`) — check if concurrent runs are happening
+- [ ] Lock held duration reasonable? (compare `[LOCK].*released.*held for` to total run duration)
 
 ### Prompts
 - [ ] Agent confused? (`Grep pattern="\[LOG:RESPONSE\]"` then read for confusion indicators)

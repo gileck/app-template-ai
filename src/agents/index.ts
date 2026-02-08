@@ -23,6 +23,7 @@
  *   --global-limit    Stop workflow after first agent processes items (only with --all)
  *   --stream          Stream Claude output (passed to agents only)
  *   --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
+ *   --stale-timeout <min> Minutes before a lock is considered stale (default: 20, 0 = force-clear)
  *
  * Examples:
  *   yarn github-workflows-agent --product-dev --dry-run
@@ -36,6 +37,7 @@
 
 import { spawn, execSync } from 'child_process';
 import { resolve } from 'path';
+import { acquireDirectoryLock, releaseDirectoryLock } from './shared/directory-lock';
 
 const SCRIPTS = {
     'product-dev': resolve(__dirname, 'core-agents/productDevelopmentAgent/index.ts'),
@@ -177,6 +179,7 @@ Options:
   --global-limit    Stop workflow after first agent processes items (only with --all)
   --stream          Stream Claude output (passed to agents only)
   --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
+  --stale-timeout <min> Minutes before lock is stale (default: 20, 0 = force-clear)
 
 Examples:
   yarn github-workflows-agent --product-dev --dry-run
@@ -242,6 +245,12 @@ async function main() {
         ? args[triggeredByIndex + 1]
         : null;
 
+    // Parse --stale-timeout (default: 20 minutes)
+    const staleTimeoutIndex = args.indexOf('--stale-timeout');
+    const staleTimeoutMinutes = staleTimeoutIndex !== -1 && staleTimeoutIndex + 1 < args.length
+        ? parseInt(args[staleTimeoutIndex + 1], 10)
+        : 20;
+
     // Log start info
     console.log(`\n⏱️  Start time: ${startTime.toISOString()}`);
     if (triggeredBy) {
@@ -265,6 +274,11 @@ async function main() {
         const arg = args[i];
 
         if (arg === '--triggeredBy') {
+            i++; // skip the value (already parsed above)
+            continue;
+        }
+
+        if (arg === '--stale-timeout') {
             i++; // skip the value (already parsed above)
             continue;
         }
@@ -303,6 +317,18 @@ async function main() {
         process.exit(1);
     }
 
+    // Remove duplicates while preserving order
+    const uniqueScripts = [...new Set(scriptsToRun)];
+
+    // Acquire directory lock to prevent concurrent runs
+    const locked = acquireDirectoryLock({ staleTimeoutMinutes, agents: uniqueScripts });
+    if (!locked) {
+        console.error('\n❌ Cannot proceed — another instance is running on this directory.');
+        process.exit(1);
+    }
+
+    try {
+
     // Reset to clean main if requested (discards ALL local changes)
     if (resetToMain) {
         resetToCleanMain();
@@ -323,9 +349,6 @@ async function main() {
     if (globalLimit) {
         console.log('🎯 Global limit enabled - will stop after first agent processes items\n');
     }
-
-    // Remove duplicates while preserving order
-    const uniqueScripts = [...new Set(scriptsToRun)];
 
     // Options that only apply to Claude-based agents (not auto-advance)
     const claudeOnlyOptions = ['--stream', '--verbose'];
@@ -406,6 +429,10 @@ async function main() {
     console.log(`\n⏱️  End time: ${endTime.toISOString()}`);
     console.log(`⏱️  Total duration: ${durationMin}m ${durationSec}s`);
     console.log('\nDone!');
+
+    } finally {
+        releaseDirectoryLock();
+    }
 }
 
 main().catch((error) => {

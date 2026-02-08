@@ -5,7 +5,7 @@
   "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
-    "args": ["--all", "--global-limit", "--stream", "--reset", "--triggeredBy", "task-manager"],
+    "args": ["--all", "--global-limit", "--stream", "--reset", "--stale-timeout", "20", "--triggeredBy", "task-manager"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/agents-copy/app-template-ai"
   },
