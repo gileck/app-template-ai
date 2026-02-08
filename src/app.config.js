@@ -18,6 +18,5 @@ export const appConfig = {
     //
     // Defaults to OWNER_TELEGRAM_CHAT_ID env var, then falls back to ownerTelegramChatId
     // If not set, uses the hardcoded fallback below
-    ownerTelegramChatId: process.env.OWNER_TELEGRAM_CHAT_ID 
-                          
+    ownerTelegramChatId: process.env.OWNER_TELEGRAM_CHAT_ID,
 };
