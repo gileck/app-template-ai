@@ -79,6 +79,8 @@ Use Grep to find problems WITHOUT reading full content.
 | Previous reviews | `\[LOG:REVIEW\]` |
 | Feature branch ops | `\[LOG:FEATURE_BRANCH\]` |
 | Final review status | `\[LOG:FINAL_REVIEW\]` |
+| Run trigger source | `Triggered by:` |
+| Run start/end time | `Start time:\|End time:\|Total duration:` |
 
 ```bash
 # Find errors (precise - no false positives from design docs)
@@ -229,6 +231,8 @@ Use Grep with `[LOG:*]` markers for precise searches:
 | Agent processing | `Processing.*item\|Processing issue` |
 | Agent name sections | `Running:` |
 | No work found | `No items to process` |
+| Run trigger source | `Triggered by:` |
+| Run timing | `Start time:\|End time:\|Total duration:` |
 
 ### Quick Investigation Workflow
 

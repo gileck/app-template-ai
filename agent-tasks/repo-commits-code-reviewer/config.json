@@ -5,7 +5,7 @@
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
     "path": "agent:code-reviewer",
-    "args": ["--stream"],
+    "args": ["--stream", "--triggeredBy", "task-manager"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/app-template-ai"
   },
