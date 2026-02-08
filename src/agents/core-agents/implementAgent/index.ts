@@ -851,29 +851,20 @@ After implementing the feature and running \`yarn checks\`, try to verify your i
         // Check if there are changes to commit
         const hasChanges = hasUncommittedChanges();
         if (!hasChanges) {
-            // In feedback mode, agent might have already committed changes (via yarn checks auto-fix)
-            // or changes might have been pushed in a previous run
+            // Agent might have already committed changes via Bash tool
             // Check if there are commits on this branch that aren't on the default branch
-            if (mode === 'feedback') {
-                console.log('  No uncommitted changes (feedback mode - checking for pushed commits)');
-                try {
-                    const diffOutput = git(`log ${defaultBranch}..HEAD --oneline`, { silent: true });
-                    if (diffOutput.trim()) {
-                        console.log('  Found existing commits on branch - proceeding to update Review Status');
-                        // Skip commit/push steps but continue to update Review Status
-                    } else {
-                        console.log('  No commits on branch either');
-                        git(`checkout ${defaultBranch}`);
-                        return { success: false, error: 'Agent did not make any changes' };
-                    }
-                } catch {
-                    console.log('  Could not check for branch commits');
+            console.log('  No uncommitted changes - checking for branch commits...');
+            try {
+                const diffOutput = git(`log ${defaultBranch}..HEAD --oneline`, { silent: true });
+                if (diffOutput.trim()) {
+                    console.log('  Found existing commits on branch - proceeding');
+                } else {
+                    console.log('  No commits on branch either');
                     git(`checkout ${defaultBranch}`);
                     return { success: false, error: 'Agent did not make any changes' };
                 }
-            } else {
-                // New implementation mode - must have changes
-                console.log('  No changes to commit');
+            } catch {
+                console.log('  Could not check for branch commits');
                 git(`checkout ${defaultBranch}`);
                 return { success: false, error: 'Agent did not make any changes' };
             }
