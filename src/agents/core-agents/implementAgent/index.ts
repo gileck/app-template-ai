@@ -1112,10 +1112,11 @@ See issue #${issueNumber} for full context, product design, and technical design
                     const reviewInstructions = `@claude please review this PR
 
 **Review Guidelines:**
-- Request changes if there are ANY Minor Issues, Suggestions, or Improvements
-- Only approve if there are absolutely ZERO Minor Issues, ZERO Suggestions, and ZERO Improvements recommended
-- Never approve a PR that has minor suggestions, minor improvements, or minor issues - these should all trigger "Request Changes"
-- All issues, suggestions, and improvements must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
+- Request changes if there are ANY issues or improvements that provide clear, meaningful value
+- Only approve if there are no issues or improvements worth requesting
+- Do NOT raise minor/speculative issues: hypothetical edge cases, "add a comment explaining X", optional accessibility on decorative elements, or theoretical concerns without concrete impact
+- Only raise issues that are worth the cost of a full revision cycle: actual bugs, logic errors, violations of documented project guidelines, missing state handling, security/performance problems
+- All feedback must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
                     await adapter.addPRComment(prNumber, reviewInstructions);
                     console.log('  ✅ Claude Code review triggered');
                 } catch (error) {
@@ -1159,10 +1160,11 @@ See issue #${issueNumber} for full context, product design, and technical design
                 const reReviewInstructions = `
 
 **Review Guidelines:**
-- Request changes if there are ANY Minor Issues, Suggestions, or Improvements
-- Only approve if there are absolutely ZERO Minor Issues, ZERO Suggestions, and ZERO Improvements recommended
-- Never approve a PR that has minor suggestions, minor improvements, or minor issues - these should all trigger "Request Changes"
-- All issues, suggestions, and improvements must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
+- Request changes if there are ANY issues or improvements that provide clear, meaningful value
+- Only approve if there are no issues or improvements worth requesting
+- Do NOT raise minor/speculative issues: hypothetical edge cases, "add a comment explaining X", optional accessibility on decorative elements, or theoretical concerns without concrete impact
+- Only raise issues that are worth the cost of a full revision cycle: actual bugs, logic errors, violations of documented project guidelines, missing state handling, security/performance problems
+- All feedback must be within the context of the task/PR scope - do not request changes for unrelated code or out-of-scope improvements`;
 
                 if (feedbackComment) {
                     const prefixedComment = addAgentPrefix('implementor', feedbackComment);
