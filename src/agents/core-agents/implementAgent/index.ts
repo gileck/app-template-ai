@@ -152,8 +152,8 @@ async function processItem(
         }
 
         try {
-        // Check for uncommitted changes
-        if (hasUncommittedChanges()) {
+        // Check for uncommitted changes (exclude agent-logs/ since logExecutionStart already modified it)
+        if (hasUncommittedChanges(['agent-logs/'])) {
             return { success: false, error: 'Uncommitted changes in working directory. Please commit or stash them first.' };
         }
 
@@ -360,8 +360,36 @@ async function processItem(
                     startupTimeout: agentConfig.localTesting.devServerStartupTimeout,
                 });
 
-                // Add local testing instructions with the dev server URL
-                prompt = appendLocalTestingContext(prompt, devServer.url);
+                // Health check: verify dev server isn't serving error pages
+                try {
+                    const healthResponse = await fetch(devServer.url);
+                    const body = await healthResponse.text();
+                    const buildErrorPatterns = [
+                        'Module not found',
+                        'Cannot find module',
+                        'Build Error',
+                        'Compilation Error',
+                        'SyntaxError',
+                        'Internal Server Error',
+                    ];
+                    const hasError = buildErrorPatterns.some(pattern => body.includes(pattern));
+                    if (hasError) {
+                        console.log('  ⚠️ Dev server has build errors — skipping visual verification');
+                        stopDevServer(devServer);
+                        devServer = null;
+                    }
+                } catch {
+                    console.log('  ⚠️ Dev server health check failed — skipping visual verification');
+                    if (devServer) {
+                        stopDevServer(devServer);
+                        devServer = null;
+                    }
+                }
+
+                // Only add local testing context if dev server is healthy
+                if (devServer) {
+                    prompt = appendLocalTestingContext(prompt, devServer.url);
+                }
             } catch (error) {
                 const devServerError = `Failed to start dev server: ${error instanceof Error ? error.message : String(error)}`;
                 console.log(`  ⚠️ ${devServerError}`);
@@ -407,6 +435,58 @@ async function processItem(
 
         if (!result.success) {
             const error = result.error || 'Implementation failed';
+            const isTimeout = error.includes('Timed out');
+
+            if (isTimeout) {
+                // Log timeout diagnostics
+                const diagnostics = result.timeoutDiagnostics;
+                if (diagnostics) {
+                    console.log(`  Timeout classification: ${diagnostics.classification}`);
+                    console.log(`  Total tool calls: ${diagnostics.totalToolCalls}`);
+                    if (diagnostics.pendingToolCall) {
+                        console.log(`  Pending tool: ${diagnostics.pendingToolCall.name} -> ${diagnostics.pendingToolCall.target}`);
+                    }
+                    console.log(`  Last tool calls:`);
+                    for (const tc of diagnostics.lastToolCalls) {
+                        const ago = Math.floor((Date.now() - tc.timestamp) / 1000);
+                        console.log(`    - ${tc.name} -> ${tc.target} (${ago}s ago)`);
+                    }
+                }
+
+                // Capture modified files before cleanup
+                let modifiedFiles = '';
+                try {
+                    modifiedFiles = git('diff --stat', { silent: true });
+                } catch { /* ignore */ }
+
+                // Log timeout section to agent log
+                const timeoutLogContent = `\n### [LOG:TIMEOUT] Agent Timeout\n\n` +
+                    `**Classification:** ${diagnostics?.classification || 'Unknown'}\n` +
+                    `**Total Tool Calls:** ${diagnostics?.totalToolCalls || 0}\n` +
+                    (diagnostics?.pendingToolCall ? `**Pending Tool:** ${diagnostics.pendingToolCall.name} -> ${diagnostics.pendingToolCall.target}\n` : '') +
+                    `**Time Since Last Tool Call:** ${diagnostics?.timeSinceLastToolCall || 0}s\n` +
+                    `**Time Since Last Response:** ${diagnostics?.timeSinceLastResponse || 0}s\n` +
+                    `**Token Usage:** ${result.usage ? `${result.usage.inputTokens + result.usage.outputTokens} tokens ($${result.usage.totalCostUSD?.toFixed(4) || '0'})` : 'N/A'}\n\n` +
+                    (diagnostics?.lastToolCalls.length ? `**Last Tool Calls:**\n${diagnostics.lastToolCalls.map(tc => `- ${tc.name} -> ${tc.target}`).join('\n')}\n\n` : '') +
+                    (modifiedFiles ? `**Files Modified at Timeout:**\n\`\`\`\n${modifiedFiles}\n\`\`\`\n\n` : '') +
+                    `**Action:** Changes discarded for clean retry\n\n`;
+
+                // Write to agent log
+                try {
+                    const { appendToLog } = await import('../../lib/logging/writer');
+                    appendToLog(issueNumber, timeoutLogContent);
+                } catch { /* ignore logging failures */ }
+
+                // Clean up: discard all changes for clean retry
+                try {
+                    git('checkout -- .', { silent: true });
+                    git('clean -fd', { silent: true });
+                    console.log('  Cleaned up working directory for retry');
+                } catch (cleanupError) {
+                    console.error('  Warning: Failed to clean up after timeout:', cleanupError);
+                }
+            }
+
             // Checkout back to default branch before failing
             git(`checkout ${defaultBranch}`);
             if (!options.dryRun) {
@@ -593,7 +673,7 @@ async function processItem(
         }
 
         // Log GitHub actions
-        if (prNumber) {
+        if (mode === 'new' && prNumber) {
             logGitHubAction(logCtx, 'pr_created', `Created PR #${prNumber}`);
         }
         if (adapter.hasReviewStatusField()) {
