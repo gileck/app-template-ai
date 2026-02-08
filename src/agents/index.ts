@@ -22,6 +22,7 @@
  *   --limit <n>       Limit items to process (passed to agents)
  *   --global-limit    Stop workflow after first agent processes items (only with --all)
  *   --stream          Stream Claude output (passed to agents only)
+ *   --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
  *
  * Examples:
  *   yarn github-workflows-agent --product-dev --dry-run
@@ -175,6 +176,7 @@ Options:
   --limit <n>       Limit items to process (passed to agents)
   --global-limit    Stop workflow after first agent processes items (only with --all)
   --stream          Stream Claude output (passed to agents only)
+  --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
 
 Examples:
   yarn github-workflows-agent --product-dev --dry-run
@@ -226,6 +228,7 @@ function runScript(scriptPath: string, args: string[]): Promise<{ exitCode: numb
 }
 
 async function main() {
+    const startTime = new Date();
     const args = process.argv.slice(2);
 
     if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
@@ -233,9 +236,23 @@ async function main() {
         process.exit(0);
     }
 
+    // Parse --triggeredBy
+    const triggeredByIndex = args.indexOf('--triggeredBy');
+    const triggeredBy = triggeredByIndex !== -1 && triggeredByIndex + 1 < args.length
+        ? args[triggeredByIndex + 1]
+        : null;
+
+    // Log start info
+    console.log(`\n⏱️  Start time: ${startTime.toISOString()}`);
+    if (triggeredBy) {
+        console.log(`🔗 Triggered by: ${triggeredBy}`);
+    } else {
+        console.log('🔗 Triggered by: not set');
+    }
+
     // Log working directory
     const workingDir = process.cwd();
-    console.log(`\n📁 Working directory: ${workingDir}`);
+    console.log(`📁 Working directory: ${workingDir}`);
 
     // Find which script(s) to run
     const scriptsToRun: string[] = [];
@@ -246,6 +263,11 @@ async function main() {
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
+
+        if (arg === '--triggeredBy') {
+            i++; // skip the value (already parsed above)
+            continue;
+        }
 
         if (arg === '--all') {
             scriptsToRun.push(...ALL_ORDER);
@@ -347,6 +369,15 @@ async function main() {
         }
     }
 
+    // Safety net: detect and clean up any dirty state left by agents
+    if (hasUncommittedChanges()) {
+        const status = git('status --porcelain', { silent: true });
+        console.error('\n⚠️  Working directory left dirty after agent run:');
+        console.error(status);
+        console.log('🧹 Cleaning up (resetting to clean main)...');
+        resetToCleanMain();
+    }
+
     // Sync agent logs to dev repo (fail silently if not successful)
     console.log(`\n${'='.repeat(60)}`);
     console.log('Syncing agent logs to dev repo...');
@@ -368,6 +399,12 @@ async function main() {
         // Don't fail the whole process - this is just a convenience feature
     }
 
+    const endTime = new Date();
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationMin = Math.floor(durationMs / 60000);
+    const durationSec = Math.floor((durationMs % 60000) / 1000);
+    console.log(`\n⏱️  End time: ${endTime.toISOString()}`);
+    console.log(`⏱️  Total duration: ${durationMin}m ${durationSec}s`);
     console.log('\nDone!');
 }
 
