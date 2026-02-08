@@ -464,6 +464,89 @@ Verify in `src/apis/apis.ts`:
 | Handlers imported from `server.ts` | |
 | Handlers spread into registry | |
 
+#### 3.1.7: Acceptable API Structure Variations
+
+Not all APIs follow the standard structure. These variations are **acceptable when documented**:
+
+##### Variation A: No `client.ts` (Local-First Sync APIs)
+
+**When acceptable:**
+- API is a batch sync endpoint for local-first architecture
+- Client uses Zustand store as source of truth (localStorage)
+- Sync module calls API directly via `apiClient.post` (not React Query hooks)
+- No individual CRUD operations exposed to UI components
+
+**Example use case:** `plan-data` API where:
+- User edits are stored locally first
+- Changes are debounced and synced to server in batches
+- UI reads from Zustand store, not from React Query cache
+
+**Required documentation:** Add comment in `index.ts`:
+```typescript
+/**
+ * ARCHITECTURE NOTE: This API intentionally has NO client.ts file.
+ *
+ * This is a local-first sync API, not a typical CRUD API:
+ * - Client uses Zustand store as source of truth (localStorage)
+ * - Sync module calls the API directly via apiClient.post
+ * - No React Query hooks needed - store handles all state
+ *
+ * @see src/client/features/[feature]/sync.ts for client usage
+ */
+```
+
+**When NOT acceptable:**
+- API has multiple operations that UI components call directly
+- Standard CRUD API with React Query hooks
+- Missing `client.ts` is just an oversight
+
+##### Variation B: No `handlers/` Folder (Single-Operation APIs)
+
+**When acceptable:**
+- API has only ONE operation
+- Handler logic is < 150 lines
+- All logic contained in `server.ts`
+
+**Example use case:** `workout-warmup` API with single `generateWarmup` operation
+
+**Required documentation:** Add comment in `index.ts`:
+```typescript
+/**
+ * ARCHITECTURE NOTE: This API has NO handlers/ folder - handlers are
+ * inlined in server.ts.
+ *
+ * This is acceptable for single-operation APIs:
+ * - Only one endpoint: [operation name]
+ * - All logic contained in ~XX lines
+ * - No need for separate handler files
+ *
+ * For multi-operation APIs, use the handlers/ folder pattern instead.
+ */
+```
+
+**When NOT acceptable:**
+- API has 2+ operations (use `handlers/` folder)
+- Handler logic exceeds 150 lines
+- Complex logic that would benefit from separation
+
+##### How to Audit These Variations
+
+When you encounter an API missing `client.ts` or `handlers/`:
+
+1. **Check for documentation comment** in `index.ts`
+2. **Verify the use case matches** the acceptable pattern
+3. **If documented and matches**: Mark as **Compliant** with note
+4. **If undocumented**: Flag as issue - needs documentation or refactoring
+
+| Variation | Has Comment | Use Case Matches | Verdict |
+|-----------|-------------|------------------|---------|
+| No client.ts | ✓ | ✓ (local-first sync) | Compliant |
+| No client.ts | ✗ | - | Needs documentation |
+| No client.ts | ✓ | ✗ (should have hooks) | Non-compliant |
+| No handlers/ | ✓ | ✓ (single-op, <150 lines) | Compliant |
+| No handlers/ | ✗ | - | Needs documentation |
+| No handlers/ | ✓ | ✗ (multi-op or >150 lines) | Non-compliant |
+
 ---
 
 ### 3.2: Feature Audit (Per Feature)
@@ -2404,6 +2487,21 @@ Areas that fully meet guidelines (brief summary).
 
 ---
 
+## 📐 Acceptable Pattern Variations
+
+APIs or features that deviate from standard structure but are compliant due to documented architectural decisions.
+
+| Item | Variation | Justification | Documented |
+|------|-----------|---------------|------------|
+| plan-data API | No `client.ts` | Local-first sync pattern - uses Zustand store + direct apiClient.post | ✓ Comment in index.ts |
+| workout-warmup API | No `handlers/` | Single-operation API (~100 lines) | ✓ Comment in index.ts |
+| ... | ... | ... | ... |
+
+> **Note**: Items listed here were initially flagged but confirmed as intentional architectural decisions.
+> If an item is missing documentation, it should be listed in HIGH Priority Issues instead.
+
+---
+
 ## 📚 Documentation Issues
 
 | Doc | Issue | Update Needed |
@@ -2933,6 +3031,72 @@ Complete ALL items to finish the audit:
 | Wrong API import | Check client.ts imports | Import from `./index`, not `./server` |
 | Non-shadcn components | `grep -r "from '@mui"` | Use shadcn from `@/client/components/ui` |
 | mongodb in APIs | `grep -r "from 'mongodb'" src/apis` | Import from `@/server/database` |
+
+---
+
+## Quick Reference: Acceptable Pattern Variations
+
+These patterns deviate from the standard structure but are **acceptable when properly documented**.
+
+### ✅ Acceptable: API Without `client.ts` (Local-First Sync)
+
+| Criteria | Required |
+|----------|----------|
+| Use case | Batch sync endpoint for local-first architecture |
+| Client usage | Zustand store + direct `apiClient.post` (not React Query) |
+| Documentation | Comment in `index.ts` explaining the pattern |
+| Operations | Typically single sync operation |
+
+**How to verify:**
+1. Check if a sync module exists (e.g., `features/[name]/sync.ts`)
+2. Verify sync module uses `apiClient.post` directly
+3. Confirm UI reads from Zustand store, not React Query
+4. Check for architecture comment in `index.ts`
+
+**Mark as compliant if:** Documented + matches local-first sync pattern
+**Mark as violation if:** Missing docs OR should have standard React Query hooks
+
+### ✅ Acceptable: API Without `handlers/` Folder (Single-Operation)
+
+| Criteria | Required |
+|----------|----------|
+| Operations | Exactly ONE operation |
+| Handler size | < 150 lines in `server.ts` |
+| Documentation | Comment in `index.ts` explaining the pattern |
+
+**How to verify:**
+1. Count operations in `server.ts` (should be 1)
+2. Check handler logic size (should be < 150 lines)
+3. Check for architecture comment in `index.ts`
+
+**Mark as compliant if:** Single operation + small handler + documented
+**Mark as violation if:** Multiple operations OR large handler OR missing docs
+
+### Decision Matrix for API Structure Variations
+
+```
+API missing client.ts?
+├── YES
+│   ├── Has documentation comment in index.ts?
+│   │   ├── YES
+│   │   │   └── Is it a local-first sync API?
+│   │   │       ├── YES → ✅ Compliant
+│   │   │       └── NO → ❌ Violation (wrong pattern)
+│   │   └── NO → ⚠️ Needs documentation (add comment or refactor)
+│   └── Continue checking...
+└── NO → Standard pattern, check other requirements
+
+API missing handlers/ folder?
+├── YES
+│   ├── Has documentation comment in index.ts?
+│   │   ├── YES
+│   │   │   └── Single operation AND < 150 lines?
+│   │   │       ├── YES → ✅ Compliant
+│   │   │       └── NO → ❌ Violation (should use handlers/)
+│   │   └── NO → ⚠️ Needs documentation (add comment or refactor)
+│   └── Continue checking...
+└── NO → Standard pattern, check other requirements
+```
 
 ---
 
