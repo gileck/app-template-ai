@@ -8,6 +8,8 @@
  * 1. Initial Feature Request / Bug Report Approval:
  *    - Callback: "approve_request:requestId" - Creates GitHub issue from feature request
  *    - Callback: "approve_bug:reportId" - Creates GitHub issue from bug report
+ *    - Callback: "approve_request_bl:requestId" - Creates GitHub issue and parks in Backlog
+ *    - Callback: "approve_bug_bl:reportId" - Creates GitHub issue and parks in Backlog
  *
  * 2. Delete Feature Request / Bug Report:
  *    - Callback: "delete_request:requestId" - Delete feature request from MongoDB
@@ -48,6 +50,8 @@ import {
     handleBugReportApproval,
     handleFeatureRequestDeletion,
     handleBugReportDeletion,
+    handleFeatureRequestApprovalToBacklog,
+    handleBugReportApprovalToBacklog,
     handleFeatureRouting,
     handleBugRouting,
     handleDesignReviewAction,
@@ -146,6 +150,42 @@ async function processCallbackQuery(
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
         }
         const result = await handleBugReportApproval(botToken, callback_query, reportId);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
+        return;
+    }
+
+    if (action === 'approve_request_bl' && parts.length === 2) {
+        const requestId = parsed.getString(1);
+        if (!requestId) {
+            console.error('Telegram webhook: Invalid approve_request_bl callback data', { callbackData, parts });
+            await answerCallbackQuery(botToken, callback_query.id, 'Invalid request ID');
+            return;
+        }
+        await answerCallbackQuery(botToken, callback_query.id, '⏳ Creating GitHub issue...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
+        }
+        const result = await handleFeatureRequestApprovalToBacklog(botToken, callback_query, requestId);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
+        return;
+    }
+
+    if (action === 'approve_bug_bl' && parts.length === 2) {
+        const reportId = parsed.getString(1);
+        if (!reportId) {
+            console.error('Telegram webhook: Invalid approve_bug_bl callback data', { callbackData, parts });
+            await answerCallbackQuery(botToken, callback_query.id, 'Invalid report ID');
+            return;
+        }
+        await answerCallbackQuery(botToken, callback_query.id, '⏳ Creating GitHub issue...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating GitHub issue...</b>', 'HTML');
+        }
+        const result = await handleBugReportApprovalToBacklog(botToken, callback_query, reportId);
         if (!result.success && callback_query.message) {
             await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
         }
