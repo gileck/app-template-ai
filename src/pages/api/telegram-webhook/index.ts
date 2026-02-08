@@ -195,6 +195,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Routing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Routing...</b>', 'HTML');
+        }
         await handleFeatureRouting(botToken, callback_query, requestId, destination);
         return;
     }
@@ -208,6 +211,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Routing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Routing...</b>', 'HTML');
+        }
         await handleBugRouting(botToken, callback_query, reportId, destination);
         return;
     }
@@ -220,6 +226,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
+        }
         await handleDesignReviewAction(botToken, callback_query, action as ReviewAction, issueNumber);
         return;
     }
@@ -232,6 +241,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Updating status...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Updating status...</b>', 'HTML');
+        }
         await handleClarificationReceived(botToken, callback_query, issueNumber);
         return;
     }
@@ -277,6 +289,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
+        }
         await handleRequestChangesCallback(botToken, callback_query, issueNumber, prNumber);
         return;
     }
@@ -308,6 +323,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Processing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
+        }
         await handleDesignPRRequestChanges(botToken, callback_query, prNumber, issueNumber, designType);
         return;
     }
@@ -357,6 +375,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
+        }
         await handleUndoRequestChanges(botToken, callback_query, issueNumber, prNumber, timestamp);
         return;
     }
@@ -372,6 +393,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
+        }
         await handleUndoDesignChanges(botToken, callback_query, prNumber, issueNumber, designType, timestamp);
         return;
     }
@@ -387,6 +411,9 @@ async function processCallbackQuery(
             return;
         }
         await answerCallbackQuery(botToken, callback_query.id, '⏳ Undoing...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
+        }
         await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
         return;
     }
