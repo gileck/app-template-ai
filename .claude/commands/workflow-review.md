@@ -14,11 +14,33 @@ Review agent execution logs and identify issues, inefficiencies, and improvement
 ## Process Overview
 
 Analyze workflow execution logs to identify:
-- Errors and failures
+- Errors and failures — with **root cause analysis**
 - Inefficiencies (token/cost, redundant operations)
 - Workflow bottlenecks
 - Prompt improvement opportunities
 - Code/infrastructure issues
+
+---
+
+## CRITICAL: Senior Engineer Mindset
+
+**You are a senior engineer investigating production issues, NOT a log scanner that reports surface-level observations.**
+
+The user already knows what the logs say — they can read error messages themselves. Your job is to find **why** things happened and **what should change** to prevent recurrence.
+
+### Investigation Principles
+
+1. **Understand the system before judging it.** Before flagging anything as an issue, you MUST understand the workflow mechanisms. The system has built-in recovery, retry, and error handling patterns. If you don't understand them, you'll report false positives (e.g., "dirty working directory" when `--reset` exists to handle that).
+
+2. **Always ask "why?" at least twice.** Surface observation: "Phase failed with error X." First why: "What triggered error X?" Second why: "Why didn't the existing recovery mechanism handle it?" — This is where the real finding lives.
+
+3. **Don't report what the user can already see.** If the log says `[LOG:ERROR] dirty working directory`, don't tell the user "there was a dirty working directory error." Instead, investigate: the task config uses `--reset` which runs `git reset --hard && git clean -fd` — so why was the directory still dirty? Was `--reset` not running? Did it run but fail? Was there a race condition?
+
+4. **Cross-reference aggressively.** Issue logs show WHAT happened to a specific issue. Task runner logs (`agent-tasks/all/runs/`) show the process-level context (crashes, timeouts, git failures). Source code shows the mechanisms. Use ALL of them to build a complete picture.
+
+5. **Every finding must have a root cause.** If you can't determine the root cause, say so explicitly and recommend what additional logging would be needed. "Unknown root cause" with a logging improvement recommendation is more valuable than a surface-level observation.
+
+6. **Distinguish between symptoms and causes.** A missing `[LOG:PHASE_END]` is a symptom. The cause might be a timeout kill, a crash, a network failure, or a code bug. Find the cause.
 
 ---
 
@@ -82,6 +104,31 @@ Only read specific line ranges when investigating a finding:
 
 ---
 
+## Step 0: Understand the Workflow System (MANDATORY — Do This First)
+
+**Before looking at ANY logs, you MUST read the workflow documentation to understand how the system works.** Without this context, you will make incorrect observations and miss root causes.
+
+**Actions:**
+1. Read the workflow overview: `docs/template/github-agents-workflow/overview.md`
+2. Read how agents are run: `docs/template/github-agents-workflow/running-agents.md`
+3. Read the task runner system: `docs/template/github-agents-workflow/agent-tasks.md`
+4. Read troubleshooting patterns: `docs/template/github-agents-workflow/troubleshooting.md`
+
+**After reading, you should understand these key mechanisms (do NOT proceed until you do):**
+
+- **`--reset` flag**: Every scheduled run does `git reset --hard origin/main && git clean -fd` before running agents. This is the primary dirty-state recovery mechanism. If you see a dirty directory error, the question is "why didn't --reset prevent this?" not "there was a dirty directory."
+- **`--global-limit`**: Agents run sequentially; after the first agent that processes items, the rest are skipped until the next cycle. This creates intentional gaps between phases.
+- **Retry-by-stasis**: Failed items stay in their current status and are automatically retried in the next 10-minute cycle. There is no explicit retry queue — the retry IS the next scheduled run picking up the same item.
+- **Task-level retry**: The task runner itself retries crashed runs up to 3 times with exponential backoff.
+- **Batch processor**: Each agent's `runBatch()` catches per-item failures and continues processing remaining items. A single item failure doesn't kill the entire run.
+- **Lock files**: `/tmp/agent-{name}.lock` with PID-based ownership prevents concurrent execution.
+- **Agent copy isolation**: Agents run in a separate git worktree (`../[project]-agents`), not in the main repo.
+
+**Also read if relevant to the issue type:**
+- Multi-phase features: `docs/template/github-agents-workflow/multi-phase-features.md`
+- Bug investigation: `docs/template/github-agents-workflow/bug-investigation.md`
+- Feedback/reviews: `docs/template/github-agents-workflow/feedback-and-reviews.md`
+
 ## Step 1: Load Log File Header & Summary
 
 **Actions**:
@@ -107,9 +154,9 @@ Use Grep with `[LOG:*]` markers for precise searches:
 | `\[LOG:TOKENS\]` | Token usage entries |
 | `\$[1-9]` | High costs (> $1) |
 
-## Step 3: Cross-Reference with Task Runner Logs (When Needed)
+## Step 3: Cross-Reference with Task Runner Logs (MANDATORY for any failure/anomaly)
 
-**When to use:** If the issue log is missing information, has unexplained gaps, or errors lack root cause details, inspect the task runner logs in `agent-tasks/all/runs/` for the underlying process-level details.
+**This is NOT optional.** For ANY error, missing phase, unexpected gap, or anomaly found in Step 2, you MUST check the task runner logs. The issue logs show what happened to the issue; the task runner logs show what happened to the process. You need BOTH to determine root cause.
 
 **IMPORTANT:** The `agent-tasks/all/runs/` directory is relative to the same repo as the issue log file. If the log file is from a child project repo, look for `agent-tasks/all/runs/` in that same child repo, not this template repo.
 
@@ -196,15 +243,23 @@ Grep pattern="\[ERR\]" path="agent-tasks/all/runs/output-YYYYMMDD-HHMMSS-mmm.log
 Grep pattern="issue.*#108\|Processing.*108" path="agent-tasks/all/runs/" output_mode="content"
 ```
 
-## Step 4: Analyze Findings
+## Step 4: Root Cause Investigation (Not Just Reporting)
 
-For each red flag found:
-1. Note the line number from Grep
-2. Read only 50-100 lines around that area
-3. Understand context and root cause
-4. If root cause is unclear from issue log, cross-reference with task runner logs (Step 3)
-5. Categorize: Error / Inefficiency / Workflow issue / Prompt issue / Infrastructure issue
-6. If root cause is STILL unclear after checking both issue log AND task runner logs, recommend specific logging improvements (see below)
+**For each anomaly found, perform a proper root cause investigation. Do NOT just describe what the log says — dig into WHY it happened.**
+
+### Investigation Process (for each finding):
+
+1. **Read context** — Read 50-100 lines around the anomaly to understand what happened before and after
+2. **Identify the relevant system mechanism** — What part of the workflow system is responsible for this area? What should have happened according to the docs you read in Step 0?
+3. **Ask "why didn't the existing mechanism handle this?"** — The system has recovery for most failure modes (`--reset` for dirty state, retry-by-stasis for failed items, batch processor catch for per-item failures, lock files for concurrency). If something failed, the interesting question is why the recovery didn't work.
+4. **Cross-reference with task runner logs** — For ANY failure or missing phase, check `agent-tasks/all/runs/` logs from that time period. The issue log shows the agent's perspective; the task runner log shows the process perspective.
+5. **Read source code if needed** — If the mechanism's behavior is unclear from docs alone, read the relevant source files to understand the actual implementation. Key files:
+   - `src/agents/index.ts` — master runner, `--reset` implementation, `pullLatestChanges()`
+   - `src/agents/shared/batch-processor.ts` — how items are collected and processed
+   - `src/agents/shared/git-utils.ts` — git operations, `hasUncommittedChanges()`, branch management
+   - `agent-tasks/all/config.json` — task runner configuration (schedule, timeout, retry settings)
+6. **Determine root cause** — Categorize as: Code bug / Infrastructure issue / Race condition / Missing mechanism / Configuration issue / Transient failure (self-recovered)
+7. **If root cause is still unclear** — Say so explicitly. Recommend specific logging improvements that would have made the root cause obvious (see below). "Root cause unknown — recommend adding X logging" is far more valuable than a surface-level observation.
 
 ### Suggesting Logging Improvements
 
@@ -310,6 +365,8 @@ After completing the analysis, append an "Issue Review" section to the end of th
 - Keep action items specific and actionable
 - Link to specific line numbers when referencing issues in the log
 - The `[LOG:REVIEW]` marker enables future grep searches for reviews
+- **Every finding MUST include a root cause**, not just a symptom description. If root cause is unknown, state "Root cause unknown" and recommend logging improvements.
+- **Reference the system mechanism** that was relevant (e.g., "`--reset` should have cleaned this but didn't because...")
 
 ---
 
@@ -317,8 +374,11 @@ After completing the analysis, append an "Issue Review" section to the end of th
 
 ### Errors & Failures
 - [ ] Any error markers? (`Grep pattern="\[LOG:ERROR\]\|\[LOG:FATAL\]"`)
+  - **For EACH error:** Don't just report it. Investigate: What system mechanism should have prevented or recovered from this? Why didn't it? Check task runner logs for the same time window.
 - [ ] Stack traces in error blocks? (Read lines around `[LOG:ERROR]` matches)
 - [ ] Git operation failures? (`Grep pattern="\[LOG:GITHUB\].*failed\|\[LOG:ERROR\].*git"`)
+- [ ] Missing `[LOG:PHASE_END]` for any phase that has a `[LOG:PHASE_START]`? If so, ALWAYS check the task runner logs — the phase was likely killed (timeout, crash, OOM) and the issue log won't have the reason.
+- [ ] Phase ran multiple times? (Multiple `[LOG:PHASE_START]` for same phase type) — Investigate: was the first attempt a failure that was retried by the next cycle? Check task runner logs for the first attempt's run to find what happened.
 
 ### Efficiency
 - [ ] Same file read multiple times **within a single phase**? (`Grep pattern="\[LOG:TOOL_CALL\].*Read"` then check for duplicates within each phase)
@@ -372,9 +432,9 @@ Grep pattern="\[LOG:FINAL_REVIEW\]" path="agent-logs/issue-{N}.md"
 - ❌ Final PR not created after last phase (should see `Final PR` after all phases complete)
 - ⚠️ Branches not cleaned up after merge (should see `Deleted branch` entries)
 
-### Task Runner Logs (Infrastructure Issues)
+### Task Runner Logs (MANDATORY for any failure — not optional)
 
-When errors in the issue log lack root cause, or when a phase appears to have been skipped/cut short, check the task runner logs:
+**Always check task runner logs when you see errors, missing phases, or anomalies. Do not skip this step.**
 
 - [ ] Did the run fail or timeout? (Check `status-*.json` files around the phase timestamp)
 - [ ] Git fetch/push failures? (`Grep pattern="\[ERR\].*fatal\|Could not read from remote" path="agent-tasks/all/runs/output-*.log"`)
