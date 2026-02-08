@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Input } from '@/client/components/template/ui/input';
 import { Button } from '@/client/components/template/ui/button';
 import { Card } from '@/client/components/template/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { Badge } from '@/client/components/template/ui/badge';
 import { Send, MessageSquare } from 'lucide-react';
-import { type AIModelDefinition, getAllModels } from '@/common/ai/models';
+import { getModelsByTier } from '@/common/ai/models';
 import { sendChatMessage } from '@/apis/project/chat/client';
-import { useSettingsStore } from '@/client/features';
+import { useSettingsStore, useIsAdmin } from '@/client/features';
 
 // Message type definition
 interface Message {
@@ -28,19 +28,14 @@ export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   // eslint-disable-next-line state-management/prefer-state-architecture -- local loading indicator
   const [isLoading, setIsLoading] = useState(false);
-  // eslint-disable-next-line state-management/prefer-state-architecture -- static data from sync function
-  const [models, setModels] = useState<AIModelDefinition[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use Zustand store
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.updateSettings);
 
-  // Load models on component mount
-  useEffect(() => {
-    const availableModels = getAllModels();
-    setModels(availableModels);
-  }, []);
+  const isAdmin = useIsAdmin();
+  const groupedModels = useMemo(() => getModelsByTier(), []);
 
   // Auto scroll to bottom of messages
   useEffect(() => {
@@ -141,10 +136,15 @@ export function AIChat() {
             <SelectValue placeholder="Select AI Model" />
           </SelectTrigger>
           <SelectContent>
-            {models.map((model) => (
-              <SelectItem key={model.id} value={model.id}>
-                {model.name} ({model.provider})
-              </SelectItem>
+            {groupedModels.map(({ tier, models }) => (
+              <SelectGroup key={tier}>
+                <SelectLabel>{tier}{!isAdmin && tier !== 'Budget' ? ' (Admin only)' : ''}</SelectLabel>
+                {models.map((model) => (
+                  <SelectItem key={model.id} value={model.id} disabled={!isAdmin && tier !== 'Budget'}>
+                    {model.name} ({model.provider})
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>
