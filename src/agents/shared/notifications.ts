@@ -461,6 +461,37 @@ Issue will be marked as Done.`;
 }
 
 /**
+ * Notify admin that an agent decision was auto-submitted (obvious fix).
+ * Sent when the bug investigator auto-selects the recommended fix option.
+ */
+export async function notifyDecisionAutoSubmitted(
+    phase: string,
+    title: string,
+    issueNumber: number,
+    selectedOptionTitle: string,
+    routedTo: string,
+    itemType: 'bug' | 'feature' = 'feature'
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug' : 'Feature';
+
+    const message = `<b>Agent (${escapeHtml(phase)}):</b> ⚡ Auto-Submitted
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber}
+
+<b>Selected:</b> ${escapeHtml(selectedOptionTitle)}
+<b>Routed to:</b> ${escapeHtml(routedTo)}
+
+Obvious fix auto-submitted. The implementation agent will pick this up next.`;
+
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
+}
+
+/**
  * Get the base app URL for clarification links
  *
  * Uses appConfig.appUrl which has the following priority:
@@ -834,6 +865,38 @@ export async function notifyFinalMergeComplete(
 📊 ${totalPhases} phases merged to main
 
 Issue will be marked as Done. Branches cleaned up.`;
+
+    return sendToAdmin(message, buildViewIssueButton(issueUrl));
+}
+
+/**
+ * Notify admin that a decision selection was submitted via the web UI.
+ * Confirms which option was selected and where the item was routed.
+ */
+export async function notifyDecisionSubmitted(
+    title: string,
+    issueNumber: number,
+    selectedOptionTitle: string,
+    routedTo: string | undefined,
+    itemType: 'bug' | 'feature' = 'feature'
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
+    const typeLabel = itemType === 'bug' ? 'Bug' : 'Feature';
+
+    const routedSection = routedTo
+        ? `<b>Routed to:</b> ${escapeHtml(routedTo)}\n\nThe next agent will pick this up automatically.`
+        : 'Selection recorded. The agent will process this in the next workflow run.';
+
+    const message = `<b>Decision Submitted:</b> ✅ Confirmed
+${typeEmoji} ${typeLabel}
+
+📋 ${escapeHtml(title)}
+🔗 Issue #${issueNumber}
+
+<b>Selected:</b> ${escapeHtml(selectedOptionTitle)}
+${routedSection}`;
 
     return sendToAdmin(message, buildViewIssueButton(issueUrl));
 }
