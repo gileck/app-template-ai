@@ -33,7 +33,7 @@ export async function advanceImplementationPhase(
 
     const adapter = await getInitializedAdapter();
 
-    await adapter.setImplementationPhase(item.itemId, nextPhase);
+    // await adapter.setImplementationPhase(item.itemId, nextPhase);
     await adapter.updateItemStatus(item.itemId, toStatus);
 
     if (adapter.hasReviewStatusField() && item.reviewStatus) {
