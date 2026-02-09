@@ -344,7 +344,7 @@ export async function sendFeatureRequestNotification(request: FeatureRequestDocu
     // View details link
     inlineKeyboard.push([{
         text: '🔍 View Full Details',
-        url: `${baseUrl}/admin/item/${request._id}`,
+        url: `${baseUrl}/admin/item/feature:${request._id}`,
     }]);
 
     return sendNotificationToAgent(message, {
@@ -430,7 +430,7 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
     // View details link
     inlineKeyboard.push([{
         text: '🔍 View Full Details',
-        url: `${baseUrl}/admin/item/${report._id}`,
+        url: `${baseUrl}/admin/item/report:${report._id}`,
     }]);
 
     return sendNotificationToAgent(message, {
