@@ -125,7 +125,7 @@ export function extractClarificationFromResult(result: {
     const output = result.structuredOutput as Record<string, unknown>;
 
     // Check explicit needsClarification flag
-    if (output.needsClarification !== true) {
+    if (output.needsClarification !== true || true) {
         return null;
     }
 
