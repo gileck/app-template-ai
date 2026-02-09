@@ -237,6 +237,24 @@ export async function sendNotificationToOwner(
     return sendToChat(ownerChatId, message, options);
 }
 
+/**
+ * Send a Telegram notification to the agent workflow channel.
+ * Uses AGENT_TELEGRAM_CHAT_ID env var, falls back to ownerTelegramChatId.
+ */
+async function sendNotificationToAgent(
+    message: string,
+    options?: SendMessageOptions
+): Promise<SendMessageResult> {
+    const agentChatId = process.env.AGENT_TELEGRAM_CHAT_ID || appConfig.ownerTelegramChatId;
+
+    if (!agentChatId) {
+        console.warn('[Telegram] Agent notification skipped: AGENT_TELEGRAM_CHAT_ID not configured');
+        return { success: false, error: 'Agent chat ID not configured' };
+    }
+
+    return sendToChat(agentChatId, message, options);
+}
+
 // ============================================================================
 // FEATURE REQUEST & BUG REPORT NOTIFICATIONS
 // ============================================================================
@@ -329,7 +347,7 @@ export async function sendFeatureRequestNotification(request: FeatureRequestDocu
         url: `${baseUrl}/admin/item/${request._id}`,
     }]);
 
-    return sendNotificationToOwner(message, {
+    return sendNotificationToAgent(message, {
         parseMode: 'HTML',
         inlineKeyboard,
     });
@@ -415,7 +433,7 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
         url: `${baseUrl}/admin/item/${report._id}`,
     }]);
 
-    return sendNotificationToOwner(message, {
+    return sendNotificationToAgent(message, {
         parseMode: 'HTML',
         inlineKeyboard,
     });
