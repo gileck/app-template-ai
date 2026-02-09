@@ -5,7 +5,6 @@
 
 import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, REVIEW_STATUSES, COMMIT_MESSAGE_MARKER, getIssueUrl, getPrUrl } from '@/server/project-management/config';
-import { featureRequests, reports } from '@/server/database';
 import { parseCommitMessageComment } from '@/agents/lib/commitMessage';
 import {
     parsePhaseString,
@@ -23,10 +22,17 @@ import {
     logWebhookPhaseEnd,
     logExternalError,
     logExists,
-    syncLogToRepoAndCleanup,
 } from '@/agents/lib/logging';
+import {
+    markDone,
+    advanceStatus,
+    advanceImplementationPhase,
+    updateReviewStatus,
+    getInitializedAdapter,
+    findItemByIssueNumber,
+} from '@/server/workflow-service';
 import { editMessageText } from '../telegram-api';
-import { escapeHtml, findItemByIssueNumber } from '../utils';
+import { escapeHtml } from '../utils';
 import type { TelegramCallbackQuery, HandlerResult } from '../types';
 
 /**
@@ -106,8 +112,7 @@ export async function handleMergeFinalPRCallback(
     try {
         console.log(`  [LOG:FINAL_REVIEW] Admin merging final PR #${prNumber} for issue #${issueNumber}`);
 
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
+        const adapter = await getInitializedAdapter();
 
         if (logExists(issueNumber)) {
             logWebhookPhaseStart(issueNumber, 'Final Review Merge', 'telegram');
@@ -144,48 +149,15 @@ export async function handleMergeFinalPRCallback(
             }
         }
 
-        const item = await findItemByIssueNumber(adapter, issueNumber);
-        if (!item) {
-            console.warn(`  [LOG:WARNING] Project item not found for issue #${issueNumber}`);
-        }
+        // Mark as Done via workflow service (handles status, review, phase, source doc, log sync)
+        await markDone(issueNumber, {
+            logAction: 'status_done',
+            logDescription: 'Final PR merged, issue marked as Done',
+            logMetadata: { prNumber },
+        });
 
         const artifact = await getArtifactsFromIssue(adapter, issueNumber);
         const taskBranch = getTaskBranch(artifact);
-
-        if (item) {
-            await adapter.updateItemStatus(item.itemId, STATUSES.done);
-            console.log(`  [LOG:FINAL_REVIEW] Status transition: Final Review → Done`);
-
-            if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                await adapter.clearItemReviewStatus(item.itemId);
-            }
-
-            await adapter.clearImplementationPhase(item.itemId);
-
-            if (logExists(issueNumber)) {
-                logWebhookAction(issueNumber, 'status_done', 'Final PR merged, issue marked as Done', {
-                    status: STATUSES.done,
-                    prNumber,
-                });
-            }
-
-            // Sync S3 log to repo and cleanup (non-blocking)
-            syncLogToRepoAndCleanup(issueNumber).catch((err) => {
-                console.error(`  [LOG:S3_SYNC] Failed to sync log for issue #${issueNumber}:`, err);
-            });
-        }
-
-        const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
-        if (featureRequest) {
-            await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'done');
-            console.log('Telegram webhook: feature request marked as done in database');
-        } else {
-            const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
-            if (bugReport) {
-                await reports.updateReport(bugReport._id.toString(), { status: 'resolved' });
-                console.log('Telegram webhook: bug report marked as resolved in database');
-            }
-        }
 
         console.log(`  [LOG:FEATURE_BRANCH] Cleaning up branches for task-${issueNumber}`);
 
@@ -276,8 +248,7 @@ export async function handleMergeCallback(
     prNumber: number
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
+        const adapter = await getInitializedAdapter();
 
         // Try DB first for commit message
         let commitMsg = await getCommitMessage(issueNumber, prNumber);
@@ -335,7 +306,7 @@ export async function handleMergeCallback(
             }
         }
 
-        const item = await findItemByIssueNumber(adapter, issueNumber);
+        const item = await findItemByIssueNumber(issueNumber);
         if (!item) {
             console.warn(`Telegram webhook: project item not found for issue #${issueNumber}`);
             if (alreadyMerged) {
@@ -382,21 +353,22 @@ export async function handleMergeCallback(
                 const phaseCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}...`;
                 await adapter.addIssueComment(issueNumber, phaseCompleteComment);
 
-                await adapter.setImplementationPhase(item.itemId, `${nextPhase}/${parsedPhase.total}`);
-                await adapter.updateItemStatus(item.itemId, STATUSES.implementation);
-
-                if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                    await adapter.clearItemReviewStatus(item.itemId);
-                }
-
-                if (logExists(issueNumber)) {
-                    logWebhookAction(issueNumber, 'phase_complete', `Phase ${parsedPhase.current}/${parsedPhase.total} complete`, {
-                        currentPhase: parsedPhase.current,
-                        totalPhases: parsedPhase.total,
-                        nextPhase,
-                        prNumber,
-                    });
-                }
+                // Advance to next phase via workflow service
+                await advanceImplementationPhase(
+                    issueNumber,
+                    `${nextPhase}/${parsedPhase.total}`,
+                    STATUSES.implementation,
+                    {
+                        logAction: 'phase_complete',
+                        logDescription: `Phase ${parsedPhase.current}/${parsedPhase.total} complete`,
+                        logMetadata: {
+                            currentPhase: parsedPhase.current,
+                            totalPhases: parsedPhase.total,
+                            nextPhase,
+                            prNumber,
+                        },
+                    }
+                );
 
                 statusMessage = `📋 Phase ${parsedPhase.current}/${parsedPhase.total} complete\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}`;
             } else {
@@ -416,19 +388,16 @@ export async function handleMergeCallback(
                         const finalPRComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🚀 **All phases merged to feature branch!**\n📋 Final PR created: #${finalPR.prNumber}\n\nAwaiting admin verification via Vercel preview before merge to main.`;
                         await adapter.addIssueComment(issueNumber, finalPRComment);
 
-                        await adapter.updateItemStatus(item.itemId, STATUSES.finalReview);
-
-                        if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                            await adapter.clearItemReviewStatus(item.itemId);
-                        }
-
-                        if (logExists(issueNumber)) {
-                            logWebhookAction(issueNumber, 'final_review', `All phases complete, final PR #${finalPR.prNumber} created`, {
+                        // Advance to Final Review via workflow service
+                        await advanceStatus(issueNumber, STATUSES.finalReview, {
+                            logAction: 'final_review',
+                            logDescription: `All phases complete, final PR #${finalPR.prNumber} created`,
+                            logMetadata: {
                                 totalPhases: parsedPhase.total,
                                 finalPrNumber: finalPR.prNumber,
                                 taskBranch,
-                            });
-                        }
+                            },
+                        });
 
                         isMultiPhaseMiddle = true;
 
@@ -502,54 +471,15 @@ export async function handleMergeCallback(
         }
 
         if (!isMultiPhaseMiddle && item) {
-            // Step 1: Update workflow-item status (independent try-catch - PR is already merged)
+            // Mark as Done via workflow service (handles status, review, source doc, log sync)
             try {
-                await adapter.updateItemStatus(item.itemId, STATUSES.done);
-
-                if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                    await adapter.clearItemReviewStatus(item.itemId);
-                }
-
-                if (logExists(issueNumber)) {
-                    logWebhookAction(issueNumber, 'status_done', 'Issue marked as Done', {
-                        status: STATUSES.done,
-                        prNumber,
-                    });
-                }
+                await markDone(issueNumber, {
+                    logAction: 'status_done',
+                    logDescription: 'Issue marked as Done',
+                    logMetadata: { prNumber },
+                });
             } catch (error) {
-                console.error(`[MERGE:CRITICAL] Failed to update workflow-item status to Done for issue #${issueNumber}:`, error);
-                // Continue - the PR is already merged, we still need to try updating the source document
-            }
-
-            // Sync S3 log to repo and cleanup (non-blocking)
-            syncLogToRepoAndCleanup(issueNumber).catch((err) => {
-                console.error(`  [LOG:S3_SYNC] Failed to sync log for issue #${issueNumber}:`, err);
-            });
-
-            // Step 2: Update source document status (independent try-catch - PR is already merged)
-            try {
-                const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
-                if (featureRequest) {
-                    await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'done');
-                    if (logExists(issueNumber)) {
-                        logWebhookAction(issueNumber, 'mongodb_updated', 'Feature request marked as done in database', {
-                            featureRequestId: featureRequest._id.toString(),
-                        });
-                    }
-                } else {
-                    const bugReport = await reports.findByGitHubIssueNumber(issueNumber);
-                    if (bugReport) {
-                        await reports.updateReport(bugReport._id.toString(), { status: 'resolved' });
-                        if (logExists(issueNumber)) {
-                            logWebhookAction(issueNumber, 'mongodb_updated', 'Bug report marked as resolved in database', {
-                                bugReportId: bugReport._id.toString(),
-                            });
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error(`[MERGE:CRITICAL] Failed to update source document status for issue #${issueNumber}:`, error);
-                // Log but continue - merge is done, Telegram message should still show success
+                console.error(`[MERGE:CRITICAL] Failed to mark done for issue #${issueNumber}:`, error);
             }
         }
 
@@ -676,8 +606,7 @@ export async function handleRevertMerge(
     phase: string
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
+        const adapter = await getInitializedAdapter();
 
         const fullSha = await adapter.getMergeCommitSha(prNumber);
         if (!fullSha) {
@@ -719,27 +648,26 @@ export async function handleRevertMerge(
 
         console.log(`Telegram webhook: created revert PR #${revertResult.prNumber}`);
 
-        const items = await adapter.listItems();
-        const item = items.find(i =>
-            i.content?.type === 'Issue' &&
-            i.content.number === issueNumber
-        );
+        // Restore status to Implementation with Request Changes via workflow service
+        await advanceStatus(issueNumber, STATUSES.implementation, {
+            clearReview: false,
+            logAction: 'revert_status_restored',
+            logDescription: `Status restored to ${STATUSES.implementation}`,
+        });
 
-        if (item) {
-            await adapter.updateItemStatus(item.id, STATUSES.implementation);
-            console.log(`Telegram webhook: restored status to ${STATUSES.implementation}`);
+        await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges);
 
-            if (adapter.hasReviewStatusField()) {
-                await adapter.updateItemReviewStatus(item.id, REVIEW_STATUSES.requestChanges);
-                console.log(`Telegram webhook: set review status to ${REVIEW_STATUSES.requestChanges}`);
-            }
-
-            if (phase && adapter.hasImplementationPhaseField()) {
-                await adapter.setImplementationPhase(item.id, phase);
+        // Restore phase if applicable
+        if (phase) {
+            const item = await findItemByIssueNumber(issueNumber);
+            if (item && adapter.hasImplementationPhaseField()) {
+                await adapter.setImplementationPhase(item.itemId, phase);
                 console.log(`Telegram webhook: restored phase to ${phase}`);
             }
         }
 
+        // Revert source document status
+        const { featureRequests, reports } = await import('@/server/database');
         const featureRequest = await featureRequests.findByGitHubIssueNumber(issueNumber);
         if (featureRequest) {
             await featureRequests.updateFeatureRequestStatus(featureRequest._id, 'in_progress');
@@ -837,8 +765,7 @@ export async function handleMergeRevertPR(
     revertPrNumber: number
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
+        const adapter = await getInitializedAdapter();
 
         const prInfo = await adapter.getPRInfo(revertPrNumber);
         if (!prInfo) {

@@ -3,17 +3,21 @@
  * Handlers for design review actions (approve/changes/reject)
  */
 
-import { getProjectManagementAdapter } from '@/server/project-management';
 import {
     logWebhookAction,
     logWebhookPhaseStart,
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
-import { escapeHtml, findItemByIssueNumber } from '../utils';
 import {
+    updateReviewStatus,
+    advanceStatus,
+    findItemByIssueNumber,
     STATUS_TRANSITIONS,
+} from '@/server/workflow-service';
+import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
+import { escapeHtml } from '../utils';
+import {
     ACTION_TO_REVIEW_STATUS,
     ACTION_LABELS,
     ACTION_EMOJIS,
@@ -32,12 +36,8 @@ export async function handleDesignReviewAction(
 ): Promise<HandlerResult> {
     const reviewStatus = ACTION_TO_REVIEW_STATUS[action];
 
-    // Initialize the adapter
-    const adapter = getProjectManagementAdapter();
-    await adapter.init();
-
     // Find the project item by issue number
-    const item = await findItemByIssueNumber(adapter, issueNumber);
+    const item = await findItemByIssueNumber(issueNumber);
 
     if (!item) {
         console.warn(`[LOG:DESIGN_REVIEW] Issue #${issueNumber} not found in project`);
@@ -67,7 +67,11 @@ export async function handleDesignReviewAction(
     }
 
     // Update the review status
-    await adapter.updateItemReviewStatus(item.itemId, reviewStatus);
+    await updateReviewStatus(issueNumber, reviewStatus, {
+        logAction: `design_${action}`,
+        logDescription: `Design ${ACTION_LABELS[action].toLowerCase()}`,
+        logMetadata: { reviewStatus, previousStatus: item.status },
+    });
 
     let advancedTo: string | null = null;
     let finalStatus = item.status;
@@ -77,9 +81,11 @@ export async function handleDesignReviewAction(
     if (action === 'approve' && item.status) {
         const nextStatus = STATUS_TRANSITIONS[item.status];
         if (nextStatus) {
-            await adapter.updateItemStatus(item.itemId, nextStatus);
-            // Clear review status for next phase
-            await adapter.clearItemReviewStatus(item.itemId);
+            await advanceStatus(issueNumber, nextStatus, {
+                logAction: 'status_advanced',
+                logDescription: `Status advanced to ${nextStatus}`,
+                logMetadata: { from: item.status, to: nextStatus },
+            });
             advancedTo = nextStatus;
             finalStatus = nextStatus;
             finalReviewStatus = '';

@@ -3,7 +3,6 @@
  * Handlers for design PR operations (approve/request changes)
  */
 
-import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES, REVIEW_STATUSES, getPrUrl } from '@/server/project-management/config';
 import { readDesignDoc } from '@/agents/lib/design-files';
 import { formatPhasesToComment, parsePhasesFromMarkdown, hasPhaseComment } from '@/agents/lib/phases';
@@ -20,8 +19,14 @@ import {
     logExternalError,
     logExists,
 } from '@/agents/lib/logging';
+import {
+    advanceStatus,
+    updateReviewStatus,
+    getInitializedAdapter,
+    findItemByIssueNumber,
+} from '@/server/workflow-service';
 import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
-import { escapeHtml, findItemByIssueNumber } from '../utils';
+import { escapeHtml } from '../utils';
 import type { TelegramCallbackQuery, DesignType, HandlerResult } from '../types';
 
 /**
@@ -36,8 +41,7 @@ export async function handleDesignPRApproval(
     designType: DesignType
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
+        const adapter = await getInitializedAdapter();
 
         const designLabel = designType === 'product-dev'
             ? 'Product Development'
@@ -88,22 +92,15 @@ export async function handleDesignPRApproval(
                 ? 'Tech Design'
                 : 'Implementation';
 
-        const item = await findItemByIssueNumber(adapter, issueNumber);
+        const item = await findItemByIssueNumber(issueNumber);
         if (item) {
-            await adapter.updateItemStatus(item.itemId, nextPhase);
+            // Advance status via workflow service (handles status + review clear + DB sync)
+            await advanceStatus(issueNumber, nextPhase, {
+                logAction: 'status_advanced',
+                logDescription: `Status advanced to ${nextPhaseLabel}`,
+                logMetadata: { from: item.status, to: nextPhase },
+            });
             console.log(`Telegram webhook: advanced status to ${nextPhase}`);
-
-            if (logExists(issueNumber)) {
-                logWebhookAction(issueNumber, 'status_advanced', `Status advanced to ${nextPhaseLabel}`, {
-                    from: item.status,
-                    to: nextPhase,
-                });
-            }
-
-            if (adapter.hasReviewStatusField() && item.reviewStatus) {
-                await adapter.clearItemReviewStatus(item.itemId);
-                console.log(`Telegram webhook: cleared review status`);
-            }
 
             const prDetails = await adapter.getPRDetails(prNumber);
             if (prDetails?.headBranch) {
@@ -197,30 +194,23 @@ export async function handleDesignPRRequestChanges(
     designType: DesignType
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
-
-        const item = await findItemByIssueNumber(adapter, issueNumber);
+        const item = await findItemByIssueNumber(issueNumber);
         if (!item) {
             console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for request changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
-        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.requestChanges);
+        await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges, {
+            logAction: 'design_changes_requested',
+            logDescription: `Changes requested on ${designType === 'product-dev' ? 'Product Development' : designType === 'product' ? 'Product Design' : 'Technical Design'} PR #${prNumber}`,
+            logMetadata: { prNumber, designType, reviewStatus: REVIEW_STATUSES.requestChanges },
+        });
 
         const designLabel = designType === 'product-dev'
             ? 'Product Development'
             : designType === 'product'
                 ? 'Product Design'
                 : 'Technical Design';
-
-        if (logExists(issueNumber)) {
-            logWebhookAction(issueNumber, 'design_changes_requested', `Changes requested on ${designLabel} PR #${prNumber}`, {
-                prNumber,
-                designType,
-                reviewStatus: REVIEW_STATUSES.requestChanges,
-            });
-        }
 
         const prUrl = getPrUrl(prNumber);
         const timestamp = Date.now();
@@ -276,25 +266,21 @@ export async function handleRequestChangesCallback(
     prNumber: number
 ): Promise<HandlerResult> {
     try {
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
-
-        const item = await findItemByIssueNumber(adapter, issueNumber);
+        const item = await findItemByIssueNumber(issueNumber);
         if (!item) {
             console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for implementation changes`);
             return { success: false, error: `Issue #${issueNumber} not found in project.` };
         }
 
-        await adapter.updateItemStatus(item.itemId, STATUSES.implementation);
-        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.requestChanges);
+        // Set status to Implementation + review status to Request Changes
+        await advanceStatus(issueNumber, STATUSES.implementation, {
+            clearReview: false,
+            logAction: 'implementation_changes_requested',
+            logDescription: `Changes requested on PR #${prNumber}`,
+            logMetadata: { prNumber, status: STATUSES.implementation, reviewStatus: REVIEW_STATUSES.requestChanges },
+        });
 
-        if (logExists(issueNumber)) {
-            logWebhookAction(issueNumber, 'implementation_changes_requested', `Changes requested on PR #${prNumber}`, {
-                prNumber,
-                status: STATUSES.implementation,
-                reviewStatus: REVIEW_STATUSES.requestChanges,
-            });
-        }
+        await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges);
 
         const prUrl = getPrUrl(prNumber);
         const timestamp = Date.now();

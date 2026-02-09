@@ -1,10 +1,9 @@
 import { ApiHandlerContext } from '@/apis/types';
 import { findWorkflowItemById, findWorkflowItemBySourceRef, updateWorkflowFields } from '@/server/database/collections/template/workflow-items';
 import { featureRequests, reports } from '@/server/database';
-import { getProjectManagementAdapter } from '@/server/project-management';
 import { STATUSES } from '@/server/project-management/config';
 import { isObjectIdFormat } from '@/server/utils';
-import { routeWorkflowItemByWorkflowId } from '@/server/workflow-service';
+import { routeWorkflowItemByWorkflowId, advanceStatus, getInitializedAdapter } from '@/server/workflow-service';
 import type { UpdateWorkflowStatusRequest, UpdateWorkflowStatusResponse } from '../types';
 
 const VALID_STATUSES = new Set<string>(Object.values(STATUSES));
@@ -53,7 +52,7 @@ export async function updateStatus(
             return { success: true };
         }
 
-        // If service says "not a valid routing destination", fall back to direct update
+        // If service says "not a valid routing destination", fall back to advanceStatus
         // This handles non-routable statuses (PR Review, Done, Final Review, Bug Investigation)
         if (result.error?.includes('not a valid routing destination')) {
             const item = await findWorkflowItemById(resolvedItemId);
@@ -61,18 +60,29 @@ export async function updateStatus(
                 return { error: 'Workflow item not found' };
             }
 
-            // Update local DB
+            // Use advanceStatus if we have a GitHub issue number
+            if (item.githubIssueNumber) {
+                const advanceResult = await advanceStatus(item.githubIssueNumber, status, {
+                    clearReview: false,
+                    logAction: 'status_updated_via_ui',
+                    logDescription: `Status updated to ${status} via UI`,
+                });
+                if (!advanceResult.success) {
+                    return { error: advanceResult.error || 'Failed to advance status' };
+                }
+                return { success: true };
+            }
+
+            // Fallback for items without a GitHub issue number: direct DB + adapter update
             await updateWorkflowFields(resolvedItemId, { workflowStatus: status });
 
-            // Also update the adapter by looking up the source document's githubProjectItemId
             if (item.sourceRef) {
                 const sourceDoc = item.sourceRef.collection === 'feature-requests'
                     ? await featureRequests.findFeatureRequestById(item.sourceRef.id.toString())
                     : await reports.findReportById(item.sourceRef.id.toString());
 
                 if (sourceDoc?.githubProjectItemId) {
-                    const adapter = getProjectManagementAdapter();
-                    await adapter.init();
+                    const adapter = await getInitializedAdapter();
                     await adapter.updateItemStatus(sourceDoc.githubProjectItemId, status);
                 }
             }

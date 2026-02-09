@@ -472,7 +472,7 @@ Complete setup instructions for the GitHub agents workflow. Use this when settin
 
 ## Unified Workflow Service Layer
 
-**Summary:** Architecture of the unified workflow service that centralizes all business logic for approve, route, and delete operations across transports.
+**Summary:** Architecture of the unified workflow service that centralizes all business logic for workflow lifecycle operations (approve, route, delete, advance, review status, phase management, undo, agent completion) across transports.
 
 **Docs:** [workflow-service.md](docs/template/github-agents-workflow/workflow-service.md)
 

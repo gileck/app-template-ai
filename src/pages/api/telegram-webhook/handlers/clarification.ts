@@ -3,15 +3,17 @@
  * Handler for clarification received action
  */
 
-import { getProjectManagementAdapter } from '@/server/project-management';
 import { REVIEW_STATUSES } from '@/server/project-management/config';
 import {
-    logWebhookAction,
     logExternalError,
     logExists,
 } from '@/agents/lib/logging';
+import {
+    updateReviewStatus,
+    findItemByIssueNumber,
+} from '@/server/workflow-service';
 import { editMessageText } from '../telegram-api';
-import { escapeHtml, findItemByIssueNumber } from '../utils';
+import { escapeHtml } from '../utils';
 import type { TelegramCallbackQuery, HandlerResult } from '../types';
 
 /**
@@ -24,19 +26,15 @@ export async function handleClarificationReceived(
     issueNumber: number
 ): Promise<HandlerResult> {
     try {
-        // 1. Initialize adapter
-        const adapter = getProjectManagementAdapter();
-        await adapter.init();
-
-        // 2. Find project item by issue number
-        const item = await findItemByIssueNumber(adapter, issueNumber);
+        // Find project item by issue number
+        const item = await findItemByIssueNumber(issueNumber);
 
         if (!item) {
             console.warn(`[LOG:CLARIFICATION] Item not found in GitHub Projects: issue #${issueNumber}`);
             return { success: false, error: 'Item not found in GitHub Projects' };
         }
 
-        // 3. Verify current status
+        // Verify current status
         if (item.reviewStatus !== REVIEW_STATUSES.waitingForClarification) {
             console.warn(`[LOG:CLARIFICATION] Issue #${issueNumber} not waiting for clarification (current: ${item.reviewStatus || 'none'})`);
             return {
@@ -45,18 +43,14 @@ export async function handleClarificationReceived(
             };
         }
 
-        // 4. Update review status to "Clarification Received"
-        await adapter.updateItemReviewStatus(item.itemId, REVIEW_STATUSES.clarificationReceived);
+        // Update review status to "Clarification Received"
+        await updateReviewStatus(issueNumber, REVIEW_STATUSES.clarificationReceived, {
+            logAction: 'clarification_received',
+            logDescription: 'Clarification received from admin',
+            logMetadata: { reviewStatus: REVIEW_STATUSES.clarificationReceived },
+        });
 
-        // Log to agent log file
-        if (logExists(issueNumber)) {
-            logWebhookAction(issueNumber, 'clarification_received', 'Clarification received from admin', {
-                issueNumber,
-                reviewStatus: REVIEW_STATUSES.clarificationReceived,
-            });
-        }
-
-        // 5. Edit message to show action taken
+        // Edit message to show action taken
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const statusUpdate = [

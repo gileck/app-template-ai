@@ -9,6 +9,23 @@ import { STATUSES } from '@/server/project-management/config';
 import type { ItemType, RoutingDestination } from './types';
 
 /**
+ * Status transitions when design phase is approved — move to next phase.
+ * Used by design-review auto-advance and auto-advance agent.
+ */
+export const STATUS_TRANSITIONS: Record<string, string> = {
+    [STATUSES.productDevelopment]: STATUSES.productDesign,
+    [STATUSES.productDesign]: STATUSES.techDesign,
+    [STATUSES.techDesign]: STATUSES.implementation,
+    // Implementation → PR Review happens automatically when agent creates PR
+    // PR Review doesn't auto-advance - PR needs manual merge → Done
+};
+
+/**
+ * Default undo window in milliseconds (5 minutes).
+ */
+export const DEFAULT_UNDO_WINDOW_MS = 5 * 60 * 1000;
+
+/**
  * Map routing destinations to GitHub Project statuses (for features)
  */
 export const FEATURE_ROUTING_STATUS_MAP: Record<string, string> = {

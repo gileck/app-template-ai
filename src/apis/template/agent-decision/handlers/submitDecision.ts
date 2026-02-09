@@ -19,6 +19,7 @@ import {
 } from '../utils';
 import { getProjectManagementAdapter } from '@/server/project-management';
 import { REVIEW_STATUSES } from '@/server/project-management/config';
+import { submitDecisionRouting } from '@/server/workflow-service';
 import { notifyDecisionSubmitted } from '@/agents/shared/notifications';
 
 /**
@@ -142,22 +143,20 @@ export async function submitDecision(
                 }
                 routedTo = routing.statusMap[metaValue];
             }
-
-            // Route item to target status and clear review status
-            await adapter.updateItemStatus(verification.itemId, routedTo!);
-            console.log(`  Item routed to: ${routedTo}`);
-
-            if (adapter.hasReviewStatusField()) {
-                await adapter.updateItemReviewStatus(verification.itemId, '');
-                console.log(`  Review status cleared`);
-            }
-        } else {
-            // No routing config — set review status to Approved for agent to pick up
-            if (adapter.hasReviewStatusField()) {
-                await adapter.updateItemReviewStatus(verification.itemId, REVIEW_STATUSES.approved);
-                console.log(`  Review status set to: ${REVIEW_STATUSES.approved}`);
-            }
         }
+
+        // Use workflow service for status/review updates
+        await submitDecisionRouting(issueNumber, routedTo, {
+            reviewStatus: routedTo ? undefined : REVIEW_STATUSES.approved,
+            logAction: routedTo ? 'decision_routed' : 'decision_approved',
+            logDescription: routedTo
+                ? `Decision routed to ${routedTo}`
+                : `Review status set to ${REVIEW_STATUSES.approved}`,
+            logMetadata: { selectedOption: selection.selectedOptionId },
+        });
+        console.log(routedTo
+            ? `  Item routed to: ${routedTo}`
+            : `  Review status set to: ${REVIEW_STATUSES.approved}`);
 
         // Send Telegram confirmation notification
         const selectedTitle = selection.selectedOptionId === 'custom'

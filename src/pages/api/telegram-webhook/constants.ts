@@ -3,7 +3,7 @@
  * Constants for Telegram Webhook
  */
 
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { REVIEW_STATUSES } from '@/server/project-management/config';
 import type { ReviewAction } from './types';
 
 /**
@@ -15,16 +15,6 @@ export const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
  * Undo timeout in milliseconds (5 minutes)
  */
 export const UNDO_TIMEOUT_MS = 5 * 60 * 1000;
-
-/**
- * Status transitions when approved - move to next phase
- */
-export const STATUS_TRANSITIONS: Record<string, string> = {
-    [STATUSES.productDesign]: STATUSES.techDesign,
-    [STATUSES.techDesign]: STATUSES.implementation,
-    // Implementation → PR Review happens automatically when agent creates PR
-    // PR Review doesn't auto-advance - PR needs manual merge → Done
-};
 
 /**
  * Map review actions to their status values

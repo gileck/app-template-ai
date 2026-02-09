@@ -1,66 +1,81 @@
 ---
 title: Unified Workflow Service Layer
-summary: "Architecture of the unified workflow service that centralizes all business logic for approve, route, and delete operations across transports."
+summary: "Architecture of the unified workflow service that centralizes all business logic for workflow lifecycle operations (approve, route, delete, advance, review status, phase management, undo, agent completion) across transports."
 ---
 
 # Unified Workflow Service Layer
 
-The workflow service (`src/server/workflow-service/`) centralizes all business logic for workflow item lifecycle operations. All transports -- Telegram, UI, and CLI -- call into this single service layer instead of implementing their own logic.
+The workflow service (`src/server/workflow-service/`) centralizes all business logic for workflow item lifecycle operations. All transports -- Telegram, UI, CLI, and agents -- call into this single service layer instead of implementing their own logic.
 
 ## Architecture Overview
 
 The system follows a 3-layer architecture:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Transports (thin wrappers)                                         │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐           │
-│  │ Telegram       │  │ UI (APIs)     │  │ CLI           │           │
-│  │ Webhook        │  │               │  │ agent-workflow│           │
-│  │ Handlers       │  │ approve/route │  │ commands      │           │
-│  │                │  │ /delete APIs  │  │               │           │
-│  └───────┬────────┘  └───────┬───────┘  └───────┬───────┘           │
-│          │                   │                   │                   │
-└──────────┼───────────────────┼───────────────────┼───────────────────┘
-           │                   │                   │
-           ▼                   ▼                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Workflow Service (src/server/workflow-service/)                     │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
-│  │ approveWorkflow  │  │ routeWorkflow    │  │ deleteWorkflow   │  │
-│  │ Item()           │  │ Item()           │  │ Item()           │  │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘  │
-│                                                                     │
-│  Handles: state validation, GitHub sync, adapter status updates,   │
-│  review status clearing, agent logging, Telegram notifications      │
-└──────────┬───────────────────┬───────────────────┬───────────────────┘
-           │                   │                   │
-           ▼                   ▼                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Infrastructure                                                     │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
-│  │ MongoDB           │  │ GitHub Sync      │  │ Telegram         │  │
-│  │ (source cols +    │  │ (issues, labels) │  │ (notifications)  │  │
-│  │  workflow-items)  │  │                  │  │                  │  │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘  │
-│  ┌──────────────────┐  ┌──────────────────┐                        │
-│  │ Project Mgmt     │  │ Agent Logging    │                        │
-│  │ Adapter          │  │                  │                        │
-│  └──────────────────┘  └──────────────────┘                        │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Transports (thin wrappers)                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │ Telegram     │  │ UI (APIs)   │  │ CLI          │  │ Agents      │    │
+│  │ Webhook      │  │             │  │ agent-       │  │ implement,  │    │
+│  │ Handlers     │  │ approve/    │  │ workflow     │  │ bug-invest, │    │
+│  │              │  │ route/etc   │  │ commands     │  │ pr-review   │    │
+│  └──────┬───────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                 │                │                │            │
+└─────────┼─────────────────┼────────────────┼────────────────┼────────────┘
+          │                 │                │                │
+          ▼                 ▼                ▼                ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Workflow Service (src/server/workflow-service/)                          │
+│                                                                          │
+│  Entry Operations          Mid-Pipeline Operations                       │
+│  ┌─────────────────┐       ┌─────────────────┐  ┌─────────────────┐     │
+│  │ approveWorkflow │       │ advanceStatus()  │  │ updateReview    │     │
+│  │ Item()          │       │ markDone()       │  │ Status()        │     │
+│  ├─────────────────┤       ├─────────────────┤  ├─────────────────┤     │
+│  │ routeWorkflow   │       │ advanceImpl.     │  │ undoStatus      │     │
+│  │ Item()          │       │ Phase()          │  │ Change()        │     │
+│  ├─────────────────┤       ├─────────────────┤  ├─────────────────┤     │
+│  │ deleteWorkflow  │       │ completeAgent    │  │ submitDecision  │     │
+│  │ Item()          │       │ Run()            │  │ Routing()       │     │
+│  └─────────────────┘       ├─────────────────┤  └─────────────────┘     │
+│                            │ autoAdvance      │                          │
+│                            │ Approved()       │                          │
+│                            └─────────────────┘                           │
+│                                                                          │
+│  Handles: state validation, adapter status updates, review status,       │
+│  DB sync, agent logging, Telegram notifications, undo windows            │
+└──────────┬──────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Infrastructure                                                          │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐       │
+│  │ MongoDB           │  │ GitHub Sync      │  │ Telegram         │       │
+│  │ (source cols +    │  │ (issues, labels) │  │ (notifications)  │       │
+│  │  workflow-items)  │  │                  │  │                  │       │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘       │
+│  ┌──────────────────┐  ┌──────────────────┐                              │
+│  │ Project Mgmt     │  │ Agent Logging    │                              │
+│  │ Adapter          │  │                  │                              │
+│  └──────────────────┘  └──────────────────┘                              │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Transport responsibilities (thin wrappers):**
 - Parse input (callback data, request body, CLI args)
 - Call the appropriate service function
 - Format output for the transport (Telegram message edit, HTTP response, CLI stdout)
+- GitHub operations that aren't status-related (PR merge, branch deletion, comment posting)
 
 **Service responsibilities (all business logic):**
 - State validation (prevent double-approval, check GitHub sync status)
 - GitHub issue creation via github-sync
 - Adapter status updates (move items between columns)
-- Review status clearing
+- Review status management (set, clear, update)
+- DB sync to workflow-items collection
 - Agent logging to `agent-logs/issue-{N}.md`
+- Undo window validation
+- Source document status updates (markDone)
 - Telegram notifications (universal notification center)
 
 ## Service Functions
@@ -147,6 +162,144 @@ if (!result.success) {
 }
 ```
 
+### `advanceStatus(issueNumber, toStatus, options?)`
+
+Advances a workflow item to a new status. Used for mid-pipeline transitions (not entry routing).
+
+**Steps performed:**
+1. Finds item by issue number
+2. Updates adapter status
+3. Clears review status (default: true, set `clearReview: false` to skip)
+4. Syncs to workflow-items DB
+5. Logs the action
+
+```typescript
+import { advanceStatus } from '@/server/workflow-service';
+
+await advanceStatus(issueNumber, STATUSES.implementation, {
+    logAction: 'status_advanced',
+    logDescription: 'Advanced to Implementation',
+});
+```
+
+### `markDone(issueNumber, options?)`
+
+Marks a workflow item as Done with additional side effects beyond `advanceStatus`.
+
+**Additional steps:**
+- Clears implementation phase field
+- Updates source document (feature -> done, bug -> resolved)
+- Syncs agent log to repo (non-blocking)
+
+```typescript
+import { markDone } from '@/server/workflow-service';
+
+await markDone(issueNumber, {
+    logAction: 'merged_done',
+    logDescription: 'PR merged, issue marked as Done',
+});
+```
+
+### `updateReviewStatus(issueNumber, reviewStatus, options?)`
+
+Updates the review status field for a workflow item.
+
+```typescript
+import { updateReviewStatus } from '@/server/workflow-service';
+
+await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges, {
+    logAction: 'changes_requested',
+    logDescription: 'Changes requested on design PR',
+});
+```
+
+### `clearReviewStatus(issueNumber, options?)`
+
+Convenience wrapper for clearing review status.
+
+### `advanceImplementationPhase(issueNumber, nextPhase, toStatus, options?)`
+
+Advances the implementation phase field and status. Used when merging a multi-phase PR to move to the next phase.
+
+```typescript
+import { advanceImplementationPhase } from '@/server/workflow-service';
+
+await advanceImplementationPhase(issueNumber, 'Phase 2/3', STATUSES.implementation, {
+    logAction: 'phase_advanced',
+});
+```
+
+### `completeAgentRun(issueNumber, agentType, result)`
+
+Called by agents when they finish work. Updates status and/or review status.
+
+```typescript
+import { completeAgentRun } from '@/server/workflow-service';
+
+// Implementation agent: set PR Review + Waiting for Review
+await completeAgentRun(issueNumber, 'implementation', {
+    status: STATUSES.prReview,
+    reviewStatus: REVIEW_STATUSES.waitingForReview,
+});
+
+// Bug investigator (auto-submit): route + clear review
+await completeAgentRun(issueNumber, 'bug-investigation', {
+    status: 'Ready for development',
+    clearReviewStatus: true,
+});
+```
+
+### `submitDecisionRouting(issueNumber, targetStatus, options?)`
+
+Routes based on admin decision. If `targetStatus` is provided, routes and clears review. Otherwise sets review status (e.g., to Approved).
+
+```typescript
+import { submitDecisionRouting } from '@/server/workflow-service';
+
+await submitDecisionRouting(issueNumber, routedTo, {
+    reviewStatus: routedTo ? undefined : REVIEW_STATUSES.approved,
+});
+```
+
+### `undoStatusChange(issueNumber, restoreStatus, restoreReviewStatus, options)`
+
+Undoes a status change within a time window (default: 5 minutes).
+
+```typescript
+import { undoStatusChange } from '@/server/workflow-service';
+
+const result = await undoStatusChange(
+    issueNumber,
+    STATUSES.prReview,  // restore to
+    null,               // clear review status
+    { timestamp, logAction: 'undo_request_changes' }
+);
+
+if (result.expired) { /* undo window passed */ }
+```
+
+### `autoAdvanceApproved(options?)`
+
+Batch operation: finds all approved items and advances each to the next phase.
+
+```typescript
+import { autoAdvanceApproved } from '@/server/workflow-service';
+
+const result = await autoAdvanceApproved({ dryRun: true });
+console.log(`Advanced ${result.advanced}/${result.total} items`);
+```
+
+## Utilities
+
+Shared utility functions in `src/server/workflow-service/utils.ts`:
+
+| Function | Description |
+|----------|-------------|
+| `getInitializedAdapter()` | Returns an initialized project management adapter |
+| `findItemByIssueNumber(issueNumber)` | Finds a project item by GitHub issue number (no adapter param needed) |
+| `findSourceDocByIssueNumber(issueNumber)` | Looks up the source document (feature request or bug report) |
+| `syncWorkflowStatus(issueNumber, status)` | Syncs status to workflow-items DB |
+
 ## Types
 
 All types are defined in `src/server/workflow-service/types.ts`:
@@ -161,6 +314,14 @@ All types are defined in `src/server/workflow-service/types.ts`:
 | `RouteResult` | Result with `success`, `targetStatus`, `targetLabel` |
 | `DeleteOptions` | `{ force?: boolean }` -- force delete even if synced to GitHub |
 | `DeleteResult` | Result with `success`, `title` |
+| `ServiceOptions` | Common options: `{ logAction?, logDescription?, logMetadata? }` |
+| `ServiceResult` | Base result: `{ success, error?, itemId? }` |
+| `AdvanceResult` | Extends ServiceResult with `previousStatus` |
+| `MarkDoneResult` | Extends ServiceResult with `sourceDocUpdated` |
+| `UndoResult` | Extends ServiceResult with `expired` flag |
+| `UndoOptions` | Extends ServiceOptions with `timestamp` |
+| `AutoAdvanceResult` | Batch result: `{ total, advanced, failed, details[] }` |
+| `AgentCompletionResult` | Agent result: `{ status?, reviewStatus?, clearReviewStatus? }` |
 
 ## Constants
 
@@ -184,6 +345,16 @@ Routing maps translate user-facing destination names to internal adapter status 
 - `backlog` -> Backlog
 
 **`ROUTING_DESTINATION_LABELS`** -- human-readable labels for each destination.
+
+### Status Transitions
+
+**`STATUS_TRANSITIONS`** -- map of auto-advance transitions when Review Status = Approved:
+- Product Development -> Product Design
+- Product Design -> Technical Design
+- Technical Design -> Implementation
+- Implementation -> Done
+
+**`DEFAULT_UNDO_WINDOW_MS`** -- 5 minutes (300,000 ms)
 
 ### Helper Functions
 
@@ -226,34 +397,48 @@ The service layer handles several edge cases consistently across all transports:
 | **Invalid routing destination** | Validated against type-specific routing map (bugs cannot route to `product-dev`) |
 | **Missing GitHub project item** | Returns error -- item must be synced to GitHub before routing |
 
+## File Layout
+
+```
+src/server/workflow-service/
+├── index.ts            # Re-exports all public API
+├── types.ts            # All TypeScript types
+├── constants.ts        # Routing maps, status transitions, undo window
+├── utils.ts            # Shared utilities (adapter init, findByIssueNumber, DB sync)
+├── notify.ts           # Telegram notification helpers
+├── approve.ts          # approveWorkflowItem()
+├── route.ts            # routeWorkflowItem(), routeWorkflowItemByWorkflowId()
+├── delete.ts           # deleteWorkflowItem()
+├── advance.ts          # advanceStatus(), markDone()
+├── review-status.ts    # updateReviewStatus(), clearReviewStatus()
+├── phase.ts            # advanceImplementationPhase(), clearImplementationPhase()
+├── agent-complete.ts   # completeAgentRun()
+├── decision.ts         # submitDecisionRouting()
+├── undo.ts             # undoStatusChange()
+└── auto-advance.ts     # autoAdvanceApproved()
+```
+
 ## How to Add New Operations
 
 To add a new workflow operation (e.g., `reassignWorkflowItem`):
 
-1. **Add types** in `src/server/workflow-service/types.ts`:
-   ```typescript
-   export interface ReassignOptions { ... }
-   export interface ReassignResult { success: boolean; error?: string; }
-   ```
+1. **Add types** in `src/server/workflow-service/types.ts`
 
-2. **Add notification** in `src/server/workflow-service/notify.ts`:
-   ```typescript
-   export async function notifyReassigned(...): Promise<void> { ... }
-   ```
-
-3. **Create operation** in `src/server/workflow-service/reassign.ts`:
+2. **Create operation** in `src/server/workflow-service/reassign.ts`:
+   - Use `findItemByIssueNumber()` + `getInitializedAdapter()` from utils
    - Validate state
-   - Perform infrastructure calls
-   - Agent logging
-   - Call notification (fire-and-forget)
+   - Perform adapter calls
+   - Call `syncWorkflowStatus()` to sync DB
+   - Agent logging via `logWebhookAction()`
    - Return result
 
-4. **Export** from `src/server/workflow-service/index.ts`
+3. **Export** from `src/server/workflow-service/index.ts`
 
-5. **Wire up transports** -- each transport calls the service function:
+4. **Wire up transports** -- each transport calls the service function:
    - Telegram handler: parse callback data -> call service -> edit message
    - UI API: parse request body -> call service -> return JSON
    - CLI command: parse args -> call service -> print result
+   - Agent: call service at end of run
 
 ## Related Documentation
 
