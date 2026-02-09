@@ -478,6 +478,14 @@ Complete setup instructions for the GitHub agents workflow. Use this when settin
 
 ---
 
+## Workflow E2E Tests
+
+**Summary:** E2E tests that verify the full agent workflow lifecycle by mocking only at system boundaries (LLM, Telegram, filesystem) while running real code for artifacts, phases, parsing, workflow-db, logging, and decision-utils against an in-memory MongoDB.
+
+**Docs:** [e2e-tests.md](docs/template/github-agents-workflow/e2e-tests.md)
+
+---
+
 ## GitHub Agents Workflow E2E Scenarios
 
 Visual workflows for all workflow scenarios. Use this to understand specific flows like multi-phase features, request changes, or rejections.

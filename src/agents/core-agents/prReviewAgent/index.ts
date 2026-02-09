@@ -164,7 +164,7 @@ const PR_REVIEW_OUTPUT_FORMAT = {
 // MAIN LOGIC
 // ============================================================
 
-async function processItem(
+export async function processItem(
     processable: ProcessableItem,
     options: PRReviewOptions,
     adapter: Awaited<ReturnType<typeof getProjectManagementAdapter>>,
@@ -669,12 +669,14 @@ async function main(): Promise<void> {
     await run(options);
 }
 
-// Run
-main()
-    .then(() => {
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+// Run (skip when imported as a module in tests)
+if (!process.env.VITEST) {
+    main()
+        .then(() => {
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+        });
+}

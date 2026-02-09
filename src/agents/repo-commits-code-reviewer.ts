@@ -23,11 +23,11 @@
  */
 
 import './shared/loadEnv';
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { runAgent } from './lib';
-import { CODE_REVIEW_OUTPUT_FORMAT } from './shared';
+import { git as sharedGit, CODE_REVIEW_OUTPUT_FORMAT } from './shared';
 import type { CodeReviewOutput, CodeReviewFinding } from './shared';
 
 // ============================================================
@@ -90,11 +90,7 @@ function parseCLIOptions() {
 // ============================================================
 
 function git(command: string): string {
-    return execSync(`git ${command}`, {
-        cwd: process.cwd(),
-        encoding: 'utf-8',
-        stdio: 'pipe',
-    }).trim();
+    return sharedGit(command, { silent: true });
 }
 
 /**

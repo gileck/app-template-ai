@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:e2e": "vitest run --config vitest.config.ts",
     "check:circular": "madge --circular --extensions ts,tsx --ts-config tsconfig.json src/",
     "check:unused": "knip",
     "check:unused:ci": "knip --include unresolved",
@@ -132,9 +133,12 @@
     "gray-matter": "^4.0.3",
     "knip": "^5.82.1",
     "madge": "^8.0.0",
+    "mongodb-memory-server": "^11.0.1",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vite-tsconfig-paths": "^6.0.5",
+    "vitest": "^4.0.18"
   }
 }
