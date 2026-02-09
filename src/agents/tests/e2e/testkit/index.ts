@@ -3,6 +3,7 @@ export {
     runProductDesignAgent,
     runTechDesignAgent,
     runImplementationAgent,
+    runImplementationAgentFeedback,
     runPRReviewAgent,
     runBugInvestigatorAgent,
 } from './agent-runners';

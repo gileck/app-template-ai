@@ -1,6 +1,9 @@
 /**
  * Mock runAgent — returns canned structured output per workflow type.
  * Tracks all calls for test assertions.
+ *
+ * Supports per-call override queue via pushAgentResponse() for tests
+ * that need the same workflow to return different outputs on successive calls.
  */
 
 import type { AgentRunOptions, AgentRunResult, WorkflowName } from '@/agents/lib/types';
@@ -55,11 +58,76 @@ const CANNED_OUTPUTS: Record<string, unknown> = {
     },
 };
 
+// ============================================================
+// Override queue — per-call variant responses
+// ============================================================
+
+const outputOverrides = new Map<string, unknown[]>();
+
+/** Queue an override response for a workflow. First queued = first returned. */
+export function pushAgentResponse(workflow: string, output: unknown): void {
+    const queue = outputOverrides.get(workflow) || [];
+    queue.push(output);
+    outputOverrides.set(workflow, queue);
+}
+
+/** Clear all override queues. */
+export function resetAgentOverrides(): void {
+    outputOverrides.clear();
+}
+
+// ============================================================
+// Exported canned variant outputs for tests
+// ============================================================
+
+/** Clarification response — agent needs admin clarification */
+export const CLARIFICATION_OUTPUT = {
+    needsClarification: true,
+    clarification: {
+        context: 'The feature request mentions dark mode but is ambiguous about scope.',
+        question: 'Should dark mode apply to the entire app or just the main content area?',
+        options: [
+            { label: 'Full app', description: 'Apply dark mode to all UI including sidebar and modals', isRecommended: true },
+            { label: 'Content only', description: 'Apply dark mode only to the main content area', isRecommended: false },
+        ],
+        recommendation: 'Full app dark mode provides a more consistent user experience.',
+    },
+    design: '',
+    comment: '',
+};
+
+/** PR review with request_changes decision */
+export const PR_REVIEW_REQUEST_CHANGES_OUTPUT = {
+    decision: 'request_changes',
+    summary: 'Missing error handling in the new module.',
+    reviewText: '## Review\n\nPlease add error handling for edge cases.',
+};
+
+/** Tech design with 3 phases (multi-phase feature) */
+export const MULTI_PHASE_TECH_DESIGN_OUTPUT = {
+    design: '# Technical Design\n\n## Implementation Phases\n\n### Phase 1: Database Layer (S)\nCreate schema and migrations.\n\n### Phase 2: API Layer (M)\nAdd REST endpoints.\n\n### Phase 3: UI Components (S)\nBuild frontend components.',
+    comment: 'Plan: 3-phase implementation',
+    needsClarification: false,
+    phases: [
+        { order: 1, name: 'Database Layer', description: 'Create schema and migrations', files: ['src/db/schema.ts'], estimatedSize: 'S' },
+        { order: 2, name: 'API Layer', description: 'Add REST endpoints', files: ['src/api/routes.ts'], estimatedSize: 'M' },
+        { order: 3, name: 'UI Components', description: 'Build frontend components', files: ['src/components/feature.tsx'], estimatedSize: 'S' },
+    ],
+};
+
+// ============================================================
+// Mock implementation
+// ============================================================
+
 export function mockRunAgent(options: AgentRunOptions): Promise<AgentRunResult> {
     agentCalls.push(options);
 
     const workflow = options.workflow as WorkflowName | undefined;
-    const structuredOutput = workflow ? CANNED_OUTPUTS[workflow] : undefined;
+
+    // Check override queue first, then fall back to canned outputs
+    const queue = workflow ? outputOverrides.get(workflow) : undefined;
+    const structuredOutput = (queue?.length ? queue.shift() : undefined)
+        ?? (workflow ? CANNED_OUTPUTS[workflow] : undefined);
     const content = structuredOutput ? JSON.stringify(structuredOutput) : 'Generated content';
 
     return Promise.resolve({

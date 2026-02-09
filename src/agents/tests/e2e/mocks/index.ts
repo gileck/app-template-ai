@@ -6,7 +6,16 @@
 
 export { MockProjectAdapter } from './mock-project-adapter';
 export { MockGitAdapter } from './mock-git-adapter';
-export { mockRunAgent, agentCalls, resetAgentCalls } from './mock-run-agent';
+export {
+    mockRunAgent,
+    agentCalls,
+    resetAgentCalls,
+    pushAgentResponse,
+    resetAgentOverrides,
+    CLARIFICATION_OUTPUT,
+    PR_REVIEW_REQUEST_CHANGES_OUTPUT,
+    MULTI_PHASE_TECH_DESIGN_OUTPUT,
+} from './mock-run-agent';
 export {
     capturedNotifications,
     resetNotifications,

@@ -107,7 +107,7 @@ export async function runTechDesignAgent(_adapter: MockProjectAdapter): Promise<
 }
 
 /**
- * Run the Implementation agent for a specific issue.
+ * Run the Implementation agent for a specific issue (new mode).
  */
 export async function runImplementationAgent(issueNumber: number, adapter: MockProjectAdapter): Promise<void> {
     const item = adapter.findItemByIssueNumber(issueNumber);
@@ -117,6 +117,26 @@ export async function runImplementationAgent(issueNumber: number, adapter: MockP
 
     await processItem(
         { item, mode: 'new' },
+        { dryRun: false, verbose: false, stream: false, timeout: 300 },
+        adapter,
+        'main',
+    );
+}
+
+/**
+ * Run the Implementation agent in feedback mode (address PR review changes).
+ */
+export async function runImplementationAgentFeedback(issueNumber: number, adapter: MockProjectAdapter): Promise<void> {
+    const item = adapter.findItemByIssueNumber(issueNumber);
+    if (!item) throw new Error(`Item for issue #${issueNumber} not found`);
+
+    const pr = await adapter.findOpenPRForIssue(issueNumber);
+    if (!pr) throw new Error(`No open PR for issue #${issueNumber}`);
+
+    const { processItem } = await import('@/agents/core-agents/implementAgent');
+
+    await processItem(
+        { item, mode: 'feedback', prNumber: pr.prNumber, branchName: pr.branchName },
         { dryRun: false, verbose: false, stream: false, timeout: 300 },
         adapter,
         'main',
