@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFeatureRequest, deleteFeatureRequest, approveFeatureRequest } from '@/apis/template/feature-requests/client';
 import { getReport, deleteReport } from '@/apis/template/reports/client';
 import { API_APPROVE_BUG_REPORT } from '@/apis/template/reports/index';
+import { updateWorkflowStatus } from '@/apis/template/workflow/client';
 import apiClient from '@/client/utils/apiClient';
 import type { FeatureRequestClient } from '@/apis/template/feature-requests/types';
 import type { ReportClient, ApproveBugReportResponse } from '@/apis/template/reports/types';
@@ -190,5 +191,24 @@ export function useDeleteItem() {
         deleteFeature: deleteFeatureMutation.mutateAsync,
         deleteBug: deleteReportMutation.mutateAsync,
         isPending: deleteFeatureMutation.isPending || deleteReportMutation.isPending,
+    };
+}
+
+export function useRouteItem() {
+    const mutation = useMutation({
+        mutationFn: async ({ sourceId, sourceType, status }: { sourceId: string; sourceType: 'feature' | 'bug'; status: string }) => {
+            const result = await updateWorkflowStatus({ sourceId, sourceType, status });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSuccess: () => {},
+        onSettled: () => {},
+    });
+
+    return {
+        routeItem: mutation.mutateAsync,
+        isPending: mutation.isPending,
     };
 }

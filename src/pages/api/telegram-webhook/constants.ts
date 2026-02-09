@@ -53,34 +53,9 @@ export const ACTION_EMOJIS: Record<ReviewAction, string> = {
     reject: '❌',
 };
 
-/**
- * Map routing destinations to GitHub Project statuses (for features)
- */
-export const FEATURE_ROUTING_STATUS_MAP: Record<string, string> = {
-    'product-dev': STATUSES.productDevelopment,
-    'product-design': STATUSES.productDesign,
-    'tech-design': STATUSES.techDesign,
-    'implementation': STATUSES.implementation,
-    'backlog': STATUSES.backlog,
-};
-
-/**
- * Map routing destinations to GitHub Project statuses (for bugs - no product-dev)
- */
-export const BUG_ROUTING_STATUS_MAP: Record<string, string> = {
-    'product-design': STATUSES.productDesign,
-    'tech-design': STATUSES.techDesign,
-    'implementation': STATUSES.implementation,
-    'backlog': STATUSES.backlog,
-};
-
-/**
- * Human-readable labels for routing destinations
- */
-export const ROUTING_DESTINATION_LABELS: Record<string, string> = {
-    'product-dev': 'Product Development',
-    'product-design': 'Product Design',
-    'tech-design': 'Technical Design',
-    'implementation': 'Ready for Development',
-    'backlog': 'Backlog',
-};
+// Routing maps — single source of truth in workflow-service
+export {
+    FEATURE_ROUTING_STATUS_MAP,
+    BUG_ROUTING_STATUS_MAP,
+    ROUTING_DESTINATION_LABELS,
+} from '@/server/workflow-service';

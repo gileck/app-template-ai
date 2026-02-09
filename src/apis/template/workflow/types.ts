@@ -55,8 +55,12 @@ export interface ListWorkflowItemsResponse {
 }
 
 export interface UpdateWorkflowStatusRequest {
-    itemId: string;
+    itemId?: string;
     status: string;
+    /** Alternative to itemId: look up workflow item by source document ID */
+    sourceId?: string;
+    /** Required if sourceId is provided */
+    sourceType?: 'feature' | 'bug';
 }
 
 export interface UpdateWorkflowStatusResponse {

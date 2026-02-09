@@ -408,7 +408,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 - Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
 - All actions logged to agent-logs/issue-N.md
 
-**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md)
+**Docs:** [overview.md](docs/template/github-agents-workflow/overview.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [cli.md](docs/template/github-agents-workflow/cli.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md), [telegram-integration.md](docs/template/github-agents-workflow/telegram-integration.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md), [directory-locking.md](docs/template/github-agents-workflow/directory-locking.md), [workflow-service.md](docs/template/github-agents-workflow/workflow-service.md)
 
 ---
 
@@ -425,6 +425,16 @@ CLI for managing feature requests and bug reports. Use this when working with `y
 - ID prefix matching supported (first 8 chars of ObjectId)
 
 **Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
+
+---
+
+## Directory Locking
+
+Directory-level lock for preventing concurrent agent runs on same working directory
+
+**Summary:** Master script acquires per-directory lock using PID-based ownership and stale detection. Prevents concurrent git operations and file modifications.
+
+**Docs:** [directory-locking.md](docs/template/github-agents-workflow/directory-locking.md)
 
 ---
 
@@ -457,6 +467,14 @@ Complete setup instructions for the GitHub agents workflow. Use this when settin
 - Optional: Claude GitHub App for automated PR reviews
 
 **Docs:** [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-items-architecture.md](docs/template/github-agents-workflow/workflow-items-architecture.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
+
+---
+
+## Unified Workflow Service Layer
+
+**Summary:** Architecture of the unified workflow service that centralizes all business logic for approve, route, and delete operations across transports.
+
+**Docs:** [workflow-service.md](docs/template/github-agents-workflow/workflow-service.md)
 
 ---
 
