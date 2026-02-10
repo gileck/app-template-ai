@@ -511,6 +511,29 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                         </div>
 
                         <div className="pt-3 border-t -mx-6 px-6 flex flex-col gap-2">
+                            {/* Navigation: View Full Details + Copy */}
+                            <div className="flex gap-2">
+                                <Button
+                                    className="flex-1"
+                                    variant="outline"
+                                    onClick={() => {
+                                        onClose();
+                                        navigate(`/admin/item/${itemId}`);
+                                    }}
+                                >
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    View Full Details
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCopyDetails}
+                                >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Copy
+                                </Button>
+                            </div>
+
+                            {/* Workflow actions + Move to (active items) */}
                             {workflowItemId && (
                                 <div className="flex items-center gap-2">
                                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -521,7 +544,7 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                         <SelectTrigger className="h-8 text-xs flex-1">
                                             <SelectValue placeholder="Move to..." />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="z-[70]">
                                             {ALL_STATUSES.map((s) => (
                                                 <SelectItem key={s} value={s}>{s}</SelectItem>
                                             ))}
@@ -535,6 +558,8 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                     onActionComplete={onClose}
                                 />
                             )}
+
+                            {/* Post-approval routing (inline) */}
                             {showRouting && (
                                 <div className="flex flex-col gap-2">
                                     <p className="text-xs text-muted-foreground">Choose where to route:</p>
@@ -554,6 +579,8 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                     </div>
                                 </div>
                             )}
+
+                            {/* Pending item actions (approve/delete) */}
                             {!showRouting && (canApprove || canDelete) && (
                                 <div className="flex gap-2">
                                     {canApprove && (
@@ -596,26 +623,6 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                     )}
                                 </div>
                             )}
-                            <div className="flex gap-2">
-                                <Button
-                                    className="flex-1"
-                                    variant="outline"
-                                    onClick={() => {
-                                        onClose();
-                                        navigate(`/admin/item/${itemId}`);
-                                    }}
-                                >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    View Full Details
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleCopyDetails}
-                                >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Copy
-                                </Button>
-                            </div>
                         </div>
                     </>
                 )}
