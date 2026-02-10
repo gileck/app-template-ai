@@ -537,8 +537,9 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
 
                         <div className="pt-3 border-t -mx-6 px-6 flex flex-col gap-2">
                             {/* Move to status (active pipeline items) */}
-                            {workflowItemId && (
+                            {workflowItemId && matchedWorkflowItem?.status && (
                                 <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground shrink-0">{matchedWorkflowItem.status}</span>
                                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
                                     <Select
                                         value=""
