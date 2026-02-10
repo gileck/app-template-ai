@@ -113,19 +113,8 @@ export async function submitDecision(
             }
         }
 
-        // Format and post the selection comment
-        const selectionComment = formatDecisionSelectionComment(
-            selection,
-            decision.options
-        );
-
-        await adapter.addIssueComment(issueNumber, selectionComment);
-        console.log(`  Posted decision selection comment on issue #${issueNumber}`);
-
-        // Save selection to DB
-        await saveSelectionToDB(issueNumber, selection);
-
-        // Resolve routing if config is present
+        // Validate routing BEFORE any side effects (comment posting, DB save)
+        // This ensures we don't leave the system in an inconsistent state if routing fails
         const routing = decision.routing;
         let routedTo: string | undefined;
 
@@ -154,6 +143,18 @@ export async function submitDecision(
                 routedTo = routing.statusMap[metaValue];
             }
         }
+
+        // Format and post the selection comment (only after routing validation passes)
+        const selectionComment = formatDecisionSelectionComment(
+            selection,
+            decision.options
+        );
+
+        await adapter.addIssueComment(issueNumber, selectionComment);
+        console.log(`  Posted decision selection comment on issue #${issueNumber}`);
+
+        // Save selection to DB
+        await saveSelectionToDB(issueNumber, selection);
 
         // Use workflow service for status/review updates
         await submitDecisionRouting(issueNumber, routedTo, {

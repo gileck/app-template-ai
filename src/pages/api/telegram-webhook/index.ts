@@ -242,7 +242,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Routing...</b>', 'HTML');
         }
-        await handleFeatureRouting(botToken, callback_query, requestId, destination);
+        const result = await handleFeatureRouting(botToken, callback_query, requestId, destination);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -258,7 +261,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Routing...</b>', 'HTML');
         }
-        await handleBugRouting(botToken, callback_query, reportId, destination);
+        const result = await handleBugRouting(botToken, callback_query, reportId, destination);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -273,7 +279,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
         }
-        await handleDesignReviewAction(botToken, callback_query, action as ReviewAction, issueNumber);
+        const result = await handleDesignReviewAction(botToken, callback_query, action as ReviewAction, issueNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -288,7 +297,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Updating status...</b>', 'HTML');
         }
-        await handleClarificationReceived(botToken, callback_query, issueNumber);
+        const result = await handleClarificationReceived(botToken, callback_query, issueNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -304,7 +316,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging PR...</b>', 'HTML');
         }
-        await handleMergeCallback(botToken, callback_query, issueNumber, prNumber);
+        const result = await handleMergeCallback(botToken, callback_query, issueNumber, prNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -320,7 +335,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging final PR...</b>', 'HTML');
         }
-        await handleMergeFinalPRCallback(botToken, callback_query, issueNumber, prNumber);
+        const result = await handleMergeFinalPRCallback(botToken, callback_query, issueNumber, prNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -336,7 +354,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
         }
-        await handleRequestChangesCallback(botToken, callback_query, issueNumber, prNumber);
+        const result = await handleRequestChangesCallback(botToken, callback_query, issueNumber, prNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -353,7 +374,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging design PR...</b>', 'HTML');
         }
-        await handleDesignPRApproval(botToken, callback_query, prNumber, issueNumber, designType);
+        const result = await handleDesignPRApproval(botToken, callback_query, prNumber, issueNumber, designType);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -370,7 +394,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Processing...</b>', 'HTML');
         }
-        await handleDesignPRRequestChanges(botToken, callback_query, prNumber, issueNumber, designType);
+        const result = await handleDesignPRRequestChanges(botToken, callback_query, prNumber, issueNumber, designType);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -389,7 +416,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Creating revert PR...</b>', 'HTML');
         }
-        await handleRevertMerge(botToken, callback_query, issueNumber, prNumber, shortSha, prevStatus, phase);
+        const result = await handleRevertMerge(botToken, callback_query, issueNumber, prNumber, shortSha, prevStatus, phase);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -405,7 +435,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Merging revert PR...</b>', 'HTML');
         }
-        await handleMergeRevertPR(botToken, callback_query, issueNumber, revertPrNumber);
+        const result = await handleMergeRevertPR(botToken, callback_query, issueNumber, revertPrNumber);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -422,7 +455,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
         }
-        await handleUndoRequestChanges(botToken, callback_query, issueNumber, prNumber, timestamp);
+        const result = await handleUndoRequestChanges(botToken, callback_query, issueNumber, prNumber, timestamp);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -440,7 +476,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
         }
-        await handleUndoDesignChanges(botToken, callback_query, prNumber, issueNumber, designType, timestamp);
+        const result = await handleUndoDesignChanges(botToken, callback_query, prNumber, issueNumber, designType, timestamp);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
@@ -458,7 +497,10 @@ async function processCallbackQuery(
         if (callback_query.message) {
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
         }
-        await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
+        const result = await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
+        if (!result.success && callback_query.message) {
+            await editMessageWithResult(botToken, callback_query.message.chat.id, callback_query.message.message_id, callback_query.message.text || '', false, result.error || 'Unknown error');
+        }
         return;
     }
 
