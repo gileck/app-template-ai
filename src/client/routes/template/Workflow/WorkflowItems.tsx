@@ -434,18 +434,43 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                 ) : (
                     <>
                         <DialogHeader>
-                            <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
-                                <StatusBadge label={status} />
-                                {isFeature && item.feature!.priority && (
-                                    <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
-                                )}
-                                {isFeature && item.feature!.source && (
-                                    <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
-                                )}
-                                {!isFeature && item.report!.source && (
-                                    <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
-                                )}
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-2 min-w-0">
+                                    <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
+                                    <StatusBadge label={status} />
+                                    {isFeature && item.feature!.priority && (
+                                        <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
+                                    )}
+                                    {isFeature && item.feature!.source && (
+                                        <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
+                                    )}
+                                    {!isFeature && item.report!.source && (
+                                        <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={handleCopyDetails}
+                                        title="Copy details"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => {
+                                            onClose();
+                                            navigate(`/admin/item/${itemId}`);
+                                        }}
+                                        title="View full details"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
                             </div>
                             <DialogTitle className="text-base leading-snug pr-6">{title}</DialogTitle>
                             {createdAt && (
@@ -511,29 +536,7 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                         </div>
 
                         <div className="pt-3 border-t -mx-6 px-6 flex flex-col gap-2">
-                            {/* Navigation: View Full Details + Copy */}
-                            <div className="flex gap-2">
-                                <Button
-                                    className="flex-1"
-                                    variant="outline"
-                                    onClick={() => {
-                                        onClose();
-                                        navigate(`/admin/item/${itemId}`);
-                                    }}
-                                >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    View Full Details
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleCopyDetails}
-                                >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Copy
-                                </Button>
-                            </div>
-
-                            {/* Workflow actions + Move to (active items) */}
+                            {/* Move to status (active pipeline items) */}
                             {workflowItemId && (
                                 <div className="flex items-center gap-2">
                                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -556,6 +559,7 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                 <WorkflowActionButtons
                                     item={matchedWorkflowItem}
                                     onActionComplete={onClose}
+                                    excludeActions={workflowItemId ? ['mark-done'] : undefined}
                                 />
                             )}
 

@@ -18,11 +18,14 @@ import type { AvailableAction } from './actions';
 export function WorkflowActionButtons({
     item,
     onActionComplete,
+    excludeActions,
 }: {
     item: WorkflowItem;
     onActionComplete?: () => void;
+    excludeActions?: WorkflowActionType[];
 }) {
-    const actions = getAvailableActions(item);
+    const allActions = getAvailableActions(item);
+    const actions = excludeActions ? allActions.filter((a) => !excludeActions.includes(a.action)) : allActions;
     const workflowAction = useWorkflowAction();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [confirmAction, setConfirmAction] = useState<AvailableAction | null>(null);
