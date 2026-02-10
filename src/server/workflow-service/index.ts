@@ -16,6 +16,7 @@ export { deleteWorkflowItem } from './delete';
 // Phase 2 — Mid-pipeline operations
 export { updateReviewStatus, clearReviewStatus } from './review-status';
 export { advanceStatus, markDone } from './advance';
+export { setWorkflowStatus } from './set-status';
 export { advanceImplementationPhase, clearImplementationPhase } from './phase';
 export { completeAgentRun } from './agent-complete';
 export { submitDecisionRouting } from './decision';
