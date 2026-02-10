@@ -1,6 +1,6 @@
 ---
 title: Unified Workflow Service Layer
-summary: "Architecture of the unified workflow service that centralizes all business logic for workflow lifecycle operations (approve, route, delete, advance, review status, phase management, undo, agent completion) across transports."
+summary: "Architecture of the unified workflow service that centralizes all business logic for workflow lifecycle operations (approve, route, delete, advance, review, merge, revert, undo, decision, agent completion) across transports."
 ---
 
 # Unified Workflow Service Layer
@@ -27,23 +27,28 @@ The system follows a 3-layer architecture:
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  Workflow Service (src/server/workflow-service/)                          │
 │                                                                          │
-│  Entry Operations          Mid-Pipeline Operations                       │
-│  ┌─────────────────┐       ┌─────────────────┐  ┌─────────────────┐     │
-│  │ approveWorkflow │       │ advanceStatus()  │  │ updateReview    │     │
-│  │ Item()          │       │ markDone()       │  │ Status()        │     │
-│  ├─────────────────┤       ├─────────────────┤  ├─────────────────┤     │
-│  │ routeWorkflow   │       │ advanceImpl.     │  │ undoStatus      │     │
-│  │ Item()          │       │ Phase()          │  │ Change()        │     │
-│  ├─────────────────┤       ├─────────────────┤  ├─────────────────┤     │
-│  │ deleteWorkflow  │       │ completeAgent    │  │ submitDecision  │     │
-│  │ Item()          │       │ Run()            │  │ Routing()       │     │
-│  └─────────────────┘       ├─────────────────┤  └─────────────────┘     │
-│                            │ autoAdvance      │                          │
-│                            │ Approved()       │                          │
-│                            └─────────────────┘                           │
+│  Entry Ops      Mid-Pipeline Ops      UI/Telegram Actions   Merge/Revert  │
+│  ┌────────────┐ ┌─────────────────┐  ┌──────────────────┐ ┌───────────┐ │
+│  │ approve    │ │ advanceStatus() │  │ reviewDesign()   │ │ mergeDe-  │ │
+│  │ Workflow() │ │ markDone()      │  │ markClarif.()    │ │ signPR()  │ │
+│  ├────────────┤ ├─────────────────┤  ├──────────────────┤ ├───────────┤ │
+│  │ route      │ │ advanceImpl.    │  │ requestChanges   │ │ mergeImpl │ │
+│  │ Workflow() │ │ Phase()         │  │ OnPR/DesignPR()  │ │ PR()      │ │
+│  ├────────────┤ ├─────────────────┤  ├──────────────────┤ ├───────────┤ │
+│  │ delete     │ │ completeAgent   │  │ chooseRecommend  │ │ mergeFi-  │ │
+│  │ Workflow() │ │ Run()           │  │ edOption()       │ │ nalPR()   │ │
+│  └────────────┘ ├─────────────────┤  └──────────────────┘ ├───────────┤ │
+│                 │ updateReview    │  Other:               │ revert    │ │
+│                 │ Status()        │  ┌──────────────────┐ │ Merge()   │ │
+│                 │ submitDecision  │  │ setWorkflow      │ │ mergeRe-  │ │
+│                 │ Routing()       │  │ Status()         │ │ vertPR()  │ │
+│                 │ undoStatus()    │  └──────────────────┘ └───────────┘ │
+│                 │ autoAdvance()   │                                      │
+│                 └─────────────────┘                                      │
 │                                                                          │
 │  Handles: state validation, adapter status updates, review status,       │
-│  DB sync, agent logging, Telegram notifications, undo windows            │
+│  DB sync, agent logging, Telegram notifications, undo windows,           │
+│  PR merge/revert, design review, decision routing                        │
 └──────────┬──────────────────────────────────────────────────────────────┘
            │
            ▼
@@ -289,6 +294,194 @@ const result = await autoAdvanceApproved({ dryRun: true });
 console.log(`Advanced ${result.advanced}/${result.total} items`);
 ```
 
+### `setWorkflowStatus(workflowItemId, status)`
+
+Sets a workflow item's status directly, bypassing routing validation. Used as a fallback by the UI's manual status dropdown for non-routable statuses (PR Review, Done, Final Review, Bug Investigation).
+
+**Steps performed:**
+1. Updates workflow-items DB
+2. Looks up source document to get `githubProjectItemId`
+3. Updates adapter status
+
+```typescript
+import { setWorkflowStatus } from '@/server/workflow-service';
+
+await setWorkflowStatus(workflowItemId, STATUSES.prReview);
+```
+
+### `reviewDesign(issueNumber, action)`
+
+Reviews a design phase item -- approve, request changes, or reject. If approved, auto-advances to the next phase via `STATUS_TRANSITIONS`.
+
+**Steps performed:**
+1. Validates item is in a reviewable design phase (Product Development, Product Design, Bug Investigation, Technical Design)
+2. Updates review status (Approved, Request Changes, or Rejected)
+3. If approved: auto-advances to next phase
+4. Logs all actions
+
+```typescript
+import { reviewDesign } from '@/server/workflow-service';
+
+const result = await reviewDesign(issueNumber, 'approve');
+if (result.advancedTo) {
+    console.log(`Advanced to ${result.advancedTo}`);
+}
+```
+
+### `markClarificationReceived(issueNumber)`
+
+Marks an item's clarification as received. Validates the item is currently waiting for clarification before updating.
+
+**Steps performed:**
+1. Validates item exists
+2. Verifies review status is "Waiting for Clarification"
+3. Updates review status to "Clarification Received"
+
+```typescript
+import { markClarificationReceived } from '@/server/workflow-service';
+
+const result = await markClarificationReceived(issueNumber);
+if (!result.success) {
+    console.error(result.error); // "Item is not waiting for clarification"
+}
+```
+
+### `requestChangesOnPR(issueNumber)`
+
+Requests changes on an implementation PR. Sets status back to Implementation and review status to Request Changes.
+
+```typescript
+import { requestChangesOnPR } from '@/server/workflow-service';
+
+await requestChangesOnPR(issueNumber);
+```
+
+### `requestChangesOnDesignPR(issueNumber, prNumber, designType)`
+
+Requests changes on a design PR (product-dev, product, or tech design). Sets review status to Request Changes.
+
+```typescript
+import { requestChangesOnDesignPR } from '@/server/workflow-service';
+
+await requestChangesOnDesignPR(issueNumber, prNumber, 'tech');
+```
+
+### `chooseRecommendedOption(issueNumber)`
+
+Chooses the recommended option for a decision (bug investigation fix selection). Encapsulates the full flow so both UI and Telegram share a single code path through the service layer.
+
+**Steps performed:**
+1. Gets decision data from DB (fallback: parse GitHub issue comments)
+2. Finds the recommended option
+3. Computes routing target from decision's routing config
+4. Posts selection comment to GitHub (audit trail)
+5. Saves selection to DB
+6. Calls `submitDecisionRouting()` for the status update
+7. Sends Telegram notification (fire-and-forget)
+
+```typescript
+import { chooseRecommendedOption } from '@/server/workflow-service';
+
+const result = await chooseRecommendedOption(issueNumber);
+if (result.success) {
+    console.log(`Routed to ${result.routedTo}`);
+}
+```
+
+### `mergeDesignPR(issueNumber, prNumber, designType)`
+
+Merges an approved design PR, saves the design artifact, advances status, and initializes phases if applicable.
+
+**Steps performed:**
+1. Merges the PR via adapter
+2. Saves design artifact to DB and updates artifact comment (not for product-dev)
+3. Advances status to next phase (product-dev -> Product Design, product -> Tech Design, tech -> Implementation)
+4. Deletes PR branch
+5. If tech design: reads design doc, parses phases, and initializes implementation phases
+
+```typescript
+import { mergeDesignPR } from '@/server/workflow-service';
+
+const result = await mergeDesignPR(issueNumber, prNumber, 'tech');
+if (result.advancedTo) {
+    console.log(`Advanced to ${result.advancedTo}`);
+}
+```
+
+### `mergeImplementationPR(issueNumber, knownPrNumber?)`
+
+Merges an implementation PR. Handles single-phase, multi-phase middle, and multi-phase final scenarios.
+
+**Steps performed:**
+1. Gets commit message from DB (fallback to PR comment)
+2. Merges PR (handles already-merged gracefully)
+3. Updates phase artifact status
+4. **Multi-phase middle**: advances to next phase
+5. **Multi-phase final with task branch**: creates final PR to main, advances to Final Review
+6. **Multi-phase final no task branch / single-phase**: marks as Done
+7. Deletes PR head branch
+
+```typescript
+import { mergeImplementationPR } from '@/server/workflow-service';
+
+const result = await mergeImplementationPR(issueNumber);
+if (result.finalPrCreated) {
+    console.log(`Final PR #${result.finalPrCreated.prNumber} created`);
+}
+```
+
+### `mergeFinalPR(issueNumber, prNumber)`
+
+Merges the final PR from feature branch to main in a multi-phase workflow. Handles full cleanup.
+
+**Steps performed:**
+1. Merges the PR (handles already-merged)
+2. Marks as Done (status, review, source doc, log sync)
+3. Cleans up branches (task branch + all phase branches)
+4. Clears task branch from artifact
+5. Posts completion comment
+
+```typescript
+import { mergeFinalPR } from '@/server/workflow-service';
+
+await mergeFinalPR(issueNumber, finalPrNumber);
+```
+
+### `revertMerge(issueNumber, prNumber, shortSha?, phase?)`
+
+Creates a revert PR for a merged implementation PR and restores the workflow state.
+
+**Steps performed:**
+1. Validates merge commit SHA (and optional SHA prefix)
+2. Creates revert PR via adapter
+3. Restores status to Implementation with Request Changes
+4. Restores implementation phase if applicable
+5. Reverts source document status (feature -> in_progress, bug -> investigating)
+
+```typescript
+import { revertMerge } from '@/server/workflow-service';
+
+const result = await revertMerge(issueNumber, prNumber);
+if (result.success) {
+    console.log(`Revert PR #${result.revertPrNumber} created`);
+}
+```
+
+### `mergeRevertPR(issueNumber, revertPrNumber)`
+
+Merges an existing revert PR and cleans up.
+
+**Steps performed:**
+1. Validates revert PR exists and is open (not merged, not closed)
+2. Merges revert PR
+3. Deletes revert branch
+
+```typescript
+import { mergeRevertPR } from '@/server/workflow-service';
+
+await mergeRevertPR(issueNumber, revertPrNumber);
+```
+
 ## Utilities
 
 Shared utility functions in `src/server/workflow-service/utils.ts`:
@@ -322,6 +515,12 @@ All types are defined in `src/server/workflow-service/types.ts`:
 | `UndoOptions` | Extends ServiceOptions with `timestamp` |
 | `AutoAdvanceResult` | Batch result: `{ total, advanced, failed, details[] }` |
 | `AgentCompletionResult` | Agent result: `{ status?, reviewStatus?, clearReviewStatus? }` |
+| `DesignReviewResult` | Extends ServiceResult with `advancedTo`, `previousStatus`, `reviewStatus` |
+| `MergeDesignPRResult` | Extends ServiceResult with `advancedTo`, `previousStatus` |
+| `MergePRResult` | Extends ServiceResult with `mergeCommitSha`, `phaseInfo`, `finalPrCreated`, `statusMessage` |
+| `MergeFinalPRResult` | Extends ServiceResult with `mergeCommitSha` |
+| `RevertResult` | Extends ServiceResult with `revertPrNumber`, `revertPrUrl` |
+| `ChooseRecommendedResult` | Result: `{ success?, routedTo?, error? }` |
 
 ## Constants
 
@@ -382,8 +581,11 @@ The info channel falls back to: `AGENT_INFO_TELEGRAM_CHAT_ID` -> `AGENT_TELEGRAM
 | Approve (bug, auto-routed) | Info | Auto-routed to Bug Investigation confirmation |
 | Route | Info | "Routed to {destination}" with View Issue button |
 | Delete | Info | "Deleted: {title}" |
+| Choose Recommended | Info | Decision submitted confirmation with selected option and routing |
 
 All notification sends are fire-and-forget (errors are caught and logged as warnings).
+
+Note: Merge, revert, design review, request changes, and clarification operations do NOT send their own Telegram notifications -- these are handled by the Telegram webhook handler that wraps the service call (editing the original message with success/failure status).
 
 ## Cross-Transport Edge Cases
 
@@ -396,26 +598,49 @@ The service layer handles several edge cases consistently across all transports:
 | **Delete already-deleted item** | Idempotent -- cleans up orphaned workflow-items and returns success |
 | **Invalid routing destination** | Validated against type-specific routing map (bugs cannot route to `product-dev`) |
 | **Missing GitHub project item** | Returns error -- item must be synced to GitHub before routing |
+| **Already-merged PR** | Handled gracefully -- retrieves merge commit SHA instead of failing |
+| **Merge commit SHA mismatch** | Revert validates SHA prefix to prevent stale revert attempts |
+| **Revert PR already merged/closed** | Returns error with specific message |
+| **Non-design-phase review** | `reviewDesign()` rejects items not in a design phase |
+| **Not waiting for clarification** | `markClarificationReceived()` rejects if review status is wrong |
 
 ## File Layout
 
 ```
 src/server/workflow-service/
-├── index.ts            # Re-exports all public API
-├── types.ts            # All TypeScript types
-├── constants.ts        # Routing maps, status transitions, undo window
-├── utils.ts            # Shared utilities (adapter init, findByIssueNumber, DB sync)
-├── notify.ts           # Telegram notification helpers
-├── approve.ts          # approveWorkflowItem()
-├── route.ts            # routeWorkflowItem(), routeWorkflowItemByWorkflowId()
-├── delete.ts           # deleteWorkflowItem()
-├── advance.ts          # advanceStatus(), markDone()
-├── review-status.ts    # updateReviewStatus(), clearReviewStatus()
-├── phase.ts            # advanceImplementationPhase(), clearImplementationPhase()
-├── agent-complete.ts   # completeAgentRun()
-├── decision.ts         # submitDecisionRouting()
-├── undo.ts             # undoStatusChange()
-└── auto-advance.ts     # autoAdvanceApproved()
+├── index.ts                # Re-exports all public API
+├── types.ts                # All TypeScript types
+├── constants.ts            # Routing maps, status transitions, undo window
+├── utils.ts                # Shared utilities (adapter init, findByIssueNumber, DB sync)
+├── notify.ts               # Telegram notification helpers
+│
+│ Entry Operations
+├── approve.ts              # approveWorkflowItem()
+├── route.ts                # routeWorkflowItem(), routeWorkflowItemByWorkflowId()
+├── delete.ts               # deleteWorkflowItem()
+│
+│ Mid-Pipeline Operations
+├── advance.ts              # advanceStatus(), markDone()
+├── set-status.ts           # setWorkflowStatus()
+├── review-status.ts        # updateReviewStatus(), clearReviewStatus()
+├── phase.ts                # advanceImplementationPhase(), clearImplementationPhase()
+├── agent-complete.ts       # completeAgentRun()
+├── decision.ts             # submitDecisionRouting()
+├── undo.ts                 # undoStatusChange()
+├── auto-advance.ts         # autoAdvanceApproved()
+│
+│ UI/Telegram Shared Actions
+├── design-review.ts        # reviewDesign()
+├── clarification.ts        # markClarificationReceived()
+├── request-changes.ts      # requestChangesOnPR()
+├── request-changes-design.ts # requestChangesOnDesignPR()
+├── choose-recommended.ts   # chooseRecommendedOption()
+│
+│ Merge/Revert Operations
+├── merge-design-pr.ts      # mergeDesignPR()
+├── merge-pr.ts             # mergeImplementationPR()
+├── merge-final-pr.ts       # mergeFinalPR()
+└── revert.ts               # revertMerge(), mergeRevertPR()
 ```
 
 ## How to Add New Operations

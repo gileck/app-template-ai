@@ -17,10 +17,15 @@ This runs vitest with the config in `vitest.config.ts`, which includes only `src
 
 ## Test Files
 
-| File | Pipeline |
+| File | Coverage |
 |------|----------|
 | `feature-lifecycle.e2e.test.ts` | Product Design → Tech Design → Implementation → PR Review → Done |
 | `bug-lifecycle.e2e.test.ts` | Bug Investigation (auto-submit) → Implementation → PR Review → Done |
+| `multi-phase.e2e.test.ts` | Multi-phase implementation with phase advancement |
+| `request-changes.e2e.test.ts` | Request changes flow on both design and implementation PRs |
+| `clarification.e2e.test.ts` | Clarification request and received flow |
+| `multi-agent-flow.e2e.test.ts` | Multiple agents processing items concurrently |
+| `workflow-service-actions.e2e.test.ts` | Direct workflow-service function tests (approve, route, delete, advance, review, merge, revert, undo, clarification, decision routing, choose-recommended) |
 
 ### Feature Lifecycle
 
@@ -86,8 +91,13 @@ Three DI singletons are injected in `beforeAll` via `setupBoundaries()`:
 
 ```
 src/agents/tests/e2e/
-  feature-lifecycle.e2e.test.ts    — Feature request full lifecycle
-  bug-lifecycle.e2e.test.ts        — Bug report full lifecycle
+  feature-lifecycle.e2e.test.ts        — Feature request full lifecycle
+  bug-lifecycle.e2e.test.ts            — Bug report full lifecycle
+  multi-phase.e2e.test.ts              — Multi-phase implementation
+  request-changes.e2e.test.ts          — Request changes flows
+  clarification.e2e.test.ts            — Clarification flows
+  multi-agent-flow.e2e.test.ts         — Concurrent agent processing
+  workflow-service-actions.e2e.test.ts  — Direct service function tests
   mocks/
     mock-project-adapter.ts        — In-memory ProjectManagementAdapter
     mock-run-agent.ts              — Canned AI responses per workflow

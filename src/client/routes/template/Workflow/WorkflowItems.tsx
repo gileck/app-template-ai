@@ -293,8 +293,6 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
 
     // Determine if this is a workflow item (has a non-composite ID = plain ObjectId)
     const isWorkflowItem = itemId ? !itemId.includes(':') : false;
-    // For workflow items, the itemId IS the workflow item's _id
-    const workflowItemId = isWorkflowItem ? itemId : null;
 
     // Look up the WorkflowItem for action buttons
     const matchedWorkflowItem = useMemo(() => {
@@ -306,6 +304,9 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
         // If itemId is a composite sourceId, match by sourceId
         return workflowItems.find((wi) => wi.sourceId === itemId) || null;
     }, [workflowItems, itemId, isWorkflowItem]);
+
+    // For workflow items, use the workflow item's _id (either directly or from matched item)
+    const workflowItemId = isWorkflowItem ? itemId : (matchedWorkflowItem?.id || null);
 
     const { mongoId } = itemId ? parseItemId(itemId) : { mongoId: '' };
 

@@ -208,10 +208,11 @@ Options: 3
 Summary:
 [investigation summary]
 
-[Choose Option] [View Issue] [Request Changes]
+[Choose Recommended] [Choose Option] [View Issue] [Request Changes]
 ```
 
-- **Choose Option**: Opens `/decision/:issueNumber` web UI
+- **Choose Recommended**: One-click shortcut that selects the agent's recommended option via `chooseRecommendedOption()` -- available in both Telegram and UI
+- **Choose Option**: Opens `/decision/:issueNumber` web UI for manual selection
 - **View Issue**: Opens the GitHub issue
 - **Request Changes**: Sets Review Status to "Request Changes" (triggers feedback mode)
 
@@ -304,6 +305,7 @@ The next agent will pick this up automatically.
 | `src/client/routes/template/Decision/` | Decision selection UI (generic) |
 | `src/client/routes/template/BugFix/` | Legacy redirect to `/decision/` |
 | `src/apis/template/agent-decision/` | Agent decision API handlers |
+| `src/server/workflow-service/choose-recommended.ts` | `chooseRecommendedOption()` -- one-click recommended selection |
 | `src/server/github-sync/index.ts` | `bugReportSyncConfig` with `initialStatus` |
 | `src/server/project-management/config.ts` | `STATUSES.bugInvestigation` |
 

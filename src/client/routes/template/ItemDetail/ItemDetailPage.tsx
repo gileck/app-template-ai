@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/client/components/template/ui/button';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features/template/router';
+import { updateWorkflowStatus } from '@/apis/template/workflow/client';
 import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from './hooks';
 import type { ItemType } from './hooks';
 import { ItemDetailActions } from './components/ItemDetailActions';
@@ -22,6 +24,20 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
     const { routeItem, isPending: isRouting } = useRouteItem();
+    const queryClient = useQueryClient();
+
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ sourceId, sourceType, status }: { sourceId: string; sourceType: 'feature' | 'bug'; status: string }) => {
+            const result = await updateWorkflowStatus({ sourceId, sourceType, status });
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+        },
+    });
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral routing dialog state after approve
     const [showRoutingDialog, setShowRoutingDialog] = useState(false);
@@ -149,6 +165,16 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
         }
     };
 
+    const handleStatusChange = async (newStatus: string) => {
+        try {
+            const sourceType = isFeature ? 'feature' as const : 'bug' as const;
+            await updateStatusMutation.mutateAsync({ sourceId: mongoId, sourceType, status: newStatus });
+            toast.success(`Moved to ${newStatus}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
+        }
+    };
+
     return (
         <div className="container mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8">
             {/* Sticky back button on mobile */}
@@ -239,6 +265,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 onDelete={handleDelete}
                 onRoute={handleRoute}
                 onSkipRouting={handleSkipRouting}
+                onStatusChange={handleStatusChange}
             />
         </div>
     );

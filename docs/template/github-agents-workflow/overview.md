@@ -45,7 +45,7 @@ Items can enter the workflow through three paths (all converge into the same pip
 
 1. **User submits** feature request or bug report via app UI (or CLI) → stored in MongoDB
 2. **Admin gets Telegram notification** with one-click "Approve" button
-3. **Admin approves** (via Telegram button) → server creates GitHub Issue
+3. **Admin approves** (via Telegram button or UI) → server creates GitHub Issue
    - **Features**: Added to "Backlog", admin receives routing message
    - **Bugs**: Auto-routed to "Bug Investigation" (no routing message)
 4. **Features: Admin receives routing message** → chooses where item should start:
@@ -59,9 +59,9 @@ Items can enter the workflow through three paths (all converge into the same pip
    - **Design agents**: Create PR with design file → Telegram notification with Approve/Reject buttons
    - **Implementation agent**: Create PR with code changes → Telegram notification with View PR button
    - **Visual verification** (UI changes): Implementation agent verifies at 400px viewport before completing
-8. **Admin approves design PR** (via Telegram button) → PR auto-merged → status advances to next phase
+8. **Admin approves design PR** (via Telegram button or UI) → PR auto-merged → status advances to next phase
 9. **PR Review agent reviews implementation PR** (cron) → generates commit message → Telegram notification with Merge button
-10. **Admin merges implementation PR** (via Telegram Merge button) → Telegram webhook marks item as Done
+10. **Admin merges implementation PR** (via Telegram Merge button or UI) → marks item as Done
 11. **Post-merge recovery** (if needed): Merge success notification includes "Revert" button → creates revert PR → restores status for agent to fix
 
 **Key concepts:**
@@ -136,15 +136,18 @@ When adding new workflow functionality:
 
 ## Workflow Service Layer
 
-All transports -- Telegram, UI, and CLI -- go through a unified service layer at `src/server/workflow-service/`. The service centralizes all business logic for approve, route, and delete operations.
+All transports -- Telegram, UI, CLI, and agents -- go through a unified service layer at `src/server/workflow-service/`. The service centralizes all business logic for the full workflow lifecycle: entry operations (approve, route, delete), mid-pipeline operations (advance, review status, phase, undo, decision), shared admin actions (design review, clarification, request changes, choose recommended, merge, revert).
 
 **What the service handles:**
 - State validation (prevent double-approval, check GitHub sync status)
 - GitHub sync (issue creation via github-sync)
 - Adapter status updates (move items between columns)
-- Review status clearing
+- Review status management (set, clear, update)
+- PR merge/revert with multi-phase support
+- Design review with auto-advance on approval
 - Agent logging to `agent-logs/issue-{N}.md`
 - Telegram notifications (universal notification center)
+- Undo windows (5-minute rollback for accidental actions)
 
 **Transports are thin wrappers:** parse input (callback data, request body, CLI args) -> call the service function -> format output for the transport.
 
