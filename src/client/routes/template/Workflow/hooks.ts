@@ -7,7 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listWorkflowItems, updateWorkflowStatus, executeWorkflowAction } from '@/apis/template/workflow/client';
 import { useQueryDefaults } from '@/client/query';
-import type { WorkflowItem, WorkflowActionType } from '@/apis/template/workflow/types';
+import type { WorkflowItem, WorkflowActionRequest } from '@/apis/template/workflow/types';
 
 const workflowItemsQueryKey = ['workflow-items'] as const;
 
@@ -76,14 +76,14 @@ export function useWorkflowAction() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ action, issueNumber }: { action: WorkflowActionType; issueNumber: number }) => {
-            const result = await executeWorkflowAction({ action, issueNumber });
+        mutationFn: async (params: WorkflowActionRequest) => {
+            const result = await executeWorkflowAction(params);
             if (result.data.error) {
                 throw new Error(result.data.error);
             }
             return result.data;
         },
-        onMutate: async ({ action, issueNumber }) => {
+        onMutate: async ({ action, issueNumber }: WorkflowActionRequest) => {
             await queryClient.cancelQueries({ queryKey: workflowItemsQueryKey });
 
             const previous = queryClient.getQueryData<{
@@ -110,6 +110,12 @@ export function useWorkflowAction() {
                             case 'clarification-received':
                                 return { ...item, reviewStatus: 'Clarification Received' };
                             case 'mark-done':
+                                return { ...item, status: 'Done', reviewStatus: null };
+                            case 'merge-design-pr':
+                                return { ...item, reviewStatus: null };
+                            case 'merge-pr':
+                                return { ...item, reviewStatus: null };
+                            case 'merge-final-pr':
                                 return { ...item, status: 'Done', reviewStatus: null };
                             default:
                                 return item;

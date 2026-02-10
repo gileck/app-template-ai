@@ -38,13 +38,17 @@ export function WorkflowActionButtons({
             setConfirmAction(action);
             return;
         }
-        await executeAction(action.action);
+        await executeAction(action.action, action.meta);
     };
 
-    const executeAction = async (actionType: WorkflowActionType) => {
+    const executeAction = async (actionType: WorkflowActionType, meta?: Record<string, unknown>) => {
         setActiveAction(actionType);
         try {
-            const result = await workflowAction.mutateAsync({ action: actionType, issueNumber });
+            const result = await workflowAction.mutateAsync({
+                action: actionType,
+                issueNumber,
+                ...meta,
+            });
             toast.success(result.message || 'Action completed');
             onActionComplete?.();
         } catch (err) {
@@ -83,7 +87,7 @@ export function WorkflowActionButtons({
                     title={confirmAction.label}
                     description={confirmAction.confirmMessage || `Are you sure you want to ${confirmAction.label.toLowerCase()}?`}
                     confirmText={activeAction ? 'Processing...' : confirmAction.label}
-                    onConfirm={() => executeAction(confirmAction.action)}
+                    onConfirm={() => executeAction(confirmAction.action, confirmAction.meta)}
                     variant={confirmAction.variant === 'destructive' ? 'destructive' : undefined}
                 />
             )}

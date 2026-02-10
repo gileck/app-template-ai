@@ -27,6 +27,12 @@ export { reviewDesign } from './design-review';
 export { markClarificationReceived } from './clarification';
 export { requestChangesOnPR } from './request-changes';
 
+// Phase 4 — Merge/Revert operations
+export { mergeDesignPR } from './merge-design-pr';
+export { mergeImplementationPR } from './merge-pr';
+export { mergeFinalPR } from './merge-final-pr';
+export { revertMerge, mergeRevertPR } from './revert';
+
 // Utilities
 export { findItemByIssueNumber, findSourceDocByIssueNumber, syncWorkflowStatus, getInitializedAdapter } from './utils';
 export type { ServiceProjectItem, SourceDocInfo } from './utils';
@@ -51,6 +57,10 @@ export type {
     AgentCompletionResult,
 } from './types';
 export type { DesignReviewResult } from './design-review';
+export type { MergeDesignPRResult } from './merge-design-pr';
+export type { MergePRResult } from './merge-pr';
+export type { MergeFinalPRResult } from './merge-final-pr';
+export type { RevertResult } from './revert';
 
 // Constants
 export {

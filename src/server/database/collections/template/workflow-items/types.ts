@@ -67,6 +67,7 @@ export interface WorkflowItemArtifacts {
     taskBranch?: string;
     commitMessages?: CommitMessageRecord[];
     decision?: DecisionArtifactRecord;
+    finalPrNumber?: number;
 }
 
 // ============================================================

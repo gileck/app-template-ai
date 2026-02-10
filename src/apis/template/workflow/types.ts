@@ -33,6 +33,7 @@ export interface WorkflowItemPRData {
     currentPrNumber?: number;
     designPrs?: { type: string; prNumber: number }[];
     hasPendingDecision?: boolean;
+    finalPrNumber?: number;
 }
 
 export interface WorkflowItem {
@@ -86,11 +87,16 @@ export type WorkflowActionType =
     | 'request-changes-pr'
     | 'clarification-received'
     | 'choose-recommended'
-    | 'mark-done';
+    | 'mark-done'
+    | 'merge-design-pr'
+    | 'merge-pr'
+    | 'merge-final-pr';
 
 export interface WorkflowActionRequest {
     action: WorkflowActionType;
     issueNumber: number;
+    prNumber?: number;
+    designType?: string;
 }
 
 export interface WorkflowActionResponse {

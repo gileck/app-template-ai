@@ -12,7 +12,11 @@ import {
     markClarificationReceived,
     requestChangesOnPR,
     markDone,
+    mergeDesignPR,
+    mergeImplementationPR,
+    mergeFinalPR,
 } from '@/server/workflow-service';
+import type { DesignType } from '@/server/workflow-service/merge-design-pr';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
 import { submitDecision } from '@/apis/template/agent-decision/handlers/submitDecision';
 import type { WorkflowActionRequest, WorkflowActionResponse } from '../types';
@@ -81,6 +85,28 @@ export async function workflowAction(
                 });
                 if (!result.success) return { error: result.error };
                 return { success: true, message: 'Marked as Done' };
+            }
+            case 'merge-design-pr': {
+                if (!params.prNumber || !params.designType) return { error: 'Missing prNumber or designType' };
+                const result = await mergeDesignPR(issueNumber, params.prNumber, params.designType as DesignType);
+                if (!result.success) return { error: result.error };
+                return { success: true, message: result.advancedTo ? `Merged — advanced to ${result.advancedTo}` : 'Design PR merged' };
+            }
+            case 'merge-pr': {
+                const result = await mergeImplementationPR(issueNumber);
+                if (!result.success) return { error: result.error };
+                const msg = result.finalPrCreated
+                    ? `Merged — final PR #${result.finalPrCreated.prNumber} created`
+                    : result.phaseInfo?.next
+                        ? `Merged — starting Phase ${result.phaseInfo.next}/${result.phaseInfo.total}`
+                        : 'Merged — marked as Done';
+                return { success: true, message: msg };
+            }
+            case 'merge-final-pr': {
+                if (!params.prNumber) return { error: 'Missing prNumber' };
+                const result = await mergeFinalPR(issueNumber, params.prNumber);
+                if (!result.success) return { error: result.error };
+                return { success: true, message: 'Final PR merged — feature complete!' };
             }
             default:
                 return { error: `Unknown action: ${action}` };

@@ -78,8 +78,11 @@ export async function listItems(
                 }
                 if (doc.artifacts.designs?.length) {
                     prData.designPrs = doc.artifacts.designs
-                        .filter(d => d.prNumber)
+                        .filter(d => d.prNumber && d.status === 'pending')
                         .map(d => ({ type: d.type, prNumber: d.prNumber! }));
+                }
+                if (doc.artifacts.finalPrNumber) {
+                    prData.finalPrNumber = doc.artifacts.finalPrNumber;
                 }
                 if (doc.artifacts.decision && !doc.artifacts.decision.selection) {
                     prData.hasPendingDecision = true;

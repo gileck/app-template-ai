@@ -13,6 +13,7 @@ export interface AvailableAction {
     variant: 'default' | 'destructive' | 'outline' | 'secondary';
     needsConfirmation?: boolean;
     confirmMessage?: string;
+    meta?: Record<string, unknown>;
 }
 
 /**
@@ -71,6 +72,49 @@ export function getAvailableActions(item: WorkflowItem): AvailableAction[] {
             variant: 'outline',
             needsConfirmation: true,
             confirmMessage: 'Request changes on the implementation PR? The implementor will need to revise.',
+        });
+    }
+
+    // Merge design PR (design phases with open design PR)
+    if (designPhases.includes(status) && prData?.designPrs?.length) {
+        const designPr = prData.designPrs[prData.designPrs.length - 1];
+        // Map DB type ('product-design'/'tech-design') to service type ('product'/'tech')
+        const designTypeMap: Record<string, string> = {
+            'product-dev': 'product-dev',
+            'product-design': 'product',
+            'tech-design': 'tech',
+        };
+        const designType = designTypeMap[designPr.type] || designPr.type;
+        actions.push({
+            action: 'merge-design-pr',
+            label: 'Merge Design PR',
+            variant: 'default',
+            needsConfirmation: true,
+            confirmMessage: `Merge design PR #${designPr.prNumber}? This will advance to the next phase.`,
+            meta: { prNumber: designPr.prNumber, designType },
+        });
+    }
+
+    // Merge implementation PR (PR Review with open PR)
+    if (status === 'PR Review' && prData?.currentPrNumber) {
+        actions.push({
+            action: 'merge-pr',
+            label: 'Merge PR',
+            variant: 'default',
+            needsConfirmation: true,
+            confirmMessage: `Merge implementation PR #${prData.currentPrNumber}?`,
+        });
+    }
+
+    // Merge final PR (Final Review with final PR number)
+    if (status === 'Final Review' && prData?.finalPrNumber) {
+        actions.push({
+            action: 'merge-final-pr',
+            label: 'Merge Final PR',
+            variant: 'default',
+            needsConfirmation: true,
+            confirmMessage: `Merge final PR #${prData.finalPrNumber} to main? This will mark the feature as Done.`,
+            meta: { prNumber: prData.finalPrNumber },
         });
     }
 

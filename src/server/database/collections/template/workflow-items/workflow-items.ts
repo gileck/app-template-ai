@@ -372,6 +372,25 @@ export const deleteWorkflowItemBySourceRef = async (
 };
 
 /**
+ * Set the final PR number in artifacts
+ */
+export const setFinalPrNumber = async (
+    issueNumber: number,
+    prNumber: number
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $set: {
+                'artifacts.finalPrNumber': prNumber,
+                updatedAt: new Date(),
+            },
+        }
+    );
+};
+
+/**
  * Set the decision selection within the decision artifact
  */
 export const setDecisionSelection = async (
