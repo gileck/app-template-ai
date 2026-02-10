@@ -1,5 +1,6 @@
 /**
  * Shared test boundary setup — configures DI singletons for E2E tests.
+ * Used by all E2E test files via setupBoundaries() / teardownBoundaries().
  *
  * Sets up:
  * 1. MongoMemoryServer → setMongoUri()
