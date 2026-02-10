@@ -34,7 +34,8 @@ import { notifyDecisionSubmitted } from '@/agents/shared/notifications';
 export async function submitDecision(
     params: SubmitDecisionRequest
 ): Promise<SubmitDecisionResponse> {
-    const { issueNumber, token, selection } = params;
+    const { issueNumber, token } = params;
+    let selection = params.selection;
 
     // Validate token
     if (!validateDecisionToken(issueNumber, token)) {
@@ -42,7 +43,7 @@ export async function submitDecision(
     }
 
     // Validate selection
-    if (!selection || !selection.selectedOptionId) {
+    if (!selection || (!selection.selectedOptionId && !selection.chooseRecommended)) {
         return { error: 'No option selected' };
     }
 
@@ -90,6 +91,15 @@ export async function submitDecision(
 
         if (!decision) {
             return { error: 'Could not parse decision' };
+        }
+
+        // Resolve chooseRecommended to the actual recommended option
+        if (selection.chooseRecommended) {
+            const recommended = decision.options.find(o => o.isRecommended);
+            if (!recommended) {
+                return { error: 'No recommended option found' };
+            }
+            selection = { ...selection, selectedOptionId: recommended.id };
         }
 
         // Validate selected option exists (unless custom)
@@ -161,7 +171,7 @@ export async function submitDecision(
         // Send Telegram confirmation notification
         const selectedTitle = selection.selectedOptionId === 'custom'
             ? 'Custom Solution'
-            : (selectedOption?.title ?? selection.selectedOptionId);
+            : (selectedOption?.title ?? selection.selectedOptionId ?? 'Unknown');
         const itemType = decision.decisionType === 'bug-fix' ? 'bug' as const : 'feature' as const;
         await notifyDecisionSubmitted(
             issueTitle,

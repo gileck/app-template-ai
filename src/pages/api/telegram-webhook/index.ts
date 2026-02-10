@@ -38,6 +38,9 @@
  *    - Callback: "rv:issueNumber:prNumber:shortSha:prevStatus:phase" - Create revert PR and reset status
  *    - Callback: "merge_rv:issueNumber:revertPrNumber" - Merge the revert PR
  *
+ * 9. Quick Decision (Choose Recommended):
+ *    - Callback: "chooserec:issueNumber" - Submit the recommended decision option
+ *
  * This is a direct API route because Telegram sends webhook requests directly to this URL.
  * It cannot go through the standard API architecture.
  */
@@ -66,6 +69,7 @@ import {
     handleUndoRequestChanges,
     handleUndoDesignChanges,
     handleUndoDesignReview,
+    handleChooseRecommended,
 } from './handlers';
 import type { TelegramUpdate, ReviewAction, DesignType } from './types';
 import { flushPendingLogs } from '@/agents/lib/logging';
@@ -455,6 +459,20 @@ async function processCallbackQuery(
             await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Undoing...</b>', 'HTML');
         }
         await handleUndoDesignReview(botToken, callback_query, issueNumber, originalAction, previousStatus, timestamp);
+        return;
+    }
+
+    if (action === 'chooserec' && parts.length === 2) {
+        const issueNumber = parsed.getInt(1);
+        if (!issueNumber) {
+            await answerCallbackQuery(botToken, callback_query.id, 'Invalid issue number');
+            return;
+        }
+        await answerCallbackQuery(botToken, callback_query.id, '⏳ Submitting recommended...');
+        if (callback_query.message) {
+            await editMessageText(botToken, callback_query.message.chat.id, callback_query.message.message_id, escapeHtml(callback_query.message.text || '') + '\n\n⏳ <b>Submitting recommended option...</b>', 'HTML');
+        }
+        await handleChooseRecommended(botToken, callback_query, issueNumber);
         return;
     }
 
