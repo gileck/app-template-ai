@@ -11,7 +11,7 @@
 
 import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronDown, ChevronRight, ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Check, Copy, RefreshCw, Github, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Check, Copy, RefreshCw, Github, ArrowRightLeft, Archive } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardContent } from '@/client/components/template/ui/card';
@@ -24,7 +24,7 @@ import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { useRouter } from '@/client/features';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkflowItems, useUpdateWorkflowStatus } from './hooks';
-import { useItemDetail, useApproveItem, useDeleteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
+import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
 import { useWorkflowPageStore } from './store';
 import { WorkflowActionButtons } from './WorkflowActionButtons';
 import type { TypeFilter, ViewFilter } from './store';
@@ -264,11 +264,14 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
     const { item, isLoading } = useItemDetail(itemId || undefined);
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
+    const { routeItem, isPending: isRouting } = useRouteItem();
     const updateStatusMutation = useUpdateWorkflowStatus();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [showApproveConfirm, setShowApproveConfirm] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral post-approval routing state
+    const [showRouting, setShowRouting] = useState(false);
 
     const isFeature = item?.type === 'feature';
     const title = item
@@ -338,17 +341,55 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
 
     const handleApprove = async () => {
         try {
+            let result;
             if (isFeature) {
-                await approveFeature(mongoId);
+                result = await approveFeature(mongoId);
             } else {
-                await approveBug(mongoId);
+                result = await approveBug(mongoId);
             }
-            toast.success('Item approved and synced to GitHub');
             setShowApproveConfirm(false);
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+
+            // Features that need routing: show inline routing buttons
+            if (isFeature && result?.needsRouting) {
+                toast.success('Approved — choose where to route');
+                setShowRouting(true);
+                return;
+            }
+
+            toast.success('Item approved and synced to GitHub');
+            onClose();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to approve');
+        }
+    };
+
+    const handleApproveToBacklog = async () => {
+        try {
+            if (isFeature) {
+                await approveFeature(mongoId, true);
+            } else {
+                await approveBug(mongoId, true);
+            }
+            toast.success('Approved and moved to Backlog');
             onClose();
             queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to approve');
+        }
+    };
+
+    const handleRoute = async (status: string) => {
+        try {
+            const sourceType = isFeature ? 'feature' : 'bug';
+            const sourceId = itemId!;
+            await routeItem({ sourceId, sourceType, status });
+            toast.success(`Routed to ${status}`);
+            onClose();
+            setShowRouting(false);
+            queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to route');
         }
     };
 
@@ -379,7 +420,7 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
     };
 
     return (
-        <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) { setShowRouting(false); onClose(); } }}>
             <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
@@ -493,7 +534,26 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                     onActionComplete={onClose}
                                 />
                             )}
-                            {(canApprove || canDelete) && (
+                            {showRouting && (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-xs text-muted-foreground">Choose where to route:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['Product Development', 'Product Design', 'Technical Design', 'Ready for development'].map((dest) => (
+                                            <Button
+                                                key={dest}
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={isRouting}
+                                                onClick={() => handleRoute(dest)}
+                                            >
+                                                {isRouting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                                                {dest}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {!showRouting && (canApprove || canDelete) && (
                                 <div className="flex gap-2">
                                     {canApprove && (
                                         <Button
@@ -509,9 +569,18 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                             Approve
                                         </Button>
                                     )}
+                                    {canApprove && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleApproveToBacklog}
+                                            disabled={isApproving || isDeleting}
+                                        >
+                                            <Archive className="mr-2 h-4 w-4" />
+                                            Backlog
+                                        </Button>
+                                    )}
                                     {canDelete && (
                                         <Button
-                                            className="flex-1"
                                             variant="destructive"
                                             onClick={() => setShowDeleteConfirm(true)}
                                             disabled={isApproving || isDeleting}

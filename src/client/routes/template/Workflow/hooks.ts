@@ -107,6 +107,8 @@ export function useWorkflowAction() {
                                 return { ...item, reviewStatus: 'Rejected' };
                             case 'request-changes-pr':
                                 return { ...item, status: 'Ready for development', reviewStatus: 'Request Changes' };
+                            case 'request-changes-design-pr':
+                                return { ...item, reviewStatus: 'Request Changes' };
                             case 'clarification-received':
                                 return { ...item, reviewStatus: 'Clarification Received' };
                             case 'mark-done':

@@ -9,9 +9,8 @@ import {
     logExists,
 } from '@/agents/lib/logging';
 import {
-    updateReviewStatus,
-    findItemByIssueNumber,
     mergeDesignPR,
+    requestChangesOnDesignPR,
 } from '@/server/workflow-service';
 import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
 import { escapeHtml } from '../utils';
@@ -95,17 +94,10 @@ export async function handleDesignPRRequestChanges(
     designType: DesignType
 ): Promise<HandlerResult> {
     try {
-        const item = await findItemByIssueNumber(issueNumber);
-        if (!item) {
-            console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for request changes`);
-            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        const result = await requestChangesOnDesignPR(issueNumber, prNumber, DESIGN_TYPE_LABELS[designType]);
+        if (!result.success) {
+            return { success: false, error: result.error };
         }
-
-        await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges, {
-            logAction: 'design_changes_requested',
-            logDescription: `Changes requested on ${DESIGN_TYPE_LABELS[designType]} PR #${prNumber}`,
-            logMetadata: { prNumber, designType, reviewStatus: REVIEW_STATUSES.requestChanges },
-        });
 
         const designLabel = DESIGN_TYPE_LABELS[designType];
 
@@ -118,7 +110,6 @@ export async function handleDesignPRRequestChanges(
                 '━━━━━━━━━━━━━━━━━━━━',
                 '🔄 <b>Changes Requested</b>',
                 '',
-                `📊 Status: ${item.status}`,
                 `📋 Review Status: ${REVIEW_STATUSES.requestChanges}`,
                 '',
                 `<b>Next:</b> <a href="${prUrl}">Comment on the ${designLabel} PR</a> explaining what needs to change.`,

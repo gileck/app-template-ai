@@ -93,6 +93,14 @@ export function getAvailableActions(item: WorkflowItem): AvailableAction[] {
             confirmMessage: `Merge design PR #${designPr.prNumber}? This will advance to the next phase.`,
             meta: { prNumber: designPr.prNumber, designType },
         });
+        actions.push({
+            action: 'request-changes-design-pr',
+            label: 'Request Changes on Design PR',
+            variant: 'outline',
+            needsConfirmation: true,
+            confirmMessage: `Request changes on design PR #${designPr.prNumber}? The agent will revise.`,
+            meta: { prNumber: designPr.prNumber, designType },
+        });
     }
 
     // Merge implementation PR (PR Review with open PR)

@@ -18,7 +18,10 @@ export const approveFeatureRequest = async (
             return { error: 'Request ID is required' };
         }
 
-        const result = await approveWorkflowItem({ id: request.requestId, type: 'feature' });
+        const result = await approveWorkflowItem(
+            { id: request.requestId, type: 'feature' },
+            request.toBacklog ? { initialRoute: 'backlog' } : undefined
+        );
 
         if (!result.success) {
             return { error: result.error || 'Failed to approve feature request' };

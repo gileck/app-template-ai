@@ -16,7 +16,10 @@ export const approveBugReport = async (
             return { error: 'Report ID is required' };
         }
 
-        const result = await approveWorkflowItem({ id: request.reportId, type: 'bug' });
+        const result = await approveWorkflowItem(
+            { id: request.reportId, type: 'bug' },
+            request.toBacklog ? { initialRoute: 'backlog' } : undefined
+        );
 
         if (!result.success) {
             return { error: result.error || 'Failed to approve bug report' };

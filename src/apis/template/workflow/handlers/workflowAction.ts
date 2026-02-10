@@ -11,6 +11,7 @@ import {
     reviewDesign,
     markClarificationReceived,
     requestChangesOnPR,
+    requestChangesOnDesignPR,
     markDone,
     mergeDesignPR,
     mergeImplementationPR,
@@ -122,6 +123,12 @@ export async function workflowAction(
                 const result = await mergeRevertPR(issueNumber, params.prNumber);
                 if (!result.success) return { error: result.error };
                 return { success: true, message: 'Revert PR merged — changes reverted' };
+            }
+            case 'request-changes-design-pr': {
+                if (!params.prNumber || !params.designType) return { error: 'Missing prNumber or designType' };
+                const result = await requestChangesOnDesignPR(issueNumber, params.prNumber, params.designType);
+                if (!result.success) return { error: result.error };
+                return { success: true, message: 'Changes requested on design PR' };
             }
             case 'undo-action': {
                 if (!params.originalAction || !params.timestamp) {

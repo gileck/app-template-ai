@@ -26,6 +26,7 @@ export { autoAdvanceApproved } from './auto-advance';
 export { reviewDesign } from './design-review';
 export { markClarificationReceived } from './clarification';
 export { requestChangesOnPR } from './request-changes';
+export { requestChangesOnDesignPR } from './request-changes-design';
 
 // Phase 4 — Merge/Revert operations
 export { mergeDesignPR } from './merge-design-pr';

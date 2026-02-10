@@ -41,7 +41,7 @@ export function WorkflowActionButtons({
         await executeAction(action.action, action.meta);
     };
 
-    const undoableActions: WorkflowActionType[] = ['review-changes', 'review-reject', 'request-changes-pr'];
+    const undoableActions: WorkflowActionType[] = ['review-changes', 'review-reject', 'request-changes-pr', 'request-changes-design-pr'];
 
     const executeAction = async (actionType: WorkflowActionType, meta?: Record<string, unknown>) => {
         setActiveAction(actionType);

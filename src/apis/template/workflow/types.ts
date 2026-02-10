@@ -96,6 +96,7 @@ export type WorkflowActionType =
     | 'merge-final-pr'
     | 'revert-pr'
     | 'merge-revert-pr'
+    | 'request-changes-design-pr'
     | 'undo-action';
 
 export interface WorkflowActionRequest {
