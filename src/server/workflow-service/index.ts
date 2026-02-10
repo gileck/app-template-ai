@@ -28,6 +28,7 @@ export { reviewDesign } from './design-review';
 export { markClarificationReceived } from './clarification';
 export { requestChangesOnPR } from './request-changes';
 export { requestChangesOnDesignPR } from './request-changes-design';
+export { chooseRecommendedOption } from './choose-recommended';
 
 // Phase 4 — Merge/Revert operations
 export { mergeDesignPR } from './merge-design-pr';
@@ -63,6 +64,7 @@ export type { MergeDesignPRResult } from './merge-design-pr';
 export type { MergePRResult } from './merge-pr';
 export type { MergeFinalPRResult } from './merge-final-pr';
 export type { RevertResult } from './revert';
+export type { ChooseRecommendedResult } from './choose-recommended';
 
 // Constants
 export {

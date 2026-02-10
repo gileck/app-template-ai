@@ -19,10 +19,9 @@ import {
     revertMerge,
     mergeRevertPR,
     undoStatusChange,
+    chooseRecommendedOption,
 } from '@/server/workflow-service';
 import type { DesignType } from '@/server/workflow-service/merge-design-pr';
-import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
-import { submitDecision } from '@/apis/template/agent-decision/handlers/submitDecision';
 import type { WorkflowActionRequest, WorkflowActionResponse } from '../types';
 
 export async function workflowAction(
@@ -72,12 +71,7 @@ export async function workflowAction(
                 return { success: true, message: 'Clarification received' };
             }
             case 'choose-recommended': {
-                const token = generateDecisionToken(issueNumber);
-                const result = await submitDecision({
-                    issueNumber,
-                    token,
-                    selection: { chooseRecommended: true },
-                });
+                const result = await chooseRecommendedOption(issueNumber);
                 if (!result.success) return { error: result.error };
                 const detail = result.routedTo ? ` — routed to ${result.routedTo}` : '';
                 return { success: true, message: `Recommended option selected${detail}` };
