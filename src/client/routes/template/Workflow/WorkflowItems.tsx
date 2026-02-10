@@ -448,7 +448,7 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                         <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
                                     )}
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
+                                <div className="flex items-center gap-1 shrink-0 mr-6">
                                     <Button
                                         variant="ghost"
                                         size="icon"
