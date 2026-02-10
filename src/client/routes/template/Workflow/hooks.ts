@@ -83,7 +83,7 @@ export function useWorkflowAction() {
             }
             return result.data;
         },
-        onMutate: async ({ action, issueNumber }: WorkflowActionRequest) => {
+        onMutate: async ({ action, issueNumber, originalAction }: WorkflowActionRequest) => {
             await queryClient.cancelQueries({ queryKey: workflowItemsQueryKey });
 
             const previous = queryClient.getQueryData<{
@@ -128,6 +128,12 @@ export function useWorkflowAction() {
                                     ...item,
                                     reviewStatus: null,
                                     prData: { ...item.prData, revertPrNumber: undefined },
+                                };
+                            case 'undo-action':
+                                return {
+                                    ...item,
+                                    ...(originalAction === 'request-changes-pr' ? { status: 'PR Review' } : {}),
+                                    reviewStatus: null,
                                 };
                             default:
                                 return item;

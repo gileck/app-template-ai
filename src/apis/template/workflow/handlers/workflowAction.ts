@@ -17,6 +17,7 @@ import {
     mergeFinalPR,
     revertMerge,
     mergeRevertPR,
+    undoStatusChange,
 } from '@/server/workflow-service';
 import type { DesignType } from '@/server/workflow-service/merge-design-pr';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
@@ -121,6 +122,25 @@ export async function workflowAction(
                 const result = await mergeRevertPR(issueNumber, params.prNumber);
                 if (!result.success) return { error: result.error };
                 return { success: true, message: 'Revert PR merged — changes reverted' };
+            }
+            case 'undo-action': {
+                if (!params.originalAction || !params.timestamp) {
+                    return { error: 'Missing originalAction or timestamp' };
+                }
+                // Map original action to restore params
+                const restoreStatus = params.originalAction === 'request-changes-pr' ? 'PR Review' : null;
+                const result = await undoStatusChange(
+                    issueNumber,
+                    restoreStatus,
+                    null, // clear review status
+                    {
+                        timestamp: params.timestamp,
+                        logAction: `undo_${params.originalAction}`,
+                        logDescription: `Undid ${params.originalAction} via UI`,
+                    }
+                );
+                if (!result.success) return { error: result.error };
+                return { success: true, message: 'Action undone' };
             }
             default:
                 return { error: `Unknown action: ${action}` };

@@ -41,15 +41,35 @@ export function WorkflowActionButtons({
         await executeAction(action.action, action.meta);
     };
 
+    const undoableActions: WorkflowActionType[] = ['review-changes', 'review-reject', 'request-changes-pr'];
+
     const executeAction = async (actionType: WorkflowActionType, meta?: Record<string, unknown>) => {
         setActiveAction(actionType);
+        const actionTimestamp = Date.now();
         try {
             const result = await workflowAction.mutateAsync({
                 action: actionType,
                 issueNumber,
                 ...meta,
             });
-            toast.success(result.message || 'Action completed');
+            if (undoableActions.includes(actionType)) {
+                toast.success(result.message || 'Action completed', {
+                    duration: 30000,
+                    actions: [{
+                        label: 'Undo',
+                        onClick: () => {
+                            workflowAction.mutate({
+                                action: 'undo-action',
+                                issueNumber,
+                                originalAction: actionType,
+                                timestamp: actionTimestamp,
+                            });
+                        },
+                    }],
+                });
+            } else {
+                toast.success(result.message || 'Action completed');
+            }
             onActionComplete?.();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Action failed');

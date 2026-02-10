@@ -187,7 +187,7 @@ export async function mergeImplementationPR(
                 });
             }
         } else {
-            throw mergeError;
+            return { success: false, error: `Failed to merge PR #${prNumber}: ${errorMsg}` };
         }
     }
 
