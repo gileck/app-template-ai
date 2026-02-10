@@ -29,6 +29,12 @@ export interface WorkflowItemContent {
     labels?: string[];
 }
 
+export interface WorkflowItemPRData {
+    currentPrNumber?: number;
+    designPrs?: { type: string; prNumber: number }[];
+    hasPendingDecision?: boolean;
+}
+
 export interface WorkflowItem {
     id: string;
     /** Composite ID for navigation to detail page (e.g., "feature:mongoId" or "report:mongoId") */
@@ -39,6 +45,7 @@ export interface WorkflowItem {
     reviewStatus: string | null;
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
+    prData?: WorkflowItemPRData;
     createdAt: string | null;
 }
 
@@ -66,4 +73,28 @@ export interface UpdateWorkflowStatusRequest {
 export interface UpdateWorkflowStatusResponse {
     success?: boolean;
     error?: string;
+}
+
+// ============================================================================
+// Workflow Action API
+// ============================================================================
+
+export type WorkflowActionType =
+    | 'review-approve'
+    | 'review-changes'
+    | 'review-reject'
+    | 'request-changes-pr'
+    | 'clarification-received'
+    | 'choose-recommended'
+    | 'mark-done';
+
+export interface WorkflowActionRequest {
+    action: WorkflowActionType;
+    issueNumber: number;
+}
+
+export interface WorkflowActionResponse {
+    success?: boolean;
+    error?: string;
+    message?: string;
 }

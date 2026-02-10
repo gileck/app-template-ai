@@ -258,6 +258,8 @@ export async function handleDesignPRRequestChanges(
 /**
  * Handle request changes callback from Telegram (admin requests changes after PR approval)
  * Callback format: "reqchanges:issueNumber:prNumber"
+ *
+ * Delegates business logic to workflow-service/request-changes.
  */
 export async function handleRequestChangesCallback(
     botToken: string,
@@ -266,21 +268,12 @@ export async function handleRequestChangesCallback(
     prNumber: number
 ): Promise<HandlerResult> {
     try {
-        const item = await findItemByIssueNumber(issueNumber);
-        if (!item) {
-            console.warn(`[LOG:DESIGN_PR] Issue #${issueNumber} not found in project for implementation changes`);
-            return { success: false, error: `Issue #${issueNumber} not found in project.` };
+        const { requestChangesOnPR } = await import('@/server/workflow-service');
+        const result = await requestChangesOnPR(issueNumber);
+
+        if (!result.success) {
+            return { success: false, error: result.error };
         }
-
-        // Set status to Implementation + review status to Request Changes
-        await advanceStatus(issueNumber, STATUSES.implementation, {
-            clearReview: false,
-            logAction: 'implementation_changes_requested',
-            logDescription: `Changes requested on PR #${prNumber}`,
-            logMetadata: { prNumber, status: STATUSES.implementation, reviewStatus: REVIEW_STATUSES.requestChanges },
-        });
-
-        await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges);
 
         const prUrl = getPrUrl(prNumber);
         const timestamp = Date.now();

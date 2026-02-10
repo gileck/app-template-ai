@@ -22,6 +22,11 @@ export { submitDecisionRouting } from './decision';
 export { undoStatusChange } from './undo';
 export { autoAdvanceApproved } from './auto-advance';
 
+// Phase 3 — UI/Telegram shared actions
+export { reviewDesign } from './design-review';
+export { markClarificationReceived } from './clarification';
+export { requestChangesOnPR } from './request-changes';
+
 // Utilities
 export { findItemByIssueNumber, findSourceDocByIssueNumber, syncWorkflowStatus, getInitializedAdapter } from './utils';
 export type { ServiceProjectItem, SourceDocInfo } from './utils';
@@ -45,6 +50,7 @@ export type {
     AutoAdvanceResult,
     AgentCompletionResult,
 } from './types';
+export type { DesignReviewResult } from './design-review';
 
 // Constants
 export {
