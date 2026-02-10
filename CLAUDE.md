@@ -527,7 +527,7 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 
 Standalone agent that reviews git commits for bugs and improvements. Use this to understand the automated code review system.
 
-**Summary:** Reviews commits using diff-budget batching, creates issues via agent-workflow for admin approval. Runs every 4 hours, NOT part of the GitHub Projects workflow pipeline.
+**Summary:** Reviews current source code guided by recent commits using diff-budget batching, creates issues via agent-workflow for admin approval. Runs every 4 hours, NOT part of the GitHub Projects workflow pipeline.
 
 **Key Points:**
 - Diff-budget approach: ~1500 lines per run, walks commits chronologically
