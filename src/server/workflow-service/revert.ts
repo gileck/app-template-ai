@@ -12,6 +12,7 @@ import {
     logExists,
 } from '@/agents/lib/logging';
 import { featureRequests, reports } from '@/server/database';
+import { setRevertPrNumber, clearRevertPrNumber } from '@/server/database/collections/template/workflow-items';
 import { getInitializedAdapter, findItemByIssueNumber } from './utils';
 import { advanceStatus } from './advance';
 import { updateReviewStatus } from './review-status';
@@ -34,7 +35,7 @@ export interface RevertResult extends ServiceResult {
 export async function revertMerge(
     issueNumber: number,
     prNumber: number,
-    shortSha: string,
+    shortSha?: string,
     phase?: string
 ): Promise<RevertResult> {
     const adapter = await getInitializedAdapter();
@@ -50,7 +51,8 @@ export async function revertMerge(
         return { success: false, error: 'Could not find merge commit SHA' };
     }
 
-    if (!fullSha.startsWith(shortSha)) {
+    // Only validate SHA prefix when provided (Telegram path)
+    if (shortSha && !fullSha.startsWith(shortSha)) {
         if (logExists(issueNumber)) {
             logWebhookAction(issueNumber, 'revert_failed', `Merge commit SHA mismatch for PR #${prNumber}`, {
                 prNumber,
@@ -71,6 +73,9 @@ export async function revertMerge(
         }
         return { success: false, error: 'Failed to create revert PR. There may be conflicts - please revert manually.' };
     }
+
+    // Persist revert PR number for UI merge-revert capability
+    await setRevertPrNumber(issueNumber, revertResult.prNumber);
 
     // Restore status to Implementation with Request Changes
     await advanceStatus(issueNumber, STATUSES.implementation, {
@@ -148,6 +153,9 @@ export async function mergeRevertPR(
     const commitBody = `Part of #${issueNumber}`;
 
     await adapter.mergePullRequest(revertPrNumber, commitTitle, commitBody);
+
+    // Clear the revert PR number now that it's merged
+    await clearRevertPrNumber(issueNumber);
 
     try {
         await adapter.deleteBranch(prDetails.headBranch);

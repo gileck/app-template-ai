@@ -15,6 +15,8 @@ import {
     mergeDesignPR,
     mergeImplementationPR,
     mergeFinalPR,
+    revertMerge,
+    mergeRevertPR,
 } from '@/server/workflow-service';
 import type { DesignType } from '@/server/workflow-service/merge-design-pr';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
@@ -107,6 +109,18 @@ export async function workflowAction(
                 const result = await mergeFinalPR(issueNumber, params.prNumber);
                 if (!result.success) return { error: result.error };
                 return { success: true, message: 'Final PR merged — feature complete!' };
+            }
+            case 'revert-pr': {
+                if (!params.prNumber) return { error: 'Missing prNumber' };
+                const result = await revertMerge(issueNumber, params.prNumber, undefined, params.phase);
+                if (!result.success) return { error: result.error };
+                return { success: true, message: `Revert PR #${result.revertPrNumber} created` };
+            }
+            case 'merge-revert-pr': {
+                if (!params.prNumber) return { error: 'Missing prNumber' };
+                const result = await mergeRevertPR(issueNumber, params.prNumber);
+                if (!result.success) return { error: result.error };
+                return { success: true, message: 'Revert PR merged — changes reverted' };
             }
             default:
                 return { error: `Unknown action: ${action}` };

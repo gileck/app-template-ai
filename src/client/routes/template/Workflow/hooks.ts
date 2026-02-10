@@ -117,6 +117,18 @@ export function useWorkflowAction() {
                                 return { ...item, reviewStatus: null };
                             case 'merge-final-pr':
                                 return { ...item, status: 'Done', reviewStatus: null };
+                            case 'revert-pr':
+                                return {
+                                    ...item,
+                                    reviewStatus: 'Request Changes',
+                                    prData: { ...item.prData, lastMergedPrNumber: undefined, lastMergedPrPhase: undefined },
+                                };
+                            case 'merge-revert-pr':
+                                return {
+                                    ...item,
+                                    reviewStatus: null,
+                                    prData: { ...item.prData, revertPrNumber: undefined },
+                                };
                             default:
                                 return item;
                         }

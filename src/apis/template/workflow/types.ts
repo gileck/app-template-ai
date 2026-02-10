@@ -34,6 +34,9 @@ export interface WorkflowItemPRData {
     designPrs?: { type: string; prNumber: number }[];
     hasPendingDecision?: boolean;
     finalPrNumber?: number;
+    lastMergedPrNumber?: number;
+    lastMergedPrPhase?: string;
+    revertPrNumber?: number;
 }
 
 export interface WorkflowItem {
@@ -90,13 +93,16 @@ export type WorkflowActionType =
     | 'mark-done'
     | 'merge-design-pr'
     | 'merge-pr'
-    | 'merge-final-pr';
+    | 'merge-final-pr'
+    | 'revert-pr'
+    | 'merge-revert-pr';
 
 export interface WorkflowActionRequest {
     action: WorkflowActionType;
     issueNumber: number;
     prNumber?: number;
     designType?: string;
+    phase?: string;
 }
 
 export interface WorkflowActionResponse {

@@ -68,6 +68,12 @@ export interface WorkflowItemArtifacts {
     commitMessages?: CommitMessageRecord[];
     decision?: DecisionArtifactRecord;
     finalPrNumber?: number;
+    lastMergedPr?: {
+        prNumber: number;
+        phase?: string;       // e.g. "2/3"
+        mergedAt: string;     // ISO timestamp
+    };
+    revertPrNumber?: number;  // pending revert PR after revertMerge()
 }
 
 // ============================================================

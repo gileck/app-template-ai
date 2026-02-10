@@ -87,6 +87,13 @@ export async function listItems(
                 if (doc.artifacts.decision && !doc.artifacts.decision.selection) {
                     prData.hasPendingDecision = true;
                 }
+                if (doc.artifacts.lastMergedPr) {
+                    prData.lastMergedPrNumber = doc.artifacts.lastMergedPr.prNumber;
+                    prData.lastMergedPrPhase = doc.artifacts.lastMergedPr.phase;
+                }
+                if (doc.artifacts.revertPrNumber) {
+                    prData.revertPrNumber = doc.artifacts.revertPrNumber;
+                }
             }
 
             return {

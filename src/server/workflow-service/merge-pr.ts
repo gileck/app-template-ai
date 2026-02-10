@@ -22,7 +22,7 @@ import {
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { setFinalPrNumber } from '@/server/database/collections/template/workflow-items';
+import { setFinalPrNumber, setLastMergedPr } from '@/server/database/collections/template/workflow-items';
 import { getInitializedAdapter, findItemByIssueNumber } from './utils';
 import { markDone } from './advance';
 import { advanceImplementationPhase } from './phase';
@@ -190,6 +190,9 @@ export async function mergeImplementationPR(
             throw mergeError;
         }
     }
+
+    // Persist last merged PR info for UI revert capability
+    await setLastMergedPr(issueNumber, prNumber, parsedPhase ? `${parsedPhase.current}/${parsedPhase.total}` : undefined);
 
     const currentPhaseArtifact = artifact?.implementation?.phases?.find(
         p => parsedPhase && p.phase === parsedPhase.current

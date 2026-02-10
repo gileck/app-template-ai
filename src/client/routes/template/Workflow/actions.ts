@@ -127,6 +127,30 @@ export function getAvailableActions(item: WorkflowItem): AvailableAction[] {
         });
     }
 
+    // Revert merged PR (when a merged PR is tracked and item is not Done)
+    if (prData?.lastMergedPrNumber && status !== 'Done') {
+        actions.push({
+            action: 'revert-pr',
+            label: 'Revert Merge',
+            variant: 'destructive',
+            needsConfirmation: true,
+            confirmMessage: `Revert PR #${prData.lastMergedPrNumber}? This will create a revert PR and set status to Request Changes.`,
+            meta: { prNumber: prData.lastMergedPrNumber, phase: prData.lastMergedPrPhase },
+        });
+    }
+
+    // Merge revert PR (when a pending revert PR exists)
+    if (prData?.revertPrNumber) {
+        actions.push({
+            action: 'merge-revert-pr',
+            label: 'Merge Revert PR',
+            variant: 'default',
+            needsConfirmation: true,
+            confirmMessage: `Merge revert PR #${prData.revertPrNumber}? This will undo the changes on main.`,
+            meta: { prNumber: prData.revertPrNumber },
+        });
+    }
+
     // Mark done (any active item, not already done)
     if (status !== 'Done') {
         actions.push({
