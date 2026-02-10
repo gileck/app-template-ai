@@ -289,7 +289,6 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
         ? (isFeature ? !!item.feature!.githubIssueUrl : !!item.report!.githubIssueUrl)
         : false;
     const canApprove = isNew && !isAlreadySynced;
-    const canDelete = !isAlreadySynced;
 
     // Determine if this is a workflow item (has a non-composite ID = plain ObjectId)
     const isWorkflowItem = itemId ? !itemId.includes(':') : false;
@@ -585,49 +584,47 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                 </div>
                             )}
 
-                            {/* Pending item actions (approve/delete) */}
-                            {!showRouting && (canApprove || canDelete) && (
+                            {/* Pending item actions (approve) */}
+                            {!showRouting && canApprove && (
                                 <div className="flex gap-2">
-                                    {canApprove && (
-                                        <Button
-                                            className="flex-1"
-                                            onClick={() => setShowApproveConfirm(true)}
-                                            disabled={isApproving || isDeleting}
-                                        >
-                                            {isApproving ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                            )}
-                                            Approve
-                                        </Button>
-                                    )}
-                                    {canApprove && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleApproveToBacklog}
-                                            disabled={isApproving || isDeleting}
-                                        >
-                                            <Archive className="mr-2 h-4 w-4" />
-                                            Backlog
-                                        </Button>
-                                    )}
-                                    {canDelete && (
-                                        <Button
-                                            variant="destructive"
-                                            onClick={() => setShowDeleteConfirm(true)}
-                                            disabled={isApproving || isDeleting}
-                                        >
-                                            {isDeleting ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                            )}
-                                            Delete
-                                        </Button>
-                                    )}
+                                    <Button
+                                        className="flex-1"
+                                        onClick={() => setShowApproveConfirm(true)}
+                                        disabled={isApproving || isDeleting}
+                                    >
+                                        {isApproving ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleApproveToBacklog}
+                                        disabled={isApproving || isDeleting}
+                                    >
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Backlog
+                                    </Button>
                                 </div>
                             )}
+
+                            {/* Delete (always available) */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setShowDeleteConfirm(true)}
+                                disabled={isApproving || isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                )}
+                                Delete
+                            </Button>
                         </div>
                     </>
                 )}
