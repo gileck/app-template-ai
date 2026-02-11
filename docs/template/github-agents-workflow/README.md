@@ -79,7 +79,7 @@ Complete guide to the AI-powered feature request and bug fix workflow.
 
 **[Telegram Integration](./telegram-integration.md)** - Telegram notifications and buttons
 - Approval buttons (features and bugs)
-- Design PR approval (Approve & Merge, Request Changes)
+- Design approval (Approve, Request Changes)
 - Implementation PR notifications (View PR button, reviewed by PR Review agent)
 - PR Review agent approval (Merge, Request Changes)
 - Routing notifications (choose starting phase)

@@ -161,10 +161,24 @@ Please review the design document.
 ✅ Design Approved #45
 
 Title: Add search functionality
-PR merged: https://github.com/user/repo/pull/123
+Design saved to S3
 Status: Tech Design → Ready for Dev
 
 Implementation will start automatically.
+```
+
+**Product Design Decision Ready (new designs with mock options):**
+```
+Agent (Product Design): Decision Ready
+Feature
+
+Issue #45: "Add dark mode"
+Options: 3
+
+Summary:
+3 design options available
+
+[Choose Recommended] [Choose Option] [View Issue] [Request Changes]
 ```
 
 **Implementation PR Created:**
@@ -439,7 +453,7 @@ Quick actions allow admins to perform workflow operations with a single button c
 
 **Approve Design:**
 - Button: `[Approve Design]` on design PR notification
-- Action: Approves and merges design PR, advances status
+- Action: Approves design (saves to S3, does NOT merge PR), advances status
 - Response: Confirmation + next phase notification
 
 **Request Changes on Design:**

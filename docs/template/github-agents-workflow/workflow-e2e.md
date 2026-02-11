@@ -265,7 +265,7 @@ This document provides comprehensive visual workflows for all scenarios in the a
               │ Admin clicks "Approve Design"
               ▼
 ┌─────────────────────────────────────┐
-│ DESIGN PR AUTO-MERGED               │
+│ DESIGN APPROVED (S3)               │
 │ - PR #44 merged                     │
 │ - Column: Ready for development     │
 │ - Review Status: (empty)            │
@@ -415,8 +415,8 @@ This document provides comprehensive visual workflows for all scenarios in the a
               │ Admin clicks "Approve Design"
               ▼
 ┌─────────────────────────────────────┐
-│ PRODUCT DESIGN PR AUTO-MERGED       │
-│ - PR #51 merged                     │
+│ PRODUCT DESIGN APPROVED (S3)        │
+│ - Design saved to S3                │
 │ - Column: Technical Design          │
 │ - Review Status: (cleared)          │
 └─────────────┬───────────────────────┘
@@ -424,7 +424,7 @@ This document provides comprehensive visual workflows for all scenarios in the a
               ▼
 ┌─────────────────────────────────────┐
 │ TECH DESIGN AGENT (Cron)            │
-│ - Reads product design from repo    │
+│ - Reads product design from S3      │
 │ - Generates technical architecture  │
 │ - Creates tech design PR            │
 └─────────────┬───────────────────────┘
@@ -446,8 +446,8 @@ This document provides comprehensive visual workflows for all scenarios in the a
               │ Admin clicks "Approve Design"
               ▼
 ┌─────────────────────────────────────┐
-│ TECH DESIGN PR AUTO-MERGED          │
-│ - PR #52 merged                     │
+│ TECH DESIGN APPROVED (S3)          │
+│ - Design saved to S3                │
 │ - Column: Ready for development     │
 │ - Review Status: (cleared)          │
 └─────────────┬───────────────────────┘
@@ -728,7 +728,7 @@ This document provides comprehensive visual workflows for all scenarios in the a
          │
          ▼
 ┌─────────────────────────────────────┐
-│ DESIGN PR AUTO-MERGED               │
+│ DESIGN APPROVED (S3)               │
 │ - PR #70 merged                     │
 │ - Column advances to next phase     │
 │ - Review Status: (cleared)          │
@@ -990,7 +990,7 @@ This document provides comprehensive visual workflows for all scenarios in the a
 │ ┌─────────────────────────────────┐ │
 │ │ Design PR #70 Ready             │ │
 │ │                                 │ │
-│ │ [Approve & Merge]               │ │
+│ │ [Approve]               │ │
 │ │ [Request Changes]               │ │
 │ └─────────────────────────────────┘ │
 └─────────────┬───────────────────────┘
@@ -1022,7 +1022,7 @@ This document provides comprehensive visual workflows for all scenarios in the a
 │ ┌─────────────────────────────────┐ │
 │ │ Design PR #70 Ready             │ │
 │ │                                 │ │
-│ │ [Approve & Merge]               │ │
+│ │ [Approve]               │ │
 │ │ [Request Changes]               │ │
 │ └─────────────────────────────────┘ │
 └─────────────────────────────────────┘
@@ -1532,7 +1532,7 @@ Key decision points where admin makes manual choices.
 
 | Button | Result | Use When |
 |--------|--------|----------|
-| **Approve Design** | PR auto-merged, item advances to next phase | Design looks good, ready to proceed |
+| **Approve Design** | Design saved to S3, item advances to next phase (PR stays open) | Design looks good, ready to proceed |
 | **Request Changes** | Review Status → Changes Requested, agent will revise | Design needs improvements, clarifications, or additions |
 | **Reject** | PR closed, Review Status → Rejected | Design doesn't align, requirements changed, not proceeding |
 

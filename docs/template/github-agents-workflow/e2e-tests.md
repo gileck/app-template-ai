@@ -26,6 +26,8 @@ This runs vitest with the config in `vitest.config.ts`, which includes only `src
 | `clarification.e2e.test.ts` | Clarification request and received flow |
 | `multi-agent-flow.e2e.test.ts` | Multiple agents processing items concurrently |
 | `workflow-service-actions.e2e.test.ts` | Direct workflow-service function tests (approve, route, delete, advance, review, merge, revert, undo, clarification, decision routing, choose-recommended) |
+| `design-approval-s3.e2e.test.ts` | S3-backed design approval flow (approve without merge, S3 storage, next agent reads from S3) |
+| `design-mock-decision.e2e.test.ts` | Product design mock decision flow (mock options, decision creation, option selection, design routing) |
 
 ### Feature Lifecycle
 
@@ -58,7 +60,7 @@ Three DI singletons are injected in `beforeAll` via `setupBoundaries()`:
 2. **`setGitAdapter()`** — injects `MockGitAdapter` (no-op git with controllable `hasUncommittedChanges`)
 3. **`setMongoUri()`** — points the real DB connection at `mongodb-memory-server`
 
-### What's Mocked (8 `vi.mock()` calls — true system boundaries)
+### What's Mocked (9 `vi.mock()` calls — true system boundaries)
 
 | # | Module | Why |
 |---|--------|-----|
@@ -70,6 +72,7 @@ Three DI singletons are injected in `beforeAll` via `setupBoundaries()`:
 | 6 | `@/agents/lib/design-files` | Filesystem boundary — in-memory design docs |
 | 7 | `@/agents/agents.config` | Requires env vars not available in tests |
 | 8 | `@/agents/shared/config` | Requires env vars not available in tests |
+| 9 | `@/server/s3/sdk` | S3 boundary — in-memory storage for design docs |
 
 ### What Runs Real (via DI — no `vi.mock()`)
 
@@ -98,12 +101,15 @@ src/agents/tests/e2e/
   clarification.e2e.test.ts            — Clarification flows
   multi-agent-flow.e2e.test.ts         — Concurrent agent processing
   workflow-service-actions.e2e.test.ts  — Direct service function tests
+  design-approval-s3.e2e.test.ts       — S3-backed design approval flow
+  design-mock-decision.e2e.test.ts     — Product design mock decision flow
   mocks/
     mock-project-adapter.ts        — In-memory ProjectManagementAdapter
     mock-run-agent.ts              — Canned AI responses per workflow
     mock-git-adapter.ts            — No-op GitAdapter with controllable state
     mock-notifications.ts          — Notification capture stubs
     mock-design-files.ts           — In-memory design docs
+    mock-s3-sdk.ts                 — In-memory S3 storage
   testkit/
     setup-boundaries.ts            — setupBoundaries() / teardownBoundaries() — DI + MongoMemoryServer
     workflow-testkit.ts            — Fluent API for composing flows (available for future tests)

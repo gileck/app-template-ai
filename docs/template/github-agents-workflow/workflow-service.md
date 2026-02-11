@@ -27,10 +27,10 @@ The system follows a 3-layer architecture:
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  Workflow Service (src/server/workflow-service/)                          │
 │                                                                          │
-│  Entry Ops      Mid-Pipeline Ops      UI/Telegram Actions   Merge/Revert  │
+│  Entry Ops      Mid-Pipeline Ops      UI/Telegram Actions   Design/Merge  │
 │  ┌────────────┐ ┌─────────────────┐  ┌──────────────────┐ ┌───────────┐ │
-│  │ approve    │ │ advanceStatus() │  │ reviewDesign()   │ │ mergeDe-  │ │
-│  │ Workflow() │ │ markDone()      │  │ markClarif.()    │ │ signPR()  │ │
+│  │ approve    │ │ advanceStatus() │  │ reviewDesign()   │ │ approveDe-│ │
+│  │ Workflow() │ │ markDone()      │  │ markClarif.()    │ │ sign()    │ │
 │  ├────────────┤ ├─────────────────┤  ├──────────────────┤ ├───────────┤ │
 │  │ route      │ │ advanceImpl.    │  │ requestChanges   │ │ mergeImpl │ │
 │  │ Workflow() │ │ Phase()         │  │ OnPR/DesignPR()  │ │ PR()      │ │
@@ -195,6 +195,7 @@ Marks a workflow item as Done with additional side effects beyond `advanceStatus
 - Clears implementation phase field
 - Updates source document (feature -> done, bug -> resolved)
 - Syncs agent log to repo (non-blocking)
+- Closes open design PRs (deletes branches) and cleans up S3 design files
 
 ```typescript
 import { markDone } from '@/server/workflow-service';
@@ -368,7 +369,7 @@ await requestChangesOnDesignPR(issueNumber, prNumber, 'tech');
 
 ### `chooseRecommendedOption(issueNumber)`
 
-Chooses the recommended option for a decision (bug investigation fix selection). Encapsulates the full flow so both UI and Telegram share a single code path through the service layer.
+Chooses the recommended option for a decision (bug investigation fix selection or product design option selection). Encapsulates the full flow so both UI and Telegram share a single code path through the service layer.
 
 **Steps performed:**
 1. Gets decision data from DB (fallback: parse GitHub issue comments)
@@ -388,25 +389,31 @@ if (result.success) {
 }
 ```
 
-### `mergeDesignPR(issueNumber, prNumber, designType)`
+### `approveDesign(issueNumber, prNumber, designType)`
 
-Merges an approved design PR, saves the design artifact, advances status, and initializes phases if applicable.
+Approves a design without merging the PR. Reads design content from S3, saves the artifact, and advances status.
 
 **Steps performed:**
-1. Merges the PR via adapter
+1. Reads design content from S3 (`design-docs/issue-{N}/{type}-design.md`)
 2. Saves design artifact to DB and updates artifact comment (not for product-dev)
 3. Advances status to next phase (product-dev -> Product Design, product -> Tech Design, tech -> Implementation)
-4. Deletes PR branch
-5. If tech design: reads design doc, parses phases, and initializes implementation phases
+4. If tech design: reads design doc from S3, parses phases, and initializes implementation phases
+5. Does **NOT** merge PR or delete branch (PRs are cleaned up when feature reaches Done)
 
 ```typescript
-import { mergeDesignPR } from '@/server/workflow-service';
+import { approveDesign } from '@/server/workflow-service';
 
-const result = await mergeDesignPR(issueNumber, prNumber, 'tech');
+const result = await approveDesign(issueNumber, prNumber, 'tech');
 if (result.advancedTo) {
     console.log(`Advanced to ${result.advancedTo}`);
 }
 ```
+
+### `mergeDesignPR(issueNumber, prNumber, designType)` *(deprecated)*
+
+> **Deprecated**: Use `approveDesign()` instead. Design PRs are no longer merged — approval reads content from S3.
+
+Legacy function that merges an approved design PR. Kept for backward compatibility.
 
 ### `mergeImplementationPR(issueNumber, knownPrNumber?)`
 
@@ -516,7 +523,8 @@ All types are defined in `src/server/workflow-service/types.ts`:
 | `AutoAdvanceResult` | Batch result: `{ total, advanced, failed, details[] }` |
 | `AgentCompletionResult` | Agent result: `{ status?, reviewStatus?, clearReviewStatus? }` |
 | `DesignReviewResult` | Extends ServiceResult with `advancedTo`, `previousStatus`, `reviewStatus` |
-| `MergeDesignPRResult` | Extends ServiceResult with `advancedTo`, `previousStatus` |
+| `ApproveDesignResult` | Extends ServiceResult with `advancedTo`, `previousStatus` |
+| `MergeDesignPRResult` | *(deprecated)* Extends ServiceResult with `advancedTo`, `previousStatus` |
 | `MergePRResult` | Extends ServiceResult with `mergeCommitSha`, `phaseInfo`, `finalPrCreated`, `statusMessage` |
 | `MergeFinalPRResult` | Extends ServiceResult with `mergeCommitSha` |
 | `RevertResult` | Extends ServiceResult with `revertPrNumber`, `revertPrUrl` |
@@ -636,8 +644,11 @@ src/server/workflow-service/
 ├── request-changes-design.ts # requestChangesOnDesignPR()
 ├── choose-recommended.ts   # chooseRecommendedOption()
 │
+│ Design Approval
+├── approve-design.ts       # approveDesign()
+│
 │ Merge/Revert Operations
-├── merge-design-pr.ts      # mergeDesignPR()
+├── merge-design-pr.ts      # mergeDesignPR() (deprecated)
 ├── merge-pr.ts             # mergeImplementationPR()
 ├── merge-final-pr.ts       # mergeFinalPR()
 └── revert.ts               # revertMerge(), mergeRevertPR()

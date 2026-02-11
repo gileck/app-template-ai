@@ -291,7 +291,7 @@ Feedback loops occur when an admin rejects a design or requests changes to an im
   - Edit design file in PR branch
   - Commit changes to same PR
   - Approve PR via Telegram or GitHub
-  - PR auto-merges → status advances
+  - Design saved to S3 → status advances (PR stays open)
 
 - **Option B: Request agent revision**
   - Comment on PR with specific feedback

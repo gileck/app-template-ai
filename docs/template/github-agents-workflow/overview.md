@@ -56,10 +56,11 @@ Items can enter the workflow through three paths (all converge into the same pip
 5. **Bugs: Bug Investigator agent** runs automatically → investigates root cause → posts fix options → admin selects fix approach via web UI → routes to Tech Design or Implementation
 6. **Item moves to selected phase** → AI agent processes accordingly
 7. **AI agent generates design/implementation**:
-   - **Design agents**: Create PR with design file → Telegram notification with Approve/Reject buttons
+   - **Design agents**: Create PR with design file, save design to S3 → Telegram notification with Approve/Reject buttons
+   - **Product Design agent** (new designs): Generates 2-3 interactive React mock options → admin selects via decision UI → chosen design saved to S3
    - **Implementation agent**: Create PR with code changes → Telegram notification with View PR button
    - **Visual verification** (UI changes): Implementation agent verifies at 400px viewport before completing
-8. **Admin approves design PR** (via Telegram button or UI) → PR auto-merged → status advances to next phase
+8. **Admin approves design** (via Telegram button or UI) → design saved to S3 → status advances to next phase (PR stays open, cleaned up when feature reaches Done)
 9. **PR Review agent reviews implementation PR** (cron) → generates commit message → Telegram notification with Merge button
 10. **Admin merges implementation PR** (via Telegram Merge button or UI) → marks item as Done
 11. **Post-merge recovery** (if needed): Merge success notification includes "Revert" button → creates revert PR → restores status for agent to fix
@@ -79,7 +80,7 @@ Items can enter the workflow through three paths (all converge into the same pip
 - **Directory locking**: Master script acquires per-directory lock to prevent concurrent agent runs on same working directory
 - **Three-tier MongoDB storage**: Source collections (`feature-requests`, `reports`) store intake data, `workflow-items` collection tracks pipeline status
 - **Separate source collections**: `feature-requests` and `reports` (bugs need session logs, screenshots, diagnostics)
-- **Design documents as files**: Stored in `design-docs/issue-{N}/` with PR-based review workflow
+- **Design documents in S3**: Stored in S3 at `design-docs/issue-{N}/` keys, with PR-based review workflow (PRs are NOT merged — approval saves content from S3, PRs cleaned up on Done)
 - **Artifact comments**: Track design docs and implementation PRs with status (pending → in-review → approved → merged)
 - **Complete workflow logging**: ALL phases and actions logged to `agent-logs/issue-{N}.md` with structured markers
 
@@ -268,11 +269,13 @@ design-docs/
 
 **Design Agent Flow:**
 
-1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md`
+1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md` on branch + saves to S3
 2. **Agent creates branch** → `design/issue-{N}-product` or `design/issue-{N}-tech`
 3. **Agent creates PR** → `docs: product design for issue #123`
-4. **Telegram notification** with `[Approve & Merge]` and `[Request Changes]` buttons
-5. **Admin approves** → PR auto-merged → artifact comment updated → status advances
+4. **Product Design (new designs)**: Generates 2-3 React mock options → creates decision for admin selection → Telegram notification with `[Choose Design]` and `[Request Changes]` buttons
+5. **Other designs / feedback mode**: Telegram notification with `[Approve]` and `[Request Changes]` buttons
+6. **Admin approves** → design read from S3 → artifact comment updated → status advances (PR stays open, NOT merged)
+7. **On feature Done** → open design PRs are closed and branches deleted
 
 **Feedback Mode:**
 When admin clicks "Request Changes":
