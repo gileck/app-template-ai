@@ -275,7 +275,7 @@ Only after reading the current source files should you form your findings. Each 
 - Be conservative — better to miss a minor issue than create noise
 - Consolidate related findings (don't create 3 issues for the same underlying problem)
 - Focus on things that could cause real problems in production
-- Do NOT flag something as a violation if the project docs explicitly endorse that pattern
+- If the project docs explicitly endorse a pattern or document it as an acceptable exception, it is NOT an issue — do not include it in findings at all. Every finding you report must be something genuinely wrong, not something that looks unusual but is documented as acceptable.
 
 ## Title and Description Format
 
