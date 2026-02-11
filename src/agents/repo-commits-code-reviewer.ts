@@ -472,17 +472,10 @@ async function main() {
         }
     }
 
-    // Create issues only for actionable findings (shouldCreateIssue: true)
-    const actionableFindings = output.findings.filter(f => f.shouldCreateIssue);
-    const skippedCount = output.findings.length - actionableFindings.length;
-
-    if (skippedCount > 0) {
-        console.log(`\n  ℹ️  ${skippedCount} finding(s) marked as informational (shouldCreateIssue: false)`);
-    }
-
-    if (actionableFindings.length > 0) {
-        console.log(`\n  📝 Creating ${actionableFindings.length} issue(s)...`);
-        for (const finding of actionableFindings) {
+    // Create issues for all findings — admin decides go/no-go via Telegram
+    if (output.findings.length > 0) {
+        console.log(`\n  📝 Creating ${output.findings.length} issue(s)...`);
+        for (const finding of output.findings) {
             createIssue(finding, options.dryRun);
         }
     } else {

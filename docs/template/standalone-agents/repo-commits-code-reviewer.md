@@ -100,7 +100,6 @@ Each finding includes:
 | `description` | string | What, why, suggested fix |
 | `affectedFiles` | string[] | Files with line numbers |
 | `relatedCommit` | string | Commit hash that pointed to this area |
-| `shouldCreateIssue` | boolean | Whether to create an issue (false = informational only) |
 
 ### Size Guidelines
 

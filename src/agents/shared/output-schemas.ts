@@ -409,8 +409,6 @@ export interface CodeReviewFinding {
     affectedFiles: string[];
     /** Related commit hash */
     relatedCommit: string;
-    /** Whether this finding warrants creating an issue */
-    shouldCreateIssue: boolean;
     /** How likely this issue is to cause real problems */
     riskLevel: 'High' | 'Medium' | 'Low';
     /** Short explanation of when/how the risk manifests (e.g., "Crashes on every bot restart") */
@@ -486,10 +484,6 @@ export const CODE_REVIEW_OUTPUT_FORMAT = {
                             type: 'string',
                             description: 'The commit hash that pointed to the area of code where this finding was discovered',
                         },
-                        shouldCreateIssue: {
-                            type: 'boolean',
-                            description: 'Whether this finding warrants creating an issue. Set to false for low-severity informational findings.',
-                        },
                         riskLevel: {
                             type: 'string',
                             enum: ['High', 'Medium', 'Low'],
@@ -504,7 +498,7 @@ export const CODE_REVIEW_OUTPUT_FORMAT = {
                             description: 'Client route affected by this bug (e.g., "/settings", "/home"). Only set if the bug is in route-specific code under src/client/routes/. Leave empty/omit for server-only, shared, or non-route code.',
                         },
                     },
-                    required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'affectedFiles', 'relatedCommit', 'shouldCreateIssue', 'riskLevel', 'riskDescription'],
+                    required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'affectedFiles', 'relatedCommit', 'riskLevel', 'riskDescription'],
                 },
             },
             summary: {
