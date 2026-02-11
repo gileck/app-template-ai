@@ -348,7 +348,7 @@ async function runImplementationPlanSubagent(
 
             // Log execution end with success
             if (planCtx) {
-                logExecutionEnd(planCtx, {
+                await logExecutionEnd(planCtx, {
                     success: true,
                     toolCallsCount,
                     totalTokens,
@@ -364,7 +364,7 @@ async function runImplementationPlanSubagent(
         // Log execution end with failure
         if (planCtx) {
             logError(planCtx, errorMsg, false);
-            logExecutionEnd(planCtx, {
+            await logExecutionEnd(planCtx, {
                 success: false,
                 toolCallsCount,
                 totalTokens,
@@ -380,7 +380,7 @@ async function runImplementationPlanSubagent(
         // Log error and execution end
         if (planCtx) {
             logError(planCtx, errorMsg, false);
-            logExecutionEnd(planCtx, {
+            await logExecutionEnd(planCtx, {
                 success: false,
                 toolCallsCount: 0,
                 totalTokens: 0,

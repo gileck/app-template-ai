@@ -551,7 +551,7 @@ ${comment}`;
                 console.log('  Telegram notification sent');
 
                 // Log execution end
-                logExecutionEnd(logCtx, {
+                await logExecutionEnd(logCtx, {
                     success: true,
                     toolCallsCount: 0,
                     totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
@@ -574,7 +574,7 @@ ${comment}`;
 
                 // Log error
                 logError(logCtx, error instanceof Error ? error : errorMsg, true);
-                logExecutionEnd(logCtx, {
+                await logExecutionEnd(logCtx, {
                     success: false,
                     toolCallsCount: 0,
                     totalTokens: 0,

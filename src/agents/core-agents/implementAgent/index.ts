@@ -694,7 +694,7 @@ export async function processItem(
         console.log(`  ✅ Switched back to ${defaultBranch}`);
 
         // Log execution end
-        logExecutionEnd(logCtx, {
+        await logExecutionEnd(logCtx, {
             success: true,
             toolCallsCount: 0, // Not tracked in UsageStats
             totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
@@ -717,7 +717,7 @@ export async function processItem(
             }
 
             // Log execution end
-            logExecutionEnd(logCtx, {
+            await logExecutionEnd(logCtx, {
                 success: false,
                 toolCallsCount: 0,
                 totalTokens: 0,

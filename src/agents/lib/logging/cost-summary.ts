@@ -1,5 +1,5 @@
 import type { LogContext, PhaseData } from './types';
-import { readLog, writeLog } from './writer';
+import { readLogAsync, writeLogAsync } from './writer';
 import { budgetConfig } from '@/agents/shared/config';
 import { sendNotificationToOwner } from '@/server/telegram';
 
@@ -273,8 +273,8 @@ export async function updateCostSummary(
     try {
         console.log(`  💰 Updating cost summary for issue #${ctx.issueNumber}...`);
 
-        // 1. Read existing log file
-        const logContent = readLog(ctx.issueNumber);
+        // 1. Read existing log file (S3-aware)
+        const logContent = await readLogAsync(ctx.issueNumber);
         if (!logContent) {
             console.warn(`  ⚠️ Log file not found for issue #${ctx.issueNumber}, skipping cost summary`);
             return;
@@ -303,9 +303,9 @@ export async function updateCostSummary(
         // 7. Generate new summary - pure function, should not fail
         const summaryMarkdown = generateSummaryMarkdown(allPhases, currentPhase.name, totalCost);
 
-        // 8. Write updated log - wrapped in try-catch
+        // 8. Write updated log (S3-aware) - wrapped in try-catch
         try {
-            writeLog(ctx.issueNumber, contentWithoutSummary + summaryMarkdown);
+            await writeLogAsync(ctx.issueNumber, contentWithoutSummary + summaryMarkdown);
             console.log(`  ✅ Cost summary updated: $${totalCost.toFixed(2)} total (${allPhases.length} phase${allPhases.length !== 1 ? 's' : ''})`);
         } catch (writeError) {
             console.error(`  ❌ Failed to write cost summary to log file:`, writeError instanceof Error ? writeError.message : String(writeError));

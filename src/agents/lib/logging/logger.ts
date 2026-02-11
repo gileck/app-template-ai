@@ -5,7 +5,7 @@ import type {
     ExternalLogSource,
     ExternalLogEvent,
 } from './types';
-import { appendToLog, writeLogHeader, logExists, getLogPath } from './writer';
+import { appendToLog, writeLogHeader, logExists, getLogPath, flushPendingLogs } from './writer';
 import { updateCostSummary } from './cost-summary';
 
 /**
@@ -108,6 +108,8 @@ export function logPrompt(
 \`\`\`
 ${escapeCodeBlock(prompt)}
 \`\`\`
+
+### [LOG:PROMPT_END] End of Prompt
 
 ### [LOG:EXECUTION_START] Agent Execution
 
@@ -323,10 +325,10 @@ export function logTokenUsage(
 /**
  * Log execution end with summary
  */
-export function logExecutionEnd(
+export async function logExecutionEnd(
     ctx: LogContext,
     summary: Partial<ExecutionSummary>
-): void {
+): Promise<void> {
     const duration = Date.now() - ctx.startTime.getTime();
     const durationStr = formatDuration(duration);
 
@@ -346,16 +348,24 @@ export function logExecutionEnd(
 
     appendToLog(ctx.issueNumber, content);
 
-    // Update cumulative cost summary
-    updateCostSummary(ctx, {
-        name: ctx.phase,
-        duration,
-        toolCallsCount: summary.toolCallsCount || 0,
-        totalTokens: summary.totalTokens || 0,
-        totalCost: summary.totalCost || 0,
-    }).catch((error) => {
+    // Flush pending S3 writes so cost summary reads the latest content
+    await flushPendingLogs();
+
+    // Update cumulative cost summary (awaited so S3 writes complete before exit)
+    try {
+        await updateCostSummary(ctx, {
+            name: ctx.phase,
+            duration,
+            toolCallsCount: summary.toolCallsCount || 0,
+            totalTokens: summary.totalTokens || 0,
+            totalCost: summary.totalCost || 0,
+        });
+    } catch (error) {
         console.error('Failed to update cost summary:', error);
-    });
+    }
+
+    // Flush any remaining S3 writes from cost summary
+    await flushPendingLogs();
 
     // Print log file location
     const logPath = getLogPath(ctx.issueNumber);
