@@ -66,9 +66,7 @@ export function useUpdateWorkflowStatus() {
                 queryClient.setQueryData(workflowItemsQueryKey, ctx.previous);
             }
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: workflowItemsQueryKey });
-        },
+        onSettled: () => {},
     });
 }
 
@@ -151,8 +149,6 @@ export function useWorkflowAction() {
                 queryClient.setQueryData(workflowItemsQueryKey, ctx.previous);
             }
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: workflowItemsQueryKey });
-        },
+        onSettled: () => {},
     });
 }
