@@ -100,6 +100,7 @@ export type WorkflowActionType =
     | 'clarification-received'
     | 'choose-recommended'
     | 'mark-done'
+    | 'approve-design'
     | 'merge-design-pr'
     | 'merge-pr'
     | 'merge-final-pr'

@@ -60,6 +60,7 @@ export type {
 export type {
     ProductDevelopmentOutput,
     ProductDesignOutput,
+    MockOption,
     TechDesignOutput,
     ImplementationOutput,
     ImplementationPhase,

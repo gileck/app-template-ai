@@ -84,11 +84,31 @@ Before writing the design, explore the codebase:
 3. Look at similar existing features for patterns
 4. Check relevant types in \`src/apis/\` if the feature needs API work
 
+## Design Mock Options
+
+In addition to the written design document, generate **2-3 design mock options** as React components. Each option represents a different UI/UX approach to the feature.
+
+**Requirements for mock components:**
+- Each option must be a self-contained React function component (default export)
+- Use ONLY shadcn/ui components imported from \`@/client/components/template/ui/\` — available components: Button, Card, Input, Label, Badge, Avatar, Select, Switch, Textarea, Dialog, Sheet, Separator, Skeleton, DropdownMenu, RadioGroup, Alert, Collapsible, Calendar
+- Use semantic theme tokens for all colors (\`bg-background\`, \`text-foreground\`, \`bg-muted\`, \`text-muted-foreground\`, \`bg-primary\`, \`text-primary-foreground\`, \`border\`, etc.) — NEVER hardcode colors
+- Design mobile-first for ~400px viewport (use \`max-w-md mx-auto\`)
+- Include realistic content appropriate to the feature (not lorem ipsum)
+- Include relevant states where applicable (empty, loading, populated)
+- Keep each component focused — one clear design approach per option
+- Import React hooks (useState, etc.) from 'react' as needed
+
+**Each option should differ meaningfully** — for example:
+- Option A: Minimalist approach with fewer elements
+- Option B: Feature-rich approach with more detail
+- Option C: Alternative layout or interaction pattern
+
 ## Output Format
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format (same structure as before)
 - **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+- **mockOptions**: Array of 2-3 design mock options, each with: id, title, description, componentCode, isRecommended
 
 Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 

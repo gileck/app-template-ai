@@ -26,6 +26,7 @@ import {
     writeDesignDoc,
     readDesignDoc,
     getDesignDocRelativePath,
+    saveDesignToS3,
 } from '../lib/design-files';
 import type { DesignDocType } from '../lib/design-files';
 import { generateDesignBranchName } from '../lib/artifacts';
@@ -130,7 +131,7 @@ export interface DesignAgentConfig {
 
     /**
      * Optional: Hook called after PR is created/updated.
-     * Example: techDesign posts phases comment.
+     * Example: techDesign posts phases comment, productDesign generates mock page and creates decision.
      */
     afterPR?: (ctx: {
         prNumber: number;
@@ -138,7 +139,26 @@ export interface DesignAgentConfig {
         structuredOutput: Record<string, unknown>;
         logCtx: LogContext;
         mode: 'new' | 'feedback' | 'clarification';
+        issueNumber: number;
+        content: NonNullable<ProjectItemContent>;
+        issueType: 'bug' | 'feature';
+        comment: string | undefined;
     }) => Promise<void>;
+
+    /**
+     * Optional: Override the default notification after PR creation.
+     * When provided, this is called INSTEAD OF notifyDesignPRReady.
+     * Example: productDesign sends decision-needed notification with preview URLs.
+     * Return true to suppress the default notification, false to also send it.
+     */
+    overrideNotification?: (ctx: {
+        prNumber: number;
+        issueNumber: number;
+        content: NonNullable<ProjectItemContent>;
+        issueType: 'bug' | 'feature';
+        mode: 'new' | 'feedback' | 'clarification';
+        comment: string | undefined;
+    }) => Promise<boolean>;
 
     /**
      * Optional: Sort comments after collection.
@@ -524,7 +544,7 @@ ${comment}`;
                     logGitHubAction(logCtx, 'comment', 'Posted addressed feedback marker on PR');
                 }
 
-                // Run after-PR hook if configured (e.g., techDesign posts phases comment)
+                // Run after-PR hook if configured (e.g., techDesign posts phases comment, productDesign creates decision)
                 if (config.afterPR && structuredOutput) {
                     await config.afterPR({
                         prNumber,
@@ -532,7 +552,19 @@ ${comment}`;
                         structuredOutput,
                         logCtx,
                         mode,
+                        issueNumber,
+                        content,
+                        issueType,
+                        comment,
                     });
+                }
+
+                // Save design content to S3 (decoupled from PR merge)
+                try {
+                    await saveDesignToS3(issueNumber, config.designType, designContent);
+                    console.log(`  Design saved to S3: design-docs/issue-${issueNumber}/`);
+                } catch (s3Error) {
+                    console.warn(`  Warning: Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
                 }
 
                 // Return to original branch
@@ -546,8 +578,21 @@ ${comment}`;
                 });
                 console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
 
-                // Send Telegram notification with merge buttons
-                await notifyDesignPRReady(config.designType, content.title, issueNumber, prNumber, mode === 'feedback', issueType, comment);
+                // Send Telegram notification
+                let notificationOverridden = false;
+                if (config.overrideNotification) {
+                    notificationOverridden = await config.overrideNotification({
+                        prNumber,
+                        issueNumber,
+                        content,
+                        issueType,
+                        mode,
+                        comment,
+                    });
+                }
+                if (!notificationOverridden) {
+                    await notifyDesignPRReady(config.designType, content.title, issueNumber, prNumber, mode === 'feedback', issueType, comment);
+                }
                 console.log('  Telegram notification sent');
 
                 // Log execution end

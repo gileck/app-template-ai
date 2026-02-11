@@ -31,6 +31,8 @@ export { requestChangesOnDesignPR } from './request-changes-design';
 export { chooseRecommendedOption } from './choose-recommended';
 
 // Phase 4 — Merge/Revert operations
+export { approveDesign } from './approve-design';
+/** @deprecated Use approveDesign instead */
 export { mergeDesignPR } from './merge-design-pr';
 export { mergeImplementationPR } from './merge-pr';
 export { mergeFinalPR } from './merge-final-pr';
@@ -60,6 +62,7 @@ export type {
     AgentCompletionResult,
 } from './types';
 export type { DesignReviewResult } from './design-review';
+export type { ApproveDesignResult } from './approve-design';
 export type { MergeDesignPRResult } from './merge-design-pr';
 export type { MergePRResult } from './merge-pr';
 export type { MergeFinalPRResult } from './merge-final-pr';

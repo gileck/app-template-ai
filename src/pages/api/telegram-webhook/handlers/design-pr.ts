@@ -9,7 +9,7 @@ import {
     logExists,
 } from '@/agents/lib/logging';
 import {
-    mergeDesignPR,
+    approveDesign,
     requestChangesOnDesignPR,
 } from '@/server/workflow-service';
 import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
@@ -42,7 +42,7 @@ export async function handleDesignPRApproval(
     designType: DesignType
 ): Promise<HandlerResult> {
     try {
-        const result = await mergeDesignPR(issueNumber, prNumber, designType);
+        const result = await approveDesign(issueNumber, prNumber, designType);
         if (!result.success) {
             return { success: false, error: result.error };
         }
@@ -55,8 +55,8 @@ export async function handleDesignPRApproval(
             const statusUpdate = [
                 '',
                 '━━━━━━━━━━━━━━━━━━━━',
-                '✅ <b>Merged Successfully!</b>',
-                `${designLabel} PR #${prNumber} merged.`,
+                '✅ <b>Approved Successfully!</b>',
+                `${designLabel} design approved.`,
                 `📊 Status: ${nextPhaseLabel}`,
             ].join('\n');
 

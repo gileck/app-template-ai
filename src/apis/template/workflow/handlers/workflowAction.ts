@@ -13,7 +13,7 @@ import {
     requestChangesOnPR,
     requestChangesOnDesignPR,
     markDone,
-    mergeDesignPR,
+    approveDesign,
     mergeImplementationPR,
     mergeFinalPR,
     revertMerge,
@@ -21,7 +21,7 @@ import {
     undoStatusChange,
     chooseRecommendedOption,
 } from '@/server/workflow-service';
-import type { DesignType } from '@/server/workflow-service/merge-design-pr';
+import type { DesignType } from '@/server/workflow-service/approve-design';
 import type { WorkflowActionRequest, WorkflowActionResponse } from '../types';
 
 export async function workflowAction(
@@ -84,11 +84,12 @@ export async function workflowAction(
                 if (!result.success) return { error: result.error };
                 return { success: true, message: 'Marked as Done' };
             }
+            case 'approve-design':
             case 'merge-design-pr': {
                 if (!params.prNumber || !params.designType) return { error: 'Missing prNumber or designType' };
-                const result = await mergeDesignPR(issueNumber, params.prNumber, params.designType as DesignType);
+                const result = await approveDesign(issueNumber, params.prNumber, params.designType as DesignType);
                 if (!result.success) return { error: result.error };
-                return { success: true, message: result.advancedTo ? `Merged — advanced to ${result.advancedTo}` : 'Design PR merged' };
+                return { success: true, message: result.advancedTo ? `Approved — advanced to ${result.advancedTo}` : 'Design approved' };
             }
             case 'merge-pr': {
                 const result = await mergeImplementationPR(issueNumber);

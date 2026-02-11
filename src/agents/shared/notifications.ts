@@ -805,11 +805,11 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber} → PR #${prNumber}
 📊 Status: ${designLabel} (Waiting for Review)
 
-${isRevision ? 'Design updated based on feedback. ' : ''}Review and merge to proceed.${summarySection}`;
+${isRevision ? 'Design updated based on feedback. ' : ''}Review and approve to proceed.${summarySection}`;
 
     const keyboard: InlineKeyboardMarkup = {
         inline_keyboard: [[
-            { text: '✅ Approve & Merge', callback_data: `design_approve:${prNumber}:${issueNumber}:${designType}` },
+            { text: '✅ Approve', callback_data: `design_approve:${prNumber}:${issueNumber}:${designType}` },
             { text: '📝 Request Changes', callback_data: `design_changes:${prNumber}:${issueNumber}:${designType}` },
         ], [
             { text: '👀 View PR', url: prUrl },

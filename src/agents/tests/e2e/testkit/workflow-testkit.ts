@@ -12,7 +12,7 @@ import { expect } from 'vitest';
 import { MockProjectAdapter } from '../mocks/mock-project-adapter';
 import { agentCalls, resetAgentCalls } from '../mocks/mock-run-agent';
 import { capturedNotifications, resetNotifications } from '../mocks/mock-notifications';
-import { resetDesignFiles } from '../mocks/mock-design-files';
+import { resetDesignFiles, getS3Docs } from '../mocks/mock-design-files';
 import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
 import {
     runProductDesignAgent,
@@ -151,6 +151,30 @@ export function createWorkflowTestKit() {
         assertNotificationSent(fnName: string) {
             const found = capturedNotifications.some(n => n.fn === fnName);
             expect(found, `Expected notification "${fnName}" to be sent`).toBe(true);
+        },
+
+        assertDesignInS3(issueNumber: number, type: string, expectedContentSubstring?: string) {
+            const s3Docs = getS3Docs();
+            const key = `${issueNumber}:${type}`;
+            expect(s3Docs.has(key), `Expected design doc for issue #${issueNumber} type "${type}" in S3`).toBe(true);
+            if (expectedContentSubstring) {
+                expect(s3Docs.get(key)).toContain(expectedContentSubstring);
+            }
+        },
+
+        getDesignFromS3(issueNumber: number, type: string): string | undefined {
+            return getS3Docs().get(`${issueNumber}:${type}`);
+        },
+
+        async approveDesign(issueNumber: number, prNumber: number, designType: 'product-dev' | 'product' | 'tech') {
+            const { approveDesign } = await import('@/server/workflow-service');
+            return approveDesign(issueNumber, prNumber, designType);
+        },
+
+        async assertPRNotMerged(prNumber: number) {
+            const pr = await adapter.getPRDetails(prNumber);
+            expect(pr, `PR #${prNumber} should exist`).toBeTruthy();
+            expect(pr!.merged, `PR #${prNumber} should NOT be merged`).toBe(false);
         },
 
         // ====== State Access ======

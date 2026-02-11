@@ -6,11 +6,13 @@
  */
 
 import { featureRequests, reports } from '@/server/database';
+import { workflowItems } from '@/server/database';
 import {
     logWebhookAction,
     logExists,
     syncLogToRepoAndCleanup,
 } from '@/agents/lib/logging';
+import { deleteDesignFromS3 } from '@/agents/lib/design-files';
 import {
     getInitializedAdapter,
     findItemByIssueNumber,
@@ -144,6 +146,28 @@ export async function markDone(
         }
     } catch (error) {
         console.error(`[workflow-service] Failed to update source document status for issue #${issueNumber}:`, error);
+    }
+
+    // Close open design PRs (they were never merged in the S3-backed flow)
+    // Deleting the branch automatically closes the associated PR on GitHub.
+    try {
+        const artifacts = await workflowItems.getArtifacts(issueNumber);
+        const designPrs = artifacts?.designs?.filter(d => d.prNumber) || [];
+        for (const designPr of designPrs) {
+            try {
+                const prDetails = await adapter.getPRDetails(designPr.prNumber!);
+                if (prDetails && prDetails.state === 'open' && !prDetails.merged) {
+                    await adapter.addPRComment(designPr.prNumber!, 'Feature completed. Closing design PR.');
+                    await adapter.deleteBranch(prDetails.headBranch);
+                }
+            } catch {
+                // Non-fatal — PR may already be closed or branch already deleted
+            }
+        }
+        // Clean up S3 design files
+        deleteDesignFromS3(issueNumber).catch(() => {});
+    } catch (error) {
+        console.error(`[workflow-service] Failed to clean up design PRs for issue #${issueNumber}:`, error);
     }
 
     return { success: true, itemId: item.itemId, sourceDocUpdated };

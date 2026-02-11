@@ -22,7 +22,7 @@ export interface MetadataFieldConfig {
     /** Display label */
     label: string;
     /** How to render this field */
-    type: 'badge' | 'text' | 'file-list' | 'tag';
+    type: 'badge' | 'text' | 'file-list' | 'tag' | 'preview-link';
     /**
      * Optional color map for badge type.
      * Maps values to Tailwind color classes.
