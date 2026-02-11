@@ -9,6 +9,7 @@ import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
 import { appConfig } from '../../app.config';
 import { generateClarificationToken } from '@/apis/template/clarification/utils';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
+import { addHistoryEntry } from '@/server/database/collections/template/workflow-items';
 
 // ============================================================
 // TELEGRAM API
@@ -758,6 +759,15 @@ ${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}`;
+
+    // Log history (fire-and-forget, non-critical)
+    const modeLabel = mode === 'new' ? 'started' : mode === 'feedback' ? 'addressing feedback' : 'resuming after clarification';
+    addHistoryEntry(issueNumber, {
+        action: 'agent_started',
+        description: `Agent ${phase} ${modeLabel}`,
+        timestamp: new Date().toISOString(),
+        actor: `agent:${phase.toLowerCase().replace(/ /g, '-')}`,
+    }).catch(() => {});
 
     return sendToInfoChannel(message, buildViewIssueButton(issueUrl));
 }

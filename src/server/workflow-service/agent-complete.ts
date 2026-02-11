@@ -8,7 +8,7 @@ import {
     logWebhookAction,
     logExists,
 } from '@/agents/lib/logging';
-import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus, logHistory } from './utils';
 import type { ServiceResult, AgentCompletionResult } from './types';
 
 /**
@@ -63,6 +63,11 @@ export async function completeAgentRun(
             }
         );
     }
+
+    void logHistory(issueNumber, 'agent_completed', `Agent ${agentType} completed`, `agent:${agentType}`, {
+        newStatus: result.status,
+        newReviewStatus: result.clearReviewStatus ? undefined : result.reviewStatus,
+    });
 
     return { success: true, itemId: item.itemId };
 }
