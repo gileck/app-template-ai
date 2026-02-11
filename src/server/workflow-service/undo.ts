@@ -8,7 +8,7 @@ import {
     logWebhookAction,
     logExists,
 } from '@/agents/lib/logging';
-import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus, logHistory } from './utils';
 import { DEFAULT_UNDO_WINDOW_MS } from './constants';
 import type { UndoResult, UndoOptions } from './types';
 
@@ -86,6 +86,8 @@ export async function undoStatusChange(
             }
         );
     }
+
+    void logHistory(issueNumber, 'undo', 'Undo: restored previous status', 'admin');
 
     return { success: true, itemId: item.itemId };
 }

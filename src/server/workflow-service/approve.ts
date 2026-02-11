@@ -18,6 +18,7 @@ import {
 } from '@/agents/lib/logging';
 import { routeWorkflowItem } from './route';
 import { notifyApproved } from './notify';
+import { logHistory } from './utils';
 import type { WorkflowItemRef, ApproveOptions, ApproveResult } from './types';
 
 /**
@@ -94,6 +95,12 @@ export async function approveWorkflowItem(
             issueUrl,
         });
         logWebhookPhaseEnd(issueNumber, 'Admin Approval', 'success', 'webhook');
+    }
+
+    // 3b. History log
+    if (issueNumber) {
+        const actionType = ref.type === 'feature' ? 'feature_approved' : 'bug_approved';
+        void logHistory(issueNumber, actionType, `${ref.type === 'feature' ? 'Feature' : 'Bug'} "${title}" approved`, 'admin');
     }
 
     // 4. Route if initialRoute provided (not backlog — backlog is handled via initialStatusOverride)

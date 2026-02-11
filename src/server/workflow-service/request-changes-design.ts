@@ -6,7 +6,7 @@
  */
 
 import { REVIEW_STATUSES } from '@/server/project-management/config';
-import { findItemByIssueNumber } from './utils';
+import { findItemByIssueNumber, logHistory } from './utils';
 import { updateReviewStatus } from './review-status';
 import type { ServiceResult } from './types';
 
@@ -31,6 +31,8 @@ export async function requestChangesOnDesignPR(
         logDescription: `Changes requested on ${designType} design PR #${prNumber}`,
         logMetadata: { prNumber, designType, reviewStatus: REVIEW_STATUSES.requestChanges },
     });
+
+    void logHistory(issueNumber, 'design_pr_changes_requested', `Changes requested on ${designType} design PR #${prNumber}`, 'admin');
 
     return { success: true, itemId: item.itemId };
 }

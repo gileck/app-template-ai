@@ -10,7 +10,7 @@ import {
     findWorkflowItemById,
     updateWorkflowFields,
 } from '@/server/database/collections/template/workflow-items';
-import { getInitializedAdapter } from './utils';
+import { getInitializedAdapter, logHistory } from './utils';
 import type { ServiceResult } from './types';
 
 /**
@@ -42,6 +42,10 @@ export async function setWorkflowStatus(
             const adapter = await getInitializedAdapter();
             await adapter.updateItemStatus(sourceDoc.githubProjectItemId, status);
         }
+    }
+
+    if (item.githubIssueNumber) {
+        void logHistory(item.githubIssueNumber, 'status_changed', `Status changed to ${status}`, 'admin');
     }
 
     return { success: true, itemId: workflowItemId };

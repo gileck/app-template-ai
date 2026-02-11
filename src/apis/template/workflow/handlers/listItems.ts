@@ -112,6 +112,7 @@ export async function listItems(
                 },
                 implementationPhase: doc.implementationPhase || null,
                 prData: Object.keys(prData).length > 0 ? prData : undefined,
+                history: (doc.history || []).slice().reverse(),
                 createdAt: new Date(doc.createdAt).toISOString(),
             };
         });

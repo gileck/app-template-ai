@@ -28,6 +28,7 @@ import {
 import type { DecisionSelection } from '@/apis/template/agent-decision/types';
 import { submitDecisionRouting } from './decision';
 import { notifyDecisionSubmitted } from '@/agents/shared/notifications';
+import { logHistory } from './utils';
 
 export interface ChooseRecommendedResult {
     success?: boolean;
@@ -137,6 +138,8 @@ export async function chooseRecommendedOption(
         ).catch(err => {
             console.error('Failed to send decision submission notification:', err);
         });
+
+        void logHistory(issueNumber, 'choose_recommended', 'Recommended option selected', 'admin');
 
         return { success: true, routedTo };
     } catch (error) {

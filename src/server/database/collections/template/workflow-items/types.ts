@@ -77,6 +77,18 @@ export interface WorkflowItemArtifacts {
 }
 
 // ============================================================
+// HISTORY TYPES
+// ============================================================
+
+export interface HistoryEntry {
+    action: string;           // 'feature_approved', 'routed', 'pr_merged', etc.
+    description: string;      // 'Routed to Technical Design'
+    timestamp: string;        // ISO 8601
+    actor?: string;           // 'admin', 'agent:tech-design', 'system'
+    metadata?: Record<string, unknown>;
+}
+
+// ============================================================
 // DOCUMENT TYPES
 // ============================================================
 
@@ -100,6 +112,7 @@ export interface WorkflowItemDocument {
     githubIssueTitle?: string;
     labels?: string[];
     artifacts?: WorkflowItemArtifacts;
+    history?: HistoryEntry[];
     createdAt: Date;
     updatedAt: Date;
 }

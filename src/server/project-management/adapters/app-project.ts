@@ -190,6 +190,12 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
             githubIssueUrl: context.githubIssueUrl,
             githubIssueTitle: context.title,
             labels: context.labels,
+            history: [{
+                action: 'created',
+                description: `Workflow item created for ${context.type}`,
+                timestamp: now.toISOString(),
+                actor: 'system',
+            }],
             createdAt: now,
             updatedAt: now,
         });

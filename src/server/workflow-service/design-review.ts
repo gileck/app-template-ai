@@ -13,7 +13,7 @@ import {
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { findItemByIssueNumber } from './utils';
+import { findItemByIssueNumber, logHistory } from './utils';
 import { updateReviewStatus } from './review-status';
 import { advanceStatus } from './advance';
 import { STATUS_TRANSITIONS } from './constants';
@@ -112,6 +112,13 @@ export async function reviewDesign(
         }
         logWebhookPhaseEnd(issueNumber, 'Design Review', action === 'reject' ? 'failed' : 'success', 'webhook');
     }
+
+    const actionMap: Record<ReviewAction, string> = {
+        approve: 'design_approved',
+        changes: 'design_changes',
+        reject: 'design_rejected',
+    };
+    void logHistory(issueNumber, actionMap[action], `Design ${ACTION_LABELS[action].toLowerCase()}`, 'admin');
 
     return {
         success: true,

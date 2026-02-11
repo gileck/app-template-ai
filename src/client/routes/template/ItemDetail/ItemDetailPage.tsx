@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,6 +12,11 @@ import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId
 import type { ItemType } from './hooks';
 import { ItemDetailActions } from './components/ItemDetailActions';
 import { ItemDetailHeader } from './components/ItemDetailHeader';
+import { useWorkflowItems } from '@/client/routes/template/Workflow/hooks';
+import { WorkflowHistory } from '@/client/routes/template/Workflow/WorkflowHistory';
+import type { WorkflowHistoryEntry } from '@/apis/template/workflow/types';
+
+const EMPTY_HISTORY: WorkflowHistoryEntry[] = [];
 
 interface ItemDetailPageProps {
     id: string;
@@ -39,10 +44,19 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
         },
     });
 
+    const { data: workflowData } = useWorkflowItems();
+
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral routing dialog state after approve
     const [showRoutingDialog, setShowRoutingDialog] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral item type for routing
     const [routingItemType, setRoutingItemType] = useState<ItemType>('feature');
+
+    // Look up workflow item history from cached workflow data
+    const historyEntries = useMemo(() => {
+        if (!workflowData?.workflowItems) return EMPTY_HISTORY;
+        const matched = workflowData.workflowItems.find((wi) => wi.sourceId === id);
+        return matched?.history || EMPTY_HISTORY;
+    }, [workflowData?.workflowItems, id]);
 
     const navigateBack = () => {
         navigate('/admin/workflow');
@@ -210,6 +224,15 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* History */}
+            {historyEntries.length > 0 && (
+                <Card className="mb-6">
+                    <CardContent className="pt-6">
+                        <WorkflowHistory entries={historyEntries} />
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Bug-specific details */}
             {!isFeature && item.report!.errorMessage && (

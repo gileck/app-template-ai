@@ -22,7 +22,7 @@ import {
     logWebhookPhaseEnd,
     logExists,
 } from '@/agents/lib/logging';
-import { getInitializedAdapter, findItemByIssueNumber } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, logHistory } from './utils';
 import { advanceStatus } from './advance';
 import type { ServiceResult } from './types';
 
@@ -158,6 +158,8 @@ export async function mergeDesignPR(
     if (logExists(issueNumber)) {
         logWebhookPhaseEnd(issueNumber, `${designLabel} PR Merge`, 'success', 'webhook');
     }
+
+    void logHistory(issueNumber, 'design_pr_merged', `${designLabel} PR #${prNumber} merged`, 'admin');
 
     return {
         success: true,

@@ -8,7 +8,7 @@ import {
     logWebhookAction,
     logExists,
 } from '@/agents/lib/logging';
-import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, syncWorkflowStatus, logHistory } from './utils';
 import type { ServiceResult, ServiceOptions } from './types';
 
 /**
@@ -66,6 +66,10 @@ export async function submitDecisionRouting(
                 { issueNumber, reviewStatus: options.reviewStatus, ...options?.logMetadata }
             );
         }
+    }
+
+    if (targetStatus) {
+        void logHistory(issueNumber, 'decision_routed', `Decision routed to ${targetStatus}`, 'admin');
     }
 
     return { success: true, itemId: item.itemId };

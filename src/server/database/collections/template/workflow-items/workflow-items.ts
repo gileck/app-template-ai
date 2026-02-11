@@ -9,6 +9,7 @@ import type {
     CommitMessageRecord,
     DecisionArtifactRecord,
     ImplementationStatus,
+    HistoryEntry,
 } from './types';
 import type { DecisionSelection } from '@/apis/template/agent-decision/types';
 
@@ -464,6 +465,23 @@ export const setDecisionSelection = async (
                 'artifacts.decision.selection': selection,
                 updatedAt: new Date(),
             },
+        }
+    );
+};
+
+/**
+ * Append a history entry to a workflow item
+ */
+export const addHistoryEntry = async (
+    issueNumber: number,
+    entry: HistoryEntry
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    await collection.updateOne(
+        { githubIssueNumber: issueNumber },
+        {
+            $push: { history: entry },
+            $set: { updatedAt: new Date() },
         }
     );
 };

@@ -7,7 +7,7 @@
  */
 
 import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
-import { findItemByIssueNumber } from './utils';
+import { findItemByIssueNumber, logHistory } from './utils';
 import { advanceStatus } from './advance';
 import { updateReviewStatus } from './review-status';
 import type { ServiceResult } from './types';
@@ -36,6 +36,8 @@ export async function requestChangesOnPR(
     });
 
     await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges);
+
+    void logHistory(issueNumber, 'pr_changes_requested', 'Changes requested on PR', 'admin');
 
     return { success: true, itemId: item.itemId };
 }

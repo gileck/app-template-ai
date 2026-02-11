@@ -13,7 +13,7 @@ import {
 } from '@/agents/lib/logging';
 import { featureRequests, reports } from '@/server/database';
 import { setRevertPrNumber, clearRevertPrNumber } from '@/server/database/collections/template/workflow-items';
-import { getInitializedAdapter, findItemByIssueNumber } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, logHistory } from './utils';
 import { advanceStatus } from './advance';
 import { updateReviewStatus } from './review-status';
 import type { ServiceResult } from './types';
@@ -113,6 +113,8 @@ export async function revertMerge(
         });
     }
 
+    void logHistory(issueNumber, 'revert_initiated', `Revert initiated for PR #${prNumber}`, 'admin');
+
     return {
         success: true,
         revertPrNumber: revertResult.prNumber,
@@ -168,6 +170,8 @@ export async function mergeRevertPR(
             revertPrNumber,
         });
     }
+
+    void logHistory(issueNumber, 'revert_merged', `Revert PR #${revertPrNumber} merged`, 'admin');
 
     return { success: true };
 }

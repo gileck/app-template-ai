@@ -18,7 +18,7 @@ import {
 } from '@/agents/lib';
 import { getArtifactsFromIssue, clearTaskBranchFromDB } from '@/agents/lib/workflow-db';
 import { clearTaskBranch } from '@/agents/lib';
-import { getInitializedAdapter } from './utils';
+import { getInitializedAdapter, logHistory } from './utils';
 import { markDone } from './advance';
 import type { ServiceResult } from './types';
 
@@ -124,6 +124,8 @@ export async function mergeFinalPR(
     if (logExists(issueNumber)) {
         logWebhookPhaseEnd(issueNumber, 'Final Review Merge', 'success', 'webhook');
     }
+
+    void logHistory(issueNumber, 'final_pr_merged', `Final PR #${prNumber} merged`, 'admin');
 
     return {
         success: true,

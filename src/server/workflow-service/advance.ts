@@ -15,6 +15,7 @@ import {
     getInitializedAdapter,
     findItemByIssueNumber,
     syncWorkflowStatus,
+    logHistory,
 } from './utils';
 import type { AdvanceResult, MarkDoneResult, ServiceOptions } from './types';
 import { STATUSES } from '@/server/project-management/config';
@@ -62,6 +63,8 @@ export async function advanceStatus(
         );
     }
 
+    void logHistory(issueNumber, 'status_advanced', `Status advanced to ${toStatus}`, 'system', { from: previousStatus, to: toStatus });
+
     return { success: true, itemId: item.itemId, previousStatus };
 }
 
@@ -107,6 +110,8 @@ export async function markDone(
             { status: STATUSES.done, ...options?.logMetadata }
         );
     }
+
+    void logHistory(issueNumber, 'marked_done', 'Marked as Done', 'system');
 
     // Sync log to repo (non-blocking)
     syncLogToRepoAndCleanup(issueNumber).catch((err) => {

@@ -19,6 +19,7 @@ import {
 } from '@/agents/lib/logging';
 import { getRoutingStatusMap, statusToDestination, ROUTING_DESTINATION_LABELS } from './constants';
 import { notifyRouted } from './notify';
+import { logHistory } from './utils';
 import type { WorkflowItemRef, RoutingDestination, RouteResult } from './types';
 
 /**
@@ -81,6 +82,11 @@ export async function routeWorkflowItem(
             targetStatus,
         });
         logWebhookPhaseEnd(issueNumber, 'Admin Routing', 'success', 'webhook');
+    }
+
+    // 5b. History log
+    if (issueNumber) {
+        void logHistory(issueNumber, 'routed', `Routed to ${targetLabel}`, 'admin');
     }
 
     // 6. Send Telegram notification (fire-and-forget)

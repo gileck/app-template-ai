@@ -23,7 +23,7 @@ import {
     logExists,
 } from '@/agents/lib/logging';
 import { setFinalPrNumber, setLastMergedPr } from '@/server/database/collections/template/workflow-items';
-import { getInitializedAdapter, findItemByIssueNumber } from './utils';
+import { getInitializedAdapter, findItemByIssueNumber, logHistory } from './utils';
 import { markDone } from './advance';
 import { advanceImplementationPhase } from './phase';
 import { advanceStatus } from './advance';
@@ -345,6 +345,8 @@ export async function mergeImplementationPR(
     if (logExists(issueNumber)) {
         logWebhookPhaseEnd(issueNumber, 'PR Merge', 'success', 'webhook');
     }
+
+    void logHistory(issueNumber, 'pr_merged', `PR #${prNumber} merged`, 'admin');
 
     return {
         success: true,

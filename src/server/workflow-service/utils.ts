@@ -9,6 +9,7 @@ import { featureRequests, reports } from '@/server/database';
 import {
     findWorkflowItemBySourceRef,
     updateWorkflowFields,
+    addHistoryEntry,
 } from '@/server/database/collections/template/workflow-items';
 
 /**
@@ -114,5 +115,28 @@ export async function syncWorkflowStatus(
     );
     if (workflowItem) {
         await updateWorkflowFields(workflowItem._id, { workflowStatus: status });
+    }
+}
+
+/**
+ * Append a history entry to a workflow item. Non-critical — never throws.
+ */
+export async function logHistory(
+    issueNumber: number,
+    action: string,
+    description: string,
+    actor?: string,
+    metadata?: Record<string, unknown>
+): Promise<void> {
+    try {
+        await addHistoryEntry(issueNumber, {
+            action,
+            description,
+            timestamp: new Date().toISOString(),
+            actor,
+            metadata,
+        });
+    } catch {
+        // Non-critical — don't break the workflow
     }
 }

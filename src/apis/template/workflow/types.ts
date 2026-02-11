@@ -39,6 +39,14 @@ export interface WorkflowItemPRData {
     revertPrNumber?: number;
 }
 
+export interface WorkflowHistoryEntry {
+    action: string;
+    description: string;
+    timestamp: string;
+    actor?: string;
+    metadata?: Record<string, unknown>;
+}
+
 export interface WorkflowItem {
     id: string;
     /** Composite ID for navigation to detail page (e.g., "feature:mongoId" or "report:mongoId") */
@@ -50,6 +58,7 @@ export interface WorkflowItem {
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
     prData?: WorkflowItemPRData;
+    history?: WorkflowHistoryEntry[];
     createdAt: string | null;
 }
 

@@ -6,7 +6,7 @@
  */
 
 import { REVIEW_STATUSES } from '@/server/project-management/config';
-import { findItemByIssueNumber } from './utils';
+import { findItemByIssueNumber, logHistory } from './utils';
 import { updateReviewStatus } from './review-status';
 import type { ServiceResult } from './types';
 
@@ -37,6 +37,8 @@ export async function markClarificationReceived(
         logDescription: 'Clarification received',
         logMetadata: { reviewStatus: REVIEW_STATUSES.clarificationReceived },
     });
+
+    void logHistory(issueNumber, 'clarification_received', 'Clarification received', 'admin');
 
     return { success: true, itemId: item.itemId };
 }

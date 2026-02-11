@@ -27,6 +27,7 @@ import { useWorkflowItems, useUpdateWorkflowStatus } from './hooks';
 import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
 import { useWorkflowPageStore } from './store';
 import { WorkflowActionButtons } from './WorkflowActionButtons';
+import { WorkflowHistory } from './WorkflowHistory';
 import type { TypeFilter, ViewFilter } from './store';
 import type { PendingItem, WorkflowItem } from '@/apis/template/workflow/types';
 
@@ -562,6 +563,10 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
                                     excludeActions={workflowItemId ? ['mark-done'] : undefined}
                                 />
                             )}
+
+                            {matchedWorkflowItem?.history?.length ? (
+                                <WorkflowHistory entries={matchedWorkflowItem.history} />
+                            ) : null}
 
                             {/* Post-approval routing (inline) */}
                             {showRouting && (
