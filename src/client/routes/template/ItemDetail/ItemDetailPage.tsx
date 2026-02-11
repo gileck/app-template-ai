@@ -7,6 +7,7 @@ import { Button } from '@/client/components/template/ui/button';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features/template/router';
+import { ErrorDisplay } from '@/client/features/template/error-tracking';
 import { updateWorkflowStatus } from '@/apis/template/workflow/client';
 import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from './hooks';
 import type { ItemType } from './hooks';
@@ -78,14 +79,12 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     if (error) {
         return (
             <div className="container mx-auto max-w-4xl px-3 py-6">
-                <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-destructive">Error loading item: {error.message}</p>
-                        <Button variant="outline" className="mt-4" onClick={() => navigateBack()}>
-                            <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-                        </Button>
-                    </CardContent>
-                </Card>
+                <ErrorDisplay
+                    error={error}
+                    title="Failed to load item"
+                    onBack={navigateBack}
+                    backLabel="Go Back"
+                />
             </div>
         );
     }
