@@ -9,23 +9,11 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-interface VercelDeployment {
-    url: string | null;
-    state: string;
-    meta?: {
-        githubPrId?: string;
-    };
-}
-
-interface DeploymentsResponse {
-    deployments: VercelDeployment[];
-    error?: { code: string; message: string };
-}
-
-interface ProjectConfig {
-    projectId: string;
-    orgId: string;
-}
+/* eslint-disable api-guidelines/no-duplicate-api-types -- local types for Vercel API response, not domain types */
+type VercelDeployment = { url: string | null; state: string; meta?: { githubPrId?: string } };
+type DeploymentsResponse = { deployments: VercelDeployment[]; error?: { code: string; message: string } };
+type ProjectConfig = { projectId: string; orgId: string };
+/* eslint-enable api-guidelines/no-duplicate-api-types */
 
 function getProjectConfig(): ProjectConfig | null {
     const configPath = resolve(process.cwd(), '.vercel/project.json');
