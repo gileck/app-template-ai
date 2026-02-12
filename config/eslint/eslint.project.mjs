@@ -16,12 +16,7 @@
  */
 
 const eslintProjectConfig = [
-  {
-    files: ["src/server/template/rpc/client.ts"],
-    rules: {
-      "api-guidelines/client-returns-cache-result": "off"
-    }
-  }
+  // Add project-specific ESLint configurations here
 ];
 
 export default eslintProjectConfig;
