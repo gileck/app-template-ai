@@ -53,7 +53,7 @@ export function validateDecisionToken(issueNumber: number, token: string): boole
 
 /**
  * Find a project item by issue number and verify it's in a state
- * that has Waiting for Review (any status that uses agent decisions).
+ * that accepts agent decisions (Waiting for Review or Waiting for Decision).
  */
 export async function findDecisionItem(
     adapter: ProjectManagementAdapter,
@@ -68,10 +68,15 @@ export async function findDecisionItem(
         return { valid: false, error: `Issue #${issueNumber} not found in project` };
     }
 
-    if (item.reviewStatus !== REVIEW_STATUSES.waitingForReview) {
+    const validDecisionStatuses: string[] = [
+        REVIEW_STATUSES.waitingForReview,
+        REVIEW_STATUSES.waitingForDecision,
+    ];
+
+    if (!item.reviewStatus || !validDecisionStatuses.includes(item.reviewStatus)) {
         return {
             valid: false,
-            error: `Issue is not waiting for review (current: ${item.reviewStatus || 'empty'})`,
+            error: `Issue is not waiting for review or decision (current: ${item.reviewStatus || 'empty'})`,
         };
     }
 
