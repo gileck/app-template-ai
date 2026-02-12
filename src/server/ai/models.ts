@@ -10,6 +10,7 @@ export {
   GEMINI_MODELS,
   OPENAI_MODELS,
   ANTHROPIC_MODELS,
+  CLAUDE_CODE_MODELS,
   getAllModels,
   getModelsByProvider,
   getModelById,

@@ -70,6 +70,23 @@ export const pricing: PricingModel[] = [
     input_cost_per_1k: 0.005,    // $5 per 1M
     output_cost_per_1k: 0.025    // $25 per 1M
   },
+
+  // Claude Code SDK (same underlying models, same pricing)
+  {
+    model_id: 'claude-code-haiku',
+    input_cost_per_1k: 0.001,    // $1 per 1M
+    output_cost_per_1k: 0.005    // $5 per 1M
+  },
+  {
+    model_id: 'claude-code-sonnet',
+    input_cost_per_1k: 0.003,    // $3 per 1M
+    output_cost_per_1k: 0.015    // $15 per 1M
+  },
+  {
+    model_id: 'claude-code-opus',
+    input_cost_per_1k: 0.005,    // $5 per 1M
+    output_cost_per_1k: 0.025    // $25 per 1M
+  },
 ];
 
 export function getPricePer1K(modelId: string, _tokens?: number): {
