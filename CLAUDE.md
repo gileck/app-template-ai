@@ -116,7 +116,7 @@ Full offline support with optimistic updates. Use this when implementing mutatio
 
 Dual-store architecture for PWA with offline support. Use this when managing application state.
 
-**Summary:** React Query for server/API data, Zustand for client state, useState for ephemeral UI. All Zustand stores MUST use `createStore` factory from `@/client/stores`.
+**Summary:** React Query for server/API data, Zustand for all client state (default persistent), useState ONLY for truly ephemeral UI (text input, dialog open, in-flight submission, confirm dialog). All Zustand stores MUST use `createStore` factory from `@/client/stores`.
 
 **Docs:** [state-management.md](docs/template/state-management.md), [react-query-mutations.md](docs/template/react-query-mutations.md), [zustand-stores.md](docs/template/zustand-stores.md)
 **Rules:** [state-management-guidelines](.ai/skills/template/state-management-guidelines/SKILL.md)
@@ -335,8 +335,9 @@ Custom ESLint rules and when to use disable comments. Use this when fixing lint 
 **Summary:** Never use ESLint disable comments unless specifically instructed. Exception - `state-management/prefer-state-architecture` - add disable comment WITH explanation for valid `useState` usage.
 
 **Key Points:**
-- Valid `useState` justifications: ephemeral modal state, form input before submission, local loading indicator
-- If warning triggers and none apply: use React Query (API data) or Zustand (preferences, auth, persistent UI)
+- Valid `useState` justifications: text input before submission, dialog/modal open state, in-flight submission indicator, confirm dialog visibility
+- Most UI state (filters, view mode, sort, collapsed sections, tabs) MUST use Zustand — not useState
+- If warning triggers and none of the 4 valid cases apply: use React Query (API data) or Zustand (everything else)
 - Always run `yarn checks` after fixing lint issues
 
 **Rules:** [eslint-custom-guidelines](.ai/skills/template/eslint-custom-guidelines/SKILL.md)

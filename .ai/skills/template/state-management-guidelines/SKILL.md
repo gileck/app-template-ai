@@ -16,13 +16,42 @@ description: when managing state in the application (client state, server state,
 | User preferences (theme, offline) | **Zustand** (`features/settings`) |
 | Auth hints | **Zustand** (`features/auth`) |
 | Route persistence | **Zustand** (`features/router`) |
-| Ephemeral UI (modal, form input) | **useState** |
+| UI state that survives navigation | **Zustand** (in-memory or persisted) |
+| Truly ephemeral UI (see below) | **useState** |
 
 ```
 API data? → React Query
-Persist across restarts? → Zustand (createStore)
-Otherwise → useState
+Otherwise → Zustand (createStore)
+ONLY if truly ephemeral → useState
 ```
+
+## 🚨 CRITICAL: Most UI State Should Be Persistent
+
+**Default to Zustand for all UI state.** Only use `useState` for the narrow set of truly ephemeral cases listed below. If in doubt, use Zustand.
+
+### ✅ useState — Truly Ephemeral (resets are expected)
+
+These are the **only** valid `useState` cases:
+
+- **Text input value** before submission (search box, form field)
+- **Dialog/modal open** state (closing on navigate is correct)
+- **In-flight submission** indicator (`isSubmitting` tied to a single button click)
+- **Confirm dialog** visibility (one-shot confirmation prompts)
+
+### ❌ useState — These Must Be Zustand
+
+Any state the user would expect to **survive navigation** or **persist across sessions**:
+
+- **View mode** (list/grid, compact/expanded) → Zustand persisted
+- **Filter selections** (type filter, status filter, date range) → Zustand persisted
+- **Sort order** (newest first, alphabetical) → Zustand persisted
+- **Collapsed/expanded sections** (sidebar, accordion groups) → Zustand in-memory or persisted
+- **Selected tab** in a tab bar → Zustand in-memory or persisted
+- **Toggle states** (show advanced options, show completed items) → Zustand persisted
+- **Pagination / scroll position** → Zustand in-memory
+- **Select mode** (bulk selection active, selected items) → Zustand in-memory
+
+**Rule of thumb:** If navigating away and back should restore the state, it belongs in Zustand — not useState.
 
 ## Zustand Store Factory (REQUIRED)
 
