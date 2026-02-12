@@ -393,32 +393,47 @@ This document provides comprehensive visual workflows for all scenarios in the a
               ▼
 ┌─────────────────────────────────────┐
 │ PRODUCT DESIGN AGENT (Cron)         │
-│ - Generates UX/UI mockups           │
+│ - Explores codebase                 │
+│ - Writes 2-3 React mock options     │
+│   to src/pages/design-mocks/       │
 │ - Creates design document           │
 │ - Creates design PR                 │
+│ - Saves options to S3               │
+│ - Posts decision comment on issue   │
 └─────────────┬───────────────────────┘
               │
-              ▼
-┌─────────────────────────────────────┐
-│ PRODUCT DESIGN PR CREATED           │
-│ - Branch: product-design/issue-50   │
-│ - File: designs/product/issue-50.md │
-│ - PR #51 with mockups/wireframes    │
-│ - Review Status: Waiting for Review │
-└─────────────┬───────────────────────┘
+              ▼ (3 possible outcomes)
               │
-              ▼
+    ┌─────────┼──────────┐
+    ▼         ▼          ▼
+┌────────┐ ┌────────┐ ┌──────────────┐
+│OPTIONS │ │DESIGN  │ │CLARIFICATION │
+│READY   │ │READY   │ │NEEDED        │
+│(2+ opt)│ │(<2 opt)│ │(ambiguous)   │
+└───┬────┘ └───┬────┘ └──────┬───────┘
+    │          │             │
+    ▼          ▼             ▼
 ┌─────────────────────────────────────┐
-│ TELEGRAM DESIGN APPROVAL            │
-│ [Approve Design] [Request Changes]  │
+│ NOTIFICATION TO ADMIN               │
+│                                     │
+│ Design Options Ready:               │
+│ [Choose Recommended] [All Options]  │
+│ [Preview Mocks] [Request Changes]   │
+│                                     │
+│ Design Ready (no options):          │
+│ [Approve] [Request Changes]         │
+│                                     │
+│ Clarification Needed:               │
+│ [Answer Questions] [View Issue]     │
 └─────────────┬───────────────────────┘
-              │ Admin clicks "Approve Design"
+              │ Admin selects option or approves
               ▼
 ┌─────────────────────────────────────┐
 │ PRODUCT DESIGN APPROVED (S3)        │
-│ - Design saved to S3                │
+│ - Selected design saved to S3       │
 │ - Column: Technical Design          │
 │ - Review Status: (cleared)          │
+│ - Design PR stays open (NOT merged) │
 └─────────────┬───────────────────────┘
               │
               ▼
@@ -1463,12 +1478,13 @@ Comprehensive table of all state transitions in the workflow.
 | MongoDB: 'new'<br/>GitHub: N/A<br/>Review: N/A | Admin clicks "Approve" (feature) | MongoDB: 'in_progress'<br/>GitHub: Issue created, Backlog<br/>Review: (empty) | Admin (Telegram) |
 | MongoDB: 'new'<br/>GitHub: N/A<br/>Review: N/A | Admin clicks "Approve" (bug) | MongoDB: 'investigating'<br/>GitHub: Issue created, Bug Investigation<br/>Review: (empty) | Admin (Telegram) |
 | MongoDB: 'in_progress'<br/>GitHub: Backlog<br/>Review: (empty) | Admin routes to Product Design | MongoDB: 'in_progress'<br/>GitHub: Product Design<br/>Review: (empty) | Admin (Telegram) |
-| GitHub: Product Design<br/>Review: (empty) | Product Design agent creates PR | GitHub: Product Design<br/>Review: Waiting for Review | Agent (Cron) |
-| GitHub: Product Design<br/>Review: Waiting for Review | Admin clicks "Approve Design" | GitHub: Technical Design<br/>Review: (empty)<br/>Design PR: Merged | Admin (Telegram) |
-| GitHub: Product Design<br/>Review: Waiting for Review | Admin clicks "Request Changes" | GitHub: Product Design<br/>Review: Changes Requested | Admin (Telegram) |
-| GitHub: Product Design<br/>Review: Changes Requested | Agent updates PR | GitHub: Product Design<br/>Review: Waiting for Review | Agent (Cron) |
+| GitHub: Product Design<br/>Review: (empty) | Product Design agent creates PR + mock options | GitHub: Product Design<br/>Review: Waiting for Review | Agent (Cron) |
+| GitHub: Product Design<br/>Review: Waiting for Review | Admin selects design option or approves | GitHub: Technical Design<br/>Review: (empty)<br/>Design PR: stays open | Admin (Telegram/UI) |
+| GitHub: Product Design<br/>Review: Waiting for Review | Admin clicks "Request Changes" | GitHub: Product Design<br/>Review: Changes Requested | Admin (Telegram/UI) |
+| GitHub: Product Design<br/>Review: Changes Requested | Agent revises design + PR | GitHub: Product Design<br/>Review: Waiting for Review | Agent (Cron) |
+| GitHub: Product Design<br/>Review: (empty) | Agent needs clarification | GitHub: Product Design<br/>Review: Waiting for Clarification | Agent (Cron) |
 | GitHub: Technical Design<br/>Review: (empty) | Tech Design agent creates PR | GitHub: Technical Design<br/>Review: Waiting for Review | Agent (Cron) |
-| GitHub: Technical Design<br/>Review: Waiting for Review | Admin clicks "Approve Design" | GitHub: Ready for development<br/>Review: (empty)<br/>Design PR: Merged | Admin (Telegram) |
+| GitHub: Technical Design<br/>Review: Waiting for Review | Admin approves design | GitHub: Ready for development<br/>Review: (empty)<br/>Design PR: stays open | Admin (Telegram/UI) |
 | GitHub: Ready for development<br/>Review: (empty) | Implementation agent creates PR | GitHub: PR Review<br/>Review: Waiting for Review | Agent (Cron) |
 | GitHub: PR Review<br/>Review: Waiting for Review | PR Review agent approves | GitHub: PR Review<br/>Review: Approved | Agent (Cron) |
 | GitHub: PR Review<br/>Review: Waiting for Review | PR Review agent requests changes | GitHub: PR Review<br/>Review: Changes Requested | Agent (Cron) |

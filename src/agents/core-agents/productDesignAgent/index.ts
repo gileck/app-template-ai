@@ -122,7 +122,7 @@ const processItem = createDesignProcessor({
     skipBugError: 'Bug reports skip Product Design by default',
 
     buildNewPrompt: ({ content, additionalContext, allComments }) =>
-        buildProductDesignPrompt(content, additionalContext, allComments),
+        buildProductDesignPrompt(content, additionalContext, allComments, { allowWrite: true }),
 
     buildFeedbackPrompt: ({ content, existingDesign, allComments }) =>
         buildProductDesignRevisionPrompt(content, existingDesign, allComments),
@@ -132,6 +132,7 @@ const processItem = createDesignProcessor({
             { title: content.title, number: issueNumber, body: content.body, labels: content.labels },
             allComments,
             clarification,
+            { allowWrite: true },
         ),
 
     loadAdditionalContext: async ({ issueNumber }) => {
@@ -213,11 +214,14 @@ const processItem = createDesignProcessor({
             const { getDecisionFromDB } = await import('@/apis/template/agent-decision/utils');
             const decision = await getDecisionFromDB(issueNumber, content.title);
             if (decision && decision.options.length >= 2) {
-                // Fetch Vercel preview URL (non-blocking, returns null if unavailable)
+                // Fetch Vercel preview URL and append mock page path
                 let previewUrl: string | null = null;
                 try {
                     const { getVercelPreviewUrl } = await import('@/agents/lib/preview-url');
-                    previewUrl = await getVercelPreviewUrl(prNumber);
+                    const baseUrl = await getVercelPreviewUrl(prNumber);
+                    if (baseUrl) {
+                        previewUrl = `${baseUrl}/design-mocks/issue-${issueNumber}`;
+                    }
                 } catch {
                     // Preview URL is optional — continue without it
                 }

@@ -259,23 +259,37 @@ Design documents are stored as versioned files with PR-based review, providing v
 
 **Storage Location:**
 ```
-design-docs/
-├── issue-123/
-│   ├── product-design.md
-│   └── tech-design.md
-└── issue-456/
-    └── product-design.md
+S3: design-docs/issue-{N}/product-design.md     (canonical design, read by next agent)
+S3: design-docs/issue-{N}/product-design-optA.md (individual option designs)
+S3: design-docs/issue-{N}/tech-design.md
+
+Branch: design-docs/issue-{N}/product-design.md  (versioned in PR)
+Branch: src/pages/design-mocks/issue-{N}.tsx      (main mock page with tabs)
+Branch: src/pages/design-mocks/components/issue-{N}-optA.tsx (mock options)
 ```
 
-**Design Agent Flow:**
+**Product Design Agent — 3 Possible Outcomes:**
+
+1. **Design Options Ready** (new designs with 2+ mock options)
+   - Agent writes React mock pages to `src/pages/design-mocks/`
+   - Creates decision for admin to choose between options
+   - Notification: `[Choose Recommended]` `[All Options]` `[Preview Mocks]` `[Request Changes]`
+
+2. **Design Ready** (feedback/clarification mode, or <2 options)
+   - Agent completes/revises design document
+   - Notification: `[Approve]` `[Request Changes]` `[View PR]`
+
+3. **Clarification Needed** (ambiguous requirements)
+   - Agent posts question on issue
+   - Notification: `[Answer Questions]` `[View Issue]`
+
+**Design Agent Flow (all design agents):**
 
 1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md` on branch + saves to S3
 2. **Agent creates branch** → `design/issue-{N}-product` or `design/issue-{N}-tech`
 3. **Agent creates PR** → `docs: product design for issue #123`
-4. **Product Design (new designs)**: Generates 2-3 React mock options → creates decision for admin selection → Telegram notification with `[Choose Design]` and `[Request Changes]` buttons
-5. **Other designs / feedback mode**: Telegram notification with `[Approve]` and `[Request Changes]` buttons
-6. **Admin approves** → design read from S3 → artifact comment updated → status advances (PR stays open, NOT merged)
-7. **On feature Done** → open design PRs are closed and branches deleted
+4. **Admin approves/selects** → design read from S3 → artifact comment updated → status advances (PR stays open, NOT merged)
+5. **On feature Done** → open design PRs are closed and branches deleted
 
 **Feedback Mode:**
 When admin clicks "Request Changes":
