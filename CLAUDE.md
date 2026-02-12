@@ -78,7 +78,7 @@ Single API endpoint pattern with React Query. Use this when creating/calling API
 **Summary:** All APIs route through `/api/process/{api_name}`. Components use React Query hooks, never call API client functions directly. All domain types in `apis/<domain>/types.ts`.
 
 **Docs:** [api-endpoint-format.md](docs/template/api-endpoint-format.md)
-**Rules:** [client-server-communications](.ai/skills/template/client-server-communications/SKILL.md)
+**Rules:** [client-server-communications](docs/template/project-guidelines/client-server-communications.md)
 
 ---
 
@@ -89,16 +89,6 @@ Guidelines for handling and displaying errors across the application. Use this w
 **Summary:** Use `ErrorDisplay` for route/page errors, `errorToast`/`errorToastAuto` for mutation failures, and shared `errorUtils` for classification. Stack traces are admin-only. Never show raw error messages to users.
 
 **Docs:** [error-handling.md](docs/template/error-handling.md), [logging-and-error-tracking.md](docs/template/logging-and-error-tracking.md), [react-query-mutations.md](docs/template/react-query-mutations.md)
-
----
-
-## Mobile-First Philosophy
-
-All UI must be designed for mobile screens first (~400px width). Use this when implementing any UI.
-
-**Summary:** Design for 400px width first, then enhance with `sm:`, `md:`, `lg:` modifiers. Touch targets minimum 44px.
-
-**Rules:** [ui-mobile-first-shadcn](.ai/skills/template/ui-mobile-first-shadcn/SKILL.md)
 
 ---
 
@@ -119,7 +109,7 @@ Dual-store architecture for PWA with offline support. Use this when managing app
 **Summary:** React Query for server/API data, Zustand for all client state (default persistent), useState ONLY for truly ephemeral UI (text input, dialog open, in-flight submission, confirm dialog). All Zustand stores MUST use `createStore` factory from `@/client/stores`.
 
 **Docs:** [state-management.md](docs/template/state-management.md), [react-query-mutations.md](docs/template/react-query-mutations.md), [zustand-stores.md](docs/template/zustand-stores.md)
-**Rules:** [state-management-guidelines](.ai/skills/template/state-management-guidelines/SKILL.md)
+**Rules:** [state-management-guidelines](docs/template/project-guidelines/state-management-guidelines.md)
 
 ---
 
@@ -145,22 +135,6 @@ Config files use a split pattern for template updates without losing project cus
 - TypeScript: Add `tsconfig.json` to `projectOverrides` if you need custom excludes
 
 **Docs:** [config-files.md](docs/template/config-files.md)
-
----
-
-## Feature-Based Structure
-
-Feature-based folder structure for client code. Use this when organizing client-side code.
-
-**Summary:** All code related to a feature lives together in `src/client/features/{name}/`. Features contain stores, hooks, components, and types. All stores MUST use `createStore` factory.
-
-**Key Points:**
-- `features/` - Cross-route features (auth, settings, theme)
-- `routes/` - Route-specific code (only used by that route)
-- `components/` - Shared UI primitives only (shadcn components)
-- Import from feature index, not internal files
-
-**Rules:** [feature-based-structure](.ai/skills/template/feature-based-structure/SKILL.md)
 
 ---
 
@@ -191,32 +165,7 @@ Database layer patterns and schema evolution. Use this when working with MongoDB
 **Summary:** All operations in `src/server/database/collections/`. Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/utils`. **CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility.**
 
 **Docs:** [mongodb-usage.md](docs/template/mongodb-usage.md)
-**Rules:** [mongodb-usage](.ai/skills/template/mongodb-usage/SKILL.md)
-
----
-
-## React Components
-
-Component organization and patterns. Use this when creating/organizing components.
-
-**Summary:** Feature-based organization with small, focused components (<150 lines). Route-specific code in route folder, shared features in `features/`. **CRITICAL: Always check Loading → Error → Empty → Data order.**
-
-**Rules:** [react-component-organization](.ai/skills/template/react-component-organization/SKILL.md)
-
----
-
-## React Hook Organization
-
-React Query hooks and Zustand integration patterns. Use this when creating data fetching hooks.
-
-**Summary:** React Query for server state, Zustand for client state. Colocate hooks in `hooks.ts` within route or feature folder. All mutations must handle empty `{}` responses (offline mode).
-
-**Key Points:**
-- Query hooks: use `useQueryDefaults()` for centralized cache config
-- Mutation hooks: optimistic updates in `onMutate`, rollback on error, empty `onSuccess`/`onSettled`
-- **CRITICAL:** Check `data === undefined` alongside `isLoading` - only show empty state when data is defined AND empty
-
-**Rules:** [react-hook-organization](.ai/skills/template/react-hook-organization/SKILL.md)
+**Rules:** [mongodb-usage](docs/template/project-guidelines/mongodb-usage.md)
 
 ---
 
@@ -230,32 +179,6 @@ Common pitfalls causing infinite re-renders. Use this when debugging render loop
 
 ---
 
-## Routes & Navigation
-
-Adding routes and keeping navigation menus in sync. Use this when adding client routes.
-
-**Summary:** Routes defined in `src/client/routes/index.ts`. Add to `navItems`/`menuItems` in `NavLinks.tsx` if user-accessible. Options: `public`, `fullScreen`, `adminOnly`.
-
-**Rules:** [pages-and-routing-guidelines](.ai/skills/template/pages-and-routing-guidelines/SKILL.md)
-
----
-
-## Settings Usage
-
-User preferences and configuration patterns. Use this when implementing persistent user settings.
-
-**Summary:** Use `useSettingsStore` from `@/client/features/settings` for all user preferences. Settings automatically persist to localStorage via Zustand.
-
-**Key Points:**
-- Subscribe to specific slices: `useSettingsStore((state) => state.settings.theme)`
-- Update with: `updateSettings({ fieldName: value })`
-- Use `useEffectiveOffline()` for combined offline detection (user toggle OR device offline)
-- Add new fields in `types.ts` with defaults
-
-**Rules:** [settings-usage-guidelines](.ai/skills/template/settings-usage-guidelines/SKILL.md)
-
----
-
 ## Theming System
 
 Application theming with semantic color tokens. Use this when customizing colors and themes.
@@ -266,16 +189,6 @@ Application theming with semantic color tokens. Use this when customizing colors
 
 ---
 
-## TypeScript
-
-Strict TypeScript guidelines. Use this when writing TypeScript code.
-
-**Summary:** Strict mode enabled, no `any` types allowed. Prefer union types over enums. All domain types in `apis/<domain>/types.ts`.
-
-**Rules:** [typescript-guidelines](.ai/skills/template/typescript-guidelines/SKILL.md)
-
----
-
 ## UI & Styling
 
 shadcn/ui components with semantic theming. Use this when adding/editing UI components.
@@ -283,38 +196,7 @@ shadcn/ui components with semantic theming. Use this when adding/editing UI comp
 **Summary:** Use shadcn/ui as the ONLY component library. All colors must use semantic tokens (`bg-background`, `text-foreground`), never hardcode colors (`bg-white`, `text-black`).
 
 **Docs:** [shadcn-component-library.md](docs/template/shadcn-component-library.md), [theming.md](docs/template/theming.md)
-**Rules:** [shadcn-usage](.ai/skills/template/shadcn-usage/SKILL.md), [theming-guidelines](.ai/skills/template/theming-guidelines/SKILL.md), [ui-design-guidelines](.ai/skills/template/ui-design-guidelines/SKILL.md)
-
----
-
-## User Access
-
-Accessing authenticated user in client and server code. Use this when implementing user-specific features.
-
-**Summary:** Client: use `useAuth()` hook to get `user` object. Server: use `context.userId` from `ApiHandlerContext` (derived from JWT token).
-
-**Key Points:**
-- Client: `const { user } = useAuth(); const userId = user?.id;`
-- Server: `const userId = context.userId;` - always check if undefined
-- Server `userId` is `undefined` if token is invalid or missing
-
-**Rules:** [user-access](.ai/skills/template/user-access/SKILL.md)
-
----
-
-## AI Model API Usage
-
-Server-side AI model integration patterns. Use this when calling AI APIs.
-
-**Summary:** Never call AI APIs directly - always use `AIModelAdapter` from `src/server/ai/baseModelAdapter.ts`. Server-side only, include caching and cost tracking.
-
-**Key Points:**
-- All AI calls must be server-side only
-- Validate model IDs using `isModelExists()` before adapter initialization
-- Always return 200 status codes with error fields, never throw uncaught errors
-- Track and return cost of each AI call
-
-**Rules:** [ai-models-api-usage](.ai/skills/template/ai-models-api-usage/SKILL.md)
+**Rules:** [shadcn-usage](docs/template/project-guidelines/shadcn-usage.md), [theming-guidelines](docs/template/project-guidelines/theming-guidelines.md), [ui-design-guidelines](docs/template/project-guidelines/ui-design-guidelines.md)
 
 ---
 
@@ -325,22 +207,6 @@ Common deployment pitfalls. Use this before deploying to production.
 **Summary:** Always run `vercel link` first. Verify env vars match with `yarn verify-production`. Use `src/pages/` not `pages/`.
 
 **Docs:** [critical-deployment-issues.md](docs/template/critical-deployment-issues.md)
-
----
-
-## ESLint Custom Rules
-
-Custom ESLint rules and when to use disable comments. Use this when fixing lint issues.
-
-**Summary:** Never use ESLint disable comments unless specifically instructed. Exception - `state-management/prefer-state-architecture` - add disable comment WITH explanation for valid `useState` usage.
-
-**Key Points:**
-- Valid `useState` justifications: text input before submission, dialog/modal open state, in-flight submission indicator, confirm dialog visibility
-- Most UI state (filters, view mode, sort, collapsed sections, tabs) MUST use Zustand — not useState
-- If warning triggers and none of the 4 valid cases apply: use React Query (API data) or Zustand (everything else)
-- Always run `yarn checks` after fixing lint issues
-
-**Rules:** [eslint-custom-guidelines](.ai/skills/template/eslint-custom-guidelines/SKILL.md)
 
 ---
 
@@ -381,7 +247,7 @@ CLI for managing Vercel deployments and env vars. Use this for deployment operat
 **Summary:** Run `vercel link` first. **CRITICAL: Never use `npx vercel env add` with piped input** - use `yarn vercel-cli env:sync` instead. Commands - `yarn vercel-cli list`, `yarn vercel-cli env:sync`, `yarn vercel-cli logs`.
 
 **Docs:** [vercel-cli-guide.md](docs/template/vercel-cli-guide.md)
-**Rules:** [vercel-cli-usage](.ai/skills/template/vercel-cli-usage/SKILL.md)
+**Rules:** [vercel-cli-usage](docs/template/project-guidelines/vercel-cli-usage.md)
 
 ---
 
@@ -519,6 +385,142 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 - Telegram notifications sent for auto-submits and manual submissions
 
 **Docs:** [bug-investigation.md](docs/template/github-agents-workflow/bug-investigation.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md), [setup-guide.md](docs/template/github-agents-workflow/setup-guide.md)
+
+---
+
+# project-guidelines
+
+## Mobile-First Philosophy
+
+All UI must be designed for mobile screens first (~400px width). Use this when implementing any UI.
+
+**Summary:** Design for 400px width first, then enhance with `sm:`, `md:`, `lg:` modifiers. Touch targets minimum 44px.
+
+**Docs:** [ui-mobile-first-shadcn.md](docs/template/project-guidelines/ui-mobile-first-shadcn.md)
+
+---
+
+## Feature-Based Structure
+
+Feature-based folder structure for client code. Use this when organizing client-side code.
+
+**Summary:** All code related to a feature lives together in `src/client/features/{name}/`. Features contain stores, hooks, components, and types. All stores MUST use `createStore` factory.
+
+**Key Points:**
+- `features/` - Cross-route features (auth, settings, theme)
+- `routes/` - Route-specific code (only used by that route)
+- `components/` - Shared UI primitives only (shadcn components)
+- Import from feature index, not internal files
+
+**Docs:** [feature-based-structure.md](docs/template/project-guidelines/feature-based-structure.md)
+
+---
+
+## React Components
+
+Component organization and patterns. Use this when creating/organizing components.
+
+**Summary:** Feature-based organization with small, focused components (<150 lines). Route-specific code in route folder, shared features in `features/`. **CRITICAL: Always check Loading → Error → Empty → Data order.**
+
+**Docs:** [react-component-organization.md](docs/template/project-guidelines/react-component-organization.md), [react-hook-organization.md](docs/template/project-guidelines/react-hook-organization.md), [feature-based-structure.md](docs/template/project-guidelines/feature-based-structure.md)
+
+---
+
+## React Hook Organization
+
+React Query hooks and Zustand integration patterns. Use this when creating data fetching hooks.
+
+**Summary:** React Query for server state, Zustand for client state. Colocate hooks in `hooks.ts` within route or feature folder. All mutations must handle empty `{}` responses (offline mode).
+
+**Key Points:**
+- Query hooks: use `useQueryDefaults()` for centralized cache config
+- Mutation hooks: optimistic updates in `onMutate`, rollback on error, empty `onSuccess`/`onSettled`
+- **CRITICAL:** Check `data === undefined` alongside `isLoading` - only show empty state when data is defined AND empty
+
+**Docs:** [react-hook-organization.md](docs/template/project-guidelines/react-hook-organization.md)
+
+---
+
+## Routes & Navigation
+
+Adding routes and keeping navigation menus in sync. Use this when adding client routes.
+
+**Summary:** Routes defined in `src/client/routes/index.ts`. Add to `navItems`/`menuItems` in `NavLinks.tsx` if user-accessible. Options: `public`, `fullScreen`, `adminOnly`.
+
+**Docs:** [pages-and-routing-guidelines.md](docs/template/project-guidelines/pages-and-routing-guidelines.md)
+
+---
+
+## Settings Usage
+
+User preferences and configuration patterns. Use this when implementing persistent user settings.
+
+**Summary:** Use `useSettingsStore` from `@/client/features/settings` for all user preferences. Settings automatically persist to localStorage via Zustand.
+
+**Key Points:**
+- Subscribe to specific slices: `useSettingsStore((state) => state.settings.theme)`
+- Update with: `updateSettings({ fieldName: value })`
+- Use `useEffectiveOffline()` for combined offline detection (user toggle OR device offline)
+- Add new fields in `types.ts` with defaults
+
+**Docs:** [settings-usage-guidelines.md](docs/template/project-guidelines/settings-usage-guidelines.md)
+
+---
+
+## TypeScript
+
+Strict TypeScript guidelines. Use this when writing TypeScript code.
+
+**Summary:** Strict mode enabled, no `any` types allowed. Prefer union types over enums. All domain types in `apis/<domain>/types.ts`.
+
+**Docs:** [typescript-guidelines.md](docs/template/project-guidelines/typescript-guidelines.md)
+
+---
+
+## User Access
+
+Accessing authenticated user in client and server code. Use this when implementing user-specific features.
+
+**Summary:** Client: use `useAuth()` hook to get `user` object. Server: use `context.userId` from `ApiHandlerContext` (derived from JWT token).
+
+**Key Points:**
+- Client: `const { user } = useAuth(); const userId = user?.id;`
+- Server: `const userId = context.userId;` - always check if undefined
+- Server `userId` is `undefined` if token is invalid or missing
+
+**Docs:** [user-access.md](docs/template/project-guidelines/user-access.md)
+
+---
+
+## AI Model API Usage
+
+Server-side AI model integration patterns. Use this when calling AI APIs.
+
+**Summary:** Never call AI APIs directly - always use `AIModelAdapter` from `src/server/ai/baseModelAdapter.ts`. Server-side only, include caching and cost tracking.
+
+**Key Points:**
+- All AI calls must be server-side only
+- Validate model IDs using `isModelExists()` before adapter initialization
+- Always return 200 status codes with error fields, never throw uncaught errors
+- Track and return cost of each AI call
+
+**Docs:** [ai-models-api-usage.md](docs/template/project-guidelines/ai-models-api-usage.md)
+
+---
+
+## ESLint Custom Rules
+
+Custom ESLint rules and when to use disable comments. Use this when fixing lint issues.
+
+**Summary:** Never use ESLint disable comments unless specifically instructed. Exception - `state-management/prefer-state-architecture` - add disable comment WITH explanation for valid `useState` usage.
+
+**Key Points:**
+- Valid `useState` justifications: text input before submission, dialog/modal open state, in-flight submission indicator, confirm dialog visibility
+- Most UI state (filters, view mode, sort, collapsed sections, tabs) MUST use Zustand — not useState
+- If warning triggers and none of the 4 valid cases apply: use React Query (API data) or Zustand (everything else)
+- Always run `yarn checks` after fixing lint issues
+
+**Docs:** [eslint-custom-guidelines.md](docs/template/project-guidelines/eslint-custom-guidelines.md)
 
 ---
 

@@ -96,4 +96,4 @@ task-cli edit app-template:agent:all --config=./agent-tasks/all/config.json
 
 This folder is **not synced** from the template. Each child project needs its own configuration.
 
-Use `/setup-agent-tasks` skill or see [setup-agent-tasks skill](.ai/skills/template/setup-agent-tasks/SKILL.md) for instructions.
+Use `/setup-agent-tasks` skill or see [setup-agent-tasks guideline](docs/template/project-guidelines/setup-agent-tasks.md) for instructions.

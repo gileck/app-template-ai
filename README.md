@@ -131,9 +131,9 @@ The sync system will:
 - 🏪 [State Management](docs/state-management.md) - React Query + Zustand patterns
 - 🏗️ [Zustand Stores](docs/zustand-stores.md) - Store factory usage
 - 🎨 [shadcn/ui Components](docs/shadcn-component-library.md) - UI component library
-- 🔌 [API Communication](.ai/skills/client-server-communications/SKILL.md) - Client-server patterns
-- 📁 [Feature Structure](.ai/skills/feature-based-structure/SKILL.md) - Code organization
-- 🗄️ [MongoDB Usage](.ai/skills/mongodb-usage/SKILL.md) - Database patterns
+- 🔌 [API Communication](docs/template/project-guidelines/client-server-communications.md) - Client-server patterns
+- 📁 [Feature Structure](docs/template/project-guidelines/feature-based-structure.md) - Code organization
+- 🗄️ [MongoDB Usage](docs/template/project-guidelines/mongodb-usage.md) - Database patterns
 
 ## Available Scripts
 
@@ -279,7 +279,7 @@ mkdir -p src/client/features/my-feature
 touch src/client/features/my-feature/{index.ts,store.ts,hooks.ts,types.ts}
 ```
 
-See [feature-based-structure](.ai/skills/feature-based-structure/SKILL.md) for details.
+See [feature-based-structure](docs/template/project-guidelines/feature-based-structure.md) for details.
 
 ## Deployment
 

@@ -88,7 +88,7 @@ cd src/client/features/my-feature
 touch index.ts store.ts hooks.ts types.ts
 ```
 
-See [feature-based-structure](.ai/skills/feature-based-structure/SKILL.md) for details.
+See [feature-based-structure](docs/template/project-guidelines/feature-based-structure.md) for details.
 
 ### 11. Add Your First Route
 ```bash
@@ -96,7 +96,7 @@ mkdir -p src/client/routes/MyPage
 touch src/client/routes/MyPage/page.tsx
 ```
 
-See [pages-and-routing-guidelines](.ai/skills/pages-and-routing-guidelines/SKILL.md) for details.
+See [pages-and-routing-guidelines](docs/template/project-guidelines/pages-and-routing-guidelines.md) for details.
 
 ### 12. Create Your First API
 ```bash
@@ -107,7 +107,7 @@ touch index.ts types.ts server.ts client.ts
 
 Register it in `src/apis/apis.ts`.
 
-See [client-server-communications](.ai/skills/client-server-communications/SKILL.md) for details.
+See [client-server-communications](docs/template/project-guidelines/client-server-communications.md) for details.
 
 ## Deployment
 
@@ -219,8 +219,8 @@ PORT=3001 yarn dev
 - 📚 [Template Sync Guide](docs/template-sync/template-sync.md)
 - 🏪 [State Management](docs/state-management.md)
 - 🎨 [shadcn/ui Components](docs/shadcn-component-library.md)
-- 🗄️ [MongoDB Usage](.ai/skills/mongodb-usage/SKILL.md)
-- 📁 [Feature Structure](.ai/skills/feature-based-structure/SKILL.md)
+- 🗄️ [MongoDB Usage](docs/template/project-guidelines/mongodb-usage.md)
+- 📁 [Feature Structure](docs/template/project-guidelines/feature-based-structure.md)
 
 ## Getting Help
 

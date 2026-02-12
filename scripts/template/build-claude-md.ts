@@ -211,8 +211,8 @@ function generateSection(entry: DocEntry): string {
     // Rules (resolve from skills folder)
     if (entry.related_rules && entry.related_rules.length > 0) {
       const ruleLinks = entry.related_rules.map(rule => {
-        const skillPath = `.ai/skills/${entry.source}/${rule}/SKILL.md`;
-        return `[${rule}](${skillPath})`;
+        const rulePath = `docs/${entry.source}/project-guidelines/${rule}.md`;
+        return `[${rule}](${rulePath})`;
       });
       linkParts.push(`**Rules:** ${ruleLinks.join(', ')}`);
     }

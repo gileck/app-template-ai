@@ -357,9 +357,9 @@ npx shadcn@latest add dropdown-menu
 ## Related Documentation
 
 - **Full Component Guide**: [docs/shadcn-component-library.md](mdc:docs/shadcn-component-library.md)
-- **Mobile-first Patterns**: [.ai/skills/ui-mobile-first-shadcn/SKILL.md](mdc:.ai/skills/ui-mobile-first-shadcn/SKILL.md)
-- **UI Design Guidelines**: [.ai/skills/ui-design-guidelines/SKILL.md](mdc:.ai/skills/ui-design-guidelines/SKILL.md)
-- **Component Organization**: [.ai/skills/react-component-organization/SKILL.md](mdc:.ai/skills/react-component-organization/SKILL.md)
+- **Mobile-first Patterns**: [ui-mobile-first-shadcn.md](mdc:docs/template/project-guidelines/ui-mobile-first-shadcn.md)
+- **UI Design Guidelines**: [ui-design-guidelines.md](mdc:docs/template/project-guidelines/ui-design-guidelines.md)
+- **Component Organization**: [react-component-organization.md](mdc:docs/template/project-guidelines/react-component-organization.md)
 
 ## Quick Reference
 

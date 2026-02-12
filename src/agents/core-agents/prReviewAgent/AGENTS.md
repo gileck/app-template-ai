@@ -571,14 +571,14 @@ This ensures:
 
 The agent checks compliance with:
 ```markdown
-**IMPORTANT**: Check compliance with project guidelines in `.ai/skills/`:
-- TypeScript guidelines (`.ai/skills/typescript-guidelines/SKILL.md`)
-- React patterns (`.ai/skills/react-component-organization/SKILL.md`, `.ai/skills/react-hook-organization/SKILL.md`)
-- State management (`.ai/skills/state-management-guidelines/SKILL.md`)
-- UI/UX patterns (`.ai/skills/ui-design-guidelines/SKILL.md`, `.ai/skills/shadcn-usage/SKILL.md`)
-- File organization (`.ai/skills/feature-based-structure/SKILL.md`)
-- API patterns (`.ai/skills/client-server-communications/SKILL.md`)
-- Comprehensive checklist (`.ai/skills/app-guidelines-checklist/SKILL.md`)
+**IMPORTANT**: Check compliance with project guidelines in `docs/template/project-guidelines/`:
+- TypeScript guidelines (`docs/template/project-guidelines/typescript-guidelines.md`)
+- React patterns (`docs/template/project-guidelines/react-component-organization.md`, `docs/template/project-guidelines/react-hook-organization.md`)
+- State management (`docs/template/project-guidelines/state-management-guidelines.md`)
+- UI/UX patterns (`docs/template/project-guidelines/ui-design-guidelines.md`, `docs/template/project-guidelines/shadcn-usage.md`)
+- File organization (`docs/template/project-guidelines/feature-based-structure.md`)
+- API patterns (`docs/template/project-guidelines/client-server-communications.md`)
+- Comprehensive checklist (`docs/template/project-guidelines/app-guidelines-checklist.md`)
 ```
 
 ### Phase-Specific Checks (Multi-Phase)
@@ -1049,7 +1049,7 @@ rm -f ${LOCKFILE}
 - **PR Merge Flow:** `docs/github-projects-integration.md#pr-merge-flow-admin-approval`
 - **Multi-PR workflow:** `docs/github-projects-integration.md#multi-pr-workflow-lxl-features`
 - **Phase architecture:** `docs/github-projects-integration.md#phase-storage--retrieval`
-- **Project guidelines:** `.ai/skills/`
+- **Project guidelines:** `docs/template/project-guidelines/`
 - **Phase utilities:** `src/agents/lib/phases.ts`
 - **Commit message utilities:** `src/agents/lib/commitMessage.ts`
 - **Telegram webhook handlers:** `src/pages/api/telegram-webhook.ts`

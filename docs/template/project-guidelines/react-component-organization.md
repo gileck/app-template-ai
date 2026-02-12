@@ -4,9 +4,9 @@ description: Component organization and patterns. Use this when creating/organiz
 title: React Components
 summary: "Feature-based organization with small, focused components (<150 lines). Route-specific code in route folder, shared features in `features/`. **CRITICAL: Always check Loading → Error → Empty → Data order.**"
 priority: 3
-related_rules:
-  - react-hook-organization
-  - feature-based-structure
+related_docs:
+  - react-hook-organization.md
+  - feature-based-structure.md
 ---
 # React Component Organization Pattern
 

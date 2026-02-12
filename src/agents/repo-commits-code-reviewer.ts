@@ -240,7 +240,7 @@ You have read-only tools (Read, Glob, Grep) available. **You MUST use them befor
 ### Step 1: Read Project Guidelines
 Start by reading the project's guidelines and architecture docs:
 - Read \`CLAUDE.md\` in the project root — this is the source of truth for all coding standards, patterns, and architectural decisions.
-- Based on the files changed in the commits, read the relevant docs from \`docs/\` and skill rules from \`.ai/skills/\` that apply (e.g., if the commit touches React components, read the React component organization rules; if it touches API code, read the client-server communication docs).
+- Based on the files changed in the commits, read the relevant docs from \`docs/\` and project guidelines from \`docs/template/project-guidelines/\` that apply (e.g., if the commit touches React components, read the React component organization rules; if it touches API code, read the client-server communication docs).
 
 ### Step 2: Read the Full Current Source Files
 For each file mentioned in the commits, **read the full current file**. You need the complete current source to understand:

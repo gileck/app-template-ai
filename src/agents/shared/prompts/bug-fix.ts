@@ -100,7 +100,7 @@ Implement the bug fix as specified in ${implementationSource}:
 
 ## Implementation Guidelines
 
-**Follow project guidelines in \`.ai/skills/\`** (TypeScript, React, state management patterns)
+**Follow project guidelines in \`docs/template/project-guidelines/\`** (TypeScript, React, state management patterns)
 
 Key principles for bug fixes:
 - **Be minimal**: Bug fixes should change as little code as possible
@@ -230,7 +230,7 @@ ${reviewComments || 'No PR review comments'}
 
 ## Guidelines
 
-**Follow project guidelines in \`.ai/skills/\`** (same as initial implementation)
+**Follow project guidelines in \`docs/template/project-guidelines/\`** (same as initial implementation)
 
 ${THEMING_INSTRUCTIONS}
 
@@ -239,7 +239,7 @@ Key principles:
 - Keep changes focused on the feedback
 - Don't expand the fix scope beyond what's necessary
 - Bug fixes should change as little code as possible
-- Follow TypeScript, React, and state management patterns from \`.ai/skills/\`
+- Follow TypeScript, React, and state management patterns from \`docs/template/project-guidelines/\`
 
 ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 

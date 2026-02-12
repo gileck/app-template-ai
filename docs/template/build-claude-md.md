@@ -29,8 +29,8 @@ key_points:    # optional
   - Point 2
 related_docs:  # optional, relative paths
   - other-doc.md
-related_rules: # optional, skill folder names
-  - skill-name
+related_rules: # optional, project guideline names (resolves to docs/template/project-guidelines/)
+  - guideline-name
 ---
 ```
 

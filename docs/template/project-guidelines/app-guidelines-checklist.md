@@ -100,7 +100,7 @@ Review all UI components to ensure shadcn/ui is used exclusively:
 - Confirm controlled components are used (Dialog, Select, Switch with `open`/`value`/`checked` props)
 - Verify mobile-first responsive patterns with Sheet for mobile navigation
 
-**Reference**: See [shadcn-usage](mdc:.ai/skills/shadcn-usage/SKILL.md) for detailed guidelines and [docs/shadcn-component-library.md](mdc:docs/shadcn-component-library.md) for comprehensive component documentation
+**Reference**: See [shadcn-usage](mdc:docs/template/project-guidelines/shadcn-usage.md) for detailed guidelines and [docs/shadcn-component-library.md](mdc:docs/shadcn-component-library.md) for comprehensive component documentation
 
 ## 7. Server Code Check
 
