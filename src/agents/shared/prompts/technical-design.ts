@@ -5,7 +5,7 @@
  * the feature from a technical perspective.
  */
 
-import type { ProjectItemContent } from '@/server/project-management';
+import type { ProjectItemContent } from '@/server/template/project-management';
 import type { GitHubComment } from '../types';
 import {
     AMBIGUITY_INSTRUCTIONS,

@@ -1,8 +1,8 @@
 import { API_UPDATE_TODO } from '../index';
 import { ApiHandlerContext, UpdateTodoRequest, UpdateTodoResponse } from '../types';
 import { todos } from '@/server/database';
-import { toStringId } from '@/server/utils';
-import { sendTelegramNotificationToUser } from '@/server/telegram';
+import { toStringId } from '@/server/template/utils';
+import { sendTelegramNotificationToUser } from '@/server/template/telegram';
 
 export const updateTodo = async (
     request: UpdateTodoRequest,

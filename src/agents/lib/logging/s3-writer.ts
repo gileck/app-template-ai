@@ -11,7 +11,7 @@ import {
     deleteFile,
     fileExists,
     getS3Client,
-} from '@/server/s3/sdk';
+} from '@/server/template/s3/sdk';
 
 /**
  * Environment variable for S3 log bucket

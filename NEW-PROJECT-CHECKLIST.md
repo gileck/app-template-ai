@@ -60,7 +60,7 @@ If you don't need certain features:
 
 ```bash
 # Remove AI integrations
-rm -rf src/server/ai
+rm -rf src/server/template/ai
 # Update src/apis/apis.ts to remove AI API registrations
 
 # Remove example APIs

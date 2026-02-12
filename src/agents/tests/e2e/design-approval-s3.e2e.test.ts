@@ -82,7 +82,7 @@ vi.mock('@/agents/shared/config', async (importOriginal) => {
 // IMPORTS — after mocks
 // ============================================================
 
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES } from '@/server/template/project-management/config';
 import { resetNotifications, capturedNotifications } from './mocks/mock-notifications';
 import { resetDesignFiles, getS3Docs } from './mocks/mock-design-files';
 import { setupBoundaries, teardownBoundaries, type TestBoundaries } from './testkit/setup-boundaries';
@@ -195,7 +195,7 @@ describe('Design Approval S3 Flow', () => {
         await saveDesignToS3(issueNumber, 'product', '# Product Design\n\nDesign for notifications feature');
 
         // Call approveDesign
-        const { approveDesign } = await import('@/server/workflow-service');
+        const { approveDesign } = await import('@/server/template/workflow-service');
         const result = await approveDesign(issueNumber, prResult.number, 'product');
 
         expect(result.success).toBe(true);
@@ -246,7 +246,7 @@ Build React components for the dashboard.
         await saveDesignToS3(issueNumber, 'tech', techDesignContent);
 
         // Call approveDesign
-        const { approveDesign } = await import('@/server/workflow-service');
+        const { approveDesign } = await import('@/server/template/workflow-service');
         const result = await approveDesign(issueNumber, prResult.number, 'tech');
 
         expect(result.success).toBe(true);
@@ -334,7 +334,7 @@ Build React components for the dashboard.
         await saveDesignToS3(issueNumber, 'product-dev', '# Product Development\n\nOnboarding flow requirements.');
 
         // Call approveDesign
-        const { approveDesign } = await import('@/server/workflow-service');
+        const { approveDesign } = await import('@/server/template/workflow-service');
         const result = await approveDesign(issueNumber, prResult.number, 'product-dev');
 
         expect(result.success).toBe(true);

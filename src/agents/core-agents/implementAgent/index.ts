@@ -667,7 +667,7 @@ export async function processItem(
         }
 
         // Update status to PR Review and set review status via workflow service
-        const { completeAgentRun } = await import('@/server/workflow-service');
+        const { completeAgentRun } = await import('@/server/template/workflow-service');
         await completeAgentRun(issueNumber, 'implementation', {
             status: STATUSES.prReview,
             reviewStatus: REVIEW_STATUSES.waitingForReview,

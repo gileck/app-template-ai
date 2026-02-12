@@ -9,8 +9,8 @@ import type {
     PerformanceEntryData,
     BugCategory,
 } from '@/server/database/collections/template/reports/types';
-import { REVIEW_STATUSES } from '@/server/project-management/config';
-import type { ProjectManagementAdapter } from '@/server/project-management/types';
+import { REVIEW_STATUSES } from '@/server/template/project-management/config';
+import type { ProjectManagementAdapter } from '@/server/template/project-management/types';
 import type { CommonCLIOptions } from './types';
 import { notifyAgentNeedsClarification } from './notifications';
 import { addAgentPrefix, type AgentName } from './agent-identity';
@@ -255,7 +255,7 @@ export async function handleClarificationRequest(
     console.log('  Comment added with clarification request');
 
     // Set review status via workflow service (import from leaf module to avoid circular dep)
-    const { updateReviewStatus } = await import('@/server/workflow-service/review-status');
+    const { updateReviewStatus } = await import('@/server/template/workflow-service/review-status');
     await updateReviewStatus(issueNumber, REVIEW_STATUSES.waitingForClarification, {
         logAction: 'clarification_requested',
         logDescription: `Agent requested clarification during ${phase}`,

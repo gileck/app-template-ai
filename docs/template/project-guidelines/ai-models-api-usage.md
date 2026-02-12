@@ -3,7 +3,7 @@ name: ai-models-api-usage
 description: Server-side AI model integration patterns. Use this when calling AI APIs.
 title: AI Model API Usage
 guidelines:
-  - "NEVER call AI APIs directly — always use `AIModelAdapter` from `src/server/ai/baseModelAdapter.ts`"
+  - "NEVER call AI APIs directly — always use `AIModelAdapter` from `src/server/template/ai/baseModelAdapter.ts`"
   - "All AI calls MUST be server-side only — never expose API keys client-side"
   - "Validate model IDs using `isModelExists()` before adapter initialization"
   - "Always return 200 status codes with error fields, never throw uncaught errors"
@@ -14,12 +14,12 @@ priority: 4
 
 ## Core Principles
 
-**NEVER use AI models directly** - Always use the adapter pattern defined in [src/server/ai/baseModelAdapter.ts](mdc:src/server/ai/baseModelAdapter.ts).
+**NEVER use AI models directly** - Always use the adapter pattern defined in [src/server/template/ai/baseModelAdapter.ts](mdc:src/server/template/ai/baseModelAdapter.ts).
 
 ### ✅ Required Practices
 
 1. **Server-Side Only**: All AI calls must be server-side only - never call AI APIs from client-side code
-2. **Use Adapter Pattern**: Always use `AIModelAdapter` from [src/server/ai/baseModelAdapter.ts](mdc:src/server/ai/baseModelAdapter.ts)
+2. **Use Adapter Pattern**: Always use `AIModelAdapter` from [src/server/template/ai/baseModelAdapter.ts](mdc:src/server/template/ai/baseModelAdapter.ts)
 3. **Include Caching**: All AI calls must include caching to reduce costs and improve performance
 4. **Proper Error Handling**: Always return 200 status codes with error fields, never throw uncaught errors
 5. **Cost Tracking**: Always track and return the cost of each AI call
@@ -28,7 +28,7 @@ priority: 4
 
 AI-related code should follow this structure:
 ```
-src/server/ai/
+src/server/template/ai/
   adapters/
     openai.ts       - OpenAI-specific implementation
     anthropic.ts    - Anthropic-specific implementation
@@ -40,7 +40,7 @@ src/server/ai/
 
 ### Model ID Handling Pattern
 
-Use [src/server/ai/models.ts](mdc:src/server/ai/models.ts) for consistent model definitions across client and server.
+Use [src/server/template/ai/models.ts](mdc:src/server/template/ai/models.ts) for consistent model definitions across client and server.
 
 #### Client-Side Model Selection
 ```typescript
@@ -213,8 +213,8 @@ async function generateAIResponse(userInput: string) {
 
 ### Implementation Checklist
 
-- [ ] Using `AIModelAdapter` from [src/server/ai/baseModelAdapter.ts](mdc:src/server/ai/baseModelAdapter.ts)
-- [ ] Model definitions imported from [src/server/ai/models.ts](mdc:src/server/ai/models.ts)
+- [ ] Using `AIModelAdapter` from [src/server/template/ai/baseModelAdapter.ts](mdc:src/server/template/ai/baseModelAdapter.ts)
+- [ ] Model definitions imported from [src/server/template/ai/models.ts](mdc:src/server/template/ai/models.ts)
 - [ ] Model ID validation using `isModelExists()` before adapter initialization
 - [ ] Model ID passed dynamically from API request, not hardcoded
 - [ ] Client-side model selection using shared model definitions

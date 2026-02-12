@@ -7,7 +7,7 @@
 // Load environment variables from .env.local and .env files
 import './loadEnv';
 
-// Configuration - re-exports from @/server/project-management plus agent-specific config
+// Configuration - re-exports from @/server/template/project-management plus agent-specific config
 export {
     // Status constants
     STATUSES,
@@ -39,10 +39,10 @@ export type {
     ListItemsOptions,
     CreateIssueResult,
     CreatePRResult,
-} from '@/server/project-management';
+} from '@/server/template/project-management';
 
 // Re-export the adapter getter
-export { getProjectManagementAdapter } from '@/server/project-management';
+export { getProjectManagementAdapter } from '@/server/template/project-management';
 
 // Agent-specific types
 export type {

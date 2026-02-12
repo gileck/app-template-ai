@@ -1,9 +1,9 @@
 import { DeleteReportRequest, DeleteReportResponse } from '../types';
 import { findReportById } from '@/server/database/collections/template/reports';
 import { ApiHandlerContext } from '@/apis/types';
-import { isObjectIdFormat } from '@/server/utils';
-import { fileStorageAPI } from '@/server/blob';
-import { deleteWorkflowItem } from '@/server/workflow-service';
+import { isObjectIdFormat } from '@/server/template/utils';
+import { fileStorageAPI } from '@/server/template/blob';
+import { deleteWorkflowItem } from '@/server/template/workflow-service';
 
 export const deleteReport = async (
     request: DeleteReportRequest,

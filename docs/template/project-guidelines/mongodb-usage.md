@@ -4,7 +4,7 @@ description: when accessing the database or a collection in the db
 title: MongoDB Usage
 guidelines:
   - "All MongoDB operations MUST be in `src/server/database/collections/` — never import `mongodb` directly in API handlers"
-  - "Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/utils` — never use `ObjectId` methods directly"
+  - "Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/template/utils` — never use `ObjectId` methods directly"
   - "CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility (`doc.field?.toISOString() ?? fallback`)"
   - "New fields must be optional (`?`) with nullish coalescing (`??`) defaults"
 priority: 3
@@ -18,11 +18,11 @@ priority: 3
 ### Core Principles
 1. All MongoDB operations in `src/server/database/collections/`
 2. Never import `mongodb` directly in API handlers
-3. Use `@/server/utils` for ID conversion
+3. Use `@/server/template/utils` for ID conversion
 
 ### ID Utilities
 ```typescript
-import { toStringId, toQueryId, toDocumentId } from '@/server/utils';
+import { toStringId, toQueryId, toDocumentId } from '@/server/template/utils';
 
 // API responses
 { _id: toStringId(doc._id) }
@@ -75,7 +75,7 @@ const getExercises = async () => {
 ### ❌ NEVER access collections directly from API layer:
 ```typescript
 // WRONG - This is forbidden
-import { getDb } from '@/server/database';
+import { getDb } from '@/server/template/database';
 
 const getExercises = async () => {
   const db = await getDb();
@@ -97,7 +97,7 @@ const item = await collection.findOne({
 });
 
 // CORRECT - Use server utilities
-import { toStringId, toQueryId } from '@/server/utils';
+import { toStringId, toQueryId } from '@/server/template/utils';
 
 const response = {
   _id: toStringId(doc._id),  // Works for both ObjectId and string
@@ -110,5 +110,5 @@ const item = await collection.findOne({
 
 ## Reference
 
-- **Server Utilities**: `src/server/utils/id.ts`
+- **Server Utilities**: `src/server/template/utils/id.ts`
 - **Mutation Guidelines**: `docs/react-query-mutations.md` (client-generated IDs)

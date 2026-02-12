@@ -1,6 +1,6 @@
 /**
  * Mock S3 SDK — in-memory storage for S3 operations.
- * Used by tests where agents call `import('@/server/s3/sdk')` directly.
+ * Used by tests where agents call `import('@/server/template/s3/sdk')` directly.
  */
 
 const storage = new Map<string, { content: string; contentType: string }>();

@@ -5,7 +5,7 @@ export type {
   Usage,
   AIModelResponse,
   AIModelAdapterResponse,
-} from '../../../server/ai/types';
+} from '../../../server/template/ai/types';
 
 // Chat API specific types
 export type ChatRequest = {

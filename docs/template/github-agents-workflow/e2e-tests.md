@@ -72,16 +72,16 @@ Three DI singletons are injected in `beforeAll` via `setupBoundaries()`:
 | 6 | `@/agents/lib/design-files` | Filesystem boundary — in-memory design docs |
 | 7 | `@/agents/agents.config` | Requires env vars not available in tests |
 | 8 | `@/agents/shared/config` | Requires env vars not available in tests |
-| 9 | `@/server/s3/sdk` | S3 boundary — in-memory storage for design docs |
+| 9 | `@/server/template/s3/sdk` | S3 boundary — in-memory storage for design docs |
 
 ### What Runs Real (via DI — no `vi.mock()`)
 
 | Module | What it exercises |
 |--------|-------------------|
-| `@/server/project-management` | Adapter injected via `setProjectManagementAdapter()` |
+| `@/server/template/project-management` | Adapter injected via `setProjectManagementAdapter()` |
 | `@/agents/shared/git-utils` | Delegates to `MockGitAdapter` via `setGitAdapter()` |
 | `@/agents/lib/workflow-db` | Real code against mongodb-memory-server |
-| `@/server/database` (all paths) | Real MongoDB connection to memory server |
+| `@/server/template/database` (all paths) | Real MongoDB connection to memory server |
 | `@/agents/lib/artifacts` | Real artifact management (uses adapter + MongoDB) |
 | `@/agents/lib/phases` | Real phase parsing |
 | `@/agents/lib/parsing` | Real output parsing |
@@ -123,7 +123,7 @@ The DI pattern uses getter/setter/reset for each boundary:
 | Boundary | Interface | Setter | Reset |
 |----------|-----------|--------|-------|
 | Git | `GitAdapter` in `src/agents/shared/git-adapter.ts` | `setGitAdapter()` | `resetGitAdapter()` |
-| Project Management | `ProjectManagementAdapter` in `src/server/project-management/index.ts` | `setProjectManagementAdapter()` | `resetProjectManagementAdapter()` |
+| Project Management | `ProjectManagementAdapter` in `src/server/template/project-management/index.ts` | `setProjectManagementAdapter()` | `resetProjectManagementAdapter()` |
 | MongoDB | Connection in `src/server/database/connection.ts` | `setMongoUri()` | `resetDbConnection()` |
 
 Production code is unchanged — `getGitAdapter()` lazy-loads `DefaultGitAdapter`, `getProjectManagementAdapter()` creates the real adapter, and `getDb()` uses `MONGO_URI` from env. Tests inject mocks before any agent code runs.

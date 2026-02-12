@@ -1,8 +1,8 @@
 import { ApiHandlerContext } from '@/apis/types';
 import { findWorkflowItemBySourceRef, findWorkflowItemById } from '@/server/database/collections/template/workflow-items';
-import { STATUSES } from '@/server/project-management/config';
-import { isObjectIdFormat } from '@/server/utils';
-import { routeWorkflowItemByWorkflowId, advanceStatus, setWorkflowStatus } from '@/server/workflow-service';
+import { STATUSES } from '@/server/template/project-management/config';
+import { isObjectIdFormat } from '@/server/template/utils';
+import { routeWorkflowItemByWorkflowId, advanceStatus, setWorkflowStatus } from '@/server/template/workflow-service';
 import type { UpdateWorkflowStatusRequest, UpdateWorkflowStatusResponse } from '../types';
 
 const VALID_STATUSES = new Set<string>(Object.values(STATUSES));

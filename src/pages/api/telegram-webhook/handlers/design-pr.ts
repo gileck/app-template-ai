@@ -3,7 +3,7 @@
  * Handlers for design PR operations (approve/request changes)
  */
 
-import { STATUSES, REVIEW_STATUSES, getPrUrl } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES, getPrUrl } from '@/server/template/project-management/config';
 import {
     logExternalError,
     logExists,
@@ -11,7 +11,7 @@ import {
 import {
     approveDesign,
     requestChangesOnDesignPR,
-} from '@/server/workflow-service';
+} from '@/server/template/workflow-service';
 import { editMessageText, editMessageWithUndoButton } from '../telegram-api';
 import { escapeHtml } from '../utils';
 import type { TelegramCallbackQuery, DesignType, HandlerResult } from '../types';
@@ -156,7 +156,7 @@ export async function handleRequestChangesCallback(
     prNumber: number
 ): Promise<HandlerResult> {
     try {
-        const { requestChangesOnPR } = await import('@/server/workflow-service');
+        const { requestChangesOnPR } = await import('@/server/template/workflow-service');
         const result = await requestChangesOnPR(issueNumber);
 
         if (!result.success) {

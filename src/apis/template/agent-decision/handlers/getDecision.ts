@@ -12,7 +12,7 @@ import {
     findDecisionItem,
     getDecisionFromDB,
 } from '../utils';
-import { getProjectManagementAdapter } from '@/server/project-management';
+import { getProjectManagementAdapter } from '@/server/template/project-management';
 
 /**
  * Get decision data for an issue.

@@ -12,9 +12,9 @@ import {
     isClarificationComment,
     extractClarificationFromComment,
 } from '../utils';
-import { getProjectManagementAdapter } from '@/server/project-management';
-import type { ProjectManagementAdapter } from '@/server/project-management';
-import { REVIEW_STATUSES } from '@/server/project-management/config';
+import { getProjectManagementAdapter } from '@/server/template/project-management';
+import type { ProjectManagementAdapter } from '@/server/template/project-management';
+import { REVIEW_STATUSES } from '@/server/template/project-management/config';
 
 /**
  * Get clarification data for an issue.

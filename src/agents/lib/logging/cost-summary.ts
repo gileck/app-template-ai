@@ -1,7 +1,7 @@
 import type { LogContext, PhaseData } from './types';
 import { readLogAsync, writeLogAsync } from './writer';
 import { budgetConfig } from '@/agents/shared/config';
-import { sendNotificationToOwner } from '@/server/telegram';
+import { sendNotificationToOwner } from '@/server/template/telegram';
 
 /**
  * Format duration in milliseconds to human-readable string

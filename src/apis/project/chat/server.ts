@@ -1,5 +1,5 @@
-import { AIModelAdapter } from "../../../server/ai/baseModelAdapter";
-import { AIModelAdapterResponse } from "../../../server/ai/types";
+import { AIModelAdapter } from "../../../server/template/ai/baseModelAdapter";
+import { AIModelAdapterResponse } from "../../../server/template/ai/types";
 import { ChatRequest, ChatResponse } from "./types";
 import { name } from "./index";
 

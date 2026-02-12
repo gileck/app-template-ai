@@ -15,7 +15,7 @@ Telegram integration provides real-time notifications and one-click actions for 
 
 ## Universal Notification Center
 
-Telegram serves as the universal notification center for all workflow operations. Every operation -- approve, route, delete -- sends a Telegram notification from the workflow service layer (`src/server/workflow-service/`), regardless of which transport initiated the action.
+Telegram serves as the universal notification center for all workflow operations. Every operation -- approve, route, delete -- sends a Telegram notification from the workflow service layer (`src/server/template/workflow-service/`), regardless of which transport initiated the action.
 
 This means:
 - **Approve via CLI** -> Telegram notification with routing buttons
@@ -768,7 +768,7 @@ if (!allowedChatIds.includes(chatId.toString())) {
 
 **From Server Code:**
 ```typescript
-import { sendNotificationToOwner } from '@/server/telegram';
+import { sendNotificationToOwner } from '@/server/template/telegram';
 
 // Send to appropriate channel based on context
 await sendNotificationToOwner(
@@ -808,7 +808,7 @@ await sendNotificationToOwner(
 
 **Create reusable templates:**
 ```typescript
-// src/server/telegram/templates.ts
+// src/server/template/telegram/templates.ts
 
 export function featureRequestTemplate(request: FeatureRequest) {
   return `🎯 New Feature Request #${request.id}

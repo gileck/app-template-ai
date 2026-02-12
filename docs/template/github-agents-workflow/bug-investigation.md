@@ -40,7 +40,7 @@ Unlike feature requests (which show a routing message), bug reports are automati
 - **Feature requests**: Approval creates GitHub issue in "Backlog" + shows routing buttons
 - **Bug reports**: Approval creates GitHub issue directly in "Bug Investigation" (no routing buttons)
 
-This is configured via `initialStatus: STATUSES.bugInvestigation` in the bug report sync config (`src/server/github-sync/index.ts`).
+This is configured via `initialStatus: STATUSES.bugInvestigation` in the bug report sync config (`src/server/template/github-sync/index.ts`).
 
 ## Bug Investigator Agent
 
@@ -305,9 +305,9 @@ The next agent will pick this up automatically.
 | `src/client/routes/template/Decision/` | Decision selection UI (generic) |
 | `src/client/routes/template/BugFix/` | Legacy redirect to `/decision/` |
 | `src/apis/template/agent-decision/` | Agent decision API handlers |
-| `src/server/workflow-service/choose-recommended.ts` | `chooseRecommendedOption()` -- one-click recommended selection |
-| `src/server/github-sync/index.ts` | `bugReportSyncConfig` with `initialStatus` |
-| `src/server/project-management/config.ts` | `STATUSES.bugInvestigation` |
+| `src/server/template/workflow-service/choose-recommended.ts` | `chooseRecommendedOption()` -- one-click recommended selection |
+| `src/server/template/github-sync/index.ts` | `bugReportSyncConfig` with `initialStatus` |
+| `src/server/template/project-management/config.ts` | `STATUSES.bugInvestigation` |
 
 ## Related Documentation
 

@@ -54,8 +54,8 @@ src/client/features/index.template.ts  # Template feature exports
 src/client/routes/template/**          # Core template routes (Settings, Profile, etc.)
 src/client/routes/index.ts             # Route combiner file
 src/client/routes/index.template.ts    # Template route exports
-src/server/utils/**                    # Server utilities
-src/server/middleware/**               # Server middleware
+src/server/template/utils/**                    # Server utilities
+src/server/template/middleware/**               # Server middleware
 src/agents/**                          # AI agents system
 config/**                              # ESLint, Next.js, TypeScript configs
 

@@ -1,7 +1,7 @@
 import { API_DELETE_FEATURE_REQUEST } from '../index';
 import { DeleteFeatureRequestRequest, DeleteFeatureRequestResponse } from '../types';
 import { ApiHandlerContext } from '@/apis/types';
-import { deleteWorkflowItem } from '@/server/workflow-service';
+import { deleteWorkflowItem } from '@/server/template/workflow-service';
 
 export const deleteFeatureRequest = async (
     request: DeleteFeatureRequestRequest,

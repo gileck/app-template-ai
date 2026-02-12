@@ -18,7 +18,7 @@
 
 import './shared/loadEnv';
 import { Command } from 'commander';
-import { autoAdvanceApproved } from '@/server/workflow-service';
+import { autoAdvanceApproved } from '@/server/template/workflow-service';
 
 async function main() {
     const program = new Command()

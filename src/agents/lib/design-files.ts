@@ -63,7 +63,7 @@ export function getDesignS3Key(issueNumber: number, type: DesignDocType): string
  * Used after agent completion so content is available for approval without PR merge.
  */
 export async function saveDesignToS3(issueNumber: number, type: DesignDocType, content: string): Promise<string> {
-    const { uploadFile } = await import('@/server/s3/sdk');
+    const { uploadFile } = await import('@/server/template/s3/sdk');
     const s3Key = getDesignS3Key(issueNumber, type);
     await uploadFile({
         content,
@@ -78,7 +78,7 @@ export async function saveDesignToS3(issueNumber: number, type: DesignDocType, c
  * @returns Content string, or null if not found
  */
 export async function readDesignFromS3(issueNumber: number, type: DesignDocType): Promise<string | null> {
-    const { getFileAsString, fileExists } = await import('@/server/s3/sdk');
+    const { getFileAsString, fileExists } = await import('@/server/template/s3/sdk');
     const s3Key = getDesignS3Key(issueNumber, type);
     try {
         const exists = await fileExists(s3Key);
@@ -94,7 +94,7 @@ export async function readDesignFromS3(issueNumber: number, type: DesignDocType)
  * If type is provided, deletes a single file. Otherwise deletes all design files for the issue.
  */
 export async function deleteDesignFromS3(issueNumber: number, type?: DesignDocType): Promise<void> {
-    const { deleteFile, listFiles } = await import('@/server/s3/sdk');
+    const { deleteFile, listFiles } = await import('@/server/template/s3/sdk');
     if (type) {
         const s3Key = getDesignS3Key(issueNumber, type);
         try {

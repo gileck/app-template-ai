@@ -9,7 +9,7 @@
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { setMongoUri, resetDbConnection } from '@/server/database/connection';
-import { setProjectManagementAdapter, resetProjectManagementAdapter } from '@/server/project-management';
+import { setProjectManagementAdapter, resetProjectManagementAdapter } from '@/server/template/project-management';
 import { setGitAdapter, resetGitAdapter } from '@/agents/shared/git-adapter';
 import { MockProjectAdapter } from '../mocks/mock-project-adapter';
 import { MockGitAdapter } from '../mocks/mock-git-adapter';

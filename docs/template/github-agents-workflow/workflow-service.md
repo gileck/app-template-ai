@@ -5,7 +5,7 @@ summary: "Architecture of the unified workflow service that centralizes all busi
 
 # Unified Workflow Service Layer
 
-The workflow service (`src/server/workflow-service/`) centralizes all business logic for workflow item lifecycle operations. All transports -- Telegram, UI, CLI, and agents -- call into this single service layer instead of implementing their own logic.
+The workflow service (`src/server/template/workflow-service/`) centralizes all business logic for workflow item lifecycle operations. All transports -- Telegram, UI, CLI, and agents -- call into this single service layer instead of implementing their own logic.
 
 ## Architecture Overview
 
@@ -25,7 +25,7 @@ The system follows a 3-layer architecture:
           │                 │                │                │
           ▼                 ▼                ▼                ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  Workflow Service (src/server/workflow-service/)                          │
+│  Workflow Service (src/server/template/workflow-service/)                          │
 │                                                                          │
 │  Entry Ops      Mid-Pipeline Ops      UI/Telegram Actions   Design/Merge  │
 │  ┌────────────┐ ┌─────────────────┐  ┌──────────────────┐ ┌───────────┐ │
@@ -98,7 +98,7 @@ Approves a workflow item -- creates a GitHub issue, logs the action, and optiona
 6. Returns `needsRouting` flag (true for features without explicit route)
 
 ```typescript
-import { approveWorkflowItem } from '@/server/workflow-service';
+import { approveWorkflowItem } from '@/server/template/workflow-service';
 
 const result = await approveWorkflowItem(
     { id: '697f15ce...', type: 'feature' },
@@ -127,7 +127,7 @@ Routes a workflow item to a destination phase by updating the adapter status and
 7. Sends Telegram info notification
 
 ```typescript
-import { routeWorkflowItem } from '@/server/workflow-service';
+import { routeWorkflowItem } from '@/server/template/workflow-service';
 
 const result = await routeWorkflowItem(
     { id: '697f15ce...', type: 'feature' },
@@ -155,7 +155,7 @@ Deletes a workflow item from the source collection and cleans up workflow-items.
 5. Sends Telegram info notification
 
 ```typescript
-import { deleteWorkflowItem } from '@/server/workflow-service';
+import { deleteWorkflowItem } from '@/server/template/workflow-service';
 
 const result = await deleteWorkflowItem(
     { id: '697f15ce...', type: 'bug' },
@@ -179,7 +179,7 @@ Advances a workflow item to a new status. Used for mid-pipeline transitions (not
 5. Logs the action
 
 ```typescript
-import { advanceStatus } from '@/server/workflow-service';
+import { advanceStatus } from '@/server/template/workflow-service';
 
 await advanceStatus(issueNumber, STATUSES.implementation, {
     logAction: 'status_advanced',
@@ -198,7 +198,7 @@ Marks a workflow item as Done with additional side effects beyond `advanceStatus
 - Closes open design PRs (deletes branches) and cleans up S3 design files
 
 ```typescript
-import { markDone } from '@/server/workflow-service';
+import { markDone } from '@/server/template/workflow-service';
 
 await markDone(issueNumber, {
     logAction: 'merged_done',
@@ -211,7 +211,7 @@ await markDone(issueNumber, {
 Updates the review status field for a workflow item.
 
 ```typescript
-import { updateReviewStatus } from '@/server/workflow-service';
+import { updateReviewStatus } from '@/server/template/workflow-service';
 
 await updateReviewStatus(issueNumber, REVIEW_STATUSES.requestChanges, {
     logAction: 'changes_requested',
@@ -228,7 +228,7 @@ Convenience wrapper for clearing review status.
 Advances the implementation phase field and status. Used when merging a multi-phase PR to move to the next phase.
 
 ```typescript
-import { advanceImplementationPhase } from '@/server/workflow-service';
+import { advanceImplementationPhase } from '@/server/template/workflow-service';
 
 await advanceImplementationPhase(issueNumber, 'Phase 2/3', STATUSES.implementation, {
     logAction: 'phase_advanced',
@@ -240,7 +240,7 @@ await advanceImplementationPhase(issueNumber, 'Phase 2/3', STATUSES.implementati
 Called by agents when they finish work. Updates status and/or review status.
 
 ```typescript
-import { completeAgentRun } from '@/server/workflow-service';
+import { completeAgentRun } from '@/server/template/workflow-service';
 
 // Implementation agent: set PR Review + Waiting for Review
 await completeAgentRun(issueNumber, 'implementation', {
@@ -260,7 +260,7 @@ await completeAgentRun(issueNumber, 'bug-investigation', {
 Routes based on admin decision. If `targetStatus` is provided, routes and clears review. Otherwise sets review status (e.g., to Approved).
 
 ```typescript
-import { submitDecisionRouting } from '@/server/workflow-service';
+import { submitDecisionRouting } from '@/server/template/workflow-service';
 
 await submitDecisionRouting(issueNumber, routedTo, {
     reviewStatus: routedTo ? undefined : REVIEW_STATUSES.approved,
@@ -272,7 +272,7 @@ await submitDecisionRouting(issueNumber, routedTo, {
 Undoes a status change within a time window (default: 5 minutes).
 
 ```typescript
-import { undoStatusChange } from '@/server/workflow-service';
+import { undoStatusChange } from '@/server/template/workflow-service';
 
 const result = await undoStatusChange(
     issueNumber,
@@ -289,7 +289,7 @@ if (result.expired) { /* undo window passed */ }
 Batch operation: finds all approved items and advances each to the next phase.
 
 ```typescript
-import { autoAdvanceApproved } from '@/server/workflow-service';
+import { autoAdvanceApproved } from '@/server/template/workflow-service';
 
 const result = await autoAdvanceApproved({ dryRun: true });
 console.log(`Advanced ${result.advanced}/${result.total} items`);
@@ -305,7 +305,7 @@ Sets a workflow item's status directly, bypassing routing validation. Used as a 
 3. Updates adapter status
 
 ```typescript
-import { setWorkflowStatus } from '@/server/workflow-service';
+import { setWorkflowStatus } from '@/server/template/workflow-service';
 
 await setWorkflowStatus(workflowItemId, STATUSES.prReview);
 ```
@@ -321,7 +321,7 @@ Reviews a design phase item -- approve, request changes, or reject. If approved,
 4. Logs all actions
 
 ```typescript
-import { reviewDesign } from '@/server/workflow-service';
+import { reviewDesign } from '@/server/template/workflow-service';
 
 const result = await reviewDesign(issueNumber, 'approve');
 if (result.advancedTo) {
@@ -339,7 +339,7 @@ Marks an item's clarification as received. Validates the item is currently waiti
 3. Updates review status to "Clarification Received"
 
 ```typescript
-import { markClarificationReceived } from '@/server/workflow-service';
+import { markClarificationReceived } from '@/server/template/workflow-service';
 
 const result = await markClarificationReceived(issueNumber);
 if (!result.success) {
@@ -352,7 +352,7 @@ if (!result.success) {
 Requests changes on an implementation PR. Sets status back to Implementation and review status to Request Changes.
 
 ```typescript
-import { requestChangesOnPR } from '@/server/workflow-service';
+import { requestChangesOnPR } from '@/server/template/workflow-service';
 
 await requestChangesOnPR(issueNumber);
 ```
@@ -362,7 +362,7 @@ await requestChangesOnPR(issueNumber);
 Requests changes on a design PR (product-dev, product, or tech design). Sets review status to Request Changes.
 
 ```typescript
-import { requestChangesOnDesignPR } from '@/server/workflow-service';
+import { requestChangesOnDesignPR } from '@/server/template/workflow-service';
 
 await requestChangesOnDesignPR(issueNumber, prNumber, 'tech');
 ```
@@ -381,7 +381,7 @@ Chooses the recommended option for a decision (bug investigation fix selection o
 7. Sends Telegram notification (fire-and-forget)
 
 ```typescript
-import { chooseRecommendedOption } from '@/server/workflow-service';
+import { chooseRecommendedOption } from '@/server/template/workflow-service';
 
 const result = await chooseRecommendedOption(issueNumber);
 if (result.success) {
@@ -401,7 +401,7 @@ Approves a design without merging the PR. Reads design content from S3, saves th
 5. Does **NOT** merge PR or delete branch (PRs are cleaned up when feature reaches Done)
 
 ```typescript
-import { approveDesign } from '@/server/workflow-service';
+import { approveDesign } from '@/server/template/workflow-service';
 
 const result = await approveDesign(issueNumber, prNumber, 'tech');
 if (result.advancedTo) {
@@ -429,7 +429,7 @@ Merges an implementation PR. Handles single-phase, multi-phase middle, and multi
 7. Deletes PR head branch
 
 ```typescript
-import { mergeImplementationPR } from '@/server/workflow-service';
+import { mergeImplementationPR } from '@/server/template/workflow-service';
 
 const result = await mergeImplementationPR(issueNumber);
 if (result.finalPrCreated) {
@@ -449,7 +449,7 @@ Merges the final PR from feature branch to main in a multi-phase workflow. Handl
 5. Posts completion comment
 
 ```typescript
-import { mergeFinalPR } from '@/server/workflow-service';
+import { mergeFinalPR } from '@/server/template/workflow-service';
 
 await mergeFinalPR(issueNumber, finalPrNumber);
 ```
@@ -466,7 +466,7 @@ Creates a revert PR for a merged implementation PR and restores the workflow sta
 5. Reverts source document status (feature -> in_progress, bug -> investigating)
 
 ```typescript
-import { revertMerge } from '@/server/workflow-service';
+import { revertMerge } from '@/server/template/workflow-service';
 
 const result = await revertMerge(issueNumber, prNumber);
 if (result.success) {
@@ -484,14 +484,14 @@ Merges an existing revert PR and cleans up.
 3. Deletes revert branch
 
 ```typescript
-import { mergeRevertPR } from '@/server/workflow-service';
+import { mergeRevertPR } from '@/server/template/workflow-service';
 
 await mergeRevertPR(issueNumber, revertPrNumber);
 ```
 
 ## Utilities
 
-Shared utility functions in `src/server/workflow-service/utils.ts`:
+Shared utility functions in `src/server/template/workflow-service/utils.ts`:
 
 | Function | Description |
 |----------|-------------|
@@ -502,7 +502,7 @@ Shared utility functions in `src/server/workflow-service/utils.ts`:
 
 ## Types
 
-All types are defined in `src/server/workflow-service/types.ts`:
+All types are defined in `src/server/template/workflow-service/types.ts`:
 
 | Type | Description |
 |------|-------------|
@@ -532,7 +532,7 @@ All types are defined in `src/server/workflow-service/types.ts`:
 
 ## Constants
 
-All constants are defined in `src/server/workflow-service/constants.ts`:
+All constants are defined in `src/server/template/workflow-service/constants.ts`:
 
 ### Routing Maps
 
@@ -615,7 +615,7 @@ The service layer handles several edge cases consistently across all transports:
 ## File Layout
 
 ```
-src/server/workflow-service/
+src/server/template/workflow-service/
 ├── index.ts                # Re-exports all public API
 ├── types.ts                # All TypeScript types
 ├── constants.ts            # Routing maps, status transitions, undo window
@@ -658,9 +658,9 @@ src/server/workflow-service/
 
 To add a new workflow operation (e.g., `reassignWorkflowItem`):
 
-1. **Add types** in `src/server/workflow-service/types.ts`
+1. **Add types** in `src/server/template/workflow-service/types.ts`
 
-2. **Create operation** in `src/server/workflow-service/reassign.ts`:
+2. **Create operation** in `src/server/template/workflow-service/reassign.ts`:
    - Use `findItemByIssueNumber()` + `getInitializedAdapter()` from utils
    - Validate state
    - Perform adapter calls
@@ -668,7 +668,7 @@ To add a new workflow operation (e.g., `reassignWorkflowItem`):
    - Agent logging via `logWebhookAction()`
    - Return result
 
-3. **Export** from `src/server/workflow-service/index.ts`
+3. **Export** from `src/server/template/workflow-service/index.ts`
 
 4. **Wire up transports** -- each transport calls the service function:
    - Telegram handler: parse callback data -> call service -> edit message

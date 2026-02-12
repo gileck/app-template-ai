@@ -406,7 +406,7 @@ Closes #42 (or "Part of #42" for non-final phases)
 ### Saving to PR Comment
 
 ```typescript
-import { COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
+import { COMMIT_MESSAGE_MARKER } from '@/server/template/project-management/config';
 
 // Check for existing commit message comment (re-approval scenario)
 const existingComment = await adapter.findPRCommentByMarker(prNumber, COMMIT_MESSAGE_MARKER);
@@ -839,7 +839,7 @@ git status --porcelain
 Both PR Review Agent and Implementation Agent (feedback mode) use the same function:
 
 ```typescript
-// In GitHub adapter: src/server/project-management/adapters/github.ts
+// In GitHub adapter: src/server/template/project-management/adapters/github.ts
 async findOpenPRForIssue(issueNumber: number): Promise<{ prNumber: number; branchName: string } | null> {
     // 1. List all OPEN PRs in the repo
     const { data: prs } = await oc.pulls.list({ owner, repo, state: 'open' });

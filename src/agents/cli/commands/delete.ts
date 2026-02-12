@@ -6,7 +6,7 @@
  */
 
 import { featureRequests, reports } from '@/server/database';
-import { deleteWorkflowItem } from '@/server/workflow-service';
+import { deleteWorkflowItem } from '@/server/template/workflow-service';
 import { parseArgs } from '../utils/parse-args';
 
 /**

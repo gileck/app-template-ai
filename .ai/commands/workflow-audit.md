@@ -1048,7 +1048,7 @@ Telegram webhooks handle critical workflow actions: approvals, rejections, merge
 
 **Primary locations**:
 - `src/pages/api/telegram/` - Webhook API routes
-- `src/server/telegram/` - Telegram utilities
+- `src/server/template/telegram/` - Telegram utilities
 - `src/agents/shared/notifications.ts` - Notification functions
 
 #### 3.7.1: Webhook Discovery
@@ -1149,7 +1149,7 @@ These are CRITICAL - wrong status updates break the workflow.
 ```bash
 # Find all status update calls in webhook handlers
 grep -r "updateStatus\|setStatus\|STATUSES" src/pages/api/telegram --include="*.ts"
-grep -r "updateStatus\|setStatus\|STATUSES" src/server/telegram --include="*.ts"
+grep -r "updateStatus\|setStatus\|STATUSES" src/server/template/telegram --include="*.ts"
 ```
 
 | Action | MongoDB Update | GitHub Project Update | Both Synced? | Status |

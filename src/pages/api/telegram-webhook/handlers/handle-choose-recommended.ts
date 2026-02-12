@@ -8,7 +8,7 @@
 
 import type { TelegramCallbackQuery } from '../types';
 import { editMessageWithResult } from '../telegram-api';
-import { chooseRecommendedOption } from '@/server/workflow-service';
+import { chooseRecommendedOption } from '@/server/template/workflow-service';
 
 export async function handleChooseRecommended(
     botToken: string,

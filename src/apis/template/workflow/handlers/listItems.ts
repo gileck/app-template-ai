@@ -9,7 +9,7 @@ import { ApiHandlerContext } from '@/apis/types';
 import { findFeatureRequests } from '@/server/database/collections/template/feature-requests/feature-requests';
 import { findReports } from '@/server/database/collections/template/reports/reports';
 import { findAllWorkflowItems } from '@/server/database/collections/template/workflow-items/workflow-items';
-import { toStringId } from '@/server/utils';
+import { toStringId } from '@/server/template/utils';
 import type { ListWorkflowItemsResponse, PendingItem, WorkflowItem, WorkflowItemPRData } from '../types';
 
 export async function listItems(

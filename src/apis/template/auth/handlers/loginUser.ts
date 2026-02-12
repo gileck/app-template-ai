@@ -14,7 +14,7 @@ import {
     JWT_SECRET,
     sanitizeUser,
 } from "../shared";
-import { toStringId } from '@/server/utils';
+import { toStringId } from '@/server/template/utils';
 
 // Login endpoint
 export const loginUser = async (

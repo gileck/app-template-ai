@@ -15,8 +15,8 @@ import type {
     ParsedDecision,
     DecisionSelection,
 } from './types';
-import type { ProjectManagementAdapter } from '@/server/project-management';
-import { REVIEW_STATUSES } from '@/server/project-management/config';
+import type { ProjectManagementAdapter } from '@/server/template/project-management';
+import { REVIEW_STATUSES } from '@/server/template/project-management/config';
 import {
     getArtifacts as getArtifactsFromDB,
     setDecision as setDecisionInDB,

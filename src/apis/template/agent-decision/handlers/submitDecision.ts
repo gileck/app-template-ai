@@ -17,9 +17,9 @@ import {
     getDecisionFromDB,
     saveSelectionToDB,
 } from '../utils';
-import { getProjectManagementAdapter } from '@/server/project-management';
-import { REVIEW_STATUSES } from '@/server/project-management/config';
-import { submitDecisionRouting, advanceStatus } from '@/server/workflow-service';
+import { getProjectManagementAdapter } from '@/server/template/project-management';
+import { REVIEW_STATUSES } from '@/server/template/project-management/config';
+import { submitDecisionRouting, advanceStatus } from '@/server/template/workflow-service';
 import { notifyDecisionSubmitted } from '@/agents/shared/notifications';
 
 /**

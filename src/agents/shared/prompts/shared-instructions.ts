@@ -4,7 +4,7 @@
  * Contains reusable instruction blocks used across multiple prompt templates.
  */
 
-import type { ProjectItemContent } from '@/server/project-management';
+import type { ProjectItemContent } from '@/server/template/project-management';
 import type { GitHubComment } from '../types';
 
 // ============================================================

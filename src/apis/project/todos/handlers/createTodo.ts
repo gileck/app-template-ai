@@ -2,7 +2,7 @@ import { API_CREATE_TODO } from '../index';
 import { ApiHandlerContext, CreateTodoRequest, CreateTodoResponse } from '../types';
 import { todos } from '@/server/database';
 import { ObjectId } from 'mongodb';
-import { toDocumentId, toStringId, toQueryId } from '@/server/utils';
+import { toDocumentId, toStringId, toQueryId } from '@/server/template/utils';
 
 export const createTodo = async (
     request: CreateTodoRequest,

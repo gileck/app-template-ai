@@ -13,9 +13,9 @@ import {
     extractClarificationFromComment,
     formatAnswerForGitHub,
 } from '../utils';
-import { getProjectManagementAdapter } from '@/server/project-management';
-import { REVIEW_STATUSES } from '@/server/project-management/config';
-import { updateReviewStatus } from '@/server/workflow-service';
+import { getProjectManagementAdapter } from '@/server/template/project-management';
+import { REVIEW_STATUSES } from '@/server/template/project-management/config';
+import { updateReviewStatus } from '@/server/template/workflow-service';
 import { verifyWaitingForClarification } from './getClarification';
 
 /**

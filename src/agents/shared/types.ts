@@ -2,7 +2,7 @@
  * Agent-Specific Types
  *
  * Types specific to the agent scripts (not shared with server code).
- * Domain types like ProjectItem are imported from @/server/project-management.
+ * Domain types like ProjectItem are imported from @/server/template/project-management.
  */
 
 // ============================================================

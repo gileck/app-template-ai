@@ -1,7 +1,7 @@
 import { API_GET_TODOS } from '../index';
 import { ApiHandlerContext, GetTodosRequest, GetTodosResponse } from '../types';
 import { todos } from '@/server/database';
-import { toStringId } from '@/server/utils';
+import { toStringId } from '@/server/template/utils';
 
 export const getTodos = async (
     _: GetTodosRequest,

@@ -1,6 +1,6 @@
 import { Collection, ObjectId } from 'mongodb';
 import { getDb } from '../../../connection';
-import { toQueryId } from '@/server/utils';
+import { toQueryId } from '@/server/template/utils';
 import { TodoItem, TodoItemCreate, TodoItemUpdate } from './types';
 
 /**

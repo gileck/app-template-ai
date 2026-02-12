@@ -8,9 +8,9 @@
 import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { featureRequests, reports } from '@/server/database';
-import { sendFeatureRequestNotification, sendBugReportNotification } from '@/server/telegram';
-import { approveWorkflowItem } from '@/server/workflow-service';
-import type { RoutingDestination } from '@/server/workflow-service';
+import { sendFeatureRequestNotification, sendBugReportNotification } from '@/server/template/telegram';
+import { approveWorkflowItem } from '@/server/template/workflow-service';
+import type { RoutingDestination } from '@/server/template/workflow-service';
 import type { FeatureRequestPriority } from '@/server/database/collections/template/feature-requests/types';
 import { parseArgs, validateCreateArgs } from '../utils/parse-args';
 

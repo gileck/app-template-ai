@@ -13,7 +13,7 @@ import { MockProjectAdapter } from '../mocks/mock-project-adapter';
 import { agentCalls, resetAgentCalls } from '../mocks/mock-run-agent';
 import { capturedNotifications, resetNotifications } from '../mocks/mock-notifications';
 import { resetDesignFiles, getS3Docs } from '../mocks/mock-design-files';
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES } from '@/server/template/project-management/config';
 import {
     runProductDesignAgent,
     runTechDesignAgent,
@@ -79,12 +79,12 @@ export function createWorkflowTestKit() {
 
         async autoAdvance() {
             // Import dynamically so mocks are in place
-            const { autoAdvanceApproved } = await import('@/server/workflow-service');
+            const { autoAdvanceApproved } = await import('@/server/template/workflow-service');
             return autoAdvanceApproved();
         },
 
         async markDone(issueNumber: number) {
-            const { markDone } = await import('@/server/workflow-service');
+            const { markDone } = await import('@/server/template/workflow-service');
             return markDone(issueNumber);
         },
 
@@ -167,7 +167,7 @@ export function createWorkflowTestKit() {
         },
 
         async approveDesign(issueNumber: number, prNumber: number, designType: 'product-dev' | 'product' | 'tech') {
-            const { approveDesign } = await import('@/server/workflow-service');
+            const { approveDesign } = await import('@/server/template/workflow-service');
             return approveDesign(issueNumber, prNumber, designType);
         },
 

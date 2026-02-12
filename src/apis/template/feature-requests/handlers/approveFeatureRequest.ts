@@ -2,7 +2,7 @@ import { API_APPROVE_FEATURE_REQUEST } from '../index';
 import { ApproveFeatureRequestRequest, ApproveFeatureRequestResponse } from '../types';
 import { ApiHandlerContext } from '@/apis/types';
 import { toFeatureRequestClient } from './utils';
-import { approveWorkflowItem } from '@/server/workflow-service';
+import { approveWorkflowItem } from '@/server/template/workflow-service';
 import { featureRequests } from '@/server/database';
 
 export const approveFeatureRequest = async (

@@ -8,7 +8,7 @@
  */
 
 import { REVIEW_STATUSES } from './config';
-import { getProjectManagementAdapter, type ProjectItem } from '@/server/project-management';
+import { getProjectManagementAdapter, type ProjectItem } from '@/server/template/project-management';
 import { notifyBatchComplete } from './notifications';
 import type { CommonCLIOptions, UsageStats } from './types';
 

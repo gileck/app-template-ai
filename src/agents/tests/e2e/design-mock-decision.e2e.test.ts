@@ -80,13 +80,13 @@ vi.mock('@/agents/shared/config', async (importOriginal) => {
 });
 
 // 9. Mock S3 SDK (AWS boundary) — used by productDesignAgent for option uploads
-vi.mock('@/server/s3/sdk', () => import('./mocks/mock-s3-sdk'));
+vi.mock('@/server/template/s3/sdk', () => import('./mocks/mock-s3-sdk'));
 
 // ============================================================
 // IMPORTS — after mocks
 // ============================================================
 
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES } from '@/server/template/project-management/config';
 import { resetNotifications, capturedNotifications } from './mocks/mock-notifications';
 import { resetDesignFiles, getS3Docs } from './mocks/mock-design-files';
 import { resetS3Storage, getS3Content } from './mocks/mock-s3-sdk';
@@ -212,7 +212,7 @@ describe('Design Mock Decision Flow', () => {
                 await saveDecisionToDB(num, 'product-design', 'design-selection', 'Choose a design', decisionOptions, metadataSchema, undefined, routing);
 
                 // Save option designs to S3 (via mock S3 SDK)
-                const { uploadFile } = await import('@/server/s3/sdk');
+                const { uploadFile } = await import('@/server/template/s3/sdk');
                 for (const opt of mockOptions) {
                     await uploadFile({
                         content: `# ${opt.title}\n\n${opt.description}`,
@@ -262,7 +262,7 @@ describe('Design Mock Decision Flow', () => {
         await seedWorkflowItem(issueNumber, title, STATUSES.productDesign, REVIEW_STATUSES.waitingForReview);
 
         // Save option designs to S3 SDK mock (as if agent had run)
-        const { uploadFile } = await import('@/server/s3/sdk');
+        const { uploadFile } = await import('@/server/template/s3/sdk');
         await uploadFile({
             content: '# Card Layout\n\nDashboard with card grid for metrics.',
             fileName: `design-docs/issue-${issueNumber}/product-design-optA.md`,
@@ -321,7 +321,7 @@ describe('Design Mock Decision Flow', () => {
         await seedWorkflowItem(issueNumber, title, STATUSES.productDesign, REVIEW_STATUSES.waitingForReview);
 
         // Save option designs to S3 SDK mock
-        const { uploadFile } = await import('@/server/s3/sdk');
+        const { uploadFile } = await import('@/server/template/s3/sdk');
         await uploadFile({
             content: '# Minimal Profile\n\nClean minimal profile page.',
             fileName: `design-docs/issue-${issueNumber}/product-design-optA.md`,

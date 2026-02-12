@@ -76,7 +76,7 @@ vi.mock('@/agents/shared/config', async (importOriginal) => {
 // IMPORTS — after mocks
 // ============================================================
 
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management/config';
+import { STATUSES, REVIEW_STATUSES } from '@/server/template/project-management/config';
 import { resetNotifications } from './mocks/mock-notifications';
 import { resetDesignFiles } from './mocks/mock-design-files';
 import { setupBoundaries, teardownBoundaries, type TestBoundaries } from './testkit/setup-boundaries';
@@ -98,7 +98,7 @@ import {
     markClarificationReceived,
     submitDecisionRouting,
     routeWorkflowItemByWorkflowId,
-} from '@/server/workflow-service';
+} from '@/server/template/workflow-service';
 import {
     createWorkflowItem,
     setCommitMessage,

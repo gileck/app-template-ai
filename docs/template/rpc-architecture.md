@@ -4,7 +4,7 @@ description: Generic remote function execution system for running server code on
 summary: Vercel inserts jobs into MongoDB, a local daemon polls and executes them, returns results via MongoDB. Used to bypass datacenter IP blocks.
 priority: 5
 key_points:
-  - "`src/server/rpc/` - Generic RPC system (zero project-specific code)"
+  - "`src/server/template/rpc/` - Generic RPC system (zero project-specific code)"
   - "Start daemon: `yarn daemon` or `yarn daemon --verbose`"
   - "Handlers are modules with a default export async function"
   - "Security: shared secret (RPC_SECRET env var) + path validation + file existence check"
@@ -19,7 +19,7 @@ Some APIs block requests from Vercel's datacenter IPs (e.g., YouTube transcripts
 
 ## Solution
 
-A generic remote function execution system built on MongoDB as a job queue. Fully generic — the `src/server/rpc/` folder contains zero project-specific code.
+A generic remote function execution system built on MongoDB as a job queue. Fully generic — the `src/server/template/rpc/` folder contains zero project-specific code.
 
 ## Flow
 
@@ -46,7 +46,7 @@ read result, return          ◄──
 ## File Structure
 
 ```
-src/server/rpc/
+src/server/template/rpc/
 ├── types.ts        # RpcJobDocument, RpcJobStatus, CallRemoteOptions, RpcResult<T>
 ├── collection.ts   # MongoDB operations (inline, not in database/collections/)
 ├── client.ts       # callRemote<T>() — Vercel-side caller
@@ -141,7 +141,7 @@ task-cli stop <project>:rpc-daemon
 1. Create a module in `src/server/` with a default export async function
 2. Call it from Vercel code:
    ```typescript
-   import { callRemote } from '@/server/rpc';
+   import { callRemote } from '@/server/template/rpc';
    const result = await callRemote<MyResponseType>(
      'src/server/my-feature/myHandler',
      { arg1: 'value' }

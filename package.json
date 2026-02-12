@@ -63,7 +63,7 @@
     "test-clarification-flow": "tsx scripts/template/test-clarification-flow.ts",
     "task": "tsx task-manager/tasks-cli.ts",
     "agent-workflow": "tsx src/agents/cli/index.ts",
-    "daemon": "tsx src/server/rpc/daemon.ts"
+    "daemon": "tsx src/server/template/rpc/daemon.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",

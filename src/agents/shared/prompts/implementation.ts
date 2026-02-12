@@ -5,7 +5,7 @@
  * based on approved design documents.
  */
 
-import type { ProjectItemContent } from '@/server/project-management';
+import type { ProjectItemContent } from '@/server/template/project-management';
 import type { GitHubComment } from '../types';
 import {
     AMBIGUITY_INSTRUCTIONS,

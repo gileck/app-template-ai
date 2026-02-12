@@ -43,7 +43,7 @@ Custom field values for tracking review state within each phase.
 ### Import in Code
 
 ```typescript
-import { STATUSES, REVIEW_STATUSES } from '@/server/project-management';
+import { STATUSES, REVIEW_STATUSES } from '@/server/template/project-management';
 
 // Usage
 if (item.status === STATUSES.prReview) {

@@ -7,7 +7,7 @@
  */
 
 import type { MockProjectAdapter } from '../mocks/mock-project-adapter';
-import { STATUSES } from '@/server/project-management/config';
+import { STATUSES } from '@/server/template/project-management/config';
 
 /**
  * Run the Product Design agent via runBatch.

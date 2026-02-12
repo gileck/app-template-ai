@@ -69,7 +69,7 @@ const eslintTemplateConfig = [
       "api-guidelines/api-names-from-index": ["warn", {
         // Type imports from server are fine
         allowedPaths: [
-          '@/server/cache/types'
+          '@/server/template/cache/types'
         ]
       }],
       "api-guidelines/server-reexport-from-index": "warn",

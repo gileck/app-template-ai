@@ -24,7 +24,7 @@ Before starting the audit, determine the scope. The user may have specified a sc
 The ownership model is defined in `docs/template/project-structure-guidelines.md`. In short:
 - **Template-owned**: `src/client/features/template/`, `src/client/routes/template/`, `src/client/components/template/`, `src/apis/template/`, `src/server/database/collections/template/`, `*.template.ts`
 - **Project-owned**: `src/client/features/project/`, `src/client/routes/project/`, `src/client/components/project/`, `src/apis/project/`, `src/server/database/collections/project/`, `*.project.ts`
-- **Shared infrastructure** (`src/pages/`, `src/server/utils/`, `src/client/utils/`, `src/client/stores/`, `src/client/query/`) is included in all scopes.
+- **Shared infrastructure** (`src/pages/`, `src/server/template/utils/`, `src/client/utils/`, `src/client/stores/`, `src/client/query/`) is included in all scopes.
 
 When searching, filter results to only include files within the selected scope.
 

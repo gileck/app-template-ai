@@ -20,8 +20,8 @@ import {
     mergeRevertPR,
     undoStatusChange,
     chooseRecommendedOption,
-} from '@/server/workflow-service';
-import type { DesignType } from '@/server/workflow-service/approve-design';
+} from '@/server/template/workflow-service';
+import type { DesignType } from '@/server/template/workflow-service/approve-design';
 import type { WorkflowActionRequest, WorkflowActionResponse } from '../types';
 
 export async function workflowAction(

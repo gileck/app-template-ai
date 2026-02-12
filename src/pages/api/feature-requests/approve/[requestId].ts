@@ -2,7 +2,7 @@
 // This endpoint must be a direct API route because it returns HTML for Telegram approval links
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { featureRequests } from '@/server/database';
-import { approveFeatureRequest } from '@/server/github-sync';
+import { approveFeatureRequest } from '@/server/template/github-sync';
 
 /**
  * Public API endpoint for approving feature requests via Telegram link.

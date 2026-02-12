@@ -79,7 +79,7 @@ import { getArtifactsFromIssue, getPhasesFromDB, saveCommitMessage, savePhaseSta
 import {
     readDesignDoc,
 } from '../../lib/design-files';
-import { COMMIT_MESSAGE_MARKER } from '@/server/project-management/config';
+import { COMMIT_MESSAGE_MARKER } from '@/server/template/project-management/config';
 import {
     createPrReviewerAgentPrompt,
     type PromptContext,
@@ -346,7 +346,7 @@ export async function processItem(
                     : REVIEW_STATUSES.requestChanges;
 
                 // Update review status via workflow service
-                const { completeAgentRun } = await import('@/server/workflow-service');
+                const { completeAgentRun } = await import('@/server/template/workflow-service');
                 await completeAgentRun(issueNumber, 'pr-review', {
                     reviewStatus: newReviewStatus,
                 });

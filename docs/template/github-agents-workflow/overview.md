@@ -137,7 +137,7 @@ When adding new workflow functionality:
 
 ## Workflow Service Layer
 
-All transports -- Telegram, UI, CLI, and agents -- go through a unified service layer at `src/server/workflow-service/`. The service centralizes all business logic for the full workflow lifecycle: entry operations (approve, route, delete), mid-pipeline operations (advance, review status, phase, undo, decision), shared admin actions (design review, clarification, request changes, choose recommended, merge, revert).
+All transports -- Telegram, UI, CLI, and agents -- go through a unified service layer at `src/server/template/workflow-service/`. The service centralizes all business logic for the full workflow lifecycle: entry operations (approve, route, delete), mid-pipeline operations (advance, review status, phase, undo, decision), shared admin actions (design review, clarification, request changes, choose recommended, merge, revert).
 
 **What the service handles:**
 - State validation (prevent double-approval, check GitHub sync status)
@@ -170,7 +170,7 @@ All transports -- Telegram, UI, CLI, and agents -- go through a unified service 
 └─────────────────┘      └──────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Project Management Abstraction (src/server/project-management/)       │
+│  Project Management Abstraction (src/server/template/project-management/)       │
 │  ┌────────────────────────────────────────────────────────────────────┐│
 │  │ ProjectManagementAdapter interface (adapter pattern)               ││
 │  │ ├── adapters/app-project.ts  # MongoDB workflow-items (recommended)││

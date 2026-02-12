@@ -174,7 +174,7 @@ The script outputs a detailed report:
 ✅ Safe changes - NEW since last sync (12 files):
    Only changed in template, no conflicts:
    • src/client/components/ui/button.tsx
-   • src/server/middleware/auth.ts
+   • src/server/template/middleware/auth.ts
    • src/client/config/defaults.ts
    ...
 
@@ -335,7 +335,7 @@ Edit `.template-sync.json` to customize sync behavior:
   // Auto-managed: Hash of each file at last sync (DO NOT EDIT)
   "fileHashes": {
     "src/client/components/ui/button.tsx": "a1b2c3d4...",
-    "src/server/middleware/auth.ts": "e5f6g7h8..."
+    "src/server/template/middleware/auth.ts": "e5f6g7h8..."
   }
 }
 ```

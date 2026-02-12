@@ -79,7 +79,7 @@ This project uses a simplified client-server communication pattern with a single
 4.  **Create Client Function(s) in `client.ts`** (`/src/apis/<domain>/client.ts`)
     *   For each operation, implement a client function that calls the API.
     *   Import `apiClient` (default import) from `@/client/utils/apiClient` (or relative path).
-    *   Import `CacheResult` from `@/server/cache/types` (or relative path).
+    *   Import `CacheResult` from `@/server/template/cache/types` (or relative path).
     *   Import API name constants from `./index.ts` (NEVER from `server.ts`).
     *   Import request/response types from `./types.ts`.
     *   The function should take the defined request payload type and return `Promise<CacheResult<DefinedResponseType>>`.

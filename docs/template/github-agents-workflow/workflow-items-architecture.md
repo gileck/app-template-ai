@@ -218,9 +218,9 @@ The `app` adapter stores pipeline status in the `workflow-items` collection and 
 | Workflow-items CRUD | `src/server/database/collections/template/workflow-items/workflow-items.ts` |
 | Artifact DB helpers (server-only) | `src/agents/lib/workflow-db.ts` |
 | Decision DB helpers | `src/apis/template/agent-decision/utils.ts` |
-| AppProjectAdapter | `src/server/project-management/adapters/app-project.ts` |
-| Adapter factory | `src/server/project-management/index.ts` |
-| Sync core (creates workflow-items) | `src/server/github-sync/sync-core.ts` |
+| AppProjectAdapter | `src/server/template/project-management/adapters/app-project.ts` |
+| Adapter factory | `src/server/template/project-management/index.ts` |
+| Sync core (creates workflow-items) | `src/server/template/github-sync/sync-core.ts` |
 | Workflow API handler | `src/apis/template/workflow/handlers/listItems.ts` |
 | Workflow UI | `src/client/routes/template/Workflow/WorkflowItems.tsx` |
 | Migration script | `scripts/template/migrate-workflow-items.ts` |

@@ -38,7 +38,7 @@ Before starting the audit, determine the scope. The user may have specified a sc
 The ownership model is defined in `docs/template/project-structure-guidelines.md`. In short:
 - **Template-owned**: `src/client/features/template/`, `src/client/routes/template/`, `src/client/components/template/`, `src/apis/template/`, `src/server/database/collections/template/`, `*.template.ts`
 - **Project-owned**: `src/client/features/project/`, `src/client/routes/project/`, `src/client/components/project/`, `src/apis/project/`, `src/server/database/collections/project/`, `*.project.ts`
-- **Shared infrastructure** (`src/pages/`, `src/server/utils/`, `src/client/utils/`, `src/client/stores/`, `src/client/query/`) is included in all scopes.
+- **Shared infrastructure** (`src/pages/`, `src/server/template/utils/`, `src/client/utils/`, `src/client/stores/`, `src/client/query/`) is included in all scopes.
 
 When searching, filter results to only include files within the selected scope.
 
@@ -1593,7 +1593,7 @@ For EACH collection:
 
 ```typescript
 // ✅ CORRECT: Use ID utilities
-import { toStringId, toQueryId, toDocumentId } from '@/server/utils';
+import { toStringId, toQueryId, toDocumentId } from '@/server/template/utils';
 
 // ❌ WRONG: Direct ObjectId methods
 doc._id.toHexString()  // Breaks on UUID strings
@@ -1614,7 +1614,7 @@ new ObjectId(clientId) // Breaks on UUID strings
 |-------|--------|
 | No `mongodb` imports in `src/apis/` | |
 | No `getDb()` calls in `src/apis/` | |
-| API handlers import from `@/server/database` | |
+| API handlers import from `@/server/template/database` | |
 
 ---
 
@@ -3030,7 +3030,7 @@ Complete ALL items to finish the audit:
 | Direct ObjectId | `grep -r "toHexString\|new ObjectId"` | Use ID utilities |
 | Wrong API import | Check client.ts imports | Import from `./index`, not `./server` |
 | Non-shadcn components | `grep -r "from '@mui"` | Use shadcn from `@/client/components/ui` |
-| mongodb in APIs | `grep -r "from 'mongodb'" src/apis` | Import from `@/server/database` |
+| mongodb in APIs | `grep -r "from 'mongodb'" src/apis` | Import from `@/server/template/database` |
 
 ---
 

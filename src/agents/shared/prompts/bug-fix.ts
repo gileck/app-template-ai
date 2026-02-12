@@ -6,7 +6,7 @@
  * the Bug Investigator agent, which uses prompts from bug-investigation.ts
  */
 
-import type { ProjectItemContent } from '@/server/project-management';
+import type { ProjectItemContent } from '@/server/template/project-management';
 import type { GitHubComment } from '../types';
 import type { BugDiagnostics } from '../utils';
 import {
@@ -258,7 +258,7 @@ After making changes, provide your response as structured JSON with these fields
 Here's how I addressed the feedback:
 1. [Missing null check in error path] → Added null guard before accessing \`error.message\` in handler
 2. [Defensive check too broad] → Narrowed the check to only cover the specific NaN case
-3. [Import should use @/ alias] → Changed relative import to @/server/utils
+3. [Import should use @/ alias] → Changed relative import to @/server/template/utils
 \`\`\`
 
 **BAD comment format (too vague, avoid this):**

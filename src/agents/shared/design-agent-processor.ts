@@ -15,8 +15,8 @@
 import { REVIEW_STATUSES } from './config';
 import { getProjectConfig } from './config';
 import type { CommonCLIOptions, GitHubComment } from './types';
-import type { ProjectItemContent } from '@/server/project-management';
-import { getProjectManagementAdapter } from '@/server/project-management';
+import type { ProjectItemContent } from '@/server/template/project-management';
+import { getProjectManagementAdapter } from '@/server/template/project-management';
 import { runAgent, extractMarkdown, getLibraryForWorkflow, getModelForWorkflow } from '../lib';
 import type { WorkflowName, AgentRunResult } from '../lib';
 import { notifyDesignPRReady, notifyAgentError, notifyAgentStarted } from './notifications';
@@ -748,7 +748,7 @@ ${comment}`;
                 console.log(`  Returned to branch: ${originalBranch}`);
 
                 // Update review status via workflow service
-                const { completeAgentRun } = await import('@/server/workflow-service');
+                const { completeAgentRun } = await import('@/server/template/workflow-service');
                 await completeAgentRun(issueNumber, config.designType, {
                     reviewStatus: completionReviewStatus,
                 });

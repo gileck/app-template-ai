@@ -422,7 +422,7 @@ export async function processItem(
 
                 // Route directly to implementation via workflow service
                 const targetStatus = 'Ready for development';
-                const { completeAgentRun } = await import('@/server/workflow-service');
+                const { completeAgentRun } = await import('@/server/template/workflow-service');
                 await completeAgentRun(issueNumber, 'bug-investigation', {
                     status: targetStatus,
                     clearReviewStatus: true,
@@ -446,7 +446,7 @@ export async function processItem(
                 // Normal flow: wait for admin to select an option
 
                 // Update review status via workflow service
-                const { completeAgentRun: completeRun } = await import('@/server/workflow-service');
+                const { completeAgentRun: completeRun } = await import('@/server/template/workflow-service');
                 await completeRun(issueNumber, 'bug-investigation', {
                     reviewStatus: REVIEW_STATUSES.waitingForReview,
                 });

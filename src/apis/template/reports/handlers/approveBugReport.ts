@@ -1,7 +1,7 @@
 import { API_APPROVE_BUG_REPORT } from '../index';
 import { ApproveBugReportRequest, ApproveBugReportResponse } from '../types';
 import { ApiHandlerContext } from '@/apis/types';
-import { approveWorkflowItem } from '@/server/workflow-service';
+import { approveWorkflowItem } from '@/server/template/workflow-service';
 
 export const approveBugReport = async (
     request: ApproveBugReportRequest,

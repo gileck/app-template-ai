@@ -179,7 +179,7 @@ Session logging with bug reporting. Use this when adding logging or debugging.
 
 Database layer patterns and schema evolution. Use this when working with MongoDB.
 
-**Summary:** All operations in `src/server/database/collections/`. Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/utils`. **CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility.**
+**Summary:** All operations in `src/server/database/collections/`. Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/template/utils`. **CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility.**
 
 **Docs:** [mongodb-usage.md](docs/template/mongodb-usage.md)
 **Rules:** [mongodb-usage](docs/template/project-guidelines/mongodb-usage.md)
@@ -275,7 +275,7 @@ Generic remote function execution system for running server code on a local mach
 **Summary:** Vercel inserts jobs into MongoDB, a local daemon polls and executes them, returns results via MongoDB. Used to bypass datacenter IP blocks.
 
 **Key Points:**
-- `src/server/rpc/` - Generic RPC system (zero project-specific code)
+- `src/server/template/rpc/` - Generic RPC system (zero project-specific code)
 - Start daemon: `yarn daemon` or `yarn daemon --verbose`
 - Handlers are modules with a default export async function
 - Security: shared secret (RPC_SECRET env var) + path validation + file existence check
@@ -491,7 +491,7 @@ when accessing the database or a collection in the db
 
 **Guidelines:**
 - All MongoDB operations MUST be in `src/server/database/collections/` — never import `mongodb` directly in API handlers
-- Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/utils` — never use `ObjectId` methods directly
+- Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/template/utils` — never use `ObjectId` methods directly
 - CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility (`doc.field?.toISOString() ?? fallback`)
 - New fields must be optional (`?`) with nullish coalescing (`??`) defaults
 
@@ -624,7 +624,7 @@ Accessing authenticated user in client and server code. Use this when implementi
 Server-side AI model integration patterns. Use this when calling AI APIs.
 
 **Guidelines:**
-- NEVER call AI APIs directly — always use `AIModelAdapter` from `src/server/ai/baseModelAdapter.ts`
+- NEVER call AI APIs directly — always use `AIModelAdapter` from `src/server/template/ai/baseModelAdapter.ts`
 - All AI calls MUST be server-side only — never expose API keys client-side
 - Validate model IDs using `isModelExists()` before adapter initialization
 - Always return 200 status codes with error fields, never throw uncaught errors

@@ -262,7 +262,7 @@ If you don't need certain features:
 
 ```bash
 # Remove AI integrations
-rm -rf src/server/ai
+rm -rf src/server/template/ai
 
 # Remove specific API modules
 rm -rf src/apis/example

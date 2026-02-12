@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { apiHandlers } from "./apis";
 import { createCache } from "@/common/cache";
 import { CacheResult } from "@/common/cache/types";
-import { fsCacheProvider, s3CacheProvider } from "@/server/cache/providers";
+import { fsCacheProvider, s3CacheProvider } from "@/server/template/cache/providers";
 import { appConfig } from "@/app.config";
 import { getUserContext } from "./getUserContext";
 

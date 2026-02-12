@@ -348,7 +348,7 @@ All agent executions are logged to MongoDB for debugging and auditing.
 
 **Via MongoDB:**
 ```typescript
-import { getAgentLogs } from '@/server/database/collections/agent-logs';
+import { getAgentLogs } from '@/server/template/database/collections/agent-logs';
 
 // Get all logs for an issue
 const logs = await getAgentLogs({ issueNumber: 123 });
@@ -437,7 +437,7 @@ To run agents automatically:
 
 **2. Create cron API endpoint (`src/pages/api/cron/pr-review.ts`):**
 ```typescript
-import { verifyVercelCronRequest } from '@/server/utils/vercel-cron';
+import { verifyVercelCronRequest } from '@/server/template/utils/vercel-cron';
 import { execSync } from 'child_process';
 
 export default async function handler(req, res) {

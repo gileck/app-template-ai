@@ -16,7 +16,7 @@ import {
     SALT_ROUNDS,
     sanitizeUser,
 } from "../shared";
-import { toStringId } from '@/server/utils';
+import { toStringId } from '@/server/template/utils';
 
 // Register endpoint
 export const registerUser = async (
