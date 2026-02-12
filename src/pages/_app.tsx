@@ -26,7 +26,26 @@ const RouterProvider = dynamic(() => import('@/client/features/template/router/R
 // Mark app mount as early as possible
 markEvent(BOOT_PHASES.APP_MOUNT);
 
-export default function App({ Component: _Component, pageProps: _pageProps }: AppProps) {
+/** Paths served directly by Next.js file-based routing (bypass client router) */
+const PASSTHROUGH_PREFIXES = ['/design-mocks'];
+
+export default function App({ Component, pageProps, router }: AppProps) {
+  const isPassthrough = PASSTHROUGH_PREFIXES.some(p => router.pathname.startsWith(p));
+
+  // Design mock pages render directly — no auth, no layout, no client router
+  if (isPassthrough) {
+    return (
+      <>
+        <Head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        </Head>
+        <AppThemeProvider>
+          <Component {...pageProps} />
+        </AppThemeProvider>
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
