@@ -272,36 +272,41 @@ Feedback loops occur when an admin rejects a design or requests changes to an im
 
 ### Design Review Feedback Loop
 
-**Scenario:** Admin rejects product or tech design PR
+The product design agent has **3 possible workflow outcomes**:
 
-**Flow:**
+1. **Design Options Ready** — Agent generates 2-3 interactive React mock options. Admin chooses one.
+2. **Design Ready** — Agent completes design (feedback/clarification mode, or <2 options). Admin approves or requests changes.
+3. **Clarification Needed** — Agent needs more info. Admin answers, then agent continues.
 
-**1. Admin Rejects Design**
-- Via Telegram "Reject" button
-- Or directly in GitHub PR (Request Changes)
-- **MUST include explanation in PR comment**
+All actions work identically through Telegram or the Workflow UI — the business logic lives in the workflow service layer.
 
-**2. Status Update**
-- Issue status → "Rejected"
-- Rejection reason stored in MongoDB
-- GitHub comment added explaining rejection
+**Request Changes Flow:**
 
-**3. Admin Reviews and Edits**
-- **Option A: Admin fixes design directly**
-  - Edit design file in PR branch
-  - Commit changes to same PR
-  - Approve PR via Telegram or GitHub
-  - Design saved to S3 → status advances (PR stays open)
+1. Admin clicks "Request Changes" (via Telegram or UI)
+2. Review Status → "Request Changes" (5-minute undo window)
+3. Admin adds feedback comments on the GitHub issue
+4. On next agent run, agent detects feedback mode
+5. Agent reads existing design + feedback, revises design
+6. Updates same PR, posts "Addressed Feedback" marker
+7. Review Status → "Waiting for Review"
+8. Admin receives new notification to approve or request more changes
 
-- **Option B: Request agent revision**
-  - Comment on PR with specific feedback
-  - Remove "Rejected" label, add "needs-revision"
-  - Agent creates new PR with updated design
+**Design Option Selection Flow (Product Design only):**
 
-**4. New PR Review**
-- Admin reviews updated design
-- Approves → design advances to next phase
-- Rejects → cycle repeats (rare)
+1. Agent generates 2-3 React mock pages in `src/pages/design-mocks/`
+2. Mock pages are committed to the design PR branch
+3. Decision comment posted on issue with option metadata
+4. Admin selects option via "Choose Recommended" (Telegram) or web UI (`/decision/{issueNumber}`)
+5. Selected design saved to canonical S3 key
+6. Status advances to Technical Design
+
+**Approval Flow:**
+
+1. Admin approves design (via Telegram or UI)
+2. Design content read from S3 (saved at agent completion)
+3. Artifact comment updated on issue
+4. Status advances to next phase
+5. Design PR stays open (NOT merged) — closed when feature reaches Done
 
 ### Implementation Review Feedback Loop
 
