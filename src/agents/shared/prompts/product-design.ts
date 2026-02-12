@@ -42,15 +42,40 @@ You have write access. You MUST write each mock option as a React component file
 - Use semantic theme tokens for all colors (\`bg-background\`, \`text-foreground\`, \`bg-muted\`, \`text-muted-foreground\`, \`bg-primary\`, \`text-primary-foreground\`, \`border\`, etc.) — NEVER hardcode colors
 - Design mobile-first for ~400px viewport (use \`max-w-md mx-auto\`)
 - Include realistic content appropriate to the feature (not lorem ipsum)
-- Include relevant states where applicable (empty, loading, populated)
 - Keep each component focused — one clear design approach per option
 - Import React hooks (useState, etc.) from 'react' as needed
+
+**Props — viewState and colorMode:**
+The mock preview shell passes two props to the main page component. You MUST accept and forward these to each option component:
+- \`viewState\`: \`'populated' | 'empty' | 'loading'\` — controls which state to render
+  - \`'populated'\`: Show the component with realistic sample data (DEFAULT)
+  - \`'empty'\`: Show the empty state (no items, no data, blank slate with helpful message/action)
+  - \`'loading'\`: Show the loading/skeleton state
+- \`colorMode\`: \`'light' | 'dark'\` — the current color mode (the shell wraps your component in a \`dark\` CSS class container, so semantic tokens like \`bg-background\` automatically adapt — you don't need to handle this manually, just make sure you use semantic tokens and NOT hardcoded colors)
+
+Each option component signature should be:
+\`\`\`tsx
+export default function OptionA({ viewState = 'populated' }: { viewState?: 'populated' | 'empty' | 'loading' }) {
+  if (viewState === 'loading') return <LoadingSkeleton />;
+  if (viewState === 'empty') return <EmptyState />;
+  return <PopulatedView />;
+}
+\`\`\`
+
+The main page component must accept and forward these props:
+\`\`\`tsx
+export default function MockPage({ viewState, colorMode }: { viewState?: string; colorMode?: string }) {
+  // ... forward viewState to each option component
+  <OptionA viewState={viewState as 'populated' | 'empty' | 'loading'} />
+}
+\`\`\`
 
 **Main page structure (\`src/pages/design-mocks/issue-${issueNumber}.tsx\`):**
 - Import each option component using React.lazy and dynamic import
 - Render tabs (Option A / Option B / etc.) with useState for tab switching
 - Each option rendered inside a mobile-width container (\`max-w-md mx-auto\`)
 - Wrap lazy components in React.Suspense with a loading fallback
+- Accept \`viewState\` and \`colorMode\` props, forward \`viewState\` to option components
 
 **After writing mock files, verify they compile:**
 - Run \`npx tsc --noEmit src/pages/design-mocks/issue-${issueNumber}.tsx\` to check for TypeScript errors
