@@ -30,7 +30,7 @@ function buildMockInstructions(issueNumber: number): string {
 In addition to the written design document, create **2-3 design mock options** as interactive React pages. Each option represents a different UI/UX approach to the feature.
 
 **IMPORTANT — Write mock files directly:**
-You have write access. Write each mock option as a React component file. The files will be deployed to a Vercel preview URL for the admin to review.
+You have write access. You MUST write each mock option as a React component file BEFORE producing structured output. The files will be deployed to a Vercel preview URL for the admin to review.
 
 **File structure:**
 - Each option component: \`src/pages/design-mocks/components/issue-${issueNumber}-{optId}.tsx\` (e.g., \`issue-${issueNumber}-optA.tsx\`)
@@ -61,7 +61,8 @@ You have write access. Write each mock option as a React component file. The fil
 - Option B: Feature-rich approach with more detail
 - Option C: Alternative layout or interaction pattern
 
-**IMPORTANT:** Only write files to \`src/pages/design-mocks/\`. Do NOT modify any other files in the project.`;
+**IMPORTANT:** Only write files to \`src/pages/design-mocks/\`. Do NOT modify any other files in the project.
+**IMPORTANT:** Write all mock files BEFORE producing the structured JSON output.`;
 }
 
 /** Output format instructions that include mockOptions */
@@ -80,7 +81,8 @@ const MOCK_OUTPUT_FORMAT = `Provide your response as structured JSON with these 
 export function buildProductDesignPrompt(
     issue: ProjectItemContent,
     productDevelopmentDoc?: string | null,
-    comments?: GitHubComment[]
+    comments?: GitHubComment[],
+    options?: { allowWrite?: boolean }
 ): string {
     const commentsSection = buildCommentsSection(comments);
 
@@ -96,12 +98,16 @@ ${productDevelopmentDoc}
 `
         : '';
 
+    const modeInstruction = options?.allowWrite
+        ? 'IMPORTANT: You are in WRITE mode. You MUST write design mock page files to src/pages/design-mocks/ using the Write tool. You also have access to Read, Glob, Grep, WebFetch, Edit, and Bash tools.'
+        : READ_ONLY_MODE_INSTRUCTIONS;
+
     return `You are creating a Product Design document for a GitHub issue.${productDevelopmentDoc ? ' The Product Development document has been approved, defining WHAT to build. Now you need to design HOW it will look and feel.' : ''} Your task is to:
 1. Understand the feature from the issue description
 2. Explore the codebase to understand existing patterns and architecture
-3. Create a Product Design document
+3. Create a Product Design document${options?.allowWrite ? '\n4. Write design mock page files to src/pages/design-mocks/' : ''}
 
-${READ_ONLY_MODE_INSTRUCTIONS}
+${modeInstruction}
 
 ${buildIssueDetailsHeader(issue, { includeLabels: true })}
 ${commentsSection}${pddSection}
@@ -286,7 +292,8 @@ Now revise the Product Design based on the feedback.`;
 export function buildProductDesignClarificationPrompt(
     content: { title: string; number: number; body: string; labels?: string[] },
     issueComments: Array<{ body: string; author: string; createdAt: string }>,
-    clarification: { body: string; author: string; createdAt: string }
+    clarification: { body: string; author: string; createdAt: string },
+    options?: { allowWrite?: boolean }
 ): string {
     const commentsSection = issueComments.length > 0
         ? `\n## All Issue Comments\n\n${formatCommentsList(issueComments)}\n`
@@ -312,7 +319,9 @@ You asked for clarification because you encountered ambiguity. Review the GitHub
 ${clarification.body}
 
 ## Task
-Continue your product design work using the admin's clarification as guidance. Complete the product design document and create design mock pages.
+Continue your product design work using the admin's clarification as guidance. Complete the product design document${options?.allowWrite ? ' and write design mock page files to src/pages/design-mocks/' : ''}.
+
+${options?.allowWrite ? 'IMPORTANT: You are in WRITE mode. You MUST write design mock page files to src/pages/design-mocks/ using the Write tool before producing structured output. You also have access to Read, Glob, Grep, WebFetch, Edit, and Bash tools.' : ''}
 
 If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
 
@@ -333,11 +342,13 @@ ${MOBILE_FIRST_INSTRUCTIONS}
 - **User Stories** - Only for features where multiple user types or complex workflows need clarification
 - **Edge Cases** - Only for features with non-obvious edge cases that need explicit design decisions
 
-${buildMockInstructions(content.number)}
+${options?.allowWrite ? buildMockInstructions(content.number) : ''}
 
 ## Output Format
 
-${MOCK_OUTPUT_FORMAT}
+${options?.allowWrite ? MOCK_OUTPUT_FORMAT : `Provide your response as structured JSON with these fields:
+- **design**: Complete Product Design document in markdown format
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE`}
 
 ## Output Format Example
 
@@ -354,5 +365,5 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
-Now complete the Product Design document and write the design mock pages using the clarification provided.`;
+Now complete the Product Design document using the clarification provided.`;
 }

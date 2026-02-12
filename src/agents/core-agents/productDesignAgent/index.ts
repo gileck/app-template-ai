@@ -122,7 +122,7 @@ const processItem = createDesignProcessor({
     skipBugError: 'Bug reports skip Product Design by default',
 
     buildNewPrompt: ({ content, additionalContext, allComments }) =>
-        buildProductDesignPrompt(content, additionalContext, allComments),
+        buildProductDesignPrompt(content, additionalContext, allComments, { allowWrite: true }),
 
     buildFeedbackPrompt: ({ content, existingDesign, allComments }) =>
         buildProductDesignRevisionPrompt(content, existingDesign, allComments),
@@ -132,6 +132,7 @@ const processItem = createDesignProcessor({
             { title: content.title, number: issueNumber, body: content.body, labels: content.labels },
             allComments,
             clarification,
+            { allowWrite: true },
         ),
 
     loadAdditionalContext: async ({ issueNumber }) => {
