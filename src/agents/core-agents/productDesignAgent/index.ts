@@ -7,8 +7,9 @@
  *
  * Flow A (New Design):
  *   - Fetches items in "Product Design" status with empty Review Status
- *   - Generates product design with 2-3 mock options using Claude (read-only mode)
- *   - Creates branch, writes design file + mock page, creates PR
+ *   - Generates product design with 2-3 mock options using Claude (write mode)
+ *   - Agent writes design mock pages directly to src/pages/design-mocks/
+ *   - Creates branch, writes design file, creates PR
  *   - Creates decision for admin to choose between mock options
  *   - Sends Telegram notification with decision link and preview URL
  *   - Sets Review Status to "Waiting for Review"
@@ -46,9 +47,6 @@ import {
 import type { ProductDesignOutput, MockOption } from '../../shared';
 import {
     readDesignDocAsync,
-    generateMockPageContent,
-    writeMockComponent,
-    writeMockPage,
 } from '../../lib/design-files';
 import {
     logGitHubAction,
@@ -56,7 +54,6 @@ import {
 import { formatDecisionComment, saveDecisionToDB } from '@/apis/template/agent-decision/utils';
 import { notifyDecisionNeeded } from '../../shared/notifications';
 import type { DecisionOption, MetadataFieldConfig, RoutingConfig } from '@/apis/template/agent-decision/types';
-import { commitChanges, pushBranch, getCurrentBranch } from '../../shared/git-utils';
 
 // ============================================================
 // DECISION FLOW CONFIG
@@ -117,6 +114,9 @@ const processItem = createDesignProcessor({
         clarification: 'Continuing with clarification',
     },
 
+    allowWrite: true, // Agent writes mock pages directly to src/pages/design-mocks/
+    allowedWritePaths: ['src/pages/design-mocks/'], // Restrict agent writes to mock pages only
+
     skipBugs: true,
     skipBugMessage: `\u23ED\uFE0F  Skipping bug - bugs bypass Product Design phase\n\uD83D\uDCCC Reason: Most bugs don't need product design (they need technical fixes)\n\uD83D\uDCA1 If this bug requires UX/UI redesign, admin can manually move it to Product Design`,
     skipBugError: 'Bug reports skip Product Design by default',
@@ -146,36 +146,16 @@ const processItem = createDesignProcessor({
         const output = structuredOutput as unknown as ProductDesignOutput;
         const mockOptions = output?.mockOptions;
 
-        // Only create mock pages and decisions for new designs with mock options
+        // Only create decisions for new designs with mock options
         if (!mockOptions || mockOptions.length < 2 || mode !== 'new') {
             return;
         }
 
         console.log(`  Mock options: ${mockOptions.length} design options generated`);
+        // Note: Mock pages are written directly by the agent (allowWrite mode)
+        // The processor's commit includes both design doc and agent-written mock files
 
-        // 1. Write mock component files and page to branch
-        try {
-            for (const opt of mockOptions) {
-                const compPath = writeMockComponent(issueNumber, opt.id, opt.componentCode);
-                console.log(`    Written: ${compPath}`);
-            }
-
-            const pageContent = generateMockPageContent(issueNumber, mockOptions);
-            const pagePath = writeMockPage(issueNumber, pageContent);
-            console.log(`    Written: ${pagePath}`);
-
-            // Commit and push the mock files
-            const branchName = getCurrentBranch();
-            commitChanges(`docs: add design mocks for issue #${issueNumber}`);
-            pushBranch(branchName, true);
-            console.log('  Mock files committed and pushed');
-            logGitHubAction(logCtx, 'branch', `Added design mock page for issue #${issueNumber}`);
-        } catch (mockError) {
-            // Non-fatal — decision can still work without mock page
-            console.warn(`  Warning: Failed to write mock page (non-fatal): ${mockError instanceof Error ? mockError.message : String(mockError)}`);
-        }
-
-        // 2. Save each option's design description to S3
+        // 1. Save each option's design description to S3
         for (const opt of mockOptions) {
             try {
                 const { uploadFile } = await import('@/server/s3/sdk');
@@ -191,7 +171,7 @@ const processItem = createDesignProcessor({
         }
         console.log(`  Saved ${mockOptions.length} option designs to S3`);
 
-        // 3. Create decision for admin to choose between options
+        // 2. Create decision for admin to choose between options
         const decisionOptions = toDecisionOptions(mockOptions);
         const decisionContext = `**Design Options:** ${mockOptions.length} approaches generated\n\nReview each option and select the design approach for this feature. Each option is available as an interactive mock on the PR preview deployment.`;
 

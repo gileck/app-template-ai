@@ -525,10 +525,6 @@ export {
     saveDesignToS3,
     readDesignFromS3,
     deleteDesignFromS3,
-    // Mock page generation
-    generateMockPageContent,
-    writeMockComponent,
-    writeMockPage,
 } from './design-files';
 
 // Re-export dev server management utilities

@@ -100,6 +100,21 @@ export interface DesignAgentConfig {
         clarification: string;
     };
 
+    /**
+     * Optional: Allow the agent to write files (e.g., mock pages).
+     * When true, the branch is created BEFORE running the agent so
+     * file writes land on the design branch, not main.
+     */
+    allowWrite?: boolean;
+
+    /**
+     * Optional: Restrict agent file writes to these path prefixes.
+     * Only checked when allowWrite is true. After the agent runs,
+     * any new/modified files outside these prefixes cause a failure.
+     * Example: ['src/pages/design-mocks/']
+     */
+    allowedWritePaths?: string[];
+
     /** Build prompt for new design */
     buildNewPrompt: (ctx: PromptContext) => string;
     /** Build prompt for feedback/revision */
@@ -352,6 +367,35 @@ export function createDesignProcessor(
                     prompt = config.buildClarificationPrompt({ ...promptCtx, clarification });
                 }
 
+                // When allowWrite is enabled, create/checkout the branch BEFORE running
+                // the agent so that file writes (e.g., mock pages) land on the design
+                // branch instead of main.
+                const branchName = existingPR?.branchName || generateDesignBranchName(issueNumber, config.designType);
+                let earlyBranchCreated = false;
+
+                if (config.allowWrite && !alreadyOnPRBranch && !options.dryRun) {
+                    const isExistingBranch = existingPR || branchExistsLocally(branchName);
+
+                    if (hasUncommittedChanges()) {
+                        const changes = getUncommittedChanges();
+                        return { success: false, error: `Uncommitted changes detected - please commit or stash first\n${changes}` };
+                    }
+
+                    if (isExistingBranch) {
+                        console.log(`  Checking out existing branch: ${branchName}`);
+                        checkoutBranch(branchName);
+                        try {
+                            git(`pull origin ${branchName}`, { silent: true });
+                        } catch {
+                            // Branch might not exist on remote yet, ignore
+                        }
+                    } else {
+                        console.log(`  Creating new branch: ${branchName}`);
+                        checkoutBranch(branchName, true);
+                    }
+                    earlyBranchCreated = true;
+                }
+
                 // Run the agent
                 console.log('');
                 const progressLabel = config.progressLabels[mode];
@@ -364,6 +408,8 @@ export function createDesignProcessor(
                     progressLabel,
                     workflow: config.workflow,
                     outputFormat: config.outputFormat,
+                    allowWrite: config.allowWrite,
+                    allowedWritePaths: config.allowedWritePaths,
                 });
 
                 if (!result.success || !result.content) {
@@ -372,6 +418,30 @@ export function createDesignProcessor(
                         await notifyAgentError(config.phaseName, content.title, issueNumber, error);
                     }
                     return { success: false, error };
+                }
+
+                // Validate that agent writes are within allowed paths
+                if (config.allowWrite && config.allowedWritePaths && config.allowedWritePaths.length > 0 && earlyBranchCreated) {
+                    const uncommitted = getUncommittedChanges();
+                    if (uncommitted) {
+                        const changedFiles = uncommitted.split('\n').filter(l => l.trim());
+                        const violations = changedFiles.filter(file => {
+                            // Extract the file path (git status format: "?? path" or " M path" etc.)
+                            const filePath = file.replace(/^[\s?MADRCU!]+\s*/, '').trim();
+                            if (!filePath) return false;
+                            return !config.allowedWritePaths!.some(allowed => filePath.startsWith(allowed));
+                        });
+                        if (violations.length > 0) {
+                            console.warn(`  Warning: Agent wrote files outside allowed paths:`);
+                            for (const v of violations) {
+                                console.warn(`    ${v}`);
+                            }
+                            console.warn(`  Allowed paths: ${config.allowedWritePaths.join(', ')}`);
+                            // Revert unauthorized changes
+                            git('checkout -- .', { silent: true });
+                            console.warn('  Reverted unauthorized file changes');
+                        }
+                    }
                 }
 
                 // Check if agent needs clarification (in both raw content and structured output)
@@ -453,12 +523,10 @@ export function createDesignProcessor(
                     return { success: true };
                 }
 
-                // Generate branch name and determine if we're updating existing PR
-                const branchName = existingPR?.branchName || generateDesignBranchName(issueNumber, config.designType);
-                const isExistingBranch = existingPR || branchExistsLocally(branchName);
+                // Checkout or create branch (skip if already on PR branch or created early for allowWrite)
+                if (!alreadyOnPRBranch && !earlyBranchCreated) {
+                    const isExistingBranch = existingPR || branchExistsLocally(branchName);
 
-                // Checkout or create branch (skip if already on PR branch from earlier checkout)
-                if (!alreadyOnPRBranch) {
                     // Ensure clean working directory before branch operations
                     if (hasUncommittedChanges()) {
                         const changes = getUncommittedChanges();

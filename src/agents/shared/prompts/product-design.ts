@@ -86,7 +86,14 @@ Before writing the design, explore the codebase:
 
 ## Design Mock Options
 
-In addition to the written design document, generate **2-3 design mock options** as React components. Each option represents a different UI/UX approach to the feature.
+In addition to the written design document, create **2-3 design mock options** as interactive React pages. Each option represents a different UI/UX approach to the feature.
+
+**IMPORTANT — Write mock files directly:**
+You have write access. Write each mock option as a React component file. The files will be deployed to a Vercel preview URL for the admin to review.
+
+**File structure:**
+- Each option component: \`src/pages/design-mocks/components/issue-{N}-{optId}.tsx\` (e.g., \`issue-42-optA.tsx\`)
+- Main page with tabs: \`src/pages/design-mocks/issue-{N}.tsx\`
 
 **Requirements for mock components:**
 - Each option must be a self-contained React function component (default export)
@@ -98,17 +105,29 @@ In addition to the written design document, generate **2-3 design mock options**
 - Keep each component focused — one clear design approach per option
 - Import React hooks (useState, etc.) from 'react' as needed
 
+**Main page structure (\`src/pages/design-mocks/issue-{N}.tsx\`):**
+- Import each option component using React.lazy and dynamic import
+- Render tabs (Option A / Option B / etc.) with useState for tab switching
+- Each option rendered inside a mobile-width container (\`max-w-md mx-auto\`)
+- Wrap lazy components in React.Suspense with a loading fallback
+
+**After writing mock files, verify they compile:**
+- Run \`npx tsc --noEmit src/pages/design-mocks/issue-{N}.tsx\` to check for TypeScript errors
+- Fix any compilation errors before proceeding
+
 **Each option should differ meaningfully** — for example:
 - Option A: Minimalist approach with fewer elements
 - Option B: Feature-rich approach with more detail
 - Option C: Alternative layout or interaction pattern
+
+**IMPORTANT:** Only write files to \`src/pages/design-mocks/\`. Do NOT modify any other files in the project.
 
 ## Output Format
 
 Provide your response as structured JSON with these fields:
 - **design**: Complete Product Design document in markdown format (same structure as before)
 - **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
-- **mockOptions**: Array of 2-3 design mock options, each with: id, title, description, componentCode, isRecommended
+- **mockOptions**: Array of 2-3 design mock option metadata, each with: id, title, description, isRecommended (the actual component code is written to files, not included here)
 
 Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 

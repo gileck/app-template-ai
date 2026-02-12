@@ -98,22 +98,6 @@ export function deleteIssueDesignDir(issueNumber: number): boolean {
 }
 
 // ============================================================
-// MOCK PAGE GENERATION
-// ============================================================
-
-export function generateMockPageContent(issueNumber: number, mockOptions: { id: string; title: string; componentCode: string }[]): string {
-    return `/* Mock page for issue #${issueNumber} with ${mockOptions.length} options */`;
-}
-
-export function writeMockComponent(_issueNumber: number, optionId: string, _componentCode: string): string {
-    return `src/pages/design-mocks/components/issue-${_issueNumber}-${optionId}.tsx`;
-}
-
-export function writeMockPage(issueNumber: number, _content: string): string {
-    return `src/pages/design-mocks/issue-${issueNumber}.tsx`;
-}
-
-// ============================================================
 // TEST HELPERS
 // ============================================================
 

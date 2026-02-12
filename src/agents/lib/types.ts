@@ -86,6 +86,12 @@ export interface AgentRunOptions {
     maxTurns?: number;
     /** Whether to use plan mode for this run (default: true). Set to false for feedback/clarification modes. */
     shouldUsePlanMode?: boolean;
+    /**
+     * Restrict file writes to these path prefixes (relative to project root).
+     * Injected as a PreToolUse hook in the Claude Code SDK adapter.
+     * Example: ['src/pages/design-mocks/']
+     */
+    allowedWritePaths?: string[];
 }
 
 /**

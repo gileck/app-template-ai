@@ -4,7 +4,7 @@
  * Adapter implementation for @anthropic-ai/claude-agent-sdk
  */
 
-import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage, type HookCallbackMatcher } from '@anthropic-ai/claude-agent-sdk';
 import { agentConfig } from '../../shared/config';
 import type { AgentLibraryAdapter, AgentLibraryCapabilities, AgentRunOptions, AgentRunResult } from '../types';
 import { getModelForLibrary } from '../config';
@@ -133,6 +133,9 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
             });
         }
 
+        // Build PreToolUse hook for path restriction (if configured)
+        const hooks = this.buildWritePathHooks(options.allowedWritePaths);
+
         try {
             for await (const message of query({
                 prompt,
@@ -147,6 +150,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     ...(useSlashCommands ? { settingSources: ['project'] as const } : {}),
                     ...(outputFormat ? { outputFormat } : {}),
                     ...(mcpServers ? { mcpServers } : {}),
+                    ...(hooks ? { hooks } : {}),
                 },
             })) {
                 const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -364,6 +368,47 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                 structuredOutput,
             };
         }
+    }
+
+    /**
+     * Build PreToolUse hooks to restrict Write/Edit to specific path prefixes.
+     * Returns undefined if no restrictions are configured.
+     */
+    private buildWritePathHooks(
+        allowedWritePaths?: string[]
+    ): Partial<Record<'PreToolUse', HookCallbackMatcher[]>> | undefined {
+        if (!allowedWritePaths || allowedWritePaths.length === 0) return undefined;
+
+        const writePathHook: HookCallbackMatcher = {
+            matcher: 'Write|Edit',
+            hooks: [
+                async (input) => {
+                    const hookInput = input as { tool_name: string; tool_input: { file_path?: string } };
+                    const filePath = hookInput.tool_input?.file_path;
+                    if (!filePath) return {};
+
+                    // Normalize to relative path for comparison
+                    const relativePath = filePath.startsWith(PROJECT_ROOT)
+                        ? filePath.slice(PROJECT_ROOT.length + 1)
+                        : filePath.startsWith('/')
+                            ? filePath // absolute path outside project — always deny
+                            : filePath;
+
+                    const isAllowed = allowedWritePaths.some(prefix => relativePath.startsWith(prefix));
+                    if (isAllowed) return {};
+
+                    return {
+                        hookSpecificOutput: {
+                            hookEventName: 'PreToolUse' as const,
+                            permissionDecision: 'deny' as const,
+                            permissionDecisionReason: `Write blocked: ${relativePath} is outside allowed paths (${allowedWritePaths.join(', ')}). Only write to the allowed directories.`,
+                        },
+                    };
+                },
+            ],
+        };
+
+        return { PreToolUse: [writePathHook] };
     }
 
     async dispose(): Promise<void> {
