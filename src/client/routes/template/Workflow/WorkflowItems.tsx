@@ -1,20 +1,19 @@
 /**
  * Workflow Items Page
  *
- * Unified admin page with two sections:
- * - Pending Approval: new feature requests and bug reports awaiting admin approval
- * - Pipeline: active workflow items progressing through the workflow
+ * Unified admin page with three view modes:
+ * - List View: Action-focused list with collapsible sections by status
+ * - Kanban View: Visual board with status columns (Phase 2)
+ * - Timeline View: Chronological activity stream (Phase 3)
  *
  * Clicking a card opens an inline preview dialog (fetches full item detail).
  * "View Full Details" button navigates to the full item page.
  */
 
 import { useState, useMemo } from 'react';
-import type { ReactNode } from 'react';
-import { ChevronDown, ChevronRight, ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Check, Copy, RefreshCw, Github, ArrowRightLeft, Archive } from 'lucide-react';
+import { ChevronsUpDown, Loader2, ExternalLink, Clock, CheckCircle, Trash2, Copy, RefreshCw, ArrowRightLeft, Archive } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Card, CardContent } from '@/client/components/template/ui/card';
 import { Button } from '@/client/components/template/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/template/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/client/components/template/ui/select';
@@ -28,236 +27,30 @@ import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId
 import { useWorkflowPageStore } from './store';
 import { WorkflowActionButtons } from './WorkflowActionButtons';
 import { WorkflowHistory } from './WorkflowHistory';
-import type { TypeFilter, ViewFilter } from './store';
-import type { PendingItem, WorkflowItem } from '@/apis/template/workflow/types';
+import {
+    ViewModeTabs,
+    ListView,
+    KanbanView,
+    TimelineView,
+    StatusBadge,
+    StatsBar,
+    ViewFilterTabs,
+    ALL_STATUSES,
+    PIPELINE_STATUSES,
+    ALL_SECTION_KEYS,
+} from './components';
+import type { TypeFilter } from './store';
+import type { WorkflowItem } from '@/apis/template/workflow/types';
 
-function formatDate(dateStr: string | null): string {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
+// ── Type dropdown labels ────────────────────────────────────────────────────
 
-// ── Theme-independent badge colors ──────────────────────────────────────────
-
-const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
-    // Type
-    feature: { bg: '#3b82f6', text: '#fff' },
-    bug: { bg: '#ef4444', text: '#fff' },
-    task: { bg: '#6b7280', text: '#fff' },
-    // Pipeline status (matches STATUSES from server/project-management/config.ts)
-    'Pending Approval': { bg: '#f59e0b', text: '#fff' },
-    'Backlog': { bg: '#6b7280', text: '#fff' },
-    'Product Development': { bg: '#a855f7', text: '#fff' },
-    'Product Design': { bg: '#8b5cf6', text: '#fff' },
-    'Bug Investigation': { bg: '#ec4899', text: '#fff' },
-    'Technical Design': { bg: '#3b82f6', text: '#fff' },
-    'Ready for development': { bg: '#f59e0b', text: '#fff' },
-    'PR Review': { bg: '#06b6d4', text: '#fff' },
-    'Final Review': { bg: '#0d9488', text: '#fff' },
-    'Done': { bg: '#22c55e', text: '#fff' },
-    // Review status
-    'Waiting for Review': { bg: '#eab308', text: '#fff' },
-    'Approved': { bg: '#22c55e', text: '#fff' },
-    'Request Changes': { bg: '#f97316', text: '#fff' },
-    'Rejected': { bg: '#ef4444', text: '#fff' },
-    // Priority
-    'critical': { bg: '#dc2626', text: '#fff' },
-    'high': { bg: '#f97316', text: '#fff' },
-    'medium': { bg: '#3b82f6', text: '#fff' },
-    'low': { bg: '#9ca3af', text: '#fff' },
-    // Source
-    'source': { bg: '#6b7280', text: '#fff' },
+const TYPE_LABELS: Record<TypeFilter, string> = {
+    all: 'All types',
+    feature: 'Features',
+    bug: 'Bugs',
 };
 
-const DEFAULT_BADGE_COLOR = { bg: '#9ca3af', text: '#fff' };
-
-function StatusBadge({ label, colorKey }: { label: string; colorKey?: string }) {
-    const colors = BADGE_COLORS[colorKey || label] || DEFAULT_BADGE_COLOR;
-    return (
-        <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-            style={{ backgroundColor: colors.bg, color: colors.text }}
-        >
-            {label}
-        </span>
-    );
-}
-
-// ── Summary Stats Bar ────────────────────────────────────────────────────────
-
-function StatsBar({ pendingCount, statusCounts, onClickStatus }: {
-    pendingCount: number;
-    statusCounts: { status: string; count: number }[];
-    onClickStatus: (view: ViewFilter) => void;
-}) {
-    const total = pendingCount + statusCounts.reduce((sum, s) => sum + s.count, 0);
-    if (total === 0) return null;
-
-    return (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mb-3">
-            {pendingCount > 0 && (
-                <button
-                    onClick={() => onClickStatus('pending')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
-                >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: BADGE_COLORS['Pending Approval'].bg }} />
-                    <span>Pending {pendingCount}</span>
-                </button>
-            )}
-            {statusCounts.map(({ status, count }) => (
-                <button
-                    key={status}
-                    onClick={() => onClickStatus(status === 'Done' ? 'done' : 'active')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
-                >
-                    <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: (BADGE_COLORS[status] || DEFAULT_BADGE_COLOR).bg }}
-                    />
-                    <span>{status} {count}</span>
-                </button>
-            ))}
-        </div>
-    );
-}
-
-// ── Cards ───────────────────────────────────────────────────────────────────
-
-function SelectCheckbox({ selected }: { selected: boolean }) {
-    return (
-        <div className="flex items-center pt-0.5 shrink-0">
-            <div
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    selected ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                }`}
-            >
-                {selected && <Check className="w-3 h-3 text-primary-foreground" />}
-            </div>
-        </div>
-    );
-}
-
-function PendingCard({ item, onSelect, selectMode, selected, onToggleSelect }: {
-    item: PendingItem;
-    onSelect: (id: string) => void;
-    selectMode?: boolean;
-    selected?: boolean;
-    onToggleSelect?: () => void;
-}) {
-    return (
-        <Card
-            className={`cursor-pointer hover:bg-accent/50 transition-colors ${selected ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => selectMode ? onToggleSelect?.() : onSelect(item.id)}
-        >
-            <CardContent className="p-4">
-                <div className="flex gap-3">
-                    {selectMode && <SelectCheckbox selected={!!selected} />}
-                    <div className="flex-1 flex flex-col gap-2 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-medium leading-tight line-clamp-2">
-                                {item.title}
-                            </span>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                                {formatDate(item.createdAt)}
-                            </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <StatusBadge label={item.type === 'bug' ? 'Bug' : 'Feature'} colorKey={item.type} />
-                            <StatusBadge label="Pending Approval" />
-                            {item.priority && (
-                                <StatusBadge label={item.priority} colorKey={item.priority} />
-                            )}
-                            {item.source && (
-                                <StatusBadge label={`via ${item.source}`} colorKey="source" />
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function WorkflowCard({ item, onSelect, selectMode, selected, onToggleSelect }: {
-    item: WorkflowItem;
-    onSelect: (id: string) => void;
-    selectMode?: boolean;
-    selected?: boolean;
-    onToggleSelect?: () => void;
-}) {
-    const navId = item.sourceId || item.id;
-    const typeLabel = item.type === 'bug' ? 'Bug' : item.type === 'task' ? 'Task' : 'Feature';
-    const ghUrl = item.content?.url;
-    return (
-        <Card
-            className={`cursor-pointer hover:bg-accent/50 transition-colors ${selected ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => selectMode ? onToggleSelect?.() : onSelect(navId)}
-        >
-            <CardContent className="p-4">
-                <div className="flex gap-3">
-                    {selectMode && <SelectCheckbox selected={!!selected} />}
-                    <div className="flex-1 flex flex-col gap-2 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-medium leading-tight line-clamp-2">
-                                {item.content?.title || 'Untitled'}
-                            </span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                {item.implementationPhase && (
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                        Phase {item.implementationPhase}
-                                    </span>
-                                )}
-                                {item.createdAt && (
-                                    <span className="text-xs text-muted-foreground">
-                                        {formatDate(item.createdAt)}
-                                    </span>
-                                )}
-                                {item.content?.number && (
-                                    <span className="text-xs text-muted-foreground">
-                                        #{item.content.number}
-                                    </span>
-                                )}
-                                {ghUrl && (
-                                    <a
-                                        href={ghUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Open GitHub issue"
-                                    >
-                                        <Github className="w-3.5 h-3.5" />
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <StatusBadge label={typeLabel} colorKey={item.type} />
-                            <StatusBadge label={item.status || 'No status'} />
-                            {item.reviewStatus && (
-                                <StatusBadge label={item.reviewStatus} />
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
 // ── Item preview dialog ─────────────────────────────────────────────────────
-
-const ALL_STATUSES = [
-    'Backlog',
-    'Product Development',
-    'Product Design',
-    'Bug Investigation',
-    'Technical Design',
-    'Ready for development',
-    'PR Review',
-    'Final Review',
-    'Done',
-] as const;
 
 function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string | null; onClose: () => void; workflowItems?: WorkflowItem[] }) {
     const { navigate } = useRouter();
@@ -380,12 +173,12 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
         }
     };
 
-    const handleRoute = async (status: string) => {
+    const handleRoute = async (routeStatus: string) => {
         try {
             const sourceType = isFeature ? 'feature' : 'bug';
             const sourceId = itemId!;
-            await routeItem({ sourceId, sourceType, status });
-            toast.success(`Routed to ${status}`);
+            await routeItem({ sourceId, sourceType, status: routeStatus });
+            toast.success(`Routed to ${routeStatus}`);
             onClose();
             setShowRouting(false);
             queryClient.invalidateQueries({ queryKey: ['workflow-items'] });
@@ -656,91 +449,6 @@ function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string 
     );
 }
 
-// ── View tab bar ────────────────────────────────────────────────────────────
-
-const VIEW_OPTIONS: { value: ViewFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'active', label: 'Active' },
-    { value: 'done', label: 'Done' },
-];
-
-function ViewTabs({ active, onChange }: { active: ViewFilter; onChange: (v: ViewFilter) => void }) {
-    return (
-        <div className="flex rounded-lg bg-muted p-0.5">
-            {VIEW_OPTIONS.map((opt) => (
-                <button
-                    key={opt.value}
-                    onClick={() => onChange(opt.value)}
-                    className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        active === opt.value
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                >
-                    {opt.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-// ── Type dropdown labels ────────────────────────────────────────────────────
-
-const TYPE_LABELS: Record<TypeFilter, string> = {
-    all: 'All types',
-    feature: 'Features',
-    bug: 'Bugs',
-};
-
-// ── Collapsible section ─────────────────────────────────────────────────────
-
-function CollapsibleSection({ title, count, collapsed, onToggle, children }: {
-    title: string;
-    count: number;
-    collapsed: boolean;
-    onToggle: () => void;
-    children: ReactNode;
-}) {
-    return (
-        <div className="mb-6">
-            <button
-                onClick={onToggle}
-                className="flex items-center gap-1.5 mb-3 group"
-            >
-                {collapsed ? (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide group-hover:text-foreground transition-colors">
-                    {title} ({count})
-                </h2>
-            </button>
-            {!collapsed && (
-                <div className="flex flex-col gap-2">
-                    {children}
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ── Pipeline status order (matches STATUSES from config.ts, excluding Done) ─
-
-const PIPELINE_STATUSES = [
-    'Backlog',
-    'Product Development',
-    'Product Design',
-    'Bug Investigation',
-    'Technical Design',
-    'Ready for development',
-    'PR Review',
-    'Final Review',
-] as const;
-
-const ALL_SECTION_KEYS = ['pending', ...PIPELINE_STATUSES, 'Done'] as const;
-
 // ── Main component ──────────────────────────────────────────────────────────
 
 export function WorkflowItems() {
@@ -748,6 +456,7 @@ export function WorkflowItems() {
 
     const typeFilter = useWorkflowPageStore((s) => s.typeFilter);
     const viewFilter = useWorkflowPageStore((s) => s.viewFilter);
+    const viewMode = useWorkflowPageStore((s) => s.viewMode);
     const collapsedSections = useWorkflowPageStore((s) => s.collapsedSections);
     const selectedItemId = useWorkflowPageStore((s) => s.selectedItemId);
     const selectMode = useWorkflowPageStore((s) => s.selectMode);
@@ -758,6 +467,7 @@ export function WorkflowItems() {
 
     const setTypeFilter = useWorkflowPageStore((s) => s.setTypeFilter);
     const setViewFilter = useWorkflowPageStore((s) => s.setViewFilter);
+    const setViewMode = useWorkflowPageStore((s) => s.setViewMode);
     const toggleSection = useWorkflowPageStore((s) => s.toggleSection);
     const toggleAllSections = useWorkflowPageStore((s) => s.toggleAllSections);
     const setSelectedItemId = useWorkflowPageStore((s) => s.setSelectedItemId);
@@ -960,15 +670,12 @@ export function WorkflowItems() {
         );
     }
 
-    const hasPending = filteredPending.length > 0;
-    const hasPipelineGroups = pipelineGroups.length > 0;
-    const hasDone = doneItems.length > 0;
-    const isEmpty = !hasPending && !hasPipelineGroups && !hasDone;
     const selectedCount = Object.keys(selectedItems).length;
     const allCollapsed = collapsedSections.length > 0;
 
     return (
         <div className="p-4">
+            {/* Header */}
             <div className="flex items-center justify-between mb-3">
                 <h1 className="text-lg font-semibold">Workflow</h1>
                 <div className="flex items-center gap-1.5">
@@ -982,117 +689,87 @@ export function WorkflowItems() {
                             <SelectItem value="bug">Bugs</SelectItem>
                         </SelectContent>
                     </Select>
-                    <button
-                        onClick={toggleSelectMode}
-                        disabled={isBulkBusy}
-                        className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                            selectMode
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                        } ${isBulkBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {selectMode ? 'Cancel' : 'Select'}
-                    </button>
+                    {viewMode === 'list' && (
+                        <button
+                            onClick={toggleSelectMode}
+                            disabled={isBulkBusy}
+                            className={`px-2.5 py-1.5 min-h-[32px] rounded-md text-xs font-medium transition-colors ${
+                                selectMode
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                            } ${isBulkBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {selectMode ? 'Cancel' : 'Select'}
+                        </button>
+                    )}
                     <button
                         onClick={handleRefresh}
                         title="Refresh"
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        className="p-1.5 min-h-[32px] min-w-[32px] rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex items-center justify-center"
                     >
                         <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
                     </button>
-                    <button
-                        onClick={toggleAll}
-                        title={allCollapsed ? 'Expand all' : 'Collapse all'}
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                    >
-                        <ChevronsUpDown className="w-4 h-4" />
-                    </button>
+                    {viewMode === 'list' && (
+                        <button
+                            onClick={toggleAll}
+                            title={allCollapsed ? 'Expand all' : 'Collapse all'}
+                            className="p-1.5 min-h-[32px] min-w-[32px] rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex items-center justify-center"
+                        >
+                            <ChevronsUpDown className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
+            {/* Stats Bar */}
             <StatsBar
                 pendingCount={data.pendingItems.length}
                 statusCounts={statusCounts}
                 onClickStatus={setViewFilter}
             />
 
+            {/* View Mode Tabs (List, Kanban, Timeline) */}
             <div className="mb-4">
-                <ViewTabs active={viewFilter} onChange={setViewFilter} />
+                <ViewModeTabs active={viewMode} onChange={setViewMode} />
             </div>
 
-            {isEmpty && (
-                <div className="text-sm text-muted-foreground">No workflow items found.</div>
+            {/* View Filter Tabs (All, Pending, Active, Done) */}
+            <div className="mb-4">
+                <ViewFilterTabs active={viewFilter} onChange={setViewFilter} />
+            </div>
+
+            {/* View Content */}
+            {viewMode === 'list' && (
+                <ListView
+                    filteredPending={filteredPending}
+                    pipelineGroups={pipelineGroups}
+                    doneItems={doneItems}
+                    collapsedSections={collapsedSections}
+                    selectMode={selectMode}
+                    selectedItems={selectedItems}
+                    onToggleSection={toggleSection}
+                    onSelectItem={setSelectedItemId}
+                    onToggleItemSelect={toggleItemSelect}
+                    parseItemId={parseItemId}
+                />
             )}
 
-            {hasPending && (
-                <CollapsibleSection
-                    title="Pending Approval"
-                    count={filteredPending.length}
-                    collapsed={collapsedSections.includes('pending')}
-                    onToggle={() => toggleSection('pending')}
-                >
-                    {filteredPending.map((item) => (
-                        <PendingCard
-                            key={item.id}
-                            item={item}
-                            onSelect={setSelectedItemId}
-                            selectMode={selectMode}
-                            selected={`pending:${item.id}` in selectedItems}
-                            onToggleSelect={() => toggleItemSelect(`pending:${item.id}`, { type: item.type, mongoId: parseItemId(item.id).mongoId })}
-                        />
-                    ))}
-                </CollapsibleSection>
+            {viewMode === 'kanban' && (
+                <KanbanView
+                    filteredPending={filteredPending}
+                    pipelineGroups={pipelineGroups}
+                    doneItems={doneItems}
+                    onSelectItem={setSelectedItemId}
+                />
             )}
 
-            {pipelineGroups.map((group) => (
-                <CollapsibleSection
-                    key={group.status}
-                    title={group.status}
-                    count={group.items.length}
-                    collapsed={collapsedSections.includes(group.status)}
-                    onToggle={() => toggleSection(group.status)}
-                >
-                    {group.items.map((item) => {
-                        const sourceId = item.sourceId;
-                        const canSelect = sourceId && (item.type === 'feature' || item.type === 'bug');
-                        const { mongoId } = sourceId ? parseItemId(sourceId) : { mongoId: '' };
-                        return (
-                            <WorkflowCard
-                                key={item.id}
-                                item={item}
-                                onSelect={setSelectedItemId}
-                                selectMode={selectMode && !!canSelect}
-                                selected={`workflow:${item.id}` in selectedItems}
-                                onToggleSelect={canSelect ? () => toggleItemSelect(`workflow:${item.id}`, { type: item.type as 'feature' | 'bug', mongoId }) : undefined}
-                            />
-                        );
-                    })}
-                </CollapsibleSection>
-            ))}
-
-            {hasDone && (
-                <CollapsibleSection
-                    title="Done"
-                    count={doneItems.length}
-                    collapsed={collapsedSections.includes('Done')}
-                    onToggle={() => toggleSection('Done')}
-                >
-                    {doneItems.map((item) => {
-                        const sourceId = item.sourceId;
-                        const canSelect = sourceId && (item.type === 'feature' || item.type === 'bug');
-                        const { mongoId } = sourceId ? parseItemId(sourceId) : { mongoId: '' };
-                        return (
-                            <WorkflowCard
-                                key={item.id}
-                                item={item}
-                                onSelect={setSelectedItemId}
-                                selectMode={selectMode && !!canSelect}
-                                selected={`workflow:${item.id}` in selectedItems}
-                                onToggleSelect={canSelect ? () => toggleItemSelect(`workflow:${item.id}`, { type: item.type as 'feature' | 'bug', mongoId }) : undefined}
-                            />
-                        );
-                    })}
-                </CollapsibleSection>
+            {viewMode === 'timeline' && (
+                <TimelineView
+                    filteredPending={filteredPending}
+                    pipelineGroups={pipelineGroups}
+                    doneItems={doneItems}
+                    onSelectItem={setSelectedItemId}
+                />
             )}
 
             {/* Spacer for fixed bottom bar */}
@@ -1111,6 +788,7 @@ export function WorkflowItems() {
                                     size="sm"
                                     onClick={handleBulkApprove}
                                     disabled={isBulkBusy}
+                                    className="min-h-[36px]"
                                 >
                                     {isBulkApproving ? (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1125,6 +803,7 @@ export function WorkflowItems() {
                                 size="sm"
                                 onClick={() => setShowBulkDeleteConfirm(true)}
                                 disabled={isBulkBusy}
+                                className="min-h-[36px]"
                             >
                                 {isBulkDeleting ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

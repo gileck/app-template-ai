@@ -3,12 +3,16 @@ import { createStore } from '@/client/stores';
 export type TypeFilter = 'all' | 'feature' | 'bug';
 export type ViewFilter = 'all' | 'pending' | 'active' | 'done';
 export type SelectableItem = { type: 'feature' | 'bug'; mongoId: string };
+/** The three main display modes for the workflow page */
+export type WorkflowViewMode = 'list' | 'kanban' | 'timeline';
 
 interface WorkflowPageState {
     // Persisted (survives navigation + page refresh)
     typeFilter: TypeFilter;
     viewFilter: ViewFilter;
     collapsedSections: string[];
+    /** Active view mode: list, kanban, or timeline */
+    viewMode: WorkflowViewMode;
 
     // Non-persisted (survives navigation only, resets on page refresh)
     selectedItemId: string | null;
@@ -30,6 +34,7 @@ interface WorkflowPageState {
     setIsBulkDeleting: (deleting: boolean) => void;
     setIsBulkApproving: (approving: boolean) => void;
     resetBulkDelete: () => void;
+    setViewMode: (mode: WorkflowViewMode) => void;
 }
 
 export const useWorkflowPageStore = createStore<WorkflowPageState>({
@@ -38,6 +43,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
     creator: (set) => ({
         typeFilter: 'all',
         viewFilter: 'all',
+        viewMode: 'list',
         collapsedSections: [],
         selectedItemId: null,
         selectMode: false,
@@ -94,11 +100,14 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
                 selectedItems: {},
                 selectMode: false,
             }),
+
+        setViewMode: (mode) => set({ viewMode: mode }),
     }),
     persistOptions: {
         partialize: (state) => ({
             typeFilter: state.typeFilter,
             viewFilter: state.viewFilter,
+            viewMode: state.viewMode,
             collapsedSections: state.collapsedSections,
         }),
     },
