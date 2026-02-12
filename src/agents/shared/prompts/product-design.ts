@@ -21,6 +21,56 @@ import {
 } from './shared-instructions';
 
 /**
+ * Build the design mock options instructions block.
+ * Shared between new design and clarification prompts.
+ */
+function buildMockInstructions(issueNumber: number): string {
+    return `## Design Mock Options
+
+In addition to the written design document, create **2-3 design mock options** as interactive React pages. Each option represents a different UI/UX approach to the feature.
+
+**IMPORTANT — Write mock files directly:**
+You have write access. Write each mock option as a React component file. The files will be deployed to a Vercel preview URL for the admin to review.
+
+**File structure:**
+- Each option component: \`src/pages/design-mocks/components/issue-${issueNumber}-{optId}.tsx\` (e.g., \`issue-${issueNumber}-optA.tsx\`)
+- Main page with tabs: \`src/pages/design-mocks/issue-${issueNumber}.tsx\`
+
+**Requirements for mock components:**
+- Each option must be a self-contained React function component (default export)
+- Use ONLY shadcn/ui components imported from \`@/client/components/template/ui/\` — available components: Button, Card, Input, Label, Badge, Avatar, Select, Switch, Textarea, Dialog, Sheet, Separator, Skeleton, DropdownMenu, RadioGroup, Alert, Collapsible, Calendar
+- Use semantic theme tokens for all colors (\`bg-background\`, \`text-foreground\`, \`bg-muted\`, \`text-muted-foreground\`, \`bg-primary\`, \`text-primary-foreground\`, \`border\`, etc.) — NEVER hardcode colors
+- Design mobile-first for ~400px viewport (use \`max-w-md mx-auto\`)
+- Include realistic content appropriate to the feature (not lorem ipsum)
+- Include relevant states where applicable (empty, loading, populated)
+- Keep each component focused — one clear design approach per option
+- Import React hooks (useState, etc.) from 'react' as needed
+
+**Main page structure (\`src/pages/design-mocks/issue-${issueNumber}.tsx\`):**
+- Import each option component using React.lazy and dynamic import
+- Render tabs (Option A / Option B / etc.) with useState for tab switching
+- Each option rendered inside a mobile-width container (\`max-w-md mx-auto\`)
+- Wrap lazy components in React.Suspense with a loading fallback
+
+**After writing mock files, verify they compile:**
+- Run \`npx tsc --noEmit src/pages/design-mocks/issue-${issueNumber}.tsx\` to check for TypeScript errors
+- Fix any compilation errors before proceeding
+
+**Each option should differ meaningfully** — for example:
+- Option A: Minimalist approach with fewer elements
+- Option B: Feature-rich approach with more detail
+- Option C: Alternative layout or interaction pattern
+
+**IMPORTANT:** Only write files to \`src/pages/design-mocks/\`. Do NOT modify any other files in the project.`;
+}
+
+/** Output format instructions that include mockOptions */
+const MOCK_OUTPUT_FORMAT = `Provide your response as structured JSON with these fields:
+- **design**: Complete Product Design document in markdown format
+- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+- **mockOptions**: Array of 2-3 design mock option metadata, each with: id, title, description, isRecommended (the actual component code is written to files, not included here)`;
+
+/**
  * Build prompt for generating a new product design
  *
  * @param issue - The GitHub issue content
@@ -84,50 +134,11 @@ Before writing the design, explore the codebase:
 3. Look at similar existing features for patterns
 4. Check relevant types in \`src/apis/\` if the feature needs API work
 
-## Design Mock Options
-
-In addition to the written design document, create **2-3 design mock options** as interactive React pages. Each option represents a different UI/UX approach to the feature.
-
-**IMPORTANT — Write mock files directly:**
-You have write access. Write each mock option as a React component file. The files will be deployed to a Vercel preview URL for the admin to review.
-
-**File structure:**
-- Each option component: \`src/pages/design-mocks/components/issue-{N}-{optId}.tsx\` (e.g., \`issue-42-optA.tsx\`)
-- Main page with tabs: \`src/pages/design-mocks/issue-{N}.tsx\`
-
-**Requirements for mock components:**
-- Each option must be a self-contained React function component (default export)
-- Use ONLY shadcn/ui components imported from \`@/client/components/template/ui/\` — available components: Button, Card, Input, Label, Badge, Avatar, Select, Switch, Textarea, Dialog, Sheet, Separator, Skeleton, DropdownMenu, RadioGroup, Alert, Collapsible, Calendar
-- Use semantic theme tokens for all colors (\`bg-background\`, \`text-foreground\`, \`bg-muted\`, \`text-muted-foreground\`, \`bg-primary\`, \`text-primary-foreground\`, \`border\`, etc.) — NEVER hardcode colors
-- Design mobile-first for ~400px viewport (use \`max-w-md mx-auto\`)
-- Include realistic content appropriate to the feature (not lorem ipsum)
-- Include relevant states where applicable (empty, loading, populated)
-- Keep each component focused — one clear design approach per option
-- Import React hooks (useState, etc.) from 'react' as needed
-
-**Main page structure (\`src/pages/design-mocks/issue-{N}.tsx\`):**
-- Import each option component using React.lazy and dynamic import
-- Render tabs (Option A / Option B / etc.) with useState for tab switching
-- Each option rendered inside a mobile-width container (\`max-w-md mx-auto\`)
-- Wrap lazy components in React.Suspense with a loading fallback
-
-**After writing mock files, verify they compile:**
-- Run \`npx tsc --noEmit src/pages/design-mocks/issue-{N}.tsx\` to check for TypeScript errors
-- Fix any compilation errors before proceeding
-
-**Each option should differ meaningfully** — for example:
-- Option A: Minimalist approach with fewer elements
-- Option B: Feature-rich approach with more detail
-- Option C: Alternative layout or interaction pattern
-
-**IMPORTANT:** Only write files to \`src/pages/design-mocks/\`. Do NOT modify any other files in the project.
+${buildMockInstructions(issue.number ?? 0)}
 
 ## Output Format
 
-Provide your response as structured JSON with these fields:
-- **design**: Complete Product Design document in markdown format (same structure as before)
-- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
-- **mockOptions**: Array of 2-3 design mock option metadata, each with: id, title, description, isRecommended (the actual component code is written to files, not included here)
+${MOCK_OUTPUT_FORMAT}
 
 Keep the design concise. A small feature might only need a few paragraphs. A large feature needs more detail.
 
@@ -301,7 +312,7 @@ You asked for clarification because you encountered ambiguity. Review the GitHub
 ${clarification.body}
 
 ## Task
-Continue your product design work using the admin's clarification as guidance. Complete the product design document.
+Continue your product design work using the admin's clarification as guidance. Complete the product design document and create design mock pages.
 
 If the admin's response is still unclear or raises new ambiguities, you may ask another clarification question using the same format.
 
@@ -322,11 +333,11 @@ ${MOBILE_FIRST_INSTRUCTIONS}
 - **User Stories** - Only for features where multiple user types or complex workflows need clarification
 - **Edge Cases** - Only for features with non-obvious edge cases that need explicit design decisions
 
+${buildMockInstructions(content.number)}
+
 ## Output Format
 
-Provide your response as structured JSON with these fields:
-- **design**: Complete Product Design document in markdown format
-- **comment**: High-level design overview to post as GitHub comment (3-5 bullet points). Use markdown numbered list with each item on a NEW LINE
+${MOCK_OUTPUT_FORMAT}
 
 ## Output Format Example
 
@@ -343,5 +354,5 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}
 
 ${AMBIGUITY_INSTRUCTIONS}
 
-Now complete the Product Design document using the clarification provided.`;
+Now complete the Product Design document and write the design mock pages using the clarification provided.`;
 }
