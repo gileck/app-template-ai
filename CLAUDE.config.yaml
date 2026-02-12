@@ -9,10 +9,6 @@ docs_paths:
   - docs/template
   - docs/project
 
-skills_paths:
-  - .ai/skills/template
-  - .ai/skills/project
-
 # Priority levels:
 # 1 = Critical/Architecture (read first)
 # 2 = Core patterns (state, auth, API)

@@ -305,7 +305,7 @@ All new feature branch operations MUST be logged to the issue logger for debuggi
   - Link to relevant log entries
 
 ### Sub-task 14: Update /workflow-review Command for Feature Branch Validation
-- [ ] Add new log markers to `.claude/commands/workflow-review.md`:
+- [ ] Add new log markers to `.ai/commands/workflow-review.md`:
   - `[LOG:FEATURE_BRANCH]` - Feature branch operations
   - `[LOG:FINAL_REVIEW]` - Final review status transitions
 - [ ] Add Feature Branch Flow validation checklist:
@@ -370,7 +370,7 @@ All new feature branch operations MUST be logged to the issue logger for debuggi
 - `docs/template/github-agents-workflow/feature-branch-workflow.md` - New comprehensive doc
 
 ### Workflow Review Command
-- `.claude/commands/workflow-review.md` - Add feature branch flow validation
+- `.ai/commands/workflow-review.md` - Add feature branch flow validation
 
 ## Files NOT Modified (No Change)
 
@@ -562,4 +562,4 @@ The 6 most critical files for implementing this plan:
 3. `src/server/project-management/config.ts` - Add "Final Review" status
 4. `src/agents/lib/artifacts.ts` - Track task branch in artifact comment
 5. `src/agents/shared/notifications.ts` - Final Review notification with preview URL
-6. `.claude/commands/workflow-review.md` - Add feature branch flow validation and new log markers
+6. `.ai/commands/workflow-review.md` - Add feature branch flow validation and new log markers

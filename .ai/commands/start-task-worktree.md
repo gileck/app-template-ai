@@ -111,7 +111,7 @@ This is NOT optional. This step is MANDATORY for all tasks, regardless of size.
 
 **Now follow the core implementation workflow from `/start-task` command.**
 
-Read and execute steps 2-8 from `.claude/commands/start-task.md`:
+Read and execute steps 2-8 from `.ai/commands/start-task.md`:
 - Step 2: Understand Requirements
 - Step 3: Review Related Documentation
 - Step 4: Explore Relevant Code

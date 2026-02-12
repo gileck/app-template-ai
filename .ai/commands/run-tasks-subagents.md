@@ -146,7 +146,7 @@ IMPORTANT: Only modify files relevant to YOUR task. Do not touch files that anot
 ### Agent Step A: Read Project Guidelines
 - Read CLAUDE.md in the worktree for project guidelines
 - Read any relevant docs from docs/ folder that relate to your task
-- Read any relevant skills from .ai/skills/ folder
+- Read any relevant commands from .ai/commands/ folder
 - Understand the project architecture and coding standards
 
 ### Agent Step B: Explore and Understand

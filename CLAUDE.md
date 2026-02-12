@@ -23,9 +23,9 @@ Next.js PWA with offline-first capabilities. Use this to understand the project 
 
 ## Build CLAUDE.md
 
-Auto-generate CLAUDE.md from docs and skills. Run this after creating or updating docs.
+Auto-generate CLAUDE.md from docs. Run this after creating or updating docs.
 
-**Summary:** Run `yarn build:claude` to regenerate CLAUDE.md from all docs and skills with frontmatter. **IMPORTANT: Run this after adding new docs or updating title/summary/description in existing docs.**
+**Summary:** Run `yarn build:claude` to regenerate CLAUDE.md from all docs with frontmatter. **IMPORTANT: Run this after adding new docs or updating title/summary/description in existing docs.**
 
 **Docs:** [build-claude-md.md](docs/template/build-claude-md.md)
 
@@ -700,7 +700,7 @@ Reference table for additional skill rules not covered in main sections.
 
 Reference table for command-based skills (slash commands).
 
-**Summary:** See the linked skill files for command usage and details.
+**Summary:** See the linked command files for command usage and details.
 
 **Docs:** [command-skills-reference.md](docs/template/_custom/command-skills-reference.md)
 

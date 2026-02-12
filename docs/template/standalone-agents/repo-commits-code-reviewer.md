@@ -76,7 +76,7 @@ The agent uses commits as pointers to areas of recent change, but all findings a
 
 Before forming findings, Claude:
 
-1. **Reads project guidelines** — `CLAUDE.md`, relevant docs from `docs/`, skill rules from `.ai/skills/`
+1. **Reads project guidelines** — `CLAUDE.md`, relevant docs from `docs/`, commands from `.ai/commands/`
 2. **Reads full current source files** — The complete current version of every file mentioned in the commits
 3. **Reads related code** — Uses Grep/Glob to find callers, usages, consumers
 4. **Forms findings against current code** — Each finding must be verifiable in the current source, not in historical diffs

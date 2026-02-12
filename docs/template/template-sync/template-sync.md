@@ -68,7 +68,7 @@ This file is **synced from the template** and defines what the template owns:
     "CLAUDE.md",
     "docs/template/**",
     "scripts/template/**",
-    ".ai/skills/template/**",
+    ".ai/commands/**",
     "src/client/components/ui/**",
     "src/server/middleware/**",
     ".template-sync.template.json"
@@ -129,7 +129,7 @@ For backwards compatibility, the sync tool also supports a single `.template-syn
     "CLAUDE.md",
     "docs/template/**",
     "scripts/template/**",
-    ".ai/skills/template/**",
+    ".ai/commands/**",
     "src/client/components/ui/**",
     "src/server/middleware/**"
   ],
@@ -224,7 +224,7 @@ This creates a `.template-sync.json` configuration file.
     "CLAUDE.md",
     "docs/template/**",
     "scripts/template/**",
-    ".ai/skills/template/**",
+    ".ai/commands/**",
     "src/client/components/ui/**",
     "src/client/query/**",
     "src/client/stores/**",

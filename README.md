@@ -122,7 +122,7 @@ The sync system will:
 │   └── shared/              # Shared types and utilities
 ├── scripts/                 # Build and utility scripts
 ├── docs/                    # Documentation
-└── .ai/skills/          # Project Rules
+└── .ai/commands/        # Slash Commands
 ```
 
 ## Key Documentation

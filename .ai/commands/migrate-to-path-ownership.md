@@ -73,7 +73,7 @@ Write a new `.template-sync.json` with Path Ownership format:
     "CLAUDE.md",
     "docs/template/**",
     "scripts/template/**",
-    ".ai/skills/template/**",
+    ".ai/commands/**",
     "src/client/components/ui/**",
     "src/client/query/**",
     "src/client/stores/**",

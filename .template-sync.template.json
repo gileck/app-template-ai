@@ -15,7 +15,7 @@
     "app-guildelines/**",
     "docs/template/**",
     "scripts/template/**",
-    ".ai/skills/template/**",
+    ".ai/commands/**",
     "src/config/**",
     "src/common/ai/**",
     "src/common/cache/**",
@@ -67,7 +67,7 @@
     ".template-sync.template.json"
   ],
   "templateIgnoredFiles": [
-    ".claude/commands/sync-children.md",
+    ".ai/commands/sync-children.md",
     "scripts/template/sync-child-projects.ts",
     "scripts/template/push-and-sync.sh",
     "src/apis/project/**",

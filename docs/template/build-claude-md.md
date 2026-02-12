@@ -1,19 +1,18 @@
 ---
 title: Build CLAUDE.md
-description: Auto-generate CLAUDE.md from docs and skills. Run this after creating or updating docs.
-summary: "Run `yarn build:claude` to regenerate CLAUDE.md from all docs and skills with frontmatter. **IMPORTANT: Run this after adding new docs or updating title/summary/description in existing docs.**"
+description: Auto-generate CLAUDE.md from docs. Run this after creating or updating docs.
+summary: "Run `yarn build:claude` to regenerate CLAUDE.md from all docs with frontmatter. **IMPORTANT: Run this after adding new docs or updating title/summary/description in existing docs.**"
 priority: 1
 ---
 
 # Build CLAUDE.md
 
-CLAUDE.md is auto-generated from docs and skills that have frontmatter.
+CLAUDE.md is auto-generated from docs that have frontmatter.
 
 ## When to Run
 
 Run `yarn build:claude` after:
 - Creating a new doc in `docs/template/` or `docs/project/`
-- Adding `title`/`summary` frontmatter to a skill in `.ai/skills/`
 - Updating `title`, `description`, `summary`, `guidelines`, `priority`, or `key_points` in any frontmatter
 
 ## Frontmatter Format
@@ -49,6 +48,5 @@ A doc needs `title` + either `summary` or non-empty `guidelines` to be included.
 ## Files Scanned
 
 - `docs/template/*.md` and `docs/project/*.md` (recursive)
-- `.ai/skills/template/*/SKILL.md` and `.ai/skills/project/*/SKILL.md`
 
 Only files with `title` + (`summary` or `guidelines`) in frontmatter are included.
