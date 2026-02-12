@@ -381,29 +381,44 @@ export function createDesignProcessor(
                         return { success: false, error: 'No selection found in DB for post-selection' };
                     }
 
-                    const chosenOption = decision.options.find(o => o.id === selection.selectedOptionId);
-                    if (!chosenOption) {
-                        return { success: false, error: `Selected option "${selection.selectedOptionId}" not found in decision options` };
+                    // Handle custom solution vs predefined option
+                    let chosenTitle: string;
+                    let chosenDescription: string;
+                    let mockOptionId: string | null = null;
+
+                    if (selection.selectedOptionId === 'custom') {
+                        chosenTitle = 'Custom Solution';
+                        chosenDescription = selection.customSolution || 'Custom solution (no details provided)';
+                    } else {
+                        const chosenOption = decision.options.find(o => o.id === selection.selectedOptionId);
+                        if (!chosenOption) {
+                            return { success: false, error: `Selected option "${selection.selectedOptionId}" not found in decision options` };
+                        }
+                        chosenTitle = chosenOption.title;
+                        chosenDescription = chosenOption.description;
+                        mockOptionId = chosenOption.id;
                     }
 
                     // Try to read the chosen mock source file from the branch
                     let mockSource: string | null = null;
-                    try {
-                        const fs = await import('fs');
-                        const path = await import('path');
-                        const mockPath = path.default.join(process.cwd(), `src/pages/design-mocks/components/issue-${issueNumber}-${chosenOption.id}.tsx`);
-                        if (fs.default.existsSync(mockPath)) {
-                            mockSource = fs.default.readFileSync(mockPath, 'utf-8');
-                            console.log(`  Read chosen mock source: ${mockPath} (${mockSource.length} chars)`);
+                    if (mockOptionId) {
+                        try {
+                            const fs = await import('fs');
+                            const path = await import('path');
+                            const mockPath = path.default.join(process.cwd(), `src/pages/design-mocks/components/issue-${issueNumber}-${mockOptionId}.tsx`);
+                            if (fs.default.existsSync(mockPath)) {
+                                mockSource = fs.default.readFileSync(mockPath, 'utf-8');
+                                console.log(`  Read chosen mock source: ${mockPath} (${mockSource.length} chars)`);
+                            }
+                        } catch {
+                            // Mock source is optional — proceed without it
                         }
-                    } catch {
-                        // Mock source is optional — proceed without it
                     }
 
-                    console.log(`  Chosen option: "${chosenOption.title}" (${chosenOption.id})`);
+                    console.log(`  Chosen option: "${chosenTitle}" (${selection.selectedOptionId})`);
                     prompt = config.buildPostSelectionPrompt({
                         ...promptCtx,
-                        chosenOption: { title: chosenOption.title, description: chosenOption.description },
+                        chosenOption: { title: chosenTitle, description: chosenDescription },
                         mockSource,
                     });
                 } else {
