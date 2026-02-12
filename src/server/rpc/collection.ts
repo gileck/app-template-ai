@@ -28,8 +28,15 @@ export async function findRpcJobById(id: ObjectId): Promise<RpcJobDocument | nul
 
 export async function claimNextPendingJob(): Promise<RpcJobDocument | null> {
   const col = await getCollection();
+  const staleThreshold = new Date(Date.now() - 5 * 60 * 1000);
   return col.findOneAndUpdate(
-    { status: 'pending', expiresAt: { $gt: new Date() } },
+    {
+      expiresAt: { $gt: new Date() },
+      $or: [
+        { status: 'pending' },
+        { status: 'processing', startedAt: { $lt: staleThreshold } },
+      ],
+    },
     { $set: { status: 'processing', startedAt: new Date() } },
     { sort: { createdAt: 1 }, returnDocument: 'after' }
   );
@@ -44,7 +51,7 @@ export async function findRecentJob(
     {
       handlerPath,
       args,
-      status: { $in: ['pending', 'processing', 'completed'] },
+      status: { $in: ['pending', 'processing', 'completed'] as const },
       expiresAt: { $gt: new Date() },
     },
     { sort: { createdAt: -1 } }

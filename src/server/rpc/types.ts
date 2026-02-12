@@ -29,6 +29,7 @@ export interface CallRemoteOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
   ttlMs?: number;
+  skipCache?: boolean;
 }
 
 export interface RpcResult<T> {

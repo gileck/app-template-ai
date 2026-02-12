@@ -1,5 +1,4 @@
 import { resolve } from 'path';
-import { existsSync } from 'fs';
 import { createRpcJob, findRpcJobById, findRecentJob } from './collection';
 import type { CallRemoteOptions, RpcResult } from './types';
 
@@ -21,14 +20,6 @@ export async function callRemote<TResult>(
   if (!resolved.startsWith(allowedBase)) {
     throw new Error(`RPC handler path must resolve within src/server/, got: "${handlerPath}"`);
   }
-  const fileExists =
-    existsSync(resolved + '.ts') ||
-    existsSync(resolved + '.js') ||
-    existsSync(resolved + '/index.ts') ||
-    existsSync(resolved + '/index.js');
-  if (!fileExists) {
-    throw new Error(`RPC handler not found on disk: "${handlerPath}"`);
-  }
 
   const secret = process.env.RPC_SECRET;
   if (!secret) {
@@ -36,7 +27,7 @@ export async function callRemote<TResult>(
   }
 
   // Reuse a recent job for the same handler+args if one exists
-  const existing = await findRecentJob(handlerPath, args);
+  const existing = options?.skipCache ? null : await findRecentJob(handlerPath, args);
   let jobId = existing?._id;
 
   if (existing?.status === 'completed') {

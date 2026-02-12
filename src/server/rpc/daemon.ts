@@ -91,7 +91,7 @@ async function processJob(): Promise<boolean> {
 
 async function pollLoop(): Promise<void> {
   log(`Starting — polling every ${POLL_INTERVAL_MS / 1000}s${verbose ? ' (verbose)' : ''}`);
-  vlog(`RPC_SECRET: ${process.env.RPC_SECRET ? 'set (' + process.env.RPC_SECRET.slice(0, 8) + '...)' : 'NOT SET'}`);
+  vlog(`RPC_SECRET: ${process.env.RPC_SECRET ? 'set' : 'NOT SET'}`);
   vlog(`Working directory: ${process.cwd()}`);
 
   await ensureRpcIndexes();
