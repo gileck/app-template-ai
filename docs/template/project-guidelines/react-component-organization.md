@@ -2,7 +2,13 @@
 name: react-component-organization
 description: Component organization and patterns. Use this when creating/organizing components.
 title: React Components
-summary: "Feature-based organization with small, focused components (<150 lines). Route-specific code in route folder, shared features in `features/`. **CRITICAL: Always check Loading → Error → Empty → Data order.**"
+guidelines:
+  - "CRITICAL: Always check states in order — Loading → Error → Empty → Data"
+  - "Check `isLoading || data === undefined` before showing empty state"
+  - "Components under 150 lines — split at 200+"
+  - "Route-specific code in `routes/{Name}/`, shared features in `features/`"
+  - "Feature-specific components go in `features/`, NOT `components/`"
+  - "Use React Query hooks for data fetching — never useState/useEffect"
 priority: 3
 related_docs:
   - react-hook-organization.md

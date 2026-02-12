@@ -1,6 +1,15 @@
 ---
 name: shadcn-usage
 description: when building UI components - MUST use shadcn/ui
+title: shadcn/ui Usage
+guidelines:
+  - "shadcn/ui is the ONLY component library — never use Material-UI, Ant Design, Chakra, etc."
+  - "NEVER hardcode colors (`bg-white`, `text-black`, `bg-blue-500`) — always use semantic tokens (`bg-background`, `text-foreground`)"
+  - "Use built-in variants (`variant=\"outline\"`, `size=\"sm\"`) instead of custom styling"
+  - "Use `asChild` for proper component composition (e.g., `DialogTrigger asChild`)"
+  - "Icons from `lucide-react` only — no other icon libraries"
+  - "Always provide `Label` with `htmlFor`/`id` for form inputs"
+priority: 3
 ---
 # shadcn/ui Component Usage Guidelines
 

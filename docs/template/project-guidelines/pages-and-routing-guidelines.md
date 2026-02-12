@@ -2,7 +2,12 @@
 name: pages-and-routing-guidelines
 description: Adding routes and keeping navigation menus in sync. Use this when adding client routes.
 title: Routes & Navigation
-summary: "Routes defined in `src/client/routes/index.ts`. Add to `navItems`/`menuItems` in `NavLinks.tsx` if user-accessible. Options: `public`, `fullScreen`, `adminOnly`."
+guidelines:
+  - "Routes defined in `src/client/routes/index.ts` — add to `navItems` in `NavLinks.tsx` if user-accessible"
+  - "Use kebab-case paths (`/new-route`), PascalCase folders/components"
+  - "Data fetching via React Query hooks in `hooks.ts` — never direct API calls in components"
+  - "Always use `navigate()` from `useRouter()` — never `window.location.href`"
+  - "Route options: `public` (no auth), `adminOnly`, `fullScreen`"
 priority: 3
 ---
 # SPA Routing Guidelines

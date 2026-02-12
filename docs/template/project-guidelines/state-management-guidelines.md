@@ -1,6 +1,14 @@
 ---
 name: state-management-guidelines
 description: when managing state in the application (client state, server state, offline support)
+title: State Management Rules
+guidelines:
+  - "React Query for API data, Zustand for client state, useState ONLY for 4 ephemeral cases"
+  - "Valid useState: text input, dialog open, in-flight submission, confirm dialog — everything else MUST use Zustand"
+  - "All Zustand stores MUST use `createStore` from `@/client/stores` — direct zustand imports blocked by ESLint"
+  - "NEVER update UI from server response — optimistic-only pattern: update in `onMutate`, rollback in `onError`, empty `onSuccess`/`onSettled`"
+  - "Default to Zustand persisted — use `inMemoryOnly: true` only for truly transient state"
+priority: 2
 ---
 # State Management Guidelines
 

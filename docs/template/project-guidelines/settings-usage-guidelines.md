@@ -2,13 +2,13 @@
 name: settings-usage-guidelines
 description: User preferences and configuration patterns. Use this when implementing persistent user settings.
 title: Settings Usage
-summary: Use `useSettingsStore` from `@/client/features/settings` for all user preferences. Settings automatically persist to localStorage via Zustand.
-priority: 3
-key_points:
+guidelines:
+  - "Use `useSettingsStore` from `@/client/features/settings` for all user preferences"
   - "Subscribe to specific slices: `useSettingsStore((state) => state.settings.theme)`"
   - "Update with: `updateSettings({ fieldName: value })`"
-  - Use `useEffectiveOffline()` for combined offline detection (user toggle OR device offline)
-  - Add new fields in `types.ts` with defaults
+  - "Use `useEffectiveOffline()` for combined offline detection (user toggle OR device offline)"
+  - "Add new fields in `types.ts` with defaults in `defaultSettings`"
+priority: 3
 ---
 # Settings Usage Guidelines
 

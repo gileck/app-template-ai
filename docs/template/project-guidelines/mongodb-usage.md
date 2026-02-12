@@ -1,6 +1,13 @@
 ---
 name: mongodb-usage
-description: when accessing the databse or a collection in the db
+description: when accessing the database or a collection in the db
+title: MongoDB Usage
+guidelines:
+  - "All MongoDB operations MUST be in `src/server/database/collections/` — never import `mongodb` directly in API handlers"
+  - "Use `toStringId()`, `toQueryId()`, `toDocumentId()` from `@/server/utils` — never use `ObjectId` methods directly"
+  - "CRITICAL: Always use optional chaining and fallbacks for schema backward compatibility (`doc.field?.toISOString() ?? fallback`)"
+  - "New fields must be optional (`?`) with nullish coalescing (`??`) defaults"
+priority: 3
 ---
 # MongoDB Usage Guidelines
 

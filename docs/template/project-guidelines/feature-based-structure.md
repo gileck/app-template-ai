@@ -2,13 +2,13 @@
 name: feature-based-structure
 description: Feature-based folder structure for client code. Use this when organizing client-side code.
 title: Feature-Based Structure
-summary: All code related to a feature lives together in `src/client/features/{name}/`. Features contain stores, hooks, components, and types. All stores MUST use `createStore` factory.
+guidelines:
+  - "All feature code lives together in `src/client/features/{name}/` (stores, hooks, components, types)"
+  - "`features/` for cross-route features, `routes/` for route-specific code, `components/` for shared UI primitives only"
+  - "All Zustand stores MUST use `createStore` factory from `@/client/stores`"
+  - "Import from feature index (`@/client/features/auth`), NOT internal files (`auth/store`)"
+  - "Feature-specific components go in `features/`, NOT `components/`"
 priority: 3
-key_points:
-  - "`features/` - Cross-route features (auth, settings, theme)"
-  - "`routes/` - Route-specific code (only used by that route)"
-  - "`components/` - Shared UI primitives only (shadcn components)"
-  - Import from feature index, not internal files
 ---
 
 # Feature-Based Structure

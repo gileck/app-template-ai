@@ -1,6 +1,14 @@
 ---
 name: theming-guidelines
 description: Theming and styling guidelines for components
+title: Theming Guidelines
+guidelines:
+  - "ALWAYS use semantic CSS variables — never hardcode colors like `bg-white`, `text-black`, `bg-blue-500`, or hex values"
+  - "Exception: dialog/modal overlays may use `bg-black/60` (standard shadcn pattern)"
+  - "Use `bg-background`, `text-foreground`, `border-border`, `bg-card`, `text-muted-foreground`, etc."
+  - "Status colors: `text-success`, `text-warning`, `text-info`, `text-destructive`"
+  - "Test components with 2+ theme presets in both light and dark modes"
+priority: 3
 ---
 
 # Theming Guidelines

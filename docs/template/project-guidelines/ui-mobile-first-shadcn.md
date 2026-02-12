@@ -2,7 +2,12 @@
 name: ui-mobile-first-shadcn
 description: All UI must be designed for mobile screens first (~400px width). Use this when implementing any UI.
 title: Mobile-First Philosophy
-summary: Design for 400px width first, then enhance with `sm:`, `md:`, `lg:` modifiers. Touch targets minimum 44px.
+guidelines:
+  - "Design for ~400px width FIRST, then enhance with `sm:`, `md:`, `lg:` modifiers"
+  - "Touch targets MUST be minimum 44px — use `min-h-11` or invisible extension pattern"
+  - "No horizontal scroll — content must fit within mobile viewport"
+  - "Use `pb-20` on mobile main to clear fixed bottom navigation"
+  - "Always use semantic color tokens — never hex values or raw Tailwind colors"
 priority: 2
 ---
 # Mobile-first UI rules (shadcn + Tailwind)

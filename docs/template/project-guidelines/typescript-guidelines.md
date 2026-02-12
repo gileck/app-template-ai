@@ -2,7 +2,12 @@
 name: typescript-guidelines
 description: Strict TypeScript guidelines. Use this when writing TypeScript code.
 title: TypeScript
-summary: Strict mode enabled, no `any` types allowed. Prefer union types over enums. All domain types in `apis/<domain>/types.ts`.
+guidelines:
+  - "No `any` types — use `unknown` and narrow with type guards"
+  - "Never cast to `any` (`as any`) — use proper type narrowing"
+  - "Prefer union types (`'pending' | 'approved'`) over enums"
+  - "All domain types MUST be defined in `apis/<domain>/types.ts` — never duplicate in components"
+  - "Do NOT create complex types — prefer simple, self-explanatory types"
 priority: 3
 ---
 # TypeScript Guidelines

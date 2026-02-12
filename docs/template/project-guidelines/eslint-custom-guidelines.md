@@ -2,13 +2,13 @@
 name: eslint-custom-guidelines
 description: Custom ESLint rules and when to use disable comments. Use this when fixing lint issues.
 title: ESLint Custom Rules
-summary: Never use ESLint disable comments unless specifically instructed. Exception - `state-management/prefer-state-architecture` - add disable comment WITH explanation for valid `useState` usage.
+guidelines:
+  - "Never use ESLint disable comments unless specifically instructed"
+  - "Exception: `state-management/prefer-state-architecture` — add disable comment WITH explanation"
+  - "Only 4 valid useState cases: text input, dialog open, in-flight submission, confirm dialog"
+  - "All other UI state (filters, view mode, sort, tabs, collapsed sections) MUST use Zustand"
+  - "Always run `yarn checks` after fixing lint issues"
 priority: 4
-key_points:
-  - "Valid `useState` justifications: text input before submission, dialog/modal open state, in-flight submission indicator, confirm dialog visibility"
-  - "Most UI state (filters, view mode, sort, collapsed sections, tabs) MUST use Zustand — not useState"
-  - "If warning triggers and none of the 4 valid cases apply: use React Query (API data) or Zustand (everything else)"
-  - Always run `yarn checks` after fixing lint issues
 ---
 # ESLint Custom Guidelines
 

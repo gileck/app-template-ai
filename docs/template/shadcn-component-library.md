@@ -8,7 +8,6 @@ related_docs:
 related_rules:
   - shadcn-usage
   - theming-guidelines
-  - ui-design-guidelines
 ---
 
 # shadcn/ui Component Library Guide

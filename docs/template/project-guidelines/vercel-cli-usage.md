@@ -1,6 +1,13 @@
 ---
 name: vercel-cli-usage
 description: when using Vercel CLI tool or managing Vercel deployments
+title: Vercel CLI Usage
+guidelines:
+  - "Run `vercel link` first to auto-detect project ID"
+  - "NEVER use `npx vercel env add` with piped input — use `yarn vercel-cli env:push` instead"
+  - "Use `--cloud-proxy` when running in Claude Code cloud environment"
+  - "Check build logs first when deployments fail: `yarn vercel-cli logs --deployment dpl_xxx`"
+priority: 4
 ---
 # Vercel CLI Usage Guidelines
 

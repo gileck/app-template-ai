@@ -1,6 +1,15 @@
 ---
 name: client-server-communications
 description: Client-Server Communication Guidelines
+title: Client-Server Communications
+guidelines:
+  - "Single API endpoint: all requests route through `/api/process/{api_name}`"
+  - "ALL domain types MUST be in `apis/<domain>/types.ts` — never duplicate in components"
+  - "Components use React Query hooks — never call API client functions directly"
+  - "API names defined in `<domain>/index.ts`, handlers in `<domain>/handlers/`, coordinator in `<domain>/server.ts`"
+  - "No client code in server files, no server code in client files"
+  - "Mutations return `{}` when offline — always guard against empty data"
+priority: 3
 ---
 # Client-Server Communication Guidelines
 

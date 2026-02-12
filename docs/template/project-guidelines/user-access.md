@@ -2,12 +2,11 @@
 name: user-access
 description: Accessing authenticated user in client and server code. Use this when implementing user-specific features.
 title: User Access
-summary: "Client: use `useAuth()` hook to get `user` object. Server: use `context.userId` from `ApiHandlerContext` (derived from JWT token)."
-priority: 3
-key_points:
+guidelines:
   - "Client: `const { user } = useAuth(); const userId = user?.id;`"
-  - "Server: `const userId = context.userId;` - always check if undefined"
-  - Server `userId` is `undefined` if token is invalid or missing
+  - "Server: `const userId = context.userId;` from `ApiHandlerContext` — always check if undefined"
+  - "Server `userId` is `undefined` if token is invalid or missing — always guard"
+priority: 3
 ---
 # How to Access User ID
 
