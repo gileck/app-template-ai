@@ -44,6 +44,7 @@ export {
     buildProductDesignPrompt,
     buildProductDesignRevisionPrompt,
     buildProductDesignClarificationPrompt,
+    buildProductDesignPostSelectionPrompt,
 } from './product-design';
 
 // Technical Design prompts

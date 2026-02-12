@@ -163,6 +163,7 @@ export interface ProductDesignOutput extends ClarificationFields {
     mockOptions?: MockOption[];
 }
 
+/** Full output format (legacy, includes both design and mockOptions) */
 export const PRODUCT_DESIGN_OUTPUT_FORMAT = {
     type: 'json_schema' as const,
     schema: {
@@ -212,6 +213,79 @@ export const PRODUCT_DESIGN_OUTPUT_FORMAT = {
                     },
                     required: ['id', 'title', 'description', 'isRecommended'],
                 },
+            },
+        },
+        required: ['design', 'comment'],
+    },
+};
+
+/** Phase 1 output: mocks only (comment + mockOptions, no design field) */
+export const PRODUCT_DESIGN_PHASE1_OUTPUT_FORMAT = {
+    type: 'json_schema' as const,
+    schema: {
+        type: 'object',
+        properties: {
+            ...CLARIFICATION_SCHEMA_PROPERTIES,
+            comment: {
+                type: 'string',
+                description:
+                    'High-level summary of the mock options to post as GitHub comment. ' +
+                    'Describe the key differences between options (3-5 bullet points). ' +
+                    'Leave empty if needsClarification=true.',
+            },
+            mockOptions: {
+                type: 'array',
+                description:
+                    'Design mock option metadata. The agent writes each option as a React component file ' +
+                    'directly to src/pages/design-mocks/ using write tools. This field captures the metadata ' +
+                    'for the decision flow. Generate 2-3 distinct design approaches. ' +
+                    'Leave empty/null if needsClarification=true.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            description: 'Unique identifier (e.g., "optA", "optB", "optC")',
+                        },
+                        title: {
+                            type: 'string',
+                            description: 'Short descriptive title for this design approach (e.g., "Minimalist Card Layout")',
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Description of the design approach, its strengths, and trade-offs',
+                        },
+                        isRecommended: {
+                            type: 'boolean',
+                            description: 'Whether this is the recommended option. Only one option should be recommended.',
+                        },
+                    },
+                    required: ['id', 'title', 'description', 'isRecommended'],
+                },
+            },
+        },
+        required: ['comment'],
+    },
+};
+
+/** Phase 2 output: design doc for chosen mock (design + comment, no mockOptions) */
+export const PRODUCT_DESIGN_PHASE2_OUTPUT_FORMAT = {
+    type: 'json_schema' as const,
+    schema: {
+        type: 'object',
+        properties: {
+            ...CLARIFICATION_SCHEMA_PROPERTIES,
+            design: {
+                type: 'string',
+                description: 'Complete product design document in markdown format for the chosen mock option. ' +
+                    'Leave empty if needsClarification=true.',
+            },
+            comment: {
+                type: 'string',
+                description:
+                    'High-level design overview to post as GitHub comment. ' +
+                    '"Here\'s the product design for the chosen option: 1. ... 2. ..." (3-5 items). ' +
+                    'Leave empty if needsClarification=true.',
             },
         },
         required: ['design', 'comment'],

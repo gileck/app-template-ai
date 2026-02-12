@@ -18,7 +18,7 @@ import {
     saveSelectionToDB,
 } from '../utils';
 import { getProjectManagementAdapter } from '@/server/project-management';
-import { REVIEW_STATUSES, STATUSES } from '@/server/project-management/config';
+import { REVIEW_STATUSES } from '@/server/project-management/config';
 import { submitDecisionRouting, advanceStatus } from '@/server/workflow-service';
 import { notifyDecisionSubmitted } from '@/agents/shared/notifications';
 
@@ -118,11 +118,9 @@ export async function submitDecision(
         const routing = decision.routing;
         let routedTo: string | undefined;
 
-        // Design-selection decisions always route to Technical Design
-        const isDesignSelection = decision.decisionType === 'design-selection';
-
-        if (isDesignSelection) {
-            routedTo = STATUSES.techDesign;
+        if (routing?.continueAfterSelection) {
+            // continueAfterSelection: stay in current phase (agent will pick up with Decision Submitted)
+            routedTo = undefined;
         } else if (routing) {
             // Routing config is present — routing MUST succeed or we fail
             if (selection.selectedOptionId === 'custom') {
@@ -161,44 +159,32 @@ export async function submitDecision(
         // Save selection to DB
         await saveSelectionToDB(issueNumber, selection);
 
-        // For design-selection decisions: copy chosen design to canonical S3 key
-        if (isDesignSelection && selection.selectedOptionId && selection.selectedOptionId !== 'custom') {
-            try {
-                const { getFileAsString, fileExists } = await import('@/server/s3/sdk');
-                const { saveDesignToS3 } = await import('@/agents/lib/design-files');
-                const optionKey = `design-docs/issue-${issueNumber}/product-design-${selection.selectedOptionId}.md`;
-                const exists = await fileExists(optionKey);
-                if (exists) {
-                    const content = await getFileAsString(optionKey);
-                    await saveDesignToS3(issueNumber, 'product', content);
-                    console.log(`  Copied selected design option ${selection.selectedOptionId} to canonical S3 key`);
-                }
-            } catch (s3Error) {
-                console.warn(`  Warning: Failed to copy design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
-            }
-        }
-
         // Use workflow service for status/review updates
-        if (isDesignSelection && routedTo) {
-            // For design-selection: advance status directly (skip metadata-based routing)
+        if (routing?.continueAfterSelection) {
+            // Stay in current phase — set Decision Submitted for agent to pick up
+            await submitDecisionRouting(issueNumber, undefined, {
+                reviewStatus: REVIEW_STATUSES.decisionSubmitted,
+                logAction: 'decision_continue',
+                logDescription: `Decision submitted, staying in current phase (${REVIEW_STATUSES.decisionSubmitted})`,
+                logMetadata: { selectedOption: selection.selectedOptionId },
+            });
+            console.log(`  Review status set to: ${REVIEW_STATUSES.decisionSubmitted} (continue in current phase)`);
+        } else if (routedTo) {
             await advanceStatus(issueNumber, routedTo, {
                 logAction: 'decision_routed',
-                logDescription: `Design selected, advanced to ${routedTo}`,
+                logDescription: `Decision routed to ${routedTo}`,
                 logMetadata: { selectedOption: selection.selectedOptionId },
             });
+            console.log(`  Item routed to: ${routedTo}`);
         } else {
-            await submitDecisionRouting(issueNumber, routedTo, {
-                reviewStatus: routedTo ? undefined : REVIEW_STATUSES.approved,
-                logAction: routedTo ? 'decision_routed' : 'decision_approved',
-                logDescription: routedTo
-                    ? `Decision routed to ${routedTo}`
-                    : `Review status set to ${REVIEW_STATUSES.approved}`,
+            await submitDecisionRouting(issueNumber, undefined, {
+                reviewStatus: REVIEW_STATUSES.approved,
+                logAction: 'decision_approved',
+                logDescription: `Review status set to ${REVIEW_STATUSES.approved}`,
                 logMetadata: { selectedOption: selection.selectedOptionId },
             });
+            console.log(`  Review status set to: ${REVIEW_STATUSES.approved}`);
         }
-        console.log(routedTo
-            ? `  Item routed to: ${routedTo}`
-            : `  Review status set to: ${REVIEW_STATUSES.approved}`);
 
         // Send Telegram confirmation notification
         const selectedTitle = selection.selectedOptionId === 'custom'

@@ -1,25 +1,19 @@
 #!/usr/bin/env tsx
 /**
- * Product Design Agent
+ * Product Design Agent (2-Phase Flow)
  *
- * Generates Product Design documents for GitHub Project items.
- * Creates PRs with design files and interactive React mock pages.
+ * Phase 1 (reviewStatus = null → Waiting for Decision):
+ *   - Creates 2-3 React mock pages showing different UI/UX approaches
+ *   - Posts decision for admin to choose between mock options
+ *   - Sets Review Status to "Waiting for Decision"
  *
- * Flow A (New Design):
- *   - Fetches items in "Product Design" status with empty Review Status
- *   - Generates product design with 2-3 mock options using Claude (write mode)
- *   - Agent writes design mock pages directly to src/pages/design-mocks/
- *   - Creates branch, writes design file, creates PR
- *   - Creates decision for admin to choose between mock options
- *   - Sends Telegram notification with decision link and preview URL
+ * Phase 2 (reviewStatus = Decision Submitted → Waiting for Review):
+ *   - Reads chosen mock option from DB
+ *   - Writes full Product Design document based on the chosen approach
  *   - Sets Review Status to "Waiting for Review"
  *
- * Flow B (Address Feedback):
- *   - Fetches items in "Product Design" with Review Status = "Request Changes"
- *   - Reads admin feedback comments
- *   - Revises product design based on feedback
- *   - Updates existing design file and PR
- *   - Sets Review Status back to "Waiting for Review"
+ * Feedback (reviewStatus = Request Changes):
+ *   - Revises Phase 2 design document based on admin feedback
  *
  * Usage:
  *   yarn agent:product-design                    # Process all pending
@@ -32,19 +26,22 @@ import '../../shared/loadEnv';
 import {
     // Config
     STATUSES,
+    REVIEW_STATUSES,
     // Prompts
     buildProductDesignPrompt,
     buildProductDesignRevisionPrompt,
     buildProductDesignClarificationPrompt,
+    buildProductDesignPostSelectionPrompt,
     // Output schemas
-    PRODUCT_DESIGN_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE1_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE2_OUTPUT_FORMAT,
     // CLI & Batch
     createCLI,
     runBatch,
     // Design Agent Processor
     createDesignProcessor,
 } from '../../shared';
-import type { ProductDesignOutput, MockOption } from '../../shared';
+import type { ProductDesignOutput, MockOption, ProcessMode } from '../../shared';
 import {
     readDesignDocAsync,
 } from '../../lib/design-files';
@@ -64,11 +61,11 @@ const DESIGN_MOCK_METADATA_SCHEMA: MetadataFieldConfig[] = [
     { key: 'approach', label: 'Approach', type: 'tag' },
 ];
 
-/** Routing config: all design options route to Technical Design */
+/** Routing config: continue in Product Design after selection (Phase 2 writes the design doc) */
 const DESIGN_MOCK_ROUTING: RoutingConfig = {
     metadataKey: 'approach',
     statusMap: {},
-    // All options route to same destination — handled by submitDecision hook
+    continueAfterSelection: true,
 };
 
 // ============================================================
@@ -99,23 +96,40 @@ const processItem = createDesignProcessor({
     phaseName: 'Product Design',
     designType: 'product',
     agentName: 'product-design',
-    outputFormat: PRODUCT_DESIGN_OUTPUT_FORMAT,
-    outputDesignField: 'design',
+
+    // Phase 1 (new): mocks only — no design field
+    // Phase 2 (post-selection) / feedback / clarification: design + comment
+    outputFormat: (mode: ProcessMode) => {
+        if (mode === 'new') return PRODUCT_DESIGN_PHASE1_OUTPUT_FORMAT;
+        return PRODUCT_DESIGN_PHASE2_OUTPUT_FORMAT;
+    },
+
+    // Phase 1 (new) has no design field; Phase 2+ extracts 'design'
+    outputDesignField: (mode: ProcessMode) => mode === 'new' ? undefined : 'design',
+
+    // Phase 1 (new) returns Waiting for Decision; Phase 2+ returns Waiting for Review
+    getCompletionReviewStatus: (mode: ProcessMode, hasDesignContent: boolean) => {
+        if (mode === 'new' && !hasDesignContent) return REVIEW_STATUSES.waitingForDecision;
+        return REVIEW_STATUSES.waitingForReview;
+    },
 
     modeLabels: {
-        new: 'New Design',
+        new: 'Phase 1: Create Mocks',
+        'post-selection': 'Phase 2: Write Design Doc',
         feedback: 'Address Feedback',
         clarification: 'Clarification',
     },
 
     progressLabels: {
-        new: 'Generating product design',
+        new: 'Creating design mock options',
+        'post-selection': 'Writing design doc for chosen option',
         feedback: 'Revising product design',
         clarification: 'Continuing with clarification',
     },
 
-    allowWrite: true, // Agent writes mock pages directly to src/pages/design-mocks/
-    allowedWritePaths: ['src/pages/design-mocks/'], // Restrict agent writes to mock pages only
+    // Only allow writes in Phase 1 (mock pages)
+    allowWrite: (mode: ProcessMode) => mode === 'new',
+    allowedWritePaths: ['src/pages/design-mocks/'],
 
     skipBugs: true,
     skipBugMessage: `\u23ED\uFE0F  Skipping bug - bugs bypass Product Design phase\n\uD83D\uDCCC Reason: Most bugs don't need product design (they need technical fixes)\n\uD83D\uDCA1 If this bug requires UX/UI redesign, admin can manually move it to Product Design`,
@@ -135,6 +149,9 @@ const processItem = createDesignProcessor({
             { allowWrite: true },
         ),
 
+    buildPostSelectionPrompt: ({ content, allComments, chosenOption, mockSource }) =>
+        buildProductDesignPostSelectionPrompt(content, chosenOption, mockSource, allComments),
+
     loadAdditionalContext: async ({ issueNumber }) => {
         // Check for Product Development Document (PDD) — tries S3 first, then filesystem
         const productDevelopmentDoc = await readDesignDocAsync(issueNumber, 'product-dev');
@@ -143,38 +160,20 @@ const processItem = createDesignProcessor({
             : { context: null };
     },
 
-    afterPR: async ({ prNumber: _prNumber, adapter, structuredOutput, logCtx, mode, issueNumber, content: _content }) => {
+    afterPR: async ({ adapter, structuredOutput, logCtx, mode, issueNumber }) => {
         const output = structuredOutput as unknown as ProductDesignOutput;
         const mockOptions = output?.mockOptions;
 
-        // Only create decisions for new designs with mock options
+        // Only create decisions for Phase 1 (new) with mock options
         if (!mockOptions || mockOptions.length < 2 || mode !== 'new') {
             return;
         }
 
         console.log(`  Mock options: ${mockOptions.length} design options generated`);
-        // Note: Mock pages are written directly by the agent (allowWrite mode)
-        // The processor's commit includes both design doc and agent-written mock files
 
-        // 1. Save each option's design description to S3
-        for (const opt of mockOptions) {
-            try {
-                const { uploadFile } = await import('@/server/s3/sdk');
-                const optionKey = `design-docs/issue-${issueNumber}/product-design-${opt.id}.md`;
-                await uploadFile({
-                    content: `# ${opt.title}\n\n${opt.description}`,
-                    fileName: optionKey,
-                    contentType: 'text/markdown',
-                });
-            } catch {
-                console.warn(`  Warning: Failed to save option ${opt.id} design to S3 (non-fatal)`);
-            }
-        }
-        console.log(`  Saved ${mockOptions.length} option designs to S3`);
-
-        // 2. Create decision for admin to choose between options
+        // Create decision for admin to choose between options
         const decisionOptions = toDecisionOptions(mockOptions);
-        const decisionContext = `**Design Options:** ${mockOptions.length} approaches generated\n\nReview each option and select the design approach for this feature. Each option is available as an interactive mock on the PR preview deployment.`;
+        const decisionContext = `**Design Options:** ${mockOptions.length} approaches generated\n\nReview each option and select the design approach for this feature. Each option is available as an interactive mock on the PR preview deployment.\n\n**Note:** After selecting an option, the agent will write a full design document for the chosen approach.`;
 
         // Post decision comment on issue
         const decisionComment = formatDecisionComment(
@@ -183,7 +182,7 @@ const processItem = createDesignProcessor({
             decisionContext,
             decisionOptions,
             DESIGN_MOCK_METADATA_SCHEMA,
-            undefined, // no custom destination options — all route to Tech Design
+            undefined,
             DESIGN_MOCK_ROUTING
         );
         await adapter.addIssueComment(issueNumber, decisionComment);
@@ -201,49 +200,46 @@ const processItem = createDesignProcessor({
             undefined,
             DESIGN_MOCK_ROUTING
         );
-
     },
 
     overrideNotification: async ({ prNumber, issueNumber, content, issueType, mode, comment }) => {
-        // For feedback/clarification mode, use default approve notification
-        if (mode !== 'new') return false;
-
-        // For new designs, try to send decision notification with preview URL
-        // If no mock options were generated, fall through to default
-        try {
-            const { getDecisionFromDB } = await import('@/apis/template/agent-decision/utils');
-            const decision = await getDecisionFromDB(issueNumber, content.title);
-            if (decision && decision.options.length >= 2) {
-                // Fetch Vercel preview URL and append mock page path
-                let previewUrl: string | null = null;
-                try {
-                    const { getVercelPreviewUrl } = await import('@/agents/lib/preview-url');
-                    const baseUrl = await getVercelPreviewUrl(prNumber);
-                    if (baseUrl) {
-                        previewUrl = `${baseUrl}/design-mocks/issue-${issueNumber}`;
+        // For Phase 1 (new): send decision-needed notification
+        if (mode === 'new') {
+            try {
+                const { getDecisionFromDB } = await import('@/apis/template/agent-decision/utils');
+                const decision = await getDecisionFromDB(issueNumber, content.title);
+                if (decision && decision.options.length >= 2) {
+                    let previewUrl: string | null = null;
+                    try {
+                        const { getVercelPreviewUrl } = await import('@/agents/lib/preview-url');
+                        const baseUrl = await getVercelPreviewUrl(prNumber);
+                        if (baseUrl) {
+                            previewUrl = `${baseUrl}/design-mocks/issue-${issueNumber}`;
+                        }
+                    } catch {
+                        // Preview URL is optional
                     }
-                } catch {
-                    // Preview URL is optional — continue without it
-                }
 
-                const summaryText = comment || `${decision.options.length} design options available`;
-                await notifyDecisionNeeded(
-                    'Product Design',
-                    content.title,
-                    issueNumber,
-                    summaryText,
-                    decision.options.length,
-                    issueType,
-                    false,
-                    previewUrl
-                );
-                return true; // Override default notification
+                    const summaryText = comment || `${decision.options.length} design options available`;
+                    await notifyDecisionNeeded(
+                        'Product Design',
+                        content.title,
+                        issueNumber,
+                        summaryText,
+                        decision.options.length,
+                        issueType,
+                        false,
+                        previewUrl
+                    );
+                    return true;
+                }
+            } catch {
+                // Fall through to default notification
             }
-        } catch {
-            // Fall through to default notification
         }
 
-        return false; // Use default notification
+        // For post-selection/feedback/clarification: use default approve notification
+        return false;
     },
 
     dryRunExtra: (structuredOutput) => {

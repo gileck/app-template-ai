@@ -741,7 +741,7 @@ export async function notifyAgentStarted(
     phase: string,
     title: string,
     issueNumber: number,
-    mode: 'new' | 'feedback' | 'clarification',
+    mode: 'new' | 'feedback' | 'clarification' | 'post-selection',
     itemType: 'bug' | 'feature' = 'feature'
 ): Promise<SendResult> {
     const status =
@@ -749,7 +749,9 @@ export async function notifyAgentStarted(
             ? '🚀 Started'
             : mode === 'feedback'
               ? '🔄 Addressing Feedback'
-              : '💬 Resuming After Clarification';
+              : mode === 'post-selection'
+                ? '📝 Writing Design for Chosen Option'
+                : '💬 Resuming After Clarification';
     const issueUrl = getIssueUrl(issueNumber);
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
@@ -761,7 +763,7 @@ ${typeEmoji} ${typeLabel}
 🔗 Issue #${issueNumber}`;
 
     // Log history (fire-and-forget, non-critical)
-    const modeLabel = mode === 'new' ? 'started' : mode === 'feedback' ? 'addressing feedback' : 'resuming after clarification';
+    const modeLabel = mode === 'new' ? 'started' : mode === 'feedback' ? 'addressing feedback' : mode === 'post-selection' ? 'writing design for chosen option' : 'resuming after clarification';
     addHistoryEntry(issueNumber, {
         action: 'agent_started',
         description: `Agent ${phase} ${modeLabel}`,

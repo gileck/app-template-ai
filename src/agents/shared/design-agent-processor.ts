@@ -51,13 +51,15 @@ import {
     getDefaultBranch,
 } from './git-utils';
 
-import type { ProcessableItem } from './batch-processor';
+import type { ProcessableItem, ProcessMode } from './batch-processor';
 
 // ============================================================
 // TYPES
 // ============================================================
 
 type Adapter = Awaited<ReturnType<typeof getProjectManagementAdapter>>;
+
+type OutputFormat = { type: 'json_schema'; schema: Record<string, unknown> };
 
 /** Context passed to prompt builder functions */
 export interface PromptContext {
@@ -81,31 +83,24 @@ export interface DesignAgentConfig {
     designType: DesignDocType;
     /** Agent identity name for comment prefixes */
     agentName: AgentName;
-    /** Output format schema passed to runAgent */
-    outputFormat: { type: 'json_schema'; schema: Record<string, unknown> };
-    /** Field name in structured output that contains the design content (e.g., 'design' or 'document') */
-    outputDesignField: string;
+    /** Output format schema passed to runAgent. Can be a function of mode for mode-dependent schemas. */
+    outputFormat: OutputFormat | ((mode: ProcessMode) => OutputFormat);
+    /** Field name in structured output that contains the design content (e.g., 'design' or 'document'). Can be a function of mode. Returns undefined/null to skip design extraction. */
+    outputDesignField?: string | ((mode: ProcessMode) => string | undefined);
 
     /** Mode labels for logging (e.g., { new: 'New Design', feedback: 'Address Feedback' }) */
-    modeLabels: {
-        new: string;
-        feedback: string;
-        clarification: string;
-    };
+    modeLabels: Record<string, string>;
 
     /** Progress labels shown during agent execution */
-    progressLabels: {
-        new: string;
-        feedback: string;
-        clarification: string;
-    };
+    progressLabels: Record<string, string>;
 
     /**
      * Optional: Allow the agent to write files (e.g., mock pages).
      * When true, the branch is created BEFORE running the agent so
      * file writes land on the design branch, not main.
+     * Can be a function of mode (e.g., allow writes only for 'new').
      */
-    allowWrite?: boolean;
+    allowWrite?: boolean | ((mode: ProcessMode) => boolean);
 
     /**
      * Optional: Restrict agent file writes to these path prefixes.
@@ -121,6 +116,8 @@ export interface DesignAgentConfig {
     buildFeedbackPrompt: (ctx: PromptContext & { existingDesign: string }) => string;
     /** Build prompt for clarification continuation */
     buildClarificationPrompt: (ctx: PromptContext & { clarification: GitHubComment }) => string;
+    /** Build prompt for post-selection (Phase 2: write design for chosen mock) */
+    buildPostSelectionPrompt?: (ctx: PromptContext & { chosenOption: { title: string; description: string }; mockSource: string | null }) => string;
 
     /**
      * Optional: Whether to skip bug issues. If true, bugs are rejected with an error message.
@@ -153,7 +150,7 @@ export interface DesignAgentConfig {
         adapter: Adapter;
         structuredOutput: Record<string, unknown>;
         logCtx: LogContext;
-        mode: 'new' | 'feedback' | 'clarification';
+        mode: ProcessMode;
         issueNumber: number;
         content: NonNullable<ProjectItemContent>;
         issueType: 'bug' | 'feature';
@@ -171,7 +168,7 @@ export interface DesignAgentConfig {
         issueNumber: number;
         content: NonNullable<ProjectItemContent>;
         issueType: 'bug' | 'feature';
-        mode: 'new' | 'feedback' | 'clarification';
+        mode: ProcessMode;
         comment: string | undefined;
     }) => Promise<boolean>;
 
@@ -188,6 +185,12 @@ export interface DesignAgentConfig {
     prTitle: (issueNumber: number) => string;
     /** PR body template. Receives issueNumber. */
     prBody: (issueNumber: number) => string;
+
+    /**
+     * Optional: Return the reviewStatus to set after agent completes.
+     * Default: Waiting for Review.
+     */
+    getCompletionReviewStatus?: (mode: ProcessMode, hasDesignContent: boolean) => string;
 }
 
 // ============================================================
@@ -216,7 +219,7 @@ export function createDesignProcessor(
 
         const issueNumber = content.number!;
         console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
-        console.log(`  Mode: ${config.modeLabels[mode]}`);
+        console.log(`  Mode: ${config.modeLabels[mode] ?? mode}`);
 
         // Check if this is a bug - optionally skip
         const issueType = getIssueType(content.labels);
@@ -240,7 +243,9 @@ export function createDesignProcessor(
             workflow: config.workflow as LogContext['workflow'],
             phase: config.phaseName,
             mode: mode === 'new' ? `New ${config.designType === 'product-dev' ? 'document' : 'design'}`
-                : mode === 'feedback' ? 'Address feedback' : 'Clarification',
+                : mode === 'feedback' ? 'Address feedback'
+                : mode === 'post-selection' ? 'Post-selection design'
+                : 'Clarification',
             issueTitle: content.title,
             issueType,
             currentStatus: item.status,
@@ -274,10 +279,10 @@ export function createDesignProcessor(
                     console.log(`  Found ${allComments.length} comment(s) on issue`);
                 }
 
-                // In feedback mode with existing PR, checkout the branch first to read existing design
+                // In feedback/post-selection mode with existing PR, checkout the branch first
                 // This is needed because the design file lives on the PR branch, not main
                 let alreadyOnPRBranch = false;
-                if (mode === 'feedback' && existingPR) {
+                if ((mode === 'feedback' || mode === 'post-selection') && existingPR) {
                     // Ensure clean working directory before branch operations
                     if (hasUncommittedChanges()) {
                         const changes = getUncommittedChanges();
@@ -356,6 +361,51 @@ export function createDesignProcessor(
                     }
 
                     prompt = config.buildFeedbackPrompt({ ...promptCtx, existingDesign });
+                } else if (mode === 'post-selection') {
+                    // Flow D: Post-selection (Phase 2 — write design for chosen mock)
+                    if (!config.buildPostSelectionPrompt) {
+                        return { success: false, error: 'post-selection mode requires buildPostSelectionPrompt config' };
+                    }
+
+                    // Read the chosen option from MongoDB decision
+                    const { getDecisionFromDB } = await import('@/apis/template/agent-decision/utils');
+                    const decision = await getDecisionFromDB(issueNumber, content.title);
+                    if (!decision) {
+                        return { success: false, error: 'No decision found in DB for post-selection' };
+                    }
+
+                    // Find the selected option from DB
+                    const { getSelectionFromDB } = await import('@/apis/template/agent-decision/utils');
+                    const selection = await getSelectionFromDB(issueNumber);
+                    if (!selection?.selectedOptionId) {
+                        return { success: false, error: 'No selection found in DB for post-selection' };
+                    }
+
+                    const chosenOption = decision.options.find(o => o.id === selection.selectedOptionId);
+                    if (!chosenOption) {
+                        return { success: false, error: `Selected option "${selection.selectedOptionId}" not found in decision options` };
+                    }
+
+                    // Try to read the chosen mock source file from the branch
+                    let mockSource: string | null = null;
+                    try {
+                        const fs = await import('fs');
+                        const path = await import('path');
+                        const mockPath = path.default.join(process.cwd(), `src/pages/design-mocks/components/issue-${issueNumber}-${chosenOption.id}.tsx`);
+                        if (fs.default.existsSync(mockPath)) {
+                            mockSource = fs.default.readFileSync(mockPath, 'utf-8');
+                            console.log(`  Read chosen mock source: ${mockPath} (${mockSource.length} chars)`);
+                        }
+                    } catch {
+                        // Mock source is optional — proceed without it
+                    }
+
+                    console.log(`  Chosen option: "${chosenOption.title}" (${chosenOption.id})`);
+                    prompt = config.buildPostSelectionPrompt({
+                        ...promptCtx,
+                        chosenOption: { title: chosenOption.title, description: chosenOption.description },
+                        mockSource,
+                    });
                 } else {
                     // Flow C: Continue after clarification
                     const clarification = allComments[allComments.length - 1];
@@ -367,13 +417,21 @@ export function createDesignProcessor(
                     prompt = config.buildClarificationPrompt({ ...promptCtx, clarification });
                 }
 
+                // Resolve mode-dependent config values
+                const resolvedOutputFormat = typeof config.outputFormat === 'function'
+                    ? config.outputFormat(mode)
+                    : config.outputFormat;
+                const resolvedAllowWrite = typeof config.allowWrite === 'function'
+                    ? config.allowWrite(mode)
+                    : (config.allowWrite ?? false);
+
                 // When allowWrite is enabled, create/checkout the branch BEFORE running
                 // the agent so that file writes (e.g., mock pages) land on the design
                 // branch instead of main.
                 const branchName = existingPR?.branchName || generateDesignBranchName(issueNumber, config.designType);
                 let earlyBranchCreated = false;
 
-                if (config.allowWrite && !alreadyOnPRBranch && !options.dryRun) {
+                if (resolvedAllowWrite && !alreadyOnPRBranch && !options.dryRun) {
                     const isExistingBranch = existingPR || branchExistsLocally(branchName);
 
                     if (hasUncommittedChanges()) {
@@ -398,7 +456,7 @@ export function createDesignProcessor(
 
                 // Run the agent
                 console.log('');
-                const progressLabel = config.progressLabels[mode];
+                const progressLabel = config.progressLabels[mode] ?? `Processing ${mode}`;
 
                 const result: AgentRunResult = await runAgent({
                     prompt,
@@ -407,8 +465,8 @@ export function createDesignProcessor(
                     timeout: options.timeout,
                     progressLabel,
                     workflow: config.workflow,
-                    outputFormat: config.outputFormat,
-                    allowWrite: config.allowWrite,
+                    outputFormat: resolvedOutputFormat,
+                    allowWrite: resolvedAllowWrite,
                     allowedWritePaths: config.allowedWritePaths,
                 });
 
@@ -421,7 +479,7 @@ export function createDesignProcessor(
                 }
 
                 // Validate that agent writes are within allowed paths
-                if (config.allowWrite && config.allowedWritePaths && config.allowedWritePaths.length > 0 && earlyBranchCreated) {
+                if (resolvedAllowWrite && config.allowedWritePaths && config.allowedWritePaths.length > 0 && earlyBranchCreated) {
                     const uncommitted = getUncommittedChanges();
                     if (uncommitted) {
                         const changedFiles = uncommitted.split('\n').filter(l => l.trim());
@@ -462,54 +520,83 @@ export function createDesignProcessor(
                 }
 
                 // Extract structured output (with fallback to JSON/markdown extraction)
-                let designContent: string;
+                let designContent: string | null = null;
                 let comment: string | undefined;
 
                 const structuredOutput = result.structuredOutput as Record<string, unknown> | undefined;
-                if (structuredOutput && typeof structuredOutput[config.outputDesignField] === 'string') {
-                    designContent = structuredOutput[config.outputDesignField] as string;
-                    comment = structuredOutput.comment as string | undefined;
-                    console.log(`  Design generated: ${designContent.length} chars (structured output)`);
-                } else {
-                    // Try parsing as JSON first (cursor adapter returns JSON as raw text)
-                    let parsed: Record<string, unknown> | null = null;
-                    try {
-                        const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            const candidate = JSON.parse(jsonMatch[0]);
-                            if (candidate && typeof candidate[config.outputDesignField] === 'string') {
-                                parsed = candidate as Record<string, unknown>;
-                            }
-                        }
-                    } catch {
-                        // Not valid JSON, continue to markdown extraction
-                    }
+                const designField = typeof config.outputDesignField === 'function'
+                    ? config.outputDesignField(mode)
+                    : config.outputDesignField;
 
-                    if (parsed) {
-                        designContent = parsed[config.outputDesignField] as string;
-                        comment = parsed.comment as string | undefined;
-                        console.log(`  Design generated: ${designContent.length} chars (JSON extraction)`);
+                if (designField) {
+                    // Standard path: extract design content from output
+                    if (structuredOutput && typeof structuredOutput[designField] === 'string') {
+                        designContent = structuredOutput[designField] as string;
+                        comment = structuredOutput.comment as string | undefined;
+                        console.log(`  Design generated: ${designContent.length} chars (structured output)`);
                     } else {
-                        // Fallback: extract markdown from text output
-                        const extracted = extractMarkdown(result.content);
-                        if (!extracted) {
-                            const error = `Could not extract ${config.phaseName.toLowerCase()} from output`;
-                            if (!options.dryRun) {
-                                await notifyAgentError(config.phaseName, content.title, issueNumber, error);
+                        // Try parsing as JSON first (cursor adapter returns JSON as raw text)
+                        let parsed: Record<string, unknown> | null = null;
+                        try {
+                            const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                const candidate = JSON.parse(jsonMatch[0]);
+                                if (candidate && typeof candidate[designField] === 'string') {
+                                    parsed = candidate as Record<string, unknown>;
+                                }
                             }
-                            return { success: false, error };
+                        } catch {
+                            // Not valid JSON, continue to markdown extraction
                         }
-                        designContent = extracted;
-                        console.log(`  Design generated: ${designContent.length} chars (markdown extraction)`);
+
+                        if (parsed) {
+                            designContent = parsed[designField] as string;
+                            comment = parsed.comment as string | undefined;
+                            console.log(`  Design generated: ${designContent.length} chars (JSON extraction)`);
+                        } else {
+                            // Fallback: extract markdown from text output
+                            const extracted = extractMarkdown(result.content);
+                            if (!extracted) {
+                                const error = `Could not extract ${config.phaseName.toLowerCase()} from output`;
+                                if (!options.dryRun) {
+                                    await notifyAgentError(config.phaseName, content.title, issueNumber, error);
+                                }
+                                return { success: false, error };
+                            }
+                            designContent = extracted;
+                            console.log(`  Design generated: ${designContent.length} chars (markdown extraction)`);
+                        }
                     }
+                    console.log(`  Preview: ${designContent.slice(0, 100).replace(/\n/g, ' ')}...`);
+                } else {
+                    // No design field (e.g., Phase 1 mocks-only) — just extract comment
+                    comment = structuredOutput?.comment as string | undefined;
+                    if (!comment) {
+                        try {
+                            const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                const candidate = JSON.parse(jsonMatch[0]);
+                                comment = candidate?.comment as string | undefined;
+                            }
+                        } catch {
+                            // ignore
+                        }
+                    }
+                    console.log(`  No design field — mocks-only output`);
                 }
 
-                console.log(`  Preview: ${designContent.slice(0, 100).replace(/\n/g, ' ')}...`);
+                // Determine completion review status
+                const hasDesignContent = designContent !== null && designContent.length > 0;
+                const completionReviewStatus = config.getCompletionReviewStatus
+                    ? config.getCompletionReviewStatus(mode, hasDesignContent)
+                    : REVIEW_STATUSES.waitingForReview;
 
                 if (options.dryRun) {
-                    console.log('  [DRY RUN] Would write design to:', getDesignDocRelativePath(issueNumber, config.designType));
+                    if (hasDesignContent) {
+                        console.log('  [DRY RUN] Would write design to:', getDesignDocRelativePath(issueNumber, config.designType));
+                    }
                     console.log('  [DRY RUN] Would create/update PR');
-                    console.log('  [DRY RUN] Would set Review Status to Waiting for Review');
+                    console.log(`  [DRY RUN] Would set Review Status to ${completionReviewStatus}`);
                     if (comment) {
                         console.log('  [DRY RUN] Would post comment on PR:');
                         console.log('  ' + '='.repeat(60));
@@ -548,19 +635,23 @@ export function createDesignProcessor(
                     }
                 }
 
-                // Write design file
-                const designPath = writeDesignDoc(issueNumber, config.designType, designContent);
-                console.log(`  Written design to: ${designPath}`);
+                // Write design file (only when design content exists)
+                if (designContent) {
+                    const designPath = writeDesignDoc(issueNumber, config.designType, designContent);
+                    console.log(`  Written design to: ${designPath}`);
+                }
 
-                // Commit changes
+                // Commit changes (design doc and/or agent-written mock files)
                 const commitMessage = mode === 'new'
                     ? `docs: add ${config.phaseName.toLowerCase()} for issue #${issueNumber}`
+                    : mode === 'post-selection'
+                    ? `docs: add ${config.phaseName.toLowerCase()} design doc for issue #${issueNumber}`
                     : `docs: update ${config.phaseName.toLowerCase()} for issue #${issueNumber}`;
                 commitChanges(commitMessage);
                 console.log(`  Committed: ${commitMessage}`);
 
                 // Push branch
-                pushBranch(branchName, mode === 'feedback');
+                pushBranch(branchName, mode === 'feedback' || mode === 'post-selection');
                 console.log(`  Pushed to origin/${branchName}`);
 
                 // Log GitHub actions
@@ -627,12 +718,14 @@ ${comment}`;
                     });
                 }
 
-                // Save design content to S3 (decoupled from PR merge)
-                try {
-                    await saveDesignToS3(issueNumber, config.designType, designContent);
-                    console.log(`  Design saved to S3: design-docs/issue-${issueNumber}/`);
-                } catch (s3Error) {
-                    console.warn(`  Warning: Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
+                // Save design content to S3 (only when design content exists)
+                if (designContent) {
+                    try {
+                        await saveDesignToS3(issueNumber, config.designType, designContent);
+                        console.log(`  Design saved to S3: design-docs/issue-${issueNumber}/`);
+                    } catch (s3Error) {
+                        console.warn(`  Warning: Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
+                    }
                 }
 
                 // Return to original branch
@@ -642,9 +735,9 @@ ${comment}`;
                 // Update review status via workflow service
                 const { completeAgentRun } = await import('@/server/workflow-service');
                 await completeAgentRun(issueNumber, config.designType, {
-                    reviewStatus: REVIEW_STATUSES.waitingForReview,
+                    reviewStatus: completionReviewStatus,
                 });
-                console.log(`  Review Status updated to: ${REVIEW_STATUSES.waitingForReview}`);
+                console.log(`  Review Status updated to: ${completionReviewStatus}`);
 
                 // Send Telegram notification
                 let notificationOverridden = false;

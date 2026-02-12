@@ -272,15 +272,23 @@ Feedback loops occur when an admin rejects a design or requests changes to an im
 
 ### Design Review Feedback Loop
 
-The product design agent has **3 possible workflow outcomes**:
+The product design agent uses a **2-phase flow**:
 
-1. **Design Options Ready** — Agent generates 2-3 interactive React mock options. Admin chooses one.
-2. **Design Ready** — Agent completes design (feedback/clarification mode, or <2 options). Admin approves or requests changes.
-3. **Clarification Needed** — Agent needs more info. Admin answers, then agent continues.
+**Phase 1** (new items → Waiting for Decision):
+- Agent creates 2-3 interactive React mock options (no design doc yet)
+- Admin selects an option → reviewStatus set to `Decision Submitted`
+
+**Phase 2** (Decision Submitted → Waiting for Review):
+- Agent reads the chosen option, writes a full design document
+- Admin approves or requests changes
+
+**Other modes:**
+- **Feedback** — Admin requests changes on Phase 2 design doc, agent revises
+- **Clarification Needed** — Agent needs more info, admin answers, agent continues
 
 All actions work identically through Telegram or the Workflow UI — the business logic lives in the workflow service layer.
 
-**Request Changes Flow:**
+**Request Changes Flow (on Phase 2 design doc):**
 
 1. Admin clicks "Request Changes" (via Telegram or UI)
 2. Review Status → "Request Changes" (5-minute undo window)
@@ -291,21 +299,23 @@ All actions work identically through Telegram or the Workflow UI — the busines
 7. Review Status → "Waiting for Review"
 8. Admin receives new notification to approve or request more changes
 
-**Design Option Selection Flow (Product Design only):**
+**Design Option Selection Flow (Phase 1 → Phase 2):**
 
-1. Agent generates 2-3 React mock pages in `src/pages/design-mocks/`
+1. Phase 1: Agent generates 2-3 React mock pages in `src/pages/design-mocks/`
 2. Mock pages are committed to the design PR branch
 3. Decision comment posted on issue with option metadata
-4. Admin selects option via "Choose Recommended" (Telegram) or web UI (`/decision/{issueNumber}`)
-5. Selected design saved to canonical S3 key
-6. Status advances to Technical Design
+4. Review Status → "Waiting for Decision"
+5. Admin selects option via "Choose Recommended" (Telegram) or web UI (`/decision/{issueNumber}`)
+6. Review Status → "Decision Submitted" (item stays in Product Design)
+7. Phase 2: Agent reads chosen option from DB, writes full design document
+8. Review Status → "Waiting for Review"
 
-**Approval Flow:**
+**Approval Flow (after Phase 2):**
 
 1. Admin approves design (via Telegram or UI)
-2. Design content read from S3 (saved at agent completion)
+2. Design content read from S3 (saved by Phase 2 agent)
 3. Artifact comment updated on issue
-4. Status advances to next phase
+4. Status advances to Technical Design
 5. Design PR stays open (NOT merged) — closed when feature reaches Done
 
 ### Implementation Review Feedback Loop

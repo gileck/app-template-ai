@@ -52,6 +52,8 @@ export interface RoutingConfig {
     statusMap: Record<string, string>;
     /** Maps custom destination values to project status names (for custom solutions) */
     customDestinationStatusMap?: Record<string, string>;
+    /** When true, selection stays in the current phase (sets Decision Submitted) instead of routing to a new status */
+    continueAfterSelection?: boolean;
 }
 
 // ============================================================

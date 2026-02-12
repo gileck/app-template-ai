@@ -259,29 +259,30 @@ Design documents are stored as versioned files with PR-based review, providing v
 
 **Storage Location:**
 ```
-S3: design-docs/issue-{N}/product-design.md     (canonical design, read by next agent)
-S3: design-docs/issue-{N}/product-design-optA.md (individual option designs)
+S3: design-docs/issue-{N}/product-design.md     (canonical design, written by Phase 2, read by next agent)
 S3: design-docs/issue-{N}/tech-design.md
 
-Branch: design-docs/issue-{N}/product-design.md  (versioned in PR)
-Branch: src/pages/design-mocks/issue-{N}.tsx      (main mock page with tabs)
-Branch: src/pages/design-mocks/components/issue-{N}-optA.tsx (mock options)
+Branch: design-docs/issue-{N}/product-design.md  (versioned in PR, written by Phase 2)
+Branch: src/pages/design-mocks/issue-{N}.tsx      (main mock page with tabs, written by Phase 1)
+Branch: src/pages/design-mocks/components/issue-{N}-optA.tsx (mock options, written by Phase 1)
 ```
 
-**Product Design Agent — 3 Possible Outcomes:**
+**Product Design Agent — 2-Phase Flow:**
 
-1. **Design Options Ready** (new designs with 2+ mock options)
-   - Agent writes React mock pages to `src/pages/design-mocks/`
-   - Creates decision for admin to choose between options
-   - Notification: `[Choose Recommended]` `[All Options]` `[Preview Mocks]` `[Request Changes]`
+**Phase 1** (reviewStatus = null → Waiting for Decision):
+- Agent explores codebase and writes 2-3 React mock pages to `src/pages/design-mocks/`
+- Creates decision for admin to choose between mock options
+- Does NOT write a design document (mocks only)
+- Notification: `[Choose Recommended]` `[All Options]` `[Preview Mocks]` `[Request Changes]`
 
-2. **Design Ready** (feedback/clarification mode, or <2 options)
-   - Agent completes/revises design document
-   - Notification: `[Approve]` `[Request Changes]` `[View PR]`
+**Phase 2** (reviewStatus = Decision Submitted → Waiting for Review):
+- Agent reads the chosen mock option from DB
+- Writes a full Product Design document based on the chosen approach
+- Notification: `[Approve]` `[Request Changes]` `[View PR]`
 
-3. **Clarification Needed** (ambiguous requirements)
-   - Agent posts question on issue
-   - Notification: `[Answer Questions]` `[View Issue]`
+**Other modes:**
+- **Feedback** (Request Changes on Phase 2 design doc) — revises design, same as other agents
+- **Clarification Needed** (ambiguous requirements) — agent posts question on issue
 
 **Design Mock Preview Route:**
 
@@ -294,12 +295,20 @@ Mock components are generated with `viewState` prop support so each option rende
 
 On production (main branch), the route shows a clean "Design mock not available" fallback since mock files only exist on PR branches.
 
-**Design Agent Flow (all design agents):**
+**Design Agent Flow (tech design and other design agents):**
 
 1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md` on branch + saves to S3
-2. **Agent creates branch** → `design/issue-{N}-product` or `design/issue-{N}-tech`
-3. **Agent creates PR** → `docs: product design for issue #123`
-4. **Admin approves/selects** → design read from S3 → artifact comment updated → status advances (PR stays open, NOT merged)
+2. **Agent creates branch** → `design/issue-{N}-tech` etc.
+3. **Agent creates PR** → `docs: tech design for issue #123`
+4. **Admin approves** → design read from S3 → artifact comment updated → status advances (PR stays open, NOT merged)
+5. **On feature Done** → open design PRs are closed and branches deleted
+
+**Product Design Agent Flow (2-phase):**
+
+1. **Phase 1: Agent creates mocks** → writes React mock pages to `src/pages/design-mocks/` on branch, creates PR, posts decision
+2. **Admin selects option** → reviewStatus set to `Decision Submitted` (item stays in Product Design)
+3. **Phase 2: Agent writes design doc** → reads chosen mock, writes full design doc to branch + S3, reviewStatus → `Waiting for Review`
+4. **Admin approves** → design read from S3 → artifact comment updated → status advances to Tech Design
 5. **On feature Done** → open design PRs are closed and branches deleted
 
 **Feedback Mode:**

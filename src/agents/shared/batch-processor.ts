@@ -16,7 +16,7 @@ import type { CommonCLIOptions, UsageStats } from './types';
 // TYPES
 // ============================================================
 
-export type ProcessMode = 'new' | 'feedback' | 'clarification';
+export type ProcessMode = 'new' | 'feedback' | 'clarification' | 'post-selection';
 
 export interface ProcessableItem {
     item: ProjectItem;
@@ -89,6 +89,19 @@ export async function runBatch(
             }
         } else if (item.status === config.agentStatus && item.reviewStatus === REVIEW_STATUSES.clarificationReceived) {
             mode = 'clarification';
+        } else if (item.status === config.agentStatus && item.reviewStatus === REVIEW_STATUSES.decisionSubmitted) {
+            mode = 'post-selection';
+            // Find existing PR for post-selection mode (branch exists from Phase 1)
+            if (needsExistingPR) {
+                const issueNumber = item.content?.number;
+                if (issueNumber) {
+                    existingPR = await adapter.findOpenPRForIssue(issueNumber) || undefined;
+                }
+            }
+        } else if (item.status === config.agentStatus && item.reviewStatus === REVIEW_STATUSES.waitingForDecision) {
+            console.log('  \u23F3 Waiting for admin decision');
+            console.log('  Skipping this item (admin needs to select an option via the decision UI)');
+            process.exit(0);
         } else if (item.status === config.agentStatus && item.reviewStatus === REVIEW_STATUSES.waitingForClarification) {
             console.log('  \u23F3 Waiting for clarification from admin');
             console.log('  Skipping this item (admin needs to respond and click "Clarification Received")');
@@ -97,7 +110,7 @@ export async function runBatch(
             console.error(`Item is not in a processable state.`);
             console.error(`  Status: ${item.status}`);
             console.error(`  Review Status: ${item.reviewStatus}`);
-            console.error(`  Expected: "${config.agentStatus}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", or "${REVIEW_STATUSES.clarificationReceived}"`);
+            console.error(`  Expected: "${config.agentStatus}" with empty Review Status, "${REVIEW_STATUSES.requestChanges}", "${REVIEW_STATUSES.clarificationReceived}", or "${REVIEW_STATUSES.decisionSubmitted}"`);
             process.exit(1);
         }
 
@@ -134,6 +147,21 @@ export async function runBatch(
             );
             for (const item of clarificationItems) {
                 itemsToProcess.push({ item, mode: 'clarification' });
+            }
+
+            // Flow D: Decision submitted (post-selection)
+            const postSelectionItems = allItems.filter(
+                (item) => item.reviewStatus === REVIEW_STATUSES.decisionSubmitted
+            );
+            for (const item of postSelectionItems) {
+                let existingPR: { prNumber: number; branchName: string } | undefined;
+                if (needsExistingPR) {
+                    const issueNumber = item.content?.number;
+                    if (issueNumber) {
+                        existingPR = await adapter.findOpenPRForIssue(issueNumber) || undefined;
+                    }
+                }
+                itemsToProcess.push({ item, mode: 'post-selection', existingPR });
             }
         }
 

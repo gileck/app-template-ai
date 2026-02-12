@@ -75,6 +75,8 @@ export type {
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
     PRODUCT_DESIGN_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE1_OUTPUT_FORMAT,
+    PRODUCT_DESIGN_PHASE2_OUTPUT_FORMAT,
     TECH_DESIGN_OUTPUT_FORMAT,
     IMPLEMENTATION_OUTPUT_FORMAT,
     CLARIFICATION_SCHEMA_PROPERTIES,
@@ -132,6 +134,7 @@ export {
     buildProductDesignPrompt,
     buildProductDesignRevisionPrompt,
     buildProductDesignClarificationPrompt,
+    buildProductDesignPostSelectionPrompt,
     buildTechDesignPrompt,
     buildTechDesignRevisionPrompt,
     buildTechDesignClarificationPrompt,
