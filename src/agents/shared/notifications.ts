@@ -792,7 +792,7 @@ export async function notifyDesignPRReady(
         : designType === 'product'
             ? 'Product Design'
             : 'Technical Design';
-    const status = isRevision ? '🔄 PR Updated' : '✅ PR Ready';
+    const status = isRevision ? '🔄 Design Updated' : '✅ Design Ready';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug Fix' : 'Feature';
 
@@ -1015,7 +1015,7 @@ export async function notifyDecisionNeeded(
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
-    const status = isRevision ? '🔄 Revised' : '✅ Decision Ready';
+    const status = isRevision ? '🔄 Options Updated' : '✅ Design Options Ready';
     const typeEmoji = itemType === 'bug' ? '🐛' : '✨';
     const typeLabel = itemType === 'bug' ? 'Bug' : 'Feature';
 
