@@ -283,6 +283,17 @@ Branch: src/pages/design-mocks/components/issue-{N}-optA.tsx (mock options)
    - Agent posts question on issue
    - Notification: `[Answer Questions]` `[View Issue]`
 
+**Design Mock Preview Route:**
+
+Mock pages are viewable at `/design-mocks/issue-{N}` on Vercel preview deployments (PR branches). The route is registered as a public, full-screen client route and includes a toolbar with:
+- **View state** dropdown — Populated / Empty / Loading (passed as props to mock components)
+- **Theme preset** dropdown — All 8 built-in themes (uses real theme store, CSS variables update instantly)
+- **Dark/Light toggle** — Switches color mode via theme store
+
+Mock components are generated with `viewState` prop support so each option renders populated data, empty state, and loading skeleton. Since the route is inside `AppThemeProvider`, semantic color tokens (`bg-background`, `text-foreground`, etc.) respond to theme/mode changes automatically.
+
+On production (main branch), the route shows a clean "Design mock not available" fallback since mock files only exist on PR branches.
+
 **Design Agent Flow (all design agents):**
 
 1. **Agent generates design** → writes to `design-docs/issue-{N}/{type}-design.md` on branch + saves to S3
