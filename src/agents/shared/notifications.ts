@@ -1010,7 +1010,8 @@ export async function notifyDecisionNeeded(
     summary: string,
     optionsCount: number,
     itemType: 'bug' | 'feature' = 'feature',
-    isRevision: boolean = false
+    isRevision: boolean = false,
+    previewUrl?: string | null
 ): Promise<SendResult> {
     const issueUrl = getIssueUrl(issueNumber);
 
@@ -1027,31 +1028,44 @@ export async function notifyDecisionNeeded(
         ? summary.slice(0, 2800) + '...'
         : summary;
 
+    const previewNote = previewUrl
+        ? `\n🌐 <a href="${escapeHtml(previewUrl)}">Preview Deployment</a> (may take a few moments to be ready)`
+        : '';
+
     const message = `<b>Agent (${escapeHtml(phase)}):</b> ${status}
 ${typeEmoji} ${typeLabel}
 
 📋 ${escapeHtml(title)}
 🔗 Issue #${issueNumber}
-📊 Options: ${optionsCount}
+📊 Options: ${optionsCount}${previewNote}
 
 <b>Summary:</b>
 ${escapeHtml(truncatedSummary)}`;
 
-    const buttons: InlineKeyboardMarkup = {
-        inline_keyboard: [
-            [
-                { text: '✅ Choose Recommended', callback_data: `chooserec:${issueNumber}` },
-            ],
-            [
-                { text: '🔧 All Options', url: decisionUrl },
-            ],
-            [
-                { text: '📋 View Issue', url: issueUrl },
-            ],
-            [
-                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
-            ],
+    const buttonRows: InlineButton[][] = [
+        [
+            { text: '✅ Choose Recommended', callback_data: `chooserec:${issueNumber}` },
         ],
+        [
+            { text: '🔧 All Options', url: decisionUrl },
+        ],
+    ];
+
+    if (previewUrl) {
+        buttonRows.push([
+            { text: '🌐 Preview Mocks', url: previewUrl },
+        ]);
+    }
+
+    buttonRows.push([
+        { text: '📋 View Issue', url: issueUrl },
+    ]);
+    buttonRows.push([
+        { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
+    ]);
+
+    const buttons: InlineKeyboardMarkup = {
+        inline_keyboard: buttonRows,
     };
 
     return sendToAdmin(message, buttons);

@@ -223,22 +223,25 @@ const processItem = createDesignProcessor({
 
     },
 
-    overrideNotification: async ({ prNumber: _prNumber, issueNumber, content, issueType, mode, comment }) => {
+    overrideNotification: async ({ prNumber, issueNumber, content, issueType, mode, comment }) => {
         // For feedback/clarification mode, use default approve notification
         if (mode !== 'new') return false;
 
-        // Check if a decision was created (set by afterPR)
-        // We need to send decision notification instead of approve notification
-        // The decision notification is sent from afterPR hook data
-        // We detect this by checking if afterPR stored decision data
-
-        // For new designs, we always try to send decision notification
+        // For new designs, try to send decision notification with preview URL
         // If no mock options were generated, fall through to default
         try {
             const { getDecisionFromDB } = await import('@/apis/template/agent-decision/utils');
             const decision = await getDecisionFromDB(issueNumber, content.title);
             if (decision && decision.options.length >= 2) {
-                // Send decision-needed notification
+                // Fetch Vercel preview URL (non-blocking, returns null if unavailable)
+                let previewUrl: string | null = null;
+                try {
+                    const { getVercelPreviewUrl } = await import('@/agents/lib/preview-url');
+                    previewUrl = await getVercelPreviewUrl(prNumber);
+                } catch {
+                    // Preview URL is optional — continue without it
+                }
+
                 const summaryText = comment || `${decision.options.length} design options available`;
                 await notifyDecisionNeeded(
                     'Product Design',
@@ -247,7 +250,8 @@ const processItem = createDesignProcessor({
                     summaryText,
                     decision.options.length,
                     issueType,
-                    false
+                    false,
+                    previewUrl
                 );
                 return true; // Override default notification
             }
