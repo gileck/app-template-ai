@@ -9,9 +9,10 @@ export {
     ViewFilterTabs,
     formatDate,
     formatRelativeTime,
-    BADGE_COLORS,
-    DEFAULT_BADGE_COLOR,
+    BADGE_VARIANTS,
+    DEFAULT_BADGE_VARIANT,
     PIPELINE_STATUSES,
     ALL_STATUSES,
     ALL_SECTION_KEYS,
 } from './shared';
+export type { BadgeVariant } from './shared';

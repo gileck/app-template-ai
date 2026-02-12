@@ -33,40 +33,53 @@ export function formatRelativeTime(timestamp: string): string {
     return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-// ── Badge Colors ─────────────────────────────────────────────────────────────
-// Note: These are theme-independent for consistent status visibility across themes
+// ── Badge Semantic Variants ──────────────────────────────────────────────────
+// Maps badge keys to semantic color variants using theme tokens
 
-export const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
+export type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'destructive' | 'info' | 'muted';
+
+export const BADGE_VARIANTS: Record<string, BadgeVariant> = {
     // Type
-    feature: { bg: '#3b82f6', text: '#fff' },
-    bug: { bg: '#ef4444', text: '#fff' },
-    task: { bg: '#6b7280', text: '#fff' },
+    feature: 'info',
+    bug: 'destructive',
+    task: 'muted',
     // Pipeline status (matches STATUSES from server/project-management/config.ts)
-    'Pending Approval': { bg: '#f59e0b', text: '#fff' },
-    'Backlog': { bg: '#6b7280', text: '#fff' },
-    'Product Development': { bg: '#a855f7', text: '#fff' },
-    'Product Design': { bg: '#8b5cf6', text: '#fff' },
-    'Bug Investigation': { bg: '#ec4899', text: '#fff' },
-    'Technical Design': { bg: '#3b82f6', text: '#fff' },
-    'Ready for development': { bg: '#f59e0b', text: '#fff' },
-    'PR Review': { bg: '#06b6d4', text: '#fff' },
-    'Final Review': { bg: '#0d9488', text: '#fff' },
-    'Done': { bg: '#22c55e', text: '#fff' },
+    'Pending Approval': 'warning',
+    'Backlog': 'muted',
+    'Product Development': 'secondary',
+    'Product Design': 'secondary',
+    'Bug Investigation': 'destructive',
+    'Technical Design': 'primary',
+    'Ready for development': 'warning',
+    'PR Review': 'info',
+    'Final Review': 'info',
+    'Done': 'success',
     // Review status
-    'Waiting for Review': { bg: '#eab308', text: '#fff' },
-    'Approved': { bg: '#22c55e', text: '#fff' },
-    'Request Changes': { bg: '#f97316', text: '#fff' },
-    'Rejected': { bg: '#ef4444', text: '#fff' },
+    'Waiting for Review': 'warning',
+    'Approved': 'success',
+    'Request Changes': 'warning',
+    'Rejected': 'destructive',
     // Priority
-    'critical': { bg: '#dc2626', text: '#fff' },
-    'high': { bg: '#f97316', text: '#fff' },
-    'medium': { bg: '#3b82f6', text: '#fff' },
-    'low': { bg: '#9ca3af', text: '#fff' },
+    'critical': 'destructive',
+    'high': 'warning',
+    'medium': 'primary',
+    'low': 'muted',
     // Source
-    'source': { bg: '#6b7280', text: '#fff' },
+    'source': 'muted',
 };
 
-export const DEFAULT_BADGE_COLOR = { bg: '#9ca3af', text: '#fff' };
+export const DEFAULT_BADGE_VARIANT: BadgeVariant = 'muted';
+
+// Tailwind class mappings for each variant (using semantic tokens)
+const VARIANT_CLASSES: Record<BadgeVariant, string> = {
+    primary: 'bg-primary text-primary-foreground',
+    secondary: 'bg-secondary text-secondary-foreground',
+    success: 'bg-success text-success-foreground',
+    warning: 'bg-warning text-warning-foreground',
+    destructive: 'bg-destructive text-destructive-foreground',
+    info: 'bg-info text-info-foreground',
+    muted: 'bg-muted text-muted-foreground',
+};
 
 // ── StatusBadge ──────────────────────────────────────────────────────────────
 
@@ -76,11 +89,11 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ label, colorKey }: StatusBadgeProps) {
-    const colors = BADGE_COLORS[colorKey || label] || DEFAULT_BADGE_COLOR;
+    const variant = BADGE_VARIANTS[colorKey || label] || DEFAULT_BADGE_VARIANT;
+    const variantClasses = VARIANT_CLASSES[variant];
     return (
         <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-            style={{ backgroundColor: colors.bg, color: colors.text }}
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${variantClasses}`}
         >
             {label}
         </span>
@@ -124,25 +137,32 @@ export function StatsBar({ pendingCount, statusCounts, onClickStatus }: StatsBar
             {pendingCount > 0 && (
                 <button
                     onClick={() => onClickStatus('pending')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors min-h-[28px]"
+                    className="flex items-center gap-1 hover:text-foreground transition-colors min-h-11"
                 >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: BADGE_COLORS['Pending Approval'].bg }} />
+                    <span className="w-2 h-2 rounded-full bg-warning" />
                     <span>Pending {pendingCount}</span>
                 </button>
             )}
-            {statusCounts.map(({ status, count }) => (
-                <button
-                    key={status}
-                    onClick={() => onClickStatus(status === 'Done' ? 'done' : 'active')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors min-h-[28px]"
-                >
-                    <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: (BADGE_COLORS[status] || DEFAULT_BADGE_COLOR).bg }}
-                    />
-                    <span>{status} {count}</span>
-                </button>
-            ))}
+            {statusCounts.map(({ status, count }) => {
+                const variant = BADGE_VARIANTS[status] || DEFAULT_BADGE_VARIANT;
+                // Status dot uses the semantic color token
+                const dotClass = variant === 'primary' ? 'bg-primary' :
+                    variant === 'secondary' ? 'bg-secondary' :
+                    variant === 'success' ? 'bg-success' :
+                    variant === 'warning' ? 'bg-warning' :
+                    variant === 'destructive' ? 'bg-destructive' :
+                    variant === 'info' ? 'bg-info' : 'bg-muted-foreground';
+                return (
+                    <button
+                        key={status}
+                        onClick={() => onClickStatus(status === 'Done' ? 'done' : 'active')}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors min-h-11"
+                    >
+                        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+                        <span>{status} {count}</span>
+                    </button>
+                );
+            })}
         </div>
     );
 }
