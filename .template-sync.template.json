@@ -51,6 +51,7 @@
     "src/server/database/collections/template/**",
     "src/server/github-sync/**",
     "src/server/project-management/**",
+    "src/server/rpc/**",
     "src/server/telegram/**",
     "src/apis/apis.template.ts",
     "src/apis/apis.ts",

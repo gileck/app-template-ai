@@ -6,6 +6,7 @@
     "src/client/routes/index.ts",
     "src/apis/index.ts",
     "src/agents/index.ts",
+    "src/server/rpc/daemon.ts",
     "scripts/**/*.{ts,js}",
     "config/**/*.{ts,mjs,js}",
     "eslint.config.mjs"

@@ -268,6 +268,23 @@ CLI for managing Vercel deployments and env vars. Use this for deployment operat
 
 ---
 
+## RPC-over-MongoDB Architecture
+
+Generic remote function execution system for running server code on a local machine via MongoDB. Use this when working with the RPC daemon or adding new remote handlers.
+
+**Summary:** Vercel inserts jobs into MongoDB, a local daemon polls and executes them, returns results via MongoDB. Used to bypass datacenter IP blocks.
+
+**Key Points:**
+- `src/server/rpc/` - Generic RPC system (zero project-specific code)
+- Start daemon: `yarn daemon` or `yarn daemon --verbose`
+- Handlers are modules with a default export async function
+- Security: shared secret (RPC_SECRET env var) + path validation + file existence check
+- task-cli config: `agent-tasks/rpc-daemon/config.json`
+
+**Docs:** [rpc-architecture.md](docs/template/rpc-architecture.md)
+
+---
+
 ## Wixpress Registry Issues
 
 Handling npm package issues in Wix corporate network. Use this if experiencing lock file or ESLint issues.

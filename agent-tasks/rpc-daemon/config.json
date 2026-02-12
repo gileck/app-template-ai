@@ -1,0 +1,35 @@
+{
+  "name": "RPC Daemon (app-template-ai)",
+  "uniqueKey": "app-template-ai:rpc-daemon",
+  "groupName": "app-template-ai",
+  "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
+  "script": {
+    "path": "daemon",
+    "args": ["--verbose"],
+    "interpreter": "npm",
+    "workingDirectory": "/Users/gileck/Projects/app-template-ai"
+  },
+  "schedule": {
+    "type": "daemon"
+  },
+  "daemon": {
+    "restartDelayMs": 5000,
+    "maxRestarts": 5,
+    "restartWindowMs": 300000,
+    "healthyRunMs": 60000
+  },
+  "notifications": {
+    "onStart": false,
+    "onSuccess": false,
+    "onFailure": true
+  },
+  "options": {
+    "enabled": true,
+    "allowParallelRuns": false,
+    "requiresInternet": true
+  },
+  "output": {
+    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/rpc-daemon/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/rpc-daemon/runs/status.json"
+  }
+}
