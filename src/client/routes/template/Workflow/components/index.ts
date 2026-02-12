@@ -1,6 +1,9 @@
 export { ViewModeTabs } from './ViewModeTabs';
 export { ListView, CollapsibleSection, PendingCard, WorkflowCard } from './ListView';
 export { KanbanView } from './KanbanView';
+export { KanbanQuickStats } from './KanbanQuickStats';
+export { KanbanSection } from './KanbanSection';
+export { KanbanItemCard } from './KanbanItemCard';
 export { TimelineView } from './TimelineView';
 export {
     StatusBadge,

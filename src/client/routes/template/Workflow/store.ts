@@ -13,6 +13,8 @@ interface WorkflowPageState {
     collapsedSections: string[];
     /** Active view mode: list, kanban, or timeline */
     viewMode: WorkflowViewMode;
+    /** Kanban view: array of expanded section status strings (persistent) */
+    kanbanExpandedSections: string[];
 
     // Non-persisted (survives navigation only, resets on page refresh)
     selectedItemId: string | null;
@@ -35,16 +37,21 @@ interface WorkflowPageState {
     setIsBulkApproving: (approving: boolean) => void;
     resetBulkDelete: () => void;
     setViewMode: (mode: WorkflowViewMode) => void;
+    /** Toggle a Kanban section's expanded state */
+    toggleKanbanSection: (status: string) => void;
+    /** Initialize Kanban expanded sections (if not already set) with defaults */
+    initKanbanSections: (statusesWithItems: string[]) => void;
 }
 
 export const useWorkflowPageStore = createStore<WorkflowPageState>({
     key: 'workflow-page-storage',
     label: 'Workflow Page',
-    creator: (set) => ({
+    creator: (set, get) => ({
         typeFilter: 'all',
         viewFilter: 'all',
         viewMode: 'list',
         collapsedSections: [],
+        kanbanExpandedSections: [],
         selectedItemId: null,
         selectMode: false,
         selectedItems: {},
@@ -102,6 +109,26 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
             }),
 
         setViewMode: (mode) => set({ viewMode: mode }),
+
+        toggleKanbanSection: (status) =>
+            set((state) => {
+                const isExpanded = state.kanbanExpandedSections.includes(status);
+                return {
+                    kanbanExpandedSections: isExpanded
+                        ? state.kanbanExpandedSections.filter((s) => s !== status)
+                        : [...state.kanbanExpandedSections, status],
+                };
+            }),
+
+        initKanbanSections: (statusesWithItems) => {
+            // Only initialize if the kanban sections haven't been set yet
+            // (i.e., the user hasn't interacted with the kanban view)
+            const current = get().kanbanExpandedSections;
+            if (current.length === 0) {
+                // Default: expand sections that have items
+                set({ kanbanExpandedSections: [...statusesWithItems] });
+            }
+        },
     }),
     persistOptions: {
         partialize: (state) => ({
@@ -109,6 +136,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
             viewFilter: state.viewFilter,
             viewMode: state.viewMode,
             collapsedSections: state.collapsedSections,
+            kanbanExpandedSections: state.kanbanExpandedSections,
         }),
     },
 });
