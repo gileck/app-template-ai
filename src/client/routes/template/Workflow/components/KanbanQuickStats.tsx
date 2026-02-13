@@ -78,7 +78,7 @@ export function KanbanQuickStats({ statusCounts, pendingCount, onScrollToSection
                         <button
                             key={status}
                             onClick={() => onScrollToSection?.(status)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted transition-colors min-h-[32px]"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-muted/50 hover:bg-muted transition-colors min-h-11"
                         >
                             <span className={`w-2 h-2 rounded-full ${dotClass} shrink-0`} />
                             <span className="text-xs font-medium text-foreground">{count}</span>

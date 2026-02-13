@@ -65,7 +65,7 @@ export function KanbanItemCard({ item, isPending, onSelect }: KanbanItemCardProp
     return (
         <button
             onClick={() => onSelect(navId)}
-            className="w-full text-left p-3 rounded-lg bg-card hover:bg-accent/50 transition-colors border border-border/50"
+            className="w-full text-left p-3 rounded-lg bg-card hover:bg-accent/50 transition-colors border border-border/50 min-h-11"
         >
             <div className="flex gap-2">
                 {/* Priority dot (only for items with priority) */}
