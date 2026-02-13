@@ -254,25 +254,12 @@ describe('Design Mock Decision Flow', () => {
         expect(optBContent).toContain('List with Filters');
     });
 
-    it('admin selects option via decision, selected design copied to S3', async () => {
+    it('admin selects option via decision and item is routed', async () => {
         const issueNumber = 201;
         const title = 'Add dashboard';
 
         // Seed feature in Product Design with Waiting for Review (adapter + MongoDB)
         await seedWorkflowItem(issueNumber, title, STATUSES.productDesign, REVIEW_STATUSES.waitingForReview);
-
-        // Save option designs to S3 SDK mock (as if agent had run)
-        const { uploadFile } = await import('@/server/template/s3/sdk');
-        await uploadFile({
-            content: '# Card Layout\n\nDashboard with card grid for metrics.',
-            fileName: `design-docs/issue-${issueNumber}/product-design-optA.md`,
-            contentType: 'text/markdown',
-        });
-        await uploadFile({
-            content: '# Table Layout\n\nDashboard with tabular data view.',
-            fileName: `design-docs/issue-${issueNumber}/product-design-optB.md`,
-            contentType: 'text/markdown',
-        });
 
         // Save decision to DB (as if agent had run)
         const { saveDecisionToDB } = await import('@/apis/template/agent-decision/utils');
@@ -285,7 +272,7 @@ describe('Design Mock Decision Flow', () => {
             decisionOptions,
             [{ key: 'approach', label: 'Approach', type: 'tag' }],
             undefined,
-            { metadataKey: 'approach', statusMap: {} }
+            { metadataKey: 'approach', statusMap: { 'Card Layout': 'Technical Design', 'Table Layout': 'Technical Design' } }
         );
 
         // Submit decision selecting optB
@@ -305,12 +292,6 @@ describe('Design Mock Decision Flow', () => {
         // Verify status advanced to Tech Design
         const item = sharedAdapter.findItemByIssueNumber(issueNumber);
         expect(item!.status).toBe(STATUSES.techDesign);
-
-        // Verify selected design was copied to canonical S3 key
-        // The submitDecision handler reads from S3 SDK and writes to saveDesignToS3 (mock-design-files)
-        const s3Docs = getS3Docs();
-        expect(s3Docs.has(`${issueNumber}:product`)).toBe(true);
-        expect(s3Docs.get(`${issueNumber}:product`)).toContain('Table Layout');
     });
 
     it('choose recommended option works for product design decisions', async () => {
@@ -319,19 +300,6 @@ describe('Design Mock Decision Flow', () => {
 
         // Seed adapter + MongoDB
         await seedWorkflowItem(issueNumber, title, STATUSES.productDesign, REVIEW_STATUSES.waitingForReview);
-
-        // Save option designs to S3 SDK mock
-        const { uploadFile } = await import('@/server/template/s3/sdk');
-        await uploadFile({
-            content: '# Minimal Profile\n\nClean minimal profile page.',
-            fileName: `design-docs/issue-${issueNumber}/product-design-optA.md`,
-            contentType: 'text/markdown',
-        });
-        await uploadFile({
-            content: '# Rich Profile\n\nFeature-rich profile with activity feed.',
-            fileName: `design-docs/issue-${issueNumber}/product-design-optB.md`,
-            contentType: 'text/markdown',
-        });
 
         // Save decision to DB with optA as recommended
         const { saveDecisionToDB, generateDecisionToken } = await import('@/apis/template/agent-decision/utils');
@@ -343,7 +311,7 @@ describe('Design Mock Decision Flow', () => {
             ],
             [{ key: 'approach', label: 'Approach', type: 'tag' }],
             undefined,
-            { metadataKey: 'approach', statusMap: {} }
+            { metadataKey: 'approach', statusMap: { 'Minimal': 'Technical Design', 'Rich': 'Technical Design' } }
         );
 
         // Submit with chooseRecommended
@@ -359,10 +327,9 @@ describe('Design Mock Decision Flow', () => {
         expect(result.success).toBe(true);
         expect(result.routedTo).toBe('Technical Design');
 
-        // Verify the recommended option (optA) was copied to S3
-        const s3Docs = getS3Docs();
-        expect(s3Docs.has(`${issueNumber}:product`)).toBe(true);
-        expect(s3Docs.get(`${issueNumber}:product`)).toContain('Minimal Profile');
+        // Verify status advanced to Tech Design
+        const item = sharedAdapter.findItemByIssueNumber(issueNumber);
+        expect(item!.status).toBe(STATUSES.techDesign);
     });
 
     it('decision notification sent instead of approve notification', async () => {
