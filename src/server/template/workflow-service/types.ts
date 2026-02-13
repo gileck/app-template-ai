@@ -79,6 +79,8 @@ export interface AdvanceResult extends ServiceResult {
  */
 export interface MarkDoneResult extends ServiceResult {
     sourceDocUpdated?: boolean;
+    /** Errors encountered during status update operations (non-fatal) */
+    statusUpdateErrors?: string[];
 }
 
 /**
