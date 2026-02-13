@@ -315,14 +315,21 @@ export async function processItem(
             }
         } else {
             checkoutBranch(branchName, false);
-            if (mode === 'feedback' || mode === 'clarification') {
-                // Pull latest changes
-                try {
-                    pullBranch(branchName);
-                } catch {
-                    console.log('  Note: Could not pull from remote (branch may not exist remotely yet)');
-                }
+            // Always pull latest from remote to avoid stale local branches
+            try {
+                pullBranch(branchName);
+            } catch {
+                console.log('  Note: Could not pull from remote (branch may not exist remotely yet)');
             }
+        }
+
+        // Merge latest default branch into feature branch to pick up structural changes
+        // This prevents errors when main has refactored paths that the feature branch lacks
+        try {
+            git(`merge origin/${defaultBranch} --no-edit`, { silent: true });
+            console.log(`  ✅ Merged latest ${defaultBranch} into ${branchName}`);
+        } catch {
+            console.log(`  Note: Could not merge ${defaultBranch} (may already be up to date or have conflicts)`);
         }
 
         // Run pre-work yarn checks (informational only)
