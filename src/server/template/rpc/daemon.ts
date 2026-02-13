@@ -5,9 +5,11 @@ import { ensureRpcIndexes, claimNextPendingJob, completeRpcJob, failRpcJob } fro
 import { closeDbConnection } from '@/server/database/connection';
 
 const POLL_INTERVAL_MS = 2_000;
+const MAX_CONCURRENT = 5;
 const verbose = process.argv.includes('--verbose');
 
 let running = true;
+let activeJobs = 0;
 
 function log(msg: string): void {
   console.log(`[rpc-daemon] ${msg}`);
@@ -21,10 +23,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function processJob(): Promise<boolean> {
-  const job = await claimNextPendingJob();
-  if (!job) return false;
-
+async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimNextPendingJob>>>): Promise<void> {
   const { handlerPath, secret } = job;
   const jobId = job._id.toHexString();
   log(`Claimed job ${jobId}`);
@@ -37,7 +36,7 @@ async function processJob(): Promise<boolean> {
   if (!expectedSecret || secret !== expectedSecret) {
     await failRpcJob(job._id, 'Invalid or missing RPC secret');
     console.error(`[rpc-daemon] Rejected job ${jobId}: bad secret`);
-    return true;
+    return;
   }
   vlog(`  secret: valid`);
 
@@ -46,7 +45,7 @@ async function processJob(): Promise<boolean> {
   if (!fullPath.startsWith(allowedBase)) {
     await failRpcJob(job._id, `Invalid handler path: "${handlerPath}"`);
     console.error(`[rpc-daemon] Rejected invalid path: ${handlerPath}`);
-    return true;
+    return;
   }
   vlog(`  path check: within src/server/`);
 
@@ -58,7 +57,7 @@ async function processJob(): Promise<boolean> {
   if (!fileExists) {
     await failRpcJob(job._id, `Handler file not found: "${handlerPath}"`);
     console.error(`[rpc-daemon] Rejected missing file: ${handlerPath}`);
-    return true;
+    return;
   }
   vlog(`  file check: exists on disk`);
 
@@ -85,12 +84,10 @@ async function processJob(): Promise<boolean> {
     await failRpcJob(job._id, errorMsg);
     console.error(`[rpc-daemon] Failed ${jobId} after ${durationMs}ms: ${errorMsg}`);
   }
-
-  return true;
 }
 
 async function pollLoop(): Promise<void> {
-  log(`Starting — polling every ${POLL_INTERVAL_MS / 1000}s${verbose ? ' (verbose)' : ''}`);
+  log(`Starting — polling every ${POLL_INTERVAL_MS / 1000}s, max ${MAX_CONCURRENT} concurrent${verbose ? ' (verbose)' : ''}`);
   vlog(`RPC_SECRET: ${process.env.RPC_SECRET ? 'set' : 'NOT SET'}`);
   vlog(`Working directory: ${process.cwd()}`);
 
@@ -98,15 +95,30 @@ async function pollLoop(): Promise<void> {
   log('Indexes ensured');
 
   while (running) {
+    if (activeJobs >= MAX_CONCURRENT) {
+      await sleep(POLL_INTERVAL_MS);
+      continue;
+    }
+
     try {
-      const hadJob = await processJob();
-      if (!hadJob) {
+      const job = await claimNextPendingJob();
+      if (!job) {
         await sleep(POLL_INTERVAL_MS);
+        continue;
       }
+
+      activeJobs++;
+      processJob(job)
+        .finally(() => { activeJobs--; });
     } catch (err) {
       console.error('[rpc-daemon] Poll error:', err instanceof Error ? err.message : err);
       await sleep(POLL_INTERVAL_MS);
     }
+  }
+
+  while (activeJobs > 0) {
+    vlog(`Waiting for ${activeJobs} active job(s) to finish...`);
+    await sleep(1_000);
   }
 
   log('Stopped');
