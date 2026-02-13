@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { ensureRpcIndexes, claimNextPendingJob, completeRpcJob, failRpcJob } from './collection';
 import { closeDbConnection } from '@/server/database/connection';
+import { appConfig } from '@/app.config';
 
 const POLL_INTERVAL_MS = 2_000;
 const MAX_CONCURRENT = 5;
@@ -28,7 +29,8 @@ async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimNextPe
   const jobId = job._id.toHexString();
   log(`Claimed job ${jobId}`);
   vlog(`  handler: ${handlerPath}`);
-  vlog(`  args: ${JSON.stringify(job.args)}`);
+  const argsStr = JSON.stringify(job.args);
+  vlog(`  args: ${argsStr.length > 100 ? argsStr.slice(0, 100) + '…' : argsStr}`);
   vlog(`  created: ${job.createdAt.toISOString()}`);
   vlog(`  expires: ${job.expiresAt.toISOString()}`);
 
@@ -90,6 +92,8 @@ async function pollLoop(): Promise<void> {
   log(`Starting — polling every ${POLL_INTERVAL_MS / 1000}s, max ${MAX_CONCURRENT} concurrent${verbose ? ' (verbose)' : ''}`);
   vlog(`RPC_SECRET: ${process.env.RPC_SECRET ? 'set' : 'NOT SET'}`);
   vlog(`Working directory: ${process.cwd()}`);
+
+  log(`Database: ${appConfig.dbName}`);
 
   await ensureRpcIndexes();
   log('Indexes ensured');
