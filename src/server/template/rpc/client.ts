@@ -47,9 +47,9 @@ export async function callRemote<TResult>(
   }
 
   const start = Date.now();
-  const deadline = start + timeoutMs;
+  let handlerStart: number | null = null;
 
-  while (Date.now() < deadline) {
+  while (true) {
     await sleep(pollIntervalMs);
 
     const job = await findRpcJobById(jobId);
@@ -67,9 +67,16 @@ export async function callRemote<TResult>(
     if (job.status === 'failed') {
       throw new Error(`RPC job failed: ${job.error ?? 'unknown error'}`);
     }
-  }
 
-  throw new Error(`RPC call to "${handlerPath}" timed out after ${timeoutMs}ms`);
+    // Start the timeout clock only once the handler is executing
+    if (job.status === 'processing' && !handlerStart) {
+      handlerStart = job.startedAt?.getTime() ?? Date.now();
+    }
+
+    if (handlerStart && Date.now() - handlerStart >= timeoutMs) {
+      throw new Error(`RPC call to "${handlerPath}" timed out after ${timeoutMs}ms (handler execution time)`);
+    }
+  }
 }
 
 function sleep(ms: number): Promise<void> {
