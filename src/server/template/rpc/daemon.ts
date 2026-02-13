@@ -6,7 +6,7 @@ import { closeDbConnection } from '@/server/database/connection';
 import { appConfig } from '@/app.config';
 
 const POLL_INTERVAL_MS = 2_000;
-const MAX_CONCURRENT = 5;
+const MAX_CONCURRENT = 20;
 const verbose = process.argv.includes('--verbose');
 
 let running = true;
