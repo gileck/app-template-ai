@@ -37,7 +37,7 @@ function TimelineFilterTabs({ active, onChange }: TimelineFilterTabsProps) {
                 <button
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
-                    className={`flex-1 px-3 py-1.5 min-h-[36px] rounded-md text-xs font-medium transition-colors ${
+                    className={`flex-1 px-3 py-1.5 min-h-11 rounded-md text-xs font-medium transition-colors ${
                         active === opt.value
                             ? 'bg-background text-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground'
