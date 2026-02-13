@@ -89,19 +89,46 @@ export async function markDone(
 
     const adapter = await getInitializedAdapter();
 
+    // Track any errors during status update operations (non-fatal)
+    const statusUpdateErrors: string[] = [];
+
     // Update status to Done
-    await adapter.updateItemStatus(item.itemId, STATUSES.done);
+    try {
+        await adapter.updateItemStatus(item.itemId, STATUSES.done);
+    } catch (error) {
+        const message = `Failed to update item status: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[workflow-service] ${message} for issue #${issueNumber}`);
+        statusUpdateErrors.push(message);
+    }
 
     // Clear review status
-    if (adapter.hasReviewStatusField() && item.reviewStatus) {
-        await adapter.clearItemReviewStatus(item.itemId);
+    try {
+        if (adapter.hasReviewStatusField() && item.reviewStatus) {
+            await adapter.clearItemReviewStatus(item.itemId);
+        }
+    } catch (error) {
+        const message = `Failed to clear review status: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[workflow-service] ${message} for issue #${issueNumber}`);
+        statusUpdateErrors.push(message);
     }
 
     // Clear implementation phase
-    await adapter.clearImplementationPhase(item.itemId);
+    try {
+        await adapter.clearImplementationPhase(item.itemId);
+    } catch (error) {
+        const message = `Failed to clear implementation phase: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[workflow-service] ${message} for issue #${issueNumber}`);
+        statusUpdateErrors.push(message);
+    }
 
     // Sync to workflow-items DB
-    await syncWorkflowStatus(issueNumber, STATUSES.done);
+    try {
+        await syncWorkflowStatus(issueNumber, STATUSES.done);
+    } catch (error) {
+        const message = `Failed to sync workflow status: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[workflow-service] ${message} for issue #${issueNumber}`);
+        statusUpdateErrors.push(message);
+    }
 
     // Log
     if (logExists(issueNumber)) {
@@ -170,5 +197,10 @@ export async function markDone(
         console.error(`[workflow-service] Failed to clean up design PRs for issue #${issueNumber}:`, error);
     }
 
-    return { success: true, itemId: item.itemId, sourceDocUpdated };
+    return {
+        success: true,
+        itemId: item.itemId,
+        sourceDocUpdated,
+        ...(statusUpdateErrors.length > 0 && { statusUpdateErrors }),
+    };
 }
