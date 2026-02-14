@@ -443,7 +443,7 @@ Pipeline agent that reviews completed workflow items and creates improvement iss
 - No local state — review state lives on the workflow item in MongoDB (reviewed, reviewSummary)
 - Skips items without local log files (agent-logs/issue-N.md)
 - Uses read-only tools (Read, Grep, Glob) to incrementally analyze logs
-- Creates workflow items for findings via yarn agent-workflow create --auto-approve
+- Creates workflow items for findings via yarn agent-workflow create (requires admin approval)
 - Appends [LOG:REVIEW] section to log file following .ai/commands/workflow-review.md format
 - Cross-references task runner logs (agent-tasks/all/runs/) for process-level debugging
 
