@@ -25,6 +25,8 @@ export interface ParsedArgs {
     // Fields for route/delete commands
     destination?: string;
     force?: boolean;
+    // Agent attribution
+    createdBy?: string;
 }
 
 /**
@@ -99,6 +101,9 @@ export function parseArgs(args: string[]): ParsedArgs {
             i += 2;
         } else if (arg === '--route' && args[i + 1]) {
             result.workflowRoute = args[i + 1];
+            i += 2;
+        } else if (arg === '--created-by' && args[i + 1]) {
+            result.createdBy = args[i + 1];
             i += 2;
         } else if (arg === '--force') {
             result.force = true;

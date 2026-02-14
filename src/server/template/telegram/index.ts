@@ -330,6 +330,10 @@ export async function sendFeatureRequestNotification(request: FeatureRequestDocu
         messageParts.push(`👤 Requested by: ${request.requestedByName}`);
     }
 
+    if (request.createdBy) {
+        messageParts.push(`🤖 Agent: ${request.createdBy}`);
+    }
+
     const message = messageParts.join('\n');
 
     // Add buttons
@@ -403,6 +407,10 @@ export async function sendBugReportNotification(report: ReportDocument): Promise
 
     if (report.userInfo?.username) {
         messageParts.push(`👤 Reported by: ${report.userInfo.username}`);
+    }
+
+    if (report.createdBy) {
+        messageParts.push(`🤖 Agent: ${report.createdBy}`);
     }
 
     // Append metadata on separate lines at the end

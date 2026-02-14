@@ -119,6 +119,7 @@ export interface WorkflowItemDocument {
     history?: HistoryEntry[];
     reviewed?: boolean;
     reviewSummary?: string;
+    createdBy?: string;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -254,6 +254,7 @@ function printWorkflowItemDetails(item: WorkflowItemDocument): void {
     if (item.size) console.log(`  Size:            ${item.size}`);
     if (item.complexity) console.log(`  Complexity:      ${item.complexity}`);
     if (item.labels?.length) console.log(`  Labels:          ${item.labels.join(', ')}`);
+    if (item.createdBy) console.log(`  Created By:      ${item.createdBy}`);
     console.log(`  Reviewed:        ${item.reviewed ?? false}`);
     if (item.reviewSummary) console.log(`  Review Summary:  ${item.reviewSummary}`);
     console.log(`  Created:         ${formatDate(item.createdAt)}`);

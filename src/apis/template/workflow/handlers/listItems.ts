@@ -118,6 +118,7 @@ export async function listItems(
                 history: (doc.history || []).slice().reverse(),
                 reviewed: doc.reviewed ?? false,
                 reviewSummary: doc.reviewSummary,
+                createdBy: doc.createdBy,
                 createdAt: new Date(doc.createdAt).toISOString(),
             };
         });

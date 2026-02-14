@@ -267,6 +267,7 @@ async function processItem(
             '--priority', finding.priority,
             '--size', finding.size,
             '--complexity', finding.complexity,
+            '--created-by', 'workflow-review',
         ], {
             encoding: 'utf-8',
             cwd: process.cwd(),

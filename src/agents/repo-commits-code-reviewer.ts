@@ -336,6 +336,7 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
 
         if (finding.size) args.push('--size', finding.size);
         if (finding.complexity) args.push('--complexity', finding.complexity);
+        args.push('--created-by', 'repo-commits-code-reviewer');
 
         // Add client page route if the finding is route-specific
         if (finding.route) {
