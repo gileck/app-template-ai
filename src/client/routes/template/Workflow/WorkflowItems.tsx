@@ -25,7 +25,7 @@ import { ItemPreviewDialog } from './ItemPreviewDialog';
 import { KanbanBoard } from './KanbanBoard';
 import { ActivityFeed } from './ActivityFeed';
 import { PIPELINE_STATUSES, ALL_SECTION_KEYS } from './constants';
-import type { TypeFilter, ViewFilter } from './store';
+import type { TypeFilter } from './store';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
@@ -34,18 +34,10 @@ const TYPE_LABELS: Record<TypeFilter, string> = {
     bug: 'Bugs',
 };
 
-const VIEW_LABELS: Record<ViewFilter, string> = {
-    all: 'All items',
-    pending: 'Pending',
-    active: 'Active',
-    done: 'Done',
-};
-
 export function WorkflowItems() {
     const { data, isLoading, error, isFetching } = useWorkflowItems();
 
     const typeFilter = useWorkflowPageStore((s) => s.typeFilter);
-    const viewFilter = useWorkflowPageStore((s) => s.viewFilter);
     const layoutMode = useWorkflowPageStore((s) => s.layoutMode);
     const collapsedSections = useWorkflowPageStore((s) => s.collapsedSections);
     const selectedItemId = useWorkflowPageStore((s) => s.selectedItemId);
@@ -56,7 +48,6 @@ export function WorkflowItems() {
     const isBulkApproving = useWorkflowPageStore((s) => s.isBulkApproving);
 
     const setTypeFilter = useWorkflowPageStore((s) => s.setTypeFilter);
-    const setViewFilter = useWorkflowPageStore((s) => s.setViewFilter);
     const setLayoutMode = useWorkflowPageStore((s) => s.setLayoutMode);
     const toggleSection = useWorkflowPageStore((s) => s.toggleSection);
     const toggleAllSections = useWorkflowPageStore((s) => s.toggleAllSections);
@@ -158,18 +149,16 @@ export function WorkflowItems() {
     const filteredPending = useMemo(() => {
         if (!data?.pendingItems) return [];
         if (!isListView) return [];
-        if (viewFilter !== 'all' && viewFilter !== 'pending') return [];
         const items = [...data.pendingItems].sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         if (typeFilter === 'all') return items;
         return items.filter((item) => item.type === typeFilter);
-    }, [data?.pendingItems, typeFilter, viewFilter]);
+    }, [data?.pendingItems, typeFilter, isListView]);
 
     const pipelineGroups = useMemo(() => {
         if (!data?.workflowItems) return [];
         if (!isListView) return [];
-        if (viewFilter === 'pending' || viewFilter === 'done') return [];
 
         let items = [...data.workflowItems].sort((a, b) => {
             const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -202,12 +191,11 @@ export function WorkflowItems() {
         }
 
         return groups;
-    }, [data?.workflowItems, typeFilter, viewFilter]);
+    }, [data?.workflowItems, typeFilter, isListView]);
 
     const doneItems = useMemo(() => {
         if (!data?.workflowItems) return [];
         if (!isListView) return [];
-        if (viewFilter === 'pending' || viewFilter === 'active') return [];
 
         let items = data.workflowItems
             .filter((item) => item.status === 'Done')
@@ -220,7 +208,7 @@ export function WorkflowItems() {
             items = items.filter((item) => item.type === typeFilter);
         }
         return items;
-    }, [data?.workflowItems, typeFilter, viewFilter]);
+    }, [data?.workflowItems, typeFilter, isListView]);
 
     const allFilteredWorkflowItems = useMemo(() => {
         if (!data?.workflowItems) return [];
@@ -322,26 +310,10 @@ export function WorkflowItems() {
             <StatsBar
                 pendingCount={data.pendingItems.length}
                 statusCounts={statusCounts}
-                onClickStatus={setViewFilter}
             />
 
-            <div className="mb-4 flex items-center gap-2">
-                <div className="flex-1">
-                    <ViewTabs active={layoutMode} onChange={setLayoutMode} />
-                </div>
-                {isListView && (
-                    <Select value={viewFilter} onValueChange={(v) => setViewFilter(v as ViewFilter)}>
-                        <SelectTrigger className="h-8 w-auto min-w-[90px] text-xs px-3">
-                            <SelectValue>{VIEW_LABELS[viewFilter]}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All items</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="done">Done</SelectItem>
-                        </SelectContent>
-                    </Select>
-                )}
+            <div className="mb-4">
+                <ViewTabs active={layoutMode} onChange={setLayoutMode} />
             </div>
 
             {isActivityView ? (

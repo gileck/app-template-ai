@@ -1,10 +1,8 @@
 /**
  * StatsBar
  *
- * Summary stats bar showing counts per status with clickable filters.
+ * Summary stats bar showing counts per status.
  */
-
-import type { ViewFilter } from './store';
 
 const STATUS_DOT_CLASS: Record<string, string> = {
     'Pending Approval': 'bg-warning',
@@ -21,10 +19,9 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 
 const DEFAULT_DOT_CLASS = 'bg-muted-foreground';
 
-export function StatsBar({ pendingCount, statusCounts, onClickStatus }: {
+export function StatsBar({ pendingCount, statusCounts }: {
     pendingCount: number;
     statusCounts: { status: string; count: number }[];
-    onClickStatus: (view: ViewFilter) => void;
 }) {
     const total = pendingCount + statusCounts.reduce((sum, s) => sum + s.count, 0);
     if (total === 0) return null;
@@ -32,23 +29,19 @@ export function StatsBar({ pendingCount, statusCounts, onClickStatus }: {
     return (
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mb-3">
             {pendingCount > 0 && (
-                <button
-                    onClick={() => onClickStatus('pending')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
-                >
+                <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-warning" />
                     <span>Pending {pendingCount}</span>
-                </button>
+                </span>
             )}
             {statusCounts.map(({ status, count }) => (
-                <button
+                <span
                     key={status}
-                    onClick={() => onClickStatus(status === 'Done' ? 'done' : 'active')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1"
                 >
                     <span className={`w-2 h-2 rounded-full ${STATUS_DOT_CLASS[status] || DEFAULT_DOT_CLASS}`} />
                     <span>{status} {count}</span>
-                </button>
+                </span>
             ))}
         </div>
     );
