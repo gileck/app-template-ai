@@ -326,7 +326,9 @@ export function WorkflowItems() {
             />
 
             <div className="mb-4 flex items-center gap-2">
-                <ViewTabs active={layoutMode} onChange={setLayoutMode} />
+                <div className="flex-1">
+                    <ViewTabs active={layoutMode} onChange={setLayoutMode} />
+                </div>
                 {isListView && (
                     <Select value={viewFilter} onValueChange={(v) => setViewFilter(v as ViewFilter)}>
                         <SelectTrigger className="h-8 w-auto min-w-[90px] text-xs px-3">
