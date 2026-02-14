@@ -6,6 +6,7 @@
 
 import { featureRequests, reports } from '@/server/database';
 import { deleteWorkflowItemBySourceRef } from '@/server/database/collections/template/workflow-items';
+import { GitHubClient } from '@/server/template/project-management/github-client';
 import { notifyDeleted } from './notify';
 import type { WorkflowItemRef, DeleteOptions, DeleteResult } from './types';
 
@@ -60,7 +61,22 @@ export async function deleteWorkflowItem(
     // 4. Always clean up workflow-items
     await deleteWorkflowItemBySourceRef(sourceCollection, ref.id);
 
-    // 5. Send Telegram notification (fire-and-forget)
+    // 5. Close GitHub issue and add comment (fire-and-forget)
+    const githubIssueNumber = (doc as { githubIssueNumber?: number }).githubIssueNumber;
+    if (githubIssueNumber) {
+        (async () => {
+            try {
+                const gh = new GitHubClient();
+                await gh.init();
+                await gh.addIssueComment(githubIssueNumber, 'This item was deleted from the workflow.');
+                await gh.closeIssue(githubIssueNumber);
+            } catch (error) {
+                console.error('Failed to close GitHub issue:', error);
+            }
+        })();
+    }
+
+    // 6. Send Telegram notification (fire-and-forget)
     notifyDeleted(ref, title).catch(() => {});
 
     return { success: true, title };

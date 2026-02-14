@@ -145,6 +145,12 @@ export class GitHubClient {
         await oc.issues.update({ owner, repo, issue_number: issueNumber, body });
     }
 
+    async closeIssue(issueNumber: number): Promise<void> {
+        const oc = this.getBotOctokit();
+        const { owner, repo } = this.config.github;
+        await oc.issues.update({ owner, repo, issue_number: issueNumber, state: 'closed' });
+    }
+
     async addIssueComment(issueNumber: number, body: string): Promise<number> {
         return withRetry(async () => {
             const oc = this.getBotOctokit();
