@@ -9,7 +9,7 @@
  */
 
 import { spawnSync } from 'child_process';
-import { existsSync, statSync, openSync, readSync, closeSync } from 'fs';
+import { existsSync, statSync, openSync, readSync, closeSync, appendFileSync } from 'fs';
 import { resolve } from 'path';
 import {
     createCLI,
@@ -289,20 +289,13 @@ async function processItem(
         console.warn(`    ${failedFindings}/${findingsCount} finding(s) failed to create — proceeding with partial results`);
     }
 
-    // Append review section to log file via subprocess (avoids sandbox restrictions)
+    // Append review section to log file
     const reviewSection = formatReviewSection(output, issueNumber);
-    const appendResult = spawnSync('node', [
-        '-e',
-        `require('fs').appendFileSync(process.argv[1], process.argv[2])`,
-        logFilePath,
-        reviewSection,
-    ], { encoding: 'utf-8', cwd: process.cwd() });
-
-    if (appendResult.status === 0) {
+    try {
+        appendFileSync(logFilePath, reviewSection);
         console.log(`    Appended ${LOG_REVIEW_MARKER} section to log file`);
-    } else {
-        console.warn(`    Warning: Failed to append review section to log file`);
-        if (appendResult.stderr) console.warn(`    ${appendResult.stderr.slice(0, 200)}`);
+    } catch (err) {
+        console.warn(`    Warning: Failed to append review section to log file: ${err}`);
     }
 
     // Update DB
