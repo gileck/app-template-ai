@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { StatusBadge } from './StatusBadge';
-import { formatRelativeTime } from './utils';
+import { formatRelativeTime, formatAction } from './utils';
 import type { WorkflowItem, WorkflowHistoryEntry } from '@/apis/template/workflow/types';
 
 interface FeedEntry extends WorkflowHistoryEntry {
@@ -102,7 +102,7 @@ export function ActivityFeed({ workflowItems, onSelectItem }: {
                                     {entry.itemTitle}
                                 </button>
                                 <p className="text-muted-foreground mt-0.5">
-                                    {entry.action}
+                                    {formatAction(entry.action)}
                                     {entry.actor && <span className="opacity-60"> by {entry.actor}</span>}
                                 </p>
                             </div>
