@@ -39,8 +39,36 @@ export interface WorkflowItemPRData {
     revertPrNumber?: number;
 }
 
+export const WORKFLOW_HISTORY_ACTIONS = {
+    feature_approved: 'Feature approved',
+    bug_approved: 'Bug approved',
+    status_advanced: 'Status advanced',
+    marked_done: 'Marked done',
+    routed: 'Routed',
+    pr_merged: 'PR merged',
+    design_pr_merged: 'Design PR merged',
+    final_pr_merged: 'Final PR merged',
+    design_approved: 'Design approved',
+    design_changes: 'Design changes requested',
+    design_rejected: 'Design rejected',
+    pr_changes_requested: 'PR changes requested',
+    design_pr_changes_requested: 'Design PR changes requested',
+    agent_completed: 'Agent completed',
+    agent_started: 'Agent started',
+    clarification_received: 'Clarification received',
+    choose_recommended: 'Recommended option chosen',
+    status_changed: 'Status changed',
+    undo: 'Action undone',
+    revert_initiated: 'Revert initiated',
+    revert_merged: 'Revert merged',
+    decision_routed: 'Decision routed',
+    created: 'Item created',
+} as const;
+
+export type WorkflowHistoryAction = keyof typeof WORKFLOW_HISTORY_ACTIONS;
+
 export interface WorkflowHistoryEntry {
-    action: string;
+    action: WorkflowHistoryAction | (string & {});
     description: string;
     timestamp: string;
     actor?: string;

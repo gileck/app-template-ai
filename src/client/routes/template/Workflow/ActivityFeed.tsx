@@ -6,9 +6,40 @@
  */
 
 import { useMemo } from 'react';
+import {
+    CheckCircle, Bug, ArrowRight, GitMerge, Pencil, XCircle,
+    MessageSquare, Bot, Play, RotateCcw, CircleDot, Undo2,
+    ThumbsUp, ArrowRightLeft, type LucideIcon,
+} from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { formatRelativeTime, formatAction } from './utils';
 import type { WorkflowItem, WorkflowHistoryEntry } from '@/apis/template/workflow/types';
+
+const ACTION_ICONS: Record<string, LucideIcon> = {
+    feature_approved: CheckCircle,
+    bug_approved: Bug,
+    status_advanced: ArrowRight,
+    marked_done: CheckCircle,
+    routed: ArrowRightLeft,
+    pr_merged: GitMerge,
+    design_pr_merged: GitMerge,
+    final_pr_merged: GitMerge,
+    design_approved: ThumbsUp,
+    design_changes: Pencil,
+    design_rejected: XCircle,
+    pr_changes_requested: Pencil,
+    design_pr_changes_requested: Pencil,
+    agent_completed: Bot,
+    agent_started: Play,
+    clarification_received: MessageSquare,
+    choose_recommended: CheckCircle,
+    status_changed: CircleDot,
+    undo: Undo2,
+    revert_initiated: RotateCcw,
+    revert_merged: RotateCcw,
+    decision_routed: ArrowRightLeft,
+    created: CircleDot,
+};
 
 interface FeedEntry extends WorkflowHistoryEntry {
     itemId: string;
@@ -101,9 +132,12 @@ export function ActivityFeed({ workflowItems, onSelectItem }: {
                                 >
                                     {entry.itemTitle}
                                 </button>
-                                <p className="text-muted-foreground mt-0.5">
-                                    {formatAction(entry.action)}
-                                    {entry.actor && <span className="opacity-60"> by {entry.actor}</span>}
+                                <p className="text-muted-foreground mt-0.5 flex items-center gap-1">
+                                    {(() => { const Icon = ACTION_ICONS[entry.action]; return Icon ? <Icon className="w-3 h-3 shrink-0" /> : null; })()}
+                                    <span>
+                                        {formatAction(entry.action)}
+                                        {entry.actor && <span className="opacity-60"> by {entry.actor}</span>}
+                                    </span>
                                 </p>
                             </div>
                         ))}

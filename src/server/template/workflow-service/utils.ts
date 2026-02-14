@@ -11,6 +11,7 @@ import {
     updateWorkflowFields,
     addHistoryEntry,
 } from '@/server/database/collections/template/workflow-items';
+import type { WorkflowHistoryAction } from '@/apis/template/workflow/types';
 
 /**
  * Initialize and return the project management adapter.
@@ -123,7 +124,7 @@ export async function syncWorkflowStatus(
  */
 export async function logHistory(
     issueNumber: number,
-    action: string,
+    action: WorkflowHistoryAction,
     description: string,
     actor?: string,
     metadata?: Record<string, unknown>

@@ -99,7 +99,7 @@ export async function approveWorkflowItem(
 
     // 3b. History log
     if (issueNumber) {
-        const actionType = ref.type === 'feature' ? 'feature_approved' : 'bug_approved';
+        const actionType = ref.type === 'feature' ? 'feature_approved' as const : 'bug_approved' as const;
         void logHistory(issueNumber, actionType, `${ref.type === 'feature' ? 'Feature' : 'Bug'} "${title}" approved`, 'admin');
     }
 

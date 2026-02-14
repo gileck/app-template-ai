@@ -18,6 +18,7 @@ import { updateReviewStatus } from './review-status';
 import { advanceStatus } from './advance';
 import { STATUS_TRANSITIONS } from './constants';
 import type { ServiceResult } from './types';
+import type { WorkflowHistoryAction } from '@/apis/template/workflow/types';
 
 type ReviewAction = 'approve' | 'changes' | 'reject';
 
@@ -113,7 +114,7 @@ export async function reviewDesign(
         logWebhookPhaseEnd(issueNumber, 'Design Review', action === 'reject' ? 'failed' : 'success', 'webhook');
     }
 
-    const actionMap: Record<ReviewAction, string> = {
+    const actionMap: Record<ReviewAction, WorkflowHistoryAction> = {
         approve: 'design_approved',
         changes: 'design_changes',
         reject: 'design_rejected',
