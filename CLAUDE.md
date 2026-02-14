@@ -247,6 +247,16 @@ CLI for managing GitHub pull requests. Use this when creating/managing PRs progr
 
 ---
 
+## iOS-Inspired UI Design Guidelines
+
+Design philosophy and iOS-inspired principles for UI components. Use this for understanding design patterns, advanced concepts (RTL, haptics, animations), and QA checklists.
+
+**Summary:** iOS-inspired design reference with semantic color tokens, 8px spacing grid, 44px touch targets, spring animations, dark mode handling, accessibility standards, and comprehensive QA checklists. Code examples use raw CSS/HTML — adapt to shadcn + Tailwind patterns when implementing.
+
+**Docs:** [ui-design-guidelines.md](docs/template/ui-design-guidelines.md)
+
+---
+
 ## Telegram Notifications (App Runtime)
 
 Application feature for sending notifications via Telegram. Use this when adding app notifications.

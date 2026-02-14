@@ -1,6 +1,8 @@
 ---
-name: ui-design-guidelines
-description: globs: .tsx,.css
+title: iOS-Inspired UI Design Guidelines
+description: Design philosophy and iOS-inspired principles for UI components. Use this for understanding design patterns, advanced concepts (RTL, haptics, animations), and QA checklists.
+summary: "iOS-inspired design reference with semantic color tokens, 8px spacing grid, 44px touch targets, spring animations, dark mode handling, accessibility standards, and comprehensive QA checklists. Code examples use raw CSS/HTML — adapt to shadcn + Tailwind patterns when implementing."
+priority: 4
 ---
 # iOS-Inspired UI Design Guidelines
 
