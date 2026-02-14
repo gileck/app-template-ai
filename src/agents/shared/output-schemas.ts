@@ -749,3 +749,149 @@ export const BUG_INVESTIGATION_OUTPUT_FORMAT = {
         required: ['rootCauseFound', 'confidence', 'rootCauseAnalysis', 'fixOptions', 'filesExamined', 'summary'],
     },
 };
+
+// ============================================================
+// WORKFLOW REVIEW OUTPUT
+// ============================================================
+
+export interface WorkflowReviewFinding {
+    type: 'bug' | 'improvement';
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    priority: 'critical' | 'high' | 'medium' | 'low';
+    size: 'XS' | 'S' | 'M' | 'L';
+    complexity: 'Low' | 'Medium' | 'High';
+    title: string;
+    description: string;
+    category: 'error' | 'efficiency' | 'workflow' | 'prompt' | 'systemic';
+    relatedIssue: number;
+    affectedFiles: string[];
+}
+
+export interface WorkflowReviewOutput {
+    findings: WorkflowReviewFinding[];
+    executiveSummary: {
+        status: 'completed' | 'failed' | 'partial';
+        totalCost: string;
+        duration: string;
+        overallAssessment: string;
+    };
+    systemicImprovements: Array<{
+        type: 'doc_update' | 'rule_update' | 'prompt_update' | 'logging_improvement';
+        targetFile: string;
+        recommendation: string;
+    }>;
+}
+
+export const WORKFLOW_REVIEW_OUTPUT_FORMAT = {
+    type: 'json_schema' as const,
+    schema: {
+        type: 'object',
+        properties: {
+            findings: {
+                type: 'array',
+                description: 'List of findings from the workflow review. Only include findings with clear root causes.',
+                items: {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: ['bug', 'improvement'],
+                            description: 'Type of finding',
+                        },
+                        severity: {
+                            type: 'string',
+                            enum: ['critical', 'high', 'medium', 'low'],
+                            description: 'Severity: critical (broke workflow), high (significant issue), medium (inefficiency), low (minor)',
+                        },
+                        priority: {
+                            type: 'string',
+                            enum: ['critical', 'high', 'medium', 'low'],
+                            description: 'Priority for creating improvement issue',
+                        },
+                        size: {
+                            type: 'string',
+                            enum: ['XS', 'S', 'M', 'L'],
+                            description: 'Estimated fix size',
+                        },
+                        complexity: {
+                            type: 'string',
+                            enum: ['Low', 'Medium', 'High'],
+                            description: 'Estimated fix complexity',
+                        },
+                        title: {
+                            type: 'string',
+                            description: 'Short actionable title (max 80 chars)',
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Detailed description with root cause analysis. Must explain WHY, not just WHAT.',
+                        },
+                        category: {
+                            type: 'string',
+                            enum: ['error', 'efficiency', 'workflow', 'prompt', 'systemic'],
+                            description: 'Category of the finding',
+                        },
+                        relatedIssue: {
+                            type: 'number',
+                            description: 'The GitHub issue number being reviewed',
+                        },
+                        affectedFiles: {
+                            type: 'array',
+                            items: { type: 'string' },
+                            description: 'Files affected by this finding',
+                        },
+                    },
+                    required: ['type', 'severity', 'priority', 'size', 'complexity', 'title', 'description', 'category', 'relatedIssue', 'affectedFiles'],
+                },
+            },
+            executiveSummary: {
+                type: 'object',
+                description: 'Executive summary of the workflow execution',
+                properties: {
+                    status: {
+                        type: 'string',
+                        enum: ['completed', 'failed', 'partial'],
+                        description: 'Overall status of the workflow execution',
+                    },
+                    totalCost: {
+                        type: 'string',
+                        description: 'Total cost of the workflow execution (e.g., "$2.45")',
+                    },
+                    duration: {
+                        type: 'string',
+                        description: 'Total duration (e.g., "45m 30s")',
+                    },
+                    overallAssessment: {
+                        type: 'string',
+                        description: 'Brief 1-2 sentence assessment of the workflow execution',
+                    },
+                },
+                required: ['status', 'totalCost', 'duration', 'overallAssessment'],
+            },
+            systemicImprovements: {
+                type: 'array',
+                description: 'Systemic improvements that would benefit ALL future issues',
+                items: {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: ['doc_update', 'rule_update', 'prompt_update', 'logging_improvement'],
+                            description: 'Type of improvement',
+                        },
+                        targetFile: {
+                            type: 'string',
+                            description: 'File to update (e.g., "docs/xyz.md")',
+                        },
+                        recommendation: {
+                            type: 'string',
+                            description: 'What to add or change',
+                        },
+                    },
+                    required: ['type', 'targetFile', 'recommendation'],
+                },
+            },
+        },
+        required: ['findings', 'executiveSummary', 'systemicImprovements'],
+    },
+};

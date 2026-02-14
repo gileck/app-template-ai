@@ -71,6 +71,8 @@ export type {
     FixOption,
     CodeReviewFinding,
     CodeReviewOutput,
+    WorkflowReviewFinding,
+    WorkflowReviewOutput,
 } from './output-schemas';
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
@@ -82,6 +84,7 @@ export {
     CLARIFICATION_SCHEMA_PROPERTIES,
     BUG_INVESTIGATION_OUTPUT_FORMAT,
     CODE_REVIEW_OUTPUT_FORMAT,
+    WORKFLOW_REVIEW_OUTPUT_FORMAT,
 } from './output-schemas';
 
 // Agent library abstraction
@@ -124,6 +127,7 @@ export {
     notifyAgentStarted,
     notifyPhaseComplete,
     notifyDecisionNeeded,
+    notifyWorkflowReviewComplete,
 } from './notifications';
 
 // Prompts

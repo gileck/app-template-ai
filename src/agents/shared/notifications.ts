@@ -1002,6 +1002,27 @@ ${routedSection}`;
 }
 
 /**
+ * Notify admin that workflow review is complete
+ */
+export async function notifyWorkflowReviewComplete(
+    title: string,
+    issueNumber: number,
+    reviewSummary: string,
+    findingsCount: number
+): Promise<SendResult> {
+    const issueUrl = getIssueUrl(issueNumber);
+
+    const message = `<b>Workflow Review:</b> ✅ Complete
+
+📋 ${escapeHtml(title)} (#${issueNumber})
+📊 ${findingsCount} finding(s)
+
+${escapeHtml(reviewSummary)}`;
+
+    return sendToInfoChannel(message, buildViewIssueButton(issueUrl));
+}
+
+/**
  * Notify admin that an agent decision is ready and needs selection.
  * Generic version that works for any agent decision type.
  */

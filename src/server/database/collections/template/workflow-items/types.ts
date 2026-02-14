@@ -117,6 +117,8 @@ export interface WorkflowItemDocument {
     complexity?: 'High' | 'Medium' | 'Low';
     artifacts?: WorkflowItemArtifacts;
     history?: HistoryEntry[];
+    reviewed?: boolean;
+    reviewSummary?: string;
     createdAt: Date;
     updatedAt: Date;
 }

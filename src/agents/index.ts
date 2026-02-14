@@ -12,6 +12,7 @@
  *   yarn github-workflows-agent --implement [options]         # Run implementation agent
  *   yarn github-workflows-agent --pr-review [options]         # Run PR review agent
  *   yarn github-workflows-agent --auto-advance [options]      # Run auto-advance script
+ *   yarn github-workflows-agent --workflow-review [options]   # Run workflow review agent
  *   yarn github-workflows-agent --all [options]               # Run all in sequence
  *
  * Options:
@@ -47,11 +48,12 @@ const SCRIPTS = {
     'tech-design': resolve(__dirname, 'core-agents/technicalDesignAgent/index.ts'),
     'implement': resolve(__dirname, 'core-agents/implementAgent/index.ts'),
     'pr-review': resolve(__dirname, 'core-agents/prReviewAgent/index.ts'),
+    'workflow-review': resolve(__dirname, 'core-agents/workflowReviewAgent/index.ts'),
     'auto-advance': resolve(__dirname, 'auto-advance.ts'),
 };
 
 // Order for --all flag
-const ALL_ORDER = ['auto-advance', 'product-dev', 'product-design', 'bug-investigator', 'tech-design', 'implement', 'pr-review'];
+const ALL_ORDER = ['auto-advance', 'product-dev', 'product-design', 'bug-investigator', 'tech-design', 'implement', 'pr-review', 'workflow-review'];
 
 /**
  * Reset to clean main branch
@@ -138,6 +140,7 @@ Usage:
   yarn github-workflows-agent --implement [options]         Run implementation agent
   yarn github-workflows-agent --pr-review [options]         Run PR review agent
   yarn github-workflows-agent --auto-advance [options]      Run auto-advance script
+  yarn github-workflows-agent --workflow-review [options]   Run workflow review agent
   yarn github-workflows-agent --all [options]               Run all in sequence
 
 Options:
@@ -267,6 +270,8 @@ async function main() {
             scriptsToRun.push('implement');
         } else if (arg === '--pr-review') {
             scriptsToRun.push('pr-review');
+        } else if (arg === '--workflow-review') {
+            scriptsToRun.push('workflow-review');
         } else if (arg === '--auto-advance') {
             scriptsToRun.push('auto-advance');
         } else if (arg === '--skip-pull') {
@@ -282,7 +287,7 @@ async function main() {
     }
 
     if (scriptsToRun.length === 0) {
-        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --auto-advance, or --all\n');
+        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --workflow-review, --auto-advance, or --all\n');
         printUsage();
         process.exit(1);
     }

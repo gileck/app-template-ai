@@ -432,6 +432,25 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 
 ---
 
+## Workflow Review Agent
+
+Pipeline agent that reviews completed workflow items and creates improvement issues.
+
+**Summary:** Runs as the last step in the pipeline (after pr-review). Picks up Done items where reviewed !== true, analyzes their agent execution logs via LLM, appends [LOG:REVIEW] section to the log file, stores summary on the workflow item, sends Telegram notification, and creates improvement issues via agent-workflow create.
+
+**Key Points:**
+- Part of the pipeline — added to ALL_ORDER after pr-review, runs every cycle via --all
+- No local state — review state lives on the workflow item in MongoDB (reviewed, reviewSummary)
+- Skips items without local log files (agent-logs/issue-N.md)
+- Uses read-only tools (Read, Grep, Glob) to incrementally analyze logs
+- Creates workflow items for findings via yarn agent-workflow create --auto-approve
+- Appends [LOG:REVIEW] section to log file following .ai/commands/workflow-review.md format
+- Cross-references task runner logs (agent-tasks/all/runs/) for process-level debugging
+
+**Docs:** [workflow-review.md](docs/template/github-agents-workflow/workflow-review.md), [overview.md](docs/template/github-agents-workflow/overview.md), [running-agents.md](docs/template/github-agents-workflow/running-agents.md), [agent-logging.md](docs/template/github-agents-workflow/agent-logging.md)
+
+---
+
 # project-guidelines
 
 ## Mobile-First Philosophy

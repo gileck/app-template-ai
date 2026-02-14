@@ -473,6 +473,20 @@ export const setDecisionSelection = async (
 };
 
 /**
+ * Set workflow review data on a workflow item
+ */
+export const setWorkflowReviewData = async (
+    issueNumber: number,
+    reviewed: boolean,
+    reviewSummary?: string
+): Promise<void> => {
+    const collection = await getWorkflowItemsCollection();
+    const $set: Record<string, unknown> = { reviewed, updatedAt: new Date() };
+    if (reviewSummary !== undefined) $set.reviewSummary = reviewSummary;
+    await collection.updateOne({ githubIssueNumber: issueNumber }, { $set });
+};
+
+/**
  * Append a history entry to a workflow item
  */
 export const addHistoryEntry = async (

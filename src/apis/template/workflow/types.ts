@@ -90,6 +90,8 @@ export interface WorkflowItem {
     implementationPhase?: string | null;
     prData?: WorkflowItemPRData;
     history?: WorkflowHistoryEntry[];
+    reviewed?: boolean;
+    reviewSummary?: string;
     createdAt: string | null;
 }
 
