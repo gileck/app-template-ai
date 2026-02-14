@@ -1,13 +1,15 @@
 import { createStore } from '@/client/stores';
 
 export type TypeFilter = 'all' | 'feature' | 'bug';
-export type ViewFilter = 'all' | 'pending' | 'active' | 'done';
+export type ViewFilter = 'all' | 'pending' | 'active' | 'done' | 'activity';
+export type LayoutMode = 'list' | 'board';
 export type SelectableItem = { type: 'feature' | 'bug'; mongoId: string };
 
 interface WorkflowPageState {
     // Persisted (survives navigation + page refresh)
     typeFilter: TypeFilter;
     viewFilter: ViewFilter;
+    layoutMode: LayoutMode;
     collapsedSections: string[];
 
     // Non-persisted (survives navigation only, resets on page refresh)
@@ -21,6 +23,7 @@ interface WorkflowPageState {
     // Actions
     setTypeFilter: (filter: TypeFilter) => void;
     setViewFilter: (filter: ViewFilter) => void;
+    setLayoutMode: (mode: LayoutMode) => void;
     toggleSection: (section: string) => void;
     toggleAllSections: (allKeys: readonly string[]) => void;
     setSelectedItemId: (id: string | null) => void;
@@ -38,6 +41,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
     creator: (set) => ({
         typeFilter: 'all',
         viewFilter: 'all',
+        layoutMode: 'list',
         collapsedSections: [],
         selectedItemId: null,
         selectMode: false,
@@ -48,6 +52,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
 
         setTypeFilter: (filter) => set({ typeFilter: filter }),
         setViewFilter: (filter) => set({ viewFilter: filter }),
+        setLayoutMode: (mode) => set({ layoutMode: mode }),
 
         toggleSection: (section) =>
             set((state) => {
@@ -99,6 +104,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
         partialize: (state) => ({
             typeFilter: state.typeFilter,
             viewFilter: state.viewFilter,
+            layoutMode: state.layoutMode,
             collapsedSections: state.collapsedSections,
         }),
     },
