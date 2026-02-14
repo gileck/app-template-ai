@@ -8,7 +8,6 @@ import { Github } from 'lucide-react';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { StatusBadge } from './StatusBadge';
 import { SelectCheckbox } from './SelectCheckbox';
-import { StatusStepper } from './StatusStepper';
 import { formatDate } from './utils';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
@@ -72,7 +71,6 @@ export function WorkflowCard({ item, onSelect, selectMode, selected, onToggleSel
                                 <StatusBadge label={item.reviewStatus} />
                             )}
                         </div>
-                        <StatusStepper currentStatus={item.status} />
                     </div>
                 </div>
             </CardContent>
