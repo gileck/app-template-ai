@@ -101,10 +101,10 @@ export function ActivityFeed({ workflowItems, onSelectItem }: {
                                 >
                                     {entry.itemTitle}
                                 </button>
-                                <p className="text-muted-foreground mt-0.5">{entry.description}</p>
-                                {entry.actor && (
-                                    <span className="text-muted-foreground opacity-60">{entry.actor}</span>
-                                )}
+                                <p className="text-muted-foreground mt-0.5">
+                                    {entry.action}
+                                    {entry.actor && <span className="opacity-60"> by {entry.actor}</span>}
+                                </p>
                             </div>
                         ))}
                     </div>
