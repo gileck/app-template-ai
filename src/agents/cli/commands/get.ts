@@ -7,6 +7,8 @@
 import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument } from '@/server/database/collections/template/feature-requests/types';
 import type { ReportDocument } from '@/server/database/collections/template/reports/types';
+import { findWorkflowItemBySourceRef, findWorkflowItemByIssueNumber } from '@/server/database/collections/template/workflow-items/workflow-items';
+import type { WorkflowItemDocument } from '@/server/database/collections/template/workflow-items/types';
 import { getProjectManagementAdapter } from '@/server/template/project-management';
 import { parseArgs } from '../utils/parse-args';
 
@@ -22,13 +24,15 @@ function formatDate(date: Date): string {
     return date.toISOString().replace('T', ' ').slice(0, 19);
 }
 
+type FindResult = { type: 'feature'; item: FeatureRequestDocument } | { type: 'bug'; item: ReportDocument };
+
 /**
- * Find item by ID or ID prefix
+ * Find item by ID, ID prefix, or GitHub issue number
  */
 async function findById(
     id: string,
     typeHint?: string
-): Promise<{ type: 'feature'; item: FeatureRequestDocument } | { type: 'bug'; item: ReportDocument } | null> {
+): Promise<FindResult | null> {
     // If type hint provided, search that collection first
     if (typeHint === 'feature') {
         const feature = await tryFindFeature(id);
@@ -42,12 +46,27 @@ async function findById(
         return null;
     }
 
-    // No type hint - search both collections
+    // No type hint - search both collections by ObjectId
     const feature = await tryFindFeature(id);
     if (feature) return { type: 'feature', item: feature };
 
     const report = await tryFindReport(id);
     if (report) return { type: 'bug', item: report };
+
+    // Try by GitHub issue number
+    const issueNum = parseInt(id, 10);
+    if (!isNaN(issueNum)) {
+        const wi = await findWorkflowItemByIssueNumber(issueNum);
+        if (wi?.sourceRef) {
+            if (wi.sourceRef.collection === 'feature-requests') {
+                const f = await featureRequests.findFeatureRequestById(wi.sourceRef.id.toString());
+                if (f) return { type: 'feature', item: f };
+            } else {
+                const r = await reports.findReportById(wi.sourceRef.id.toString());
+                if (r) return { type: 'bug', item: r };
+            }
+        }
+    }
 
     return null;
 }
@@ -221,6 +240,83 @@ function printReportDetails(report: ReportDocument, githubInfo: GitHubProjectInf
 }
 
 /**
+ * Print workflow item details from the workflow-items collection
+ */
+function printWorkflowItemDetails(item: WorkflowItemDocument): void {
+    console.log('\n=== Workflow Item ===\n');
+    console.log(`  ID:              ${item._id}`);
+    console.log(`  Type:            ${item.type}`);
+    console.log(`  Title:           ${item.title}`);
+    console.log(`  Status:          ${item.status}`);
+    if (item.reviewStatus) console.log(`  Review Status:   ${item.reviewStatus}`);
+    if (item.implementationPhase) console.log(`  Impl Phase:      ${item.implementationPhase}`);
+    if (item.priority) console.log(`  Priority:        ${item.priority}`);
+    if (item.size) console.log(`  Size:            ${item.size}`);
+    if (item.complexity) console.log(`  Complexity:      ${item.complexity}`);
+    if (item.labels?.length) console.log(`  Labels:          ${item.labels.join(', ')}`);
+    console.log(`  Reviewed:        ${item.reviewed ?? false}`);
+    if (item.reviewSummary) console.log(`  Review Summary:  ${item.reviewSummary}`);
+    console.log(`  Created:         ${formatDate(item.createdAt)}`);
+    console.log(`  Updated:         ${formatDate(item.updatedAt)}`);
+
+    if (item.githubIssueNumber) {
+        console.log(`\n  GitHub Issue:    #${item.githubIssueNumber}`);
+        if (item.githubIssueUrl) console.log(`  GitHub URL:      ${item.githubIssueUrl}`);
+    }
+
+    if (item.sourceRef) {
+        console.log(`\n  Source:          ${item.sourceRef.collection} / ${item.sourceRef.id}`);
+    }
+
+    // Artifacts
+    if (item.artifacts) {
+        const a = item.artifacts;
+        if (a.designs?.length) {
+            console.log(`\n  Designs (${a.designs.length}):`);
+            for (const d of a.designs) {
+                console.log(`    - ${d.type}: ${d.path} (${d.status}${d.prNumber ? `, PR #${d.prNumber}` : ''})`);
+            }
+        }
+        if (a.phases?.length) {
+            console.log(`\n  Phases (${a.phases.length}):`);
+            for (const p of a.phases) {
+                console.log(`    - Phase ${p.order}: ${p.name} [${p.estimatedSize}] (${p.status}${p.prNumber ? `, PR #${p.prNumber}` : ''})`);
+            }
+        }
+        if (a.taskBranch) console.log(`\n  Task Branch:     ${a.taskBranch}`);
+        if (a.finalPrNumber) console.log(`  Final PR:        #${a.finalPrNumber}`);
+        if (a.revertPrNumber) console.log(`  Revert PR:       #${a.revertPrNumber}`);
+        if (a.lastMergedPr) {
+            console.log(`  Last Merged PR:  #${a.lastMergedPr.prNumber}${a.lastMergedPr.phase ? ` (${a.lastMergedPr.phase})` : ''} at ${a.lastMergedPr.mergedAt}`);
+        }
+        if (a.decision) {
+            console.log(`\n  Decision:`);
+            console.log(`    Agent:   ${a.decision.agentId}`);
+            console.log(`    Type:    ${a.decision.type}`);
+            console.log(`    Options: ${a.decision.options.map(o => o.title ?? o.id).join(', ')}`);
+            if (a.decision.selection) {
+                const sel = a.decision.selection;
+                console.log(`    Selected: ${sel.selectedOptionId ?? (sel.chooseRecommended ? '(recommended)' : 'N/A')}`);
+            }
+        }
+        if (a.commitMessages?.length) {
+            console.log(`\n  Commit Messages (${a.commitMessages.length}):`);
+            for (const cm of a.commitMessages) {
+                console.log(`    - PR #${cm.prNumber}: ${cm.title}`);
+            }
+        }
+    }
+
+    // History
+    if (item.history?.length) {
+        console.log(`\n  History (${item.history.length}):`);
+        for (const h of item.history) {
+            console.log(`    - [${h.timestamp}] ${h.action}: ${h.description}${h.actor ? ` (${h.actor})` : ''}`);
+        }
+    }
+}
+
+/**
  * Handle the get command
  */
 export async function handleGet(args: string[]): Promise<void> {
@@ -260,6 +356,26 @@ export async function handleGet(args: string[]): Promise<void> {
         printFeatureDetails(result.item, githubInfo);
     } else {
         printReportDetails(result.item, githubInfo);
+    }
+
+    // Fetch and print workflow item details
+    const issueNumber = result.type === 'feature'
+        ? (result.item as FeatureRequestDocument).githubIssueNumber
+        : (result.item as ReportDocument).githubIssueNumber;
+
+    let workflowItem: WorkflowItemDocument | null = null;
+    if (issueNumber) {
+        workflowItem = await findWorkflowItemByIssueNumber(issueNumber);
+    }
+    if (!workflowItem) {
+        const sourceCollection = result.type === 'feature' ? 'feature-requests' : 'reports';
+        workflowItem = await findWorkflowItemBySourceRef(sourceCollection, result.item._id);
+    }
+
+    if (workflowItem) {
+        printWorkflowItemDetails(workflowItem);
+    } else {
+        console.log('\n  (No workflow item found for this source)');
     }
 
     console.log('');
