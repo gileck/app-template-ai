@@ -16,7 +16,7 @@ export const deleteFeatureRequest = async (
             return { error: 'Request ID is required' };
         }
 
-        const result = await deleteWorkflowItem({ id: request.requestId, type: 'feature' });
+        const result = await deleteWorkflowItem({ id: request.requestId, type: 'feature' }, { force: true });
 
         if (!result.success) {
             return { error: result.error || 'Failed to delete feature request' };

@@ -31,7 +31,7 @@ export const deleteReport = async (
             }
         }
 
-        const result = await deleteWorkflowItem({ id: reportId, type: 'bug' });
+        const result = await deleteWorkflowItem({ id: reportId, type: 'bug' }, { force: true });
 
         if (!result.success) {
             return { error: result.error || 'Failed to delete report' };
