@@ -1,8 +1,8 @@
 import { createStore } from '@/client/stores';
 
 export type TypeFilter = 'all' | 'feature' | 'bug';
-export type ViewFilter = 'all' | 'pending' | 'active' | 'done' | 'activity';
-export type LayoutMode = 'list' | 'board';
+export type ViewFilter = 'all' | 'pending' | 'active' | 'done';
+export type LayoutMode = 'list' | 'board' | 'activity';
 export type SelectableItem = { type: 'feature' | 'bug'; mongoId: string };
 
 interface WorkflowPageState {

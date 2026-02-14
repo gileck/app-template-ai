@@ -1,33 +1,33 @@
 /**
  * ViewTabs
  *
- * Tab bar for filtering workflow items by view (All/Pending/Active/Done/Activity).
+ * Primary 3-way layout toggle: List | Board | Activity.
  */
 
-import type { ViewFilter } from './store';
+import { List, LayoutGrid, Activity } from 'lucide-react';
+import type { LayoutMode } from './store';
 
-const VIEW_OPTIONS: { value: ViewFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'active', label: 'Active' },
-    { value: 'done', label: 'Done' },
-    { value: 'activity', label: 'Activity' },
+const LAYOUT_OPTIONS: { value: LayoutMode; label: string; Icon: typeof List }[] = [
+    { value: 'list', label: 'List', Icon: List },
+    { value: 'board', label: 'Board', Icon: LayoutGrid },
+    { value: 'activity', label: 'Activity', Icon: Activity },
 ];
 
-export function ViewTabs({ active, onChange }: { active: ViewFilter; onChange: (v: ViewFilter) => void }) {
+export function ViewTabs({ active, onChange }: { active: LayoutMode; onChange: (v: LayoutMode) => void }) {
     return (
         <div className="flex rounded-lg bg-muted p-0.5">
-            {VIEW_OPTIONS.map((opt) => (
+            {LAYOUT_OPTIONS.map(({ value, label, Icon }) => (
                 <button
-                    key={opt.value}
-                    onClick={() => onChange(opt.value)}
-                    className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        active === opt.value
+                    key={value}
+                    onClick={() => onChange(value)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        active === value
                             ? 'bg-background text-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground'
                     }`}
                 >
-                    {opt.label}
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
                 </button>
             ))}
         </div>

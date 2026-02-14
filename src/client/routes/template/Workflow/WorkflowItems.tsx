@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import { ChevronsUpDown, Loader2, RefreshCw, CheckCircle, Trash2, List, LayoutGrid } from 'lucide-react';
+import { ChevronsUpDown, Loader2, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/client/components/template/ui/select';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
@@ -25,13 +25,20 @@ import { ItemPreviewDialog } from './ItemPreviewDialog';
 import { KanbanBoard } from './KanbanBoard';
 import { ActivityFeed } from './ActivityFeed';
 import { PIPELINE_STATUSES, ALL_SECTION_KEYS } from './constants';
-import type { TypeFilter } from './store';
+import type { TypeFilter, ViewFilter } from './store';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
     all: 'All types',
     feature: 'Features',
     bug: 'Bugs',
+};
+
+const VIEW_LABELS: Record<ViewFilter, string> = {
+    all: 'All items',
+    pending: 'Pending',
+    active: 'Active',
+    done: 'Done',
 };
 
 export function WorkflowItems() {
@@ -144,8 +151,13 @@ export function WorkflowItems() {
 
     const toggleAll = () => toggleAllSections(ALL_SECTION_KEYS);
 
+    const isListView = layoutMode === 'list';
+    const isBoardView = layoutMode === 'board';
+    const isActivityView = layoutMode === 'activity';
+
     const filteredPending = useMemo(() => {
         if (!data?.pendingItems) return [];
+        if (!isListView) return [];
         if (viewFilter !== 'all' && viewFilter !== 'pending') return [];
         const items = [...data.pendingItems].sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -156,7 +168,8 @@ export function WorkflowItems() {
 
     const pipelineGroups = useMemo(() => {
         if (!data?.workflowItems) return [];
-        if (viewFilter === 'pending' || viewFilter === 'done' || viewFilter === 'activity') return [];
+        if (!isListView) return [];
+        if (viewFilter === 'pending' || viewFilter === 'done') return [];
 
         let items = [...data.workflowItems].sort((a, b) => {
             const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -193,7 +206,8 @@ export function WorkflowItems() {
 
     const doneItems = useMemo(() => {
         if (!data?.workflowItems) return [];
-        if (viewFilter === 'pending' || viewFilter === 'active' || viewFilter === 'activity') return [];
+        if (!isListView) return [];
+        if (viewFilter === 'pending' || viewFilter === 'active') return [];
 
         let items = data.workflowItems
             .filter((item) => item.status === 'Done')
@@ -253,14 +267,12 @@ export function WorkflowItems() {
         );
     }
 
-    const isActivityView = viewFilter === 'activity';
     const hasPending = filteredPending.length > 0;
     const hasPipelineGroups = pipelineGroups.length > 0;
     const hasDone = doneItems.length > 0;
-    const isEmpty = !isActivityView && !hasPending && !hasPipelineGroups && !hasDone;
+    const isEmpty = isListView && !hasPending && !hasPipelineGroups && !hasDone;
     const selectedCount = Object.keys(selectedItems).length;
     const allCollapsed = collapsedSections.length > 0;
-    const showBoardView = layoutMode === 'board' && !isActivityView && viewFilter !== 'pending';
 
     return (
         <div className="p-4">
@@ -277,15 +289,6 @@ export function WorkflowItems() {
                             <SelectItem value="bug">Bugs</SelectItem>
                         </SelectContent>
                     </Select>
-                    {!isActivityView && (
-                        <button
-                            onClick={() => setLayoutMode(layoutMode === 'list' ? 'board' : 'list')}
-                            title={layoutMode === 'list' ? 'Board view' : 'List view'}
-                            className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                        >
-                            {layoutMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
-                        </button>
-                    )}
                     <button
                         onClick={toggleSelectMode}
                         disabled={isBulkBusy}
@@ -304,7 +307,7 @@ export function WorkflowItems() {
                     >
                         <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
                     </button>
-                    {!isActivityView && layoutMode === 'list' && (
+                    {isListView && (
                         <button
                             onClick={toggleAll}
                             title={allCollapsed ? 'Expand all' : 'Collapse all'}
@@ -322,8 +325,21 @@ export function WorkflowItems() {
                 onClickStatus={setViewFilter}
             />
 
-            <div className="mb-4">
-                <ViewTabs active={viewFilter} onChange={setViewFilter} />
+            <div className="mb-4 flex items-center gap-2">
+                <ViewTabs active={layoutMode} onChange={setLayoutMode} />
+                {isListView && (
+                    <Select value={viewFilter} onValueChange={(v) => setViewFilter(v as ViewFilter)}>
+                        <SelectTrigger className="h-8 w-auto min-w-[90px] text-xs px-3">
+                            <SelectValue>{VIEW_LABELS[viewFilter]}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All items</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="done">Done</SelectItem>
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
 
             {isActivityView ? (
@@ -331,7 +347,7 @@ export function WorkflowItems() {
                     workflowItems={data.workflowItems}
                     onSelectItem={setSelectedItemId}
                 />
-            ) : showBoardView ? (
+            ) : isBoardView ? (
                 <KanbanBoard
                     items={allFilteredWorkflowItems}
                     onSelectItem={setSelectedItemId}
