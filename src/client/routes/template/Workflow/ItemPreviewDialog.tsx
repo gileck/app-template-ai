@@ -17,7 +17,7 @@ import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features';
 import { useQueryClient } from '@tanstack/react-query';
 import { useItemDetail, useApproveItem, useDeleteItem, useRouteItem, parseItemId } from '@/client/routes/template/ItemDetail/hooks';
-import { useUpdateWorkflowStatus } from './hooks';
+import { useUpdateWorkflowStatus, useUpdateWorkflowFields } from './hooks';
 import { WorkflowActionButtons } from './WorkflowActionButtons';
 import { WorkflowHistory } from './WorkflowHistory';
 import { StatusBadge } from './StatusBadge';
@@ -32,6 +32,7 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
     const { routeItem, isPending: isRouting } = useRouteItem();
     const updateStatusMutation = useUpdateWorkflowStatus();
+    const updateFieldsMutation = useUpdateWorkflowFields();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
     const [showApproveConfirm, setShowApproveConfirm] = useState(false);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm dialog state
@@ -178,6 +179,19 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
         }
     };
 
+    const handleFieldChange = async (field: 'priority' | 'size' | 'complexity', value: string) => {
+        if (!workflowItemId) return;
+        try {
+            await updateFieldsMutation.mutateAsync({
+                itemId: workflowItemId,
+                fields: { [field]: value === 'none' ? null : value },
+            });
+            toast.success(`${field} updated`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : `Failed to update ${field}`);
+        }
+    };
+
     return (
         <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) { setShowRouting(false); onClose(); } }}>
             <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
@@ -196,8 +210,16 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 <div className="flex flex-wrap items-center gap-1.5 mb-2 min-w-0">
                                     <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
                                     <StatusBadge label={status} />
-                                    {isFeature && item.feature!.priority && (
+                                    {matchedWorkflowItem?.priority ? (
+                                        <StatusBadge label={matchedWorkflowItem.priority} colorKey={matchedWorkflowItem.priority} />
+                                    ) : isFeature && item.feature!.priority ? (
                                         <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
+                                    ) : null}
+                                    {matchedWorkflowItem?.size && (
+                                        <StatusBadge label={matchedWorkflowItem.size} colorKey={matchedWorkflowItem.size} />
+                                    )}
+                                    {matchedWorkflowItem?.complexity && (
+                                        <StatusBadge label={matchedWorkflowItem.complexity} colorKey={matchedWorkflowItem.complexity} />
                                     )}
                                     {isFeature && item.feature!.source && (
                                         <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
@@ -309,6 +331,55 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                             {ALL_STATUSES.map((s) => (
                                                 <SelectItem key={s} value={s}>{s}</SelectItem>
                                             ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {workflowItemId && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Select
+                                        value={matchedWorkflowItem?.priority || 'none'}
+                                        onValueChange={(v) => handleFieldChange('priority', v)}
+                                    >
+                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[90px]">
+                                            <SelectValue placeholder="Priority" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[70]">
+                                            <SelectItem value="none">No priority</SelectItem>
+                                            <SelectItem value="critical">Critical</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="low">Low</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={matchedWorkflowItem?.size || 'none'}
+                                        onValueChange={(v) => handleFieldChange('size', v)}
+                                    >
+                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
+                                            <SelectValue placeholder="Size" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[70]">
+                                            <SelectItem value="none">No size</SelectItem>
+                                            <SelectItem value="XS">XS</SelectItem>
+                                            <SelectItem value="S">S</SelectItem>
+                                            <SelectItem value="M">M</SelectItem>
+                                            <SelectItem value="L">L</SelectItem>
+                                            <SelectItem value="XL">XL</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={matchedWorkflowItem?.complexity || 'none'}
+                                        onValueChange={(v) => handleFieldChange('complexity', v)}
+                                    >
+                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]">
+                                            <SelectValue placeholder="Complexity" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[70]">
+                                            <SelectItem value="none">No complexity</SelectItem>
+                                            <SelectItem value="High">High</SelectItem>
+                                            <SelectItem value="Medium">Medium</SelectItem>
+                                            <SelectItem value="Low">Low</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -12,12 +12,15 @@ import { sendFeatureRequestNotification, sendBugReportNotification } from '@/ser
 import { approveWorkflowItem } from '@/server/template/workflow-service';
 import type { RoutingDestination } from '@/server/template/workflow-service';
 import type { FeatureRequestPriority } from '@/server/database/collections/template/feature-requests/types';
+import { findWorkflowItemBySourceRef, updateWorkflowFields } from '@/server/database/collections/template/workflow-items/workflow-items';
 import { parseArgs, validateCreateArgs } from '../utils/parse-args';
 
 export interface CreateOptions {
     title: string;
     description: string;
     priority?: string;
+    size?: string;
+    complexity?: string;
     workflowRoute?: string;    // Workflow routing (product-dev, tech-design, etc.)
     clientPageRoute?: string;  // Affected client page route for bugs (e.g., "/settings")
     dryRun?: boolean;
@@ -50,6 +53,8 @@ export async function handleCreate(args: string[]): Promise<void> {
         title: parsed.title!,
         description: parsed.description!,
         priority: parsed.priority,
+        size: parsed.size,
+        complexity: parsed.complexity,
         workflowRoute: parsed.workflowRoute,
         clientPageRoute: parsed.clientPageRoute,
         dryRun: parsed.dryRun,
@@ -134,6 +139,19 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
         console.log(`  Telegram routing notification sent`);
     }
 
+    // Propagate priority/size/complexity to the workflow item
+    const workflowFields: Record<string, string | undefined> = {};
+    if (options.priority) workflowFields.priority = options.priority;
+    if (options.size) workflowFields.size = options.size;
+    if (options.complexity) workflowFields.complexity = options.complexity;
+    if (Object.keys(workflowFields).length > 0) {
+        const workflowItem = await findWorkflowItemBySourceRef('feature-requests', request._id);
+        if (workflowItem) {
+            await updateWorkflowFields(workflowItem._id, workflowFields as Parameters<typeof updateWorkflowFields>[1]);
+            console.log(`  Workflow fields set: ${Object.entries(workflowFields).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+        }
+    }
+
     console.log('\nFeature request created successfully!');
 }
 
@@ -211,6 +229,19 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
         console.log(`  Routed to: ${options.workflowRoute}`);
     } else {
         console.log(`  Auto-routed to: Bug Investigation`);
+    }
+
+    // Propagate priority/size/complexity to the workflow item
+    const workflowFields: Record<string, string | undefined> = {};
+    if (options.priority) workflowFields.priority = options.priority;
+    if (options.size) workflowFields.size = options.size;
+    if (options.complexity) workflowFields.complexity = options.complexity;
+    if (Object.keys(workflowFields).length > 0) {
+        const workflowItem = await findWorkflowItemBySourceRef('reports', report._id);
+        if (workflowItem) {
+            await updateWorkflowFields(workflowItem._id, workflowFields as Parameters<typeof updateWorkflowFields>[1]);
+            console.log(`  Workflow fields set: ${Object.entries(workflowFields).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+        }
     }
 
     console.log('\nBug report created successfully!');

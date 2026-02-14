@@ -112,6 +112,9 @@ export interface WorkflowItemDocument {
     githubIssueUrl?: string;
     githubIssueTitle?: string;
     labels?: string[];
+    priority?: 'critical' | 'high' | 'medium' | 'low';
+    size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
+    complexity?: 'High' | 'Medium' | 'Low';
     artifacts?: WorkflowItemArtifacts;
     history?: HistoryEntry[];
     createdAt: Date;

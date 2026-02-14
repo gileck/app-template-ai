@@ -102,6 +102,9 @@ export async function listItems(
                 type: doc.type,
                 status: doc.status || null,
                 reviewStatus: doc.reviewStatus || null,
+                priority: doc.priority,
+                size: doc.size,
+                complexity: doc.complexity,
                 content: {
                     type: 'Issue' as const,
                     number: doc.githubIssueNumber,

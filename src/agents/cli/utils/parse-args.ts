@@ -11,6 +11,8 @@ export interface ParsedArgs {
     workflowRoute?: string;    // Workflow routing (product-dev, tech-design, etc.)
     clientPageRoute?: string;  // Affected client page route (e.g., "/settings") for bugs
     priority?: string;
+    size?: string;
+    complexity?: string;
     dryRun?: boolean;
     autoApprove?: boolean;
     // Fields for list/get/update commands
@@ -64,6 +66,12 @@ export function parseArgs(args: string[]): ParsedArgs {
             i += 2;
         } else if (arg === '--client-page-route' && args[i + 1]) {
             result.clientPageRoute = args[i + 1];
+            i += 2;
+        } else if (arg === '--size' && args[i + 1]) {
+            result.size = args[i + 1];
+            i += 2;
+        } else if (arg === '--complexity' && args[i + 1]) {
+            result.complexity = args[i + 1];
             i += 2;
         } else if (arg === '--dry-run') {
             result.dryRun = true;
@@ -125,6 +133,12 @@ export function validateCreateArgs(args: ParsedArgs): { valid: boolean; error?: 
     }
     if (args.priority && !['low', 'medium', 'high', 'critical'].includes(args.priority)) {
         return { valid: false, error: 'Invalid priority. Use: low | medium | high | critical' };
+    }
+    if (args.size && !['XS', 'S', 'M', 'L', 'XL'].includes(args.size)) {
+        return { valid: false, error: 'Invalid --size. Use: XS | S | M | L | XL' };
+    }
+    if (args.complexity && !['High', 'Medium', 'Low'].includes(args.complexity)) {
+        return { valid: false, error: 'Invalid --complexity. Use: High | Medium | Low' };
     }
     return { valid: true };
 }

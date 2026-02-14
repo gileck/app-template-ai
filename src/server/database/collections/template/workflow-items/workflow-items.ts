@@ -92,6 +92,9 @@ export const updateWorkflowFields = async (
         workflowStatus?: string | null;
         workflowReviewStatus?: string | null;
         implementationPhase?: string | null;
+        priority?: 'critical' | 'high' | 'medium' | 'low' | null;
+        size?: 'XS' | 'S' | 'M' | 'L' | 'XL' | null;
+        complexity?: 'High' | 'Medium' | 'Low' | null;
     }
 ): Promise<void> => {
     const collection = await getWorkflowItemsCollection();

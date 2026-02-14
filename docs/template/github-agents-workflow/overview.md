@@ -183,7 +183,7 @@ All transports -- Telegram, UI, CLI, and agents -- go through a unified service 
 │  MongoDB Collections:                                                   │
 │  ├── feature-requests  # Intake: title, description, priority, status  │
 │  ├── reports           # Intake: error, stack trace, session logs       │
-│  └── workflow-items    # Pipeline: workflow status, review status       │
+│  └── workflow-items    # Pipeline: status, review, priority, size, complexity │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐

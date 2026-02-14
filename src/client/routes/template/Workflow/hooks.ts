@@ -5,9 +5,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listWorkflowItems, updateWorkflowStatus, executeWorkflowAction } from '@/apis/template/workflow/client';
+import { listWorkflowItems, updateWorkflowStatus, executeWorkflowAction, updateWorkflowFields } from '@/apis/template/workflow/client';
 import { useQueryDefaults } from '@/client/query';
-import type { WorkflowItem, WorkflowActionRequest } from '@/apis/template/workflow/types';
+import type { WorkflowItem, WorkflowActionRequest, UpdateWorkflowFieldsRequest } from '@/apis/template/workflow/types';
 
 const workflowItemsQueryKey = ['workflow-items'] as const;
 
@@ -138,6 +138,56 @@ export function useWorkflowAction() {
                             default:
                                 return item;
                         }
+                    }),
+                });
+            }
+
+            return { previous };
+        },
+        onError: (_err, _vars, ctx) => {
+            if (ctx?.previous) {
+                queryClient.setQueryData(workflowItemsQueryKey, ctx.previous);
+            }
+        },
+        onSettled: () => {},
+    });
+}
+
+export function useUpdateWorkflowFields() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (params: UpdateWorkflowFieldsRequest) => {
+            const result = await updateWorkflowFields(params);
+            if (result.data.error) {
+                throw new Error(result.data.error);
+            }
+            return result.data;
+        },
+        onMutate: async ({ itemId, fields }: UpdateWorkflowFieldsRequest) => {
+            await queryClient.cancelQueries({ queryKey: workflowItemsQueryKey });
+
+            const previous = queryClient.getQueryData<{
+                pendingItems: unknown[];
+                workflowItems: WorkflowItem[];
+            }>(workflowItemsQueryKey);
+
+            if (previous) {
+                queryClient.setQueryData(workflowItemsQueryKey, {
+                    ...previous,
+                    workflowItems: previous.workflowItems.map((item) => {
+                        if (item.id !== itemId) return item;
+                        const updated = { ...item };
+                        if (fields.priority !== undefined) {
+                            updated.priority = fields.priority === null ? undefined : fields.priority;
+                        }
+                        if (fields.size !== undefined) {
+                            updated.size = fields.size === null ? undefined : fields.size;
+                        }
+                        if (fields.complexity !== undefined) {
+                            updated.complexity = fields.complexity === null ? undefined : fields.complexity;
+                        }
+                        return updated;
                     }),
                 });
             }

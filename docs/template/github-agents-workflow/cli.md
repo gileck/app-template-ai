@@ -1,12 +1,12 @@
 ---
 title: Agent Workflow CLI
 description: CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
-summary: "Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority). Supports `--auto-approve` and `--route` for automated workflows."
+summary: "Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity). Supports `--auto-approve` and `--route` for automated workflows."
 priority: 3
 key_points:
   - "list command: filter by --type, --status, --source"
   - "get command: shows live pipeline status"
-  - "update command: change status/priority with --dry-run"
+  - "update command: change status/priority/size/complexity with --dry-run"
   - "ID prefix matching supported (first 8 chars of ObjectId)"
 related_docs:
   - overview.md
@@ -77,7 +77,9 @@ yarn agent-workflow create [options]
 |--------|-------------|
 | `--auto-approve` | Skip approval notification, sync to GitHub immediately |
 | `--route <phase>` | Auto-route to phase (implies `--auto-approve`): `product-dev`, `product-design`, `tech-design`, `implementation`, `backlog` |
-| `--priority <level>` | Priority: `low`, `medium`, `high`, `critical` (features only) |
+| `--priority <level>` | Priority: `low`, `medium`, `high`, `critical` |
+| `--size <size>` | Estimated size: `XS`, `S`, `M`, `L`, `XL` |
+| `--complexity <level>` | Complexity level: `High`, `Medium`, `Low` |
 | `--dry-run` | Preview without creating |
 
 ### `list` - List Items
@@ -160,7 +162,9 @@ yarn agent-workflow update <id> [options]
 | Option | Description |
 |--------|-------------|
 | `--status <status>` | New status: `new`, `in_progress`, `done`, `resolved`, `rejected` |
-| `--priority <level>` | New priority: `low`, `medium`, `high`, `critical` (features only) |
+| `--priority <level>` | New priority: `low`, `medium`, `high`, `critical` |
+| `--size <size>` | Estimated size: `XS`, `S`, `M`, `L`, `XL` |
+| `--complexity <level>` | Complexity level: `High`, `Medium`, `Low` |
 | `--type <type>` | Hint which collection to search: `feature` or `bug` |
 | `--dry-run` | Preview changes without applying |
 
@@ -171,6 +175,12 @@ yarn agent-workflow update 697f15ce --status in_progress
 
 # Update priority
 yarn agent-workflow update 697f15ce --priority high
+
+# Update size and complexity
+yarn agent-workflow update 697f15ce --size M --complexity Medium
+
+# Update multiple fields at once
+yarn agent-workflow update 697f15ce --priority critical --size L --complexity High
 
 # Preview changes without applying
 yarn agent-workflow update 697f15ce --status done --dry-run

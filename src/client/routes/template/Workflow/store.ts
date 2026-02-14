@@ -1,12 +1,18 @@
 import { createStore } from '@/client/stores';
 
 export type TypeFilter = 'all' | 'feature' | 'bug';
+export type PriorityFilter = 'all' | 'critical' | 'high' | 'medium' | 'low';
+export type SizeFilter = 'all' | 'XS' | 'S' | 'M' | 'L' | 'XL';
+export type SortBy = 'date' | 'priority' | 'size';
 export type LayoutMode = 'list' | 'board' | 'activity';
 export type SelectableItem = { type: 'feature' | 'bug'; mongoId: string };
 
 interface WorkflowPageState {
     // Persisted (survives navigation + page refresh)
     typeFilter: TypeFilter;
+    priorityFilter: PriorityFilter;
+    sizeFilter: SizeFilter;
+    sortBy: SortBy;
     layoutMode: LayoutMode;
     collapsedSections: string[];
 
@@ -20,6 +26,9 @@ interface WorkflowPageState {
 
     // Actions
     setTypeFilter: (filter: TypeFilter) => void;
+    setPriorityFilter: (filter: PriorityFilter) => void;
+    setSizeFilter: (filter: SizeFilter) => void;
+    setSortBy: (sort: SortBy) => void;
     setLayoutMode: (mode: LayoutMode) => void;
     toggleSection: (section: string) => void;
     toggleAllSections: (allKeys: readonly string[]) => void;
@@ -37,6 +46,9 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
     label: 'Workflow Page',
     creator: (set) => ({
         typeFilter: 'all',
+        priorityFilter: 'all',
+        sizeFilter: 'all',
+        sortBy: 'date',
         layoutMode: 'list',
         collapsedSections: [],
         selectedItemId: null,
@@ -47,6 +59,9 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
         isBulkApproving: false,
 
         setTypeFilter: (filter) => set({ typeFilter: filter }),
+        setPriorityFilter: (filter) => set({ priorityFilter: filter }),
+        setSizeFilter: (filter) => set({ sizeFilter: filter }),
+        setSortBy: (sort) => set({ sortBy: sort }),
         setLayoutMode: (mode) => set({ layoutMode: mode }),
 
         toggleSection: (section) =>
@@ -98,6 +113,9 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
     persistOptions: {
         partialize: (state) => ({
             typeFilter: state.typeFilter,
+            priorityFilter: state.priorityFilter,
+            sizeFilter: state.sizeFilter,
+            sortBy: state.sortBy,
             layoutMode: state.layoutMode,
             collapsedSections: state.collapsedSections,
         }),

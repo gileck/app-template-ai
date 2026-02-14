@@ -83,6 +83,9 @@ export interface WorkflowItem {
     type: 'feature' | 'bug' | 'task';
     status: string | null;
     reviewStatus: string | null;
+    priority?: 'critical' | 'high' | 'medium' | 'low';
+    size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
+    complexity?: 'High' | 'Medium' | 'Low';
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
     prData?: WorkflowItemPRData;
@@ -151,4 +154,22 @@ export interface WorkflowActionResponse {
     success?: boolean;
     error?: string;
     message?: string;
+}
+
+// ============================================================================
+// Update Fields API
+// ============================================================================
+
+export interface UpdateWorkflowFieldsRequest {
+    itemId: string;
+    fields: {
+        priority?: 'critical' | 'high' | 'medium' | 'low' | null;
+        size?: 'XS' | 'S' | 'M' | 'L' | 'XL' | null;
+        complexity?: 'High' | 'Medium' | 'Low' | null;
+    };
+}
+
+export interface UpdateWorkflowFieldsResponse {
+    success?: boolean;
+    error?: string;
 }

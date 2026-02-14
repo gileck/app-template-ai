@@ -27,7 +27,7 @@ The agent runs every 4 hours, collects commits since its last run using a diff-b
 | **Schedule** | Every 4 hours (14400000 ms) |
 | **Diff Budget** | ~1500 lines per run |
 | **State File** | `agent-tasks/repo-commits-code-reviewer/state.json` |
-| **Issue Creation** | Via `yarn agent-workflow create` (requires admin approval) |
+| **Issue Creation** | Via `yarn agent-workflow create` with `--size` and `--complexity` flags (requires admin approval) |
 | **Tools Available** | Read-only: Read, Glob, Grep |
 
 ## How It Works

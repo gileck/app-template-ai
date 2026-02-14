@@ -37,6 +37,16 @@ const BADGE_VARIANT_MAP: Record<string, BadgeVariant> = {
     high: 'warning',
     medium: 'default',
     low: 'secondary',
+    // Size
+    XS: 'outline',
+    S: 'secondary',
+    M: 'default',
+    L: 'warning',
+    XL: 'destructive',
+    // Complexity
+    High: 'destructive',
+    Medium: 'warning',
+    Low: 'success',
     // Source
     source: 'outline',
 };

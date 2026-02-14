@@ -334,6 +334,9 @@ function createIssue(finding: CodeReviewFinding, dryRun: boolean): void {
             '--description', description,
         ];
 
+        if (finding.size) args.push('--size', finding.size);
+        if (finding.complexity) args.push('--complexity', finding.complexity);
+
         // Add client page route if the finding is route-specific
         if (finding.route) {
             args.push('--client-page-route', finding.route);

@@ -7,6 +7,7 @@
 import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument, FeatureRequestStatus, FeatureRequestPriority } from '@/server/database/collections/template/feature-requests/types';
 import type { ReportDocument, ReportStatus } from '@/server/database/collections/template/reports/types';
+import { findWorkflowItemBySourceRef, updateWorkflowFields } from '@/server/database/collections/template/workflow-items/workflow-items';
 import { parseArgs } from '../utils/parse-args';
 
 const FEATURE_STATUSES: FeatureRequestStatus[] = ['new', 'in_progress', 'done', 'rejected'];
@@ -91,9 +92,9 @@ export async function handleUpdate(args: string[]): Promise<void> {
     }
 
     // Must have at least one update field
-    if (!parsed.status && !parsed.priority) {
-        console.error('Error: Must specify at least one field to update (--status or --priority)');
-        console.error('Usage: yarn agent-workflow update <id> --status <status> [--priority <priority>]');
+    if (!parsed.status && !parsed.priority && !parsed.size && !parsed.complexity) {
+        console.error('Error: Must specify at least one field to update (--status, --priority, --size, or --complexity)');
+        console.error('Usage: yarn agent-workflow update <id> --status <status> [--priority <priority>] [--size <size>] [--complexity <complexity>]');
         process.exit(1);
     }
 
@@ -110,6 +111,18 @@ export async function handleUpdate(args: string[]): Promise<void> {
     const fullId = result.type === 'feature'
         ? (result.item as FeatureRequestDocument)._id.toString()
         : (result.item as ReportDocument)._id.toString();
+
+    // Validate size and complexity (common to both types)
+    if (parsed.size && !['XS', 'S', 'M', 'L', 'XL'].includes(parsed.size)) {
+        console.error(`\nError: Invalid size "${parsed.size}".`);
+        console.error('Valid values: XS, S, M, L, XL');
+        process.exit(1);
+    }
+    if (parsed.complexity && !['High', 'Medium', 'Low'].includes(parsed.complexity)) {
+        console.error(`\nError: Invalid complexity "${parsed.complexity}".`);
+        console.error('Valid values: High, Medium, Low');
+        process.exit(1);
+    }
 
     // Validate and apply updates
     if (result.type === 'feature') {
@@ -137,10 +150,12 @@ export async function handleUpdate(args: string[]): Promise<void> {
             console.log('\nDRY RUN - Would update:');
             if (parsed.status) console.log(`  Status: ${feature.status} -> ${parsed.status}`);
             if (parsed.priority) console.log(`  Priority: ${feature.priority} -> ${parsed.priority}`);
+            if (parsed.size) console.log(`  Size: ${parsed.size}`);
+            if (parsed.complexity) console.log(`  Complexity: ${parsed.complexity}`);
             return;
         }
 
-        // Apply updates
+        // Apply source updates
         console.log('\nApplying updates...');
 
         if (parsed.status) {
@@ -152,6 +167,12 @@ export async function handleUpdate(args: string[]): Promise<void> {
             await featureRequests.updatePriority(fullId, parsed.priority as FeatureRequestPriority);
             console.log(`  Priority: ${feature.priority} -> ${parsed.priority}`);
         }
+
+        // Update workflow item fields (priority/size/complexity)
+        await updateWorkflowItemFields(
+            'feature-requests', feature._id.toString(),
+            parsed.priority, parsed.size, parsed.complexity
+        );
 
         console.log('\nFeature request updated successfully!');
 
@@ -168,19 +189,23 @@ export async function handleUpdate(args: string[]): Promise<void> {
             process.exit(1);
         }
 
-        // Priority not applicable to bug reports
-        if (parsed.priority) {
-            console.error('\nError: Priority is only applicable to feature requests, not bug reports.');
+        // Validate priority for bugs
+        if (parsed.priority && !PRIORITIES.includes(parsed.priority as FeatureRequestPriority)) {
+            console.error(`\nError: Invalid priority "${parsed.priority}".`);
+            console.error(`Valid values: ${PRIORITIES.join(', ')}`);
             process.exit(1);
         }
 
         if (parsed.dryRun) {
             console.log('\nDRY RUN - Would update:');
             if (parsed.status) console.log(`  Status: ${report.status} -> ${parsed.status}`);
+            if (parsed.priority) console.log(`  Priority: ${parsed.priority}`);
+            if (parsed.size) console.log(`  Size: ${parsed.size}`);
+            if (parsed.complexity) console.log(`  Complexity: ${parsed.complexity}`);
             return;
         }
 
-        // Apply updates
+        // Apply source updates
         console.log('\nApplying updates...');
 
         if (parsed.status) {
@@ -188,8 +213,36 @@ export async function handleUpdate(args: string[]): Promise<void> {
             console.log(`  Status: ${report.status} -> ${parsed.status}`);
         }
 
+        // Update workflow item fields (priority/size/complexity)
+        await updateWorkflowItemFields(
+            'reports', report._id.toString(),
+            parsed.priority, parsed.size, parsed.complexity
+        );
+
         console.log('\nBug report updated successfully!');
     }
 
     console.log('');
+}
+
+async function updateWorkflowItemFields(
+    sourceCollection: 'feature-requests' | 'reports',
+    sourceId: string,
+    priority?: string,
+    size?: string,
+    complexity?: string,
+): Promise<void> {
+    const fields: Record<string, string> = {};
+    if (priority) fields.priority = priority;
+    if (size) fields.size = size;
+    if (complexity) fields.complexity = complexity;
+    if (Object.keys(fields).length === 0) return;
+
+    const workflowItem = await findWorkflowItemBySourceRef(sourceCollection, sourceId);
+    if (workflowItem) {
+        await updateWorkflowFields(workflowItem._id, fields as Parameters<typeof updateWorkflowFields>[1]);
+        for (const [k, v] of Object.entries(fields)) {
+            console.log(`  Workflow ${k}: ${v}`);
+        }
+    }
 }

@@ -317,12 +317,12 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
 
-**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority). Supports `--auto-approve` and `--route` for automated workflows.
+**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity). Supports `--auto-approve` and `--route` for automated workflows.
 
 **Key Points:**
 - list command: filter by --type, --status, --source
 - get command: shows live pipeline status
-- update command: change status/priority with --dry-run
+- update command: change status/priority/size/complexity with --dry-run
 - ID prefix matching supported (first 8 chars of ObjectId)
 
 **Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
