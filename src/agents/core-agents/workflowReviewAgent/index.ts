@@ -241,7 +241,7 @@ async function processItem(
         verbose: options.verbose,
         timeout: options.timeout,
         outputFormat: WORKFLOW_REVIEW_OUTPUT_FORMAT,
-        workflow: 'code-review',
+        workflow: 'workflow-review',
     });
 
     if (!result.success || !result.structuredOutput) {
