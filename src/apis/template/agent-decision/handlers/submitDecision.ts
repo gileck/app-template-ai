@@ -62,7 +62,7 @@ export async function submitDecision(
         // Verify the issue is ready
         const verification = await findDecisionItem(adapter, issueNumber);
         if (!verification.valid || !verification.itemId) {
-            return { error: verification.error };
+            return { error: 'This decision request has expired or already been submitted' };
         }
 
         // Try DB first for decision data

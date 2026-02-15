@@ -49,7 +49,7 @@ export async function submitAnswer(
         // Verify the issue is waiting for clarification
         const verification = await verifyWaitingForClarification(adapter, issueNumber);
         if (!verification.valid) {
-            return { error: verification.error };
+            return { error: 'This clarification request has expired or already been answered' };
         }
 
         // Get the original clarification to include question context

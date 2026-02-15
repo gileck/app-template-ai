@@ -37,6 +37,12 @@ export async function getClarification(
         const adapter = getProjectManagementAdapter();
         await adapter.init();
 
+        // Verify the issue is still waiting for clarification
+        const verification = await verifyWaitingForClarification(adapter, issueNumber);
+        if (!verification.valid) {
+            return { error: 'This clarification request has expired or already been answered' };
+        }
+
         // Get issue details
         const issueDetails = await adapter.getIssueDetails(issueNumber);
         if (!issueDetails) {
