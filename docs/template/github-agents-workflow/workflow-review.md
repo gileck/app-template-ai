@@ -28,7 +28,7 @@ The workflow review agent is the final step in the pipeline. When items reach Do
 1. Queries Done items where `reviewed !== true` from MongoDB
 2. Checks that a local log file exists at `agent-logs/issue-{N}.md`
 3. Runs an LLM agent to analyze the log file using read-only tools (Read, Grep, Glob)
-4. Creates workflow items for any findings via `yarn agent-workflow create --auto-approve`
+4. Creates workflow items for any findings via `yarn agent-workflow create --created-by workflow-review`
 5. Appends a `[LOG:REVIEW]` section to the log file
 6. Updates the workflow item in DB with `reviewed: true` and `reviewSummary`
 7. Sends a Telegram notification with the review summary

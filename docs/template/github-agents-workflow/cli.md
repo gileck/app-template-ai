@@ -1,11 +1,11 @@
 ---
 title: Agent Workflow CLI
 description: CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
-summary: "Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity). Supports `--auto-approve` and `--route` for automated workflows."
+summary: "Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity). Supports `--auto-approve`, `--route`, and `--created-by` for automated workflows."
 priority: 3
 key_points:
   - "list command: filter by --type, --status, --source"
-  - "get command: shows live pipeline status"
+  - "get command: shows live pipeline status, workflow item details (artifacts, history, createdBy)"
   - "update command: change status/priority/size/complexity with --dry-run"
   - "ID prefix matching supported (first 8 chars of ObjectId)"
 related_docs:
@@ -80,6 +80,7 @@ yarn agent-workflow create [options]
 | `--priority <level>` | Priority: `low`, `medium`, `high`, `critical` |
 | `--size <size>` | Estimated size: `XS`, `S`, `M`, `L`, `XL` |
 | `--complexity <level>` | Complexity level: `High`, `Medium`, `Low` |
+| `--created-by <agent>` | Agent attribution (e.g., `workflow-review`, `repo-commits-code-reviewer`) |
 | `--dry-run` | Preview without creating |
 
 ### `list` - List Items
@@ -146,6 +147,9 @@ yarn agent-workflow get 697f15ce --type feature
 - Basic info: ID, title, status, priority, source, dates
 - GitHub Issue link and number (if synced)
 - Pipeline status (from workflow-items collection)
+- Workflow item details: priority, size, complexity, createdBy, reviewed status
+- Artifacts: designs, phases, task branch, commit messages, decision details
+- History timeline with timestamps and actors
 - Description and admin notes
 - Comments with timestamps and authors
 - For bugs: error message, browser info, investigation details
@@ -271,7 +275,7 @@ yarn agent-workflow delete 697f15ce --force
 **Notes:**
 - By default, items that have already been synced to GitHub cannot be deleted. Use `--force` to override.
 - Deleting removes the source document (feature-request or report) and the workflow-items entry.
-- The GitHub issue (if any) is not affected by deletion.
+- If a GitHub issue exists, it is closed with a comment explaining the deletion.
 - A Telegram notification is sent confirming the deletion.
 
 ---

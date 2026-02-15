@@ -57,6 +57,9 @@ This is the **pipeline** collection. Items are created here when approved and sy
     githubIssueUrl?: string,
     githubIssueTitle?: string,
     labels?: string[],                    // GitHub issue labels
+    priority?: 'critical' | 'high' | 'medium' | 'low',
+    size?: 'XS' | 'S' | 'M' | 'L' | 'XL',
+    complexity?: 'High' | 'Medium' | 'Low',
     artifacts?: {                         // Structured workflow metadata (see Artifacts section)
         designs?: DesignArtifactRecord[],
         phases?: PhaseArtifactRecord[],
@@ -64,6 +67,10 @@ This is the **pipeline** collection. Items are created here when approved and sy
         commitMessages?: CommitMessageRecord[],
         decision?: DecisionArtifactRecord,
     },
+    history?: HistoryEntry[],            // Workflow action history timeline
+    reviewed?: boolean,                   // Whether workflow review agent has reviewed this item
+    reviewSummary?: string,              // Brief assessment from workflow review
+    createdBy?: string,                  // Agent that created this item (e.g., 'workflow-review')
     createdAt: Date,
     updatedAt: Date,
 }
