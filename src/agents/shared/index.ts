@@ -235,3 +235,6 @@ export type { DecisionOptionSource } from './decision-utils';
 // Phase resolution
 export { resolvePhaseDetails } from './phase-resolution';
 export type { ResolvedPhaseDetails } from './phase-resolution';
+
+// Console output helpers
+export { progress, warn } from './console';

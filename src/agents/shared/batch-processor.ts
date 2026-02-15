@@ -10,6 +10,7 @@
 import { REVIEW_STATUSES } from './config';
 import { getProjectManagementAdapter, type ProjectItem } from '@/server/template/project-management';
 import { notifyBatchComplete } from './notifications';
+import { progress } from './console';
 import type { CommonCLIOptions, UsageStats } from './types';
 
 // ============================================================
@@ -200,10 +201,10 @@ export async function runBatch(
 
         console.log(`\n----------------------------------------`);
         console.log(`[${results.processed}/${itemsToProcess.length}] ${title}`);
-        console.log(`  Item ID: ${item.id}`);
-        console.log(`  Status: ${item.status}`);
+        progress(`Item ID: ${item.id}`);
+        progress(`Status: ${item.status}`);
         if (item.reviewStatus) {
-            console.log(`  Review Status: ${item.reviewStatus}`);
+            progress(`Review Status: ${item.reviewStatus}`);
         }
 
         // Check skip predicate
@@ -230,9 +231,9 @@ export async function runBatch(
     console.log('\n========================================');
     console.log('  Summary');
     console.log('========================================');
-    console.log(`  Processed: ${results.processed}`);
-    console.log(`  Succeeded: ${results.succeeded}`);
-    console.log(`  Failed: ${results.failed}`);
+    progress(`Processed: ${results.processed}`);
+    progress(`Succeeded: ${results.succeeded}`);
+    progress(`Failed: ${results.failed}`);
     console.log('========================================\n');
 
     // Send batch completion notification

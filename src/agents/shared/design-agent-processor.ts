@@ -56,6 +56,7 @@ import type { WorkflowName, AgentRunResult } from '../lib';
 import { notifyDesignPRReady, notifyAgentError, notifyAgentStarted } from './notifications';
 import { extractClarificationFromResult, handleClarificationRequest, getIssueType } from './utils';
 import { addAgentPrefix, type AgentName } from './agent-identity';
+import { progress } from './console';
 import {
     writeDesignDoc,
     readDesignDoc,
@@ -271,8 +272,9 @@ export function createDesignProcessor(
         }
 
         const issueNumber = content.number!;
-        console.log(`\n  Processing issue #${issueNumber}: ${content.title}`);
-        console.log(`  Mode: ${config.modeLabels[mode] ?? mode}`);
+        console.log('');
+        progress(`Processing issue #${issueNumber}: ${content.title}`);
+        progress(`Mode: ${config.modeLabels[mode] ?? mode}`);
 
         // Check if this is a bug - optionally skip
         const issueType = getIssueType(content.labels);
@@ -335,7 +337,7 @@ export function createDesignProcessor(
                     updatedAt: c.updatedAt,
                 }));
                 if (allComments.length > 0) {
-                    console.log(`  Found ${allComments.length} comment(s) on issue`);
+                    progress(`Found ${allComments.length} comment(s) on issue`);
                 }
 
                 // In feedback/post-selection mode with existing PR, checkout the branch first
