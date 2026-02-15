@@ -150,6 +150,7 @@ export async function processItem(
         // Check for uncommitted changes (exclude agent-logs/ since logExecutionStart already modified it)
         if (hasUncommittedChanges(['agent-logs/'])) {
             const changes = getUncommittedChanges(['agent-logs/']);
+            await logExecutionEnd(logCtx, { success: false, toolCallsCount: 0, totalTokens: 0, totalCost: 0 });
             return { success: false, error: `Uncommitted changes in working directory. Please commit or stash them first.\n${changes}` };
         }
 
@@ -266,6 +267,7 @@ export async function processItem(
             );
         } catch (error) {
             if (error instanceof Error) {
+                await logExecutionEnd(logCtx, { success: false, toolCallsCount: 0, totalTokens: 0, totalCost: 0 });
                 return { success: false, error: error.message };
             }
             throw error;
@@ -430,6 +432,12 @@ export async function processItem(
             if (!options.dryRun) {
                 await notifyAgentError('Implementation', content.title, issueNumber, error);
             }
+            await logExecutionEnd(logCtx, {
+                success: false,
+                toolCallsCount: 0,
+                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                totalCost: result.usage?.totalCostUSD ?? 0,
+            });
             return { success: false, error };
         }
 
@@ -439,6 +447,12 @@ export async function processItem(
             console.log('  🤔 Agent needs clarification');
             // Checkout back to default branch before pausing
             git(`checkout ${defaultBranch}`);
+            await logExecutionEnd(logCtx, {
+                success: false,
+                toolCallsCount: 0,
+                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                totalCost: result.usage?.totalCostUSD ?? 0,
+            });
             return await handleClarificationRequest(
                 adapter,
                 { id: item.id, content: { number: issueNumber, title: content.title, labels: content.labels } },
@@ -492,11 +506,23 @@ export async function processItem(
                 } else {
                     console.log('  No commits on branch either');
                     git(`checkout ${defaultBranch}`);
+                    await logExecutionEnd(logCtx, {
+                        success: false,
+                        toolCallsCount: 0,
+                        totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                        totalCost: result.usage?.totalCostUSD ?? 0,
+                    });
                     return { success: false, error: 'Agent did not make any changes' };
                 }
             } catch {
                 console.log('  Could not check for branch commits');
                 git(`checkout ${defaultBranch}`);
+                await logExecutionEnd(logCtx, {
+                    success: false,
+                    toolCallsCount: 0,
+                    totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                    totalCost: result.usage?.totalCostUSD ?? 0,
+                });
                 return { success: false, error: 'Agent did not make any changes' };
             }
         }
@@ -528,6 +554,12 @@ export async function processItem(
             } catch (cleanupError) {
                 console.error('  Warning: Failed to clean up after dry run:', cleanupError);
             }
+            await logExecutionEnd(logCtx, {
+                success: true,
+                toolCallsCount: 0,
+                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                totalCost: result.usage?.totalCostUSD ?? 0,
+            });
             return { success: true };
         }
 
@@ -562,6 +594,12 @@ export async function processItem(
                 // Verify push succeeded
                 console.log('  Verifying all commits are pushed...');
                 if (!verifyAllPushed(branchName)) {
+                    await logExecutionEnd(logCtx, {
+                        success: false,
+                        toolCallsCount: 0,
+                        totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                        totalCost: result.usage?.totalCostUSD ?? 0,
+                    });
                     return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
                 }
                 console.log('  ✅ All commits pushed successfully');
