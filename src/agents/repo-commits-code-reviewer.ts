@@ -24,6 +24,7 @@
  */
 
 import './shared/loadEnv';
+import { runAgentMain } from './shared/main-factory';
 import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
@@ -498,10 +499,6 @@ async function main() {
     }
 
     console.log('\nDone!');
-    process.exit(0);
 }
 
-main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+runAgentMain(main);

@@ -19,6 +19,7 @@ import {
     notifyAgentError,
     type CommonCLIOptions,
     type WorkflowReviewOutput,
+    runAgentMain,
 } from '../../shared';
 import { findAllWorkflowItems, setWorkflowReviewData } from '@/server/database/collections/template/workflow-items/workflow-items';
 import type { WorkflowItemDocument } from '@/server/database/collections/template/workflow-items/types';
@@ -385,7 +386,4 @@ async function main(): Promise<void> {
     await run(options);
 }
 
-main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+runAgentMain(main);

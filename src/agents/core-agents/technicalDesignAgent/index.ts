@@ -44,6 +44,8 @@ import {
     runBatch,
     // Design Agent Processor
     createDesignProcessor,
+    // Main factory
+    runAgentMain,
 } from '../../shared';
 import {
     logGitHubAction,
@@ -166,11 +168,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-main()
-    .then(() => {
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+runAgentMain(main);

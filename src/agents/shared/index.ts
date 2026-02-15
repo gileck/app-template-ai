@@ -220,3 +220,14 @@ export {
 // Git Adapter (DI)
 export { getGitAdapter, setGitAdapter, resetGitAdapter } from './git-adapter';
 export type { GitAdapter } from './git-adapter';
+
+// Shared error handler
+export { handleAgentError } from './error-handler';
+export type { AgentErrorContext } from './error-handler';
+
+// Main entry-point factory
+export { runAgentMain } from './main-factory';
+
+// Decision utilities
+export { toDecisionOptions } from './decision-utils';
+export type { DecisionOptionSource } from './decision-utils';

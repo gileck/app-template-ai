@@ -40,6 +40,10 @@ import {
     runBatch,
     // Design Agent Processor
     createDesignProcessor,
+    // Main factory
+    runAgentMain,
+    // Decision utils
+    toDecisionOptions,
 } from '../../shared';
 import type { ProductDesignOutput, MockOption, ProcessMode } from '../../shared';
 import {
@@ -75,15 +79,9 @@ const DESIGN_MOCK_ROUTING: RoutingConfig = {
 /**
  * Convert mock options to decision options for the decision flow system
  */
-function toDecisionOptions(mockOptions: MockOption[]): DecisionOption[] {
-    return mockOptions.map(opt => ({
-        id: opt.id,
-        title: opt.title,
-        description: opt.description,
-        isRecommended: opt.isRecommended,
-        metadata: {
-            approach: opt.title,
-        },
+function toMockDecisionOptions(mockOptions: MockOption[]): DecisionOption[] {
+    return toDecisionOptions(mockOptions, opt => ({
+        approach: opt.title,
     }));
 }
 
@@ -172,7 +170,7 @@ const processItem = createDesignProcessor({
         console.log(`  Mock options: ${mockOptions.length} design options generated`);
 
         // Create decision for admin to choose between options
-        const decisionOptions = toDecisionOptions(mockOptions);
+        const decisionOptions = toMockDecisionOptions(mockOptions);
         const decisionContext = `**Design Options:** ${mockOptions.length} approaches generated\n\nReview each option and select the design approach for this feature. Each option is available as an interactive mock on the PR preview deployment.\n\n**Note:** After selecting an option, the agent will write a full design document for the chosen approach.`;
 
         // Post decision comment on issue
@@ -284,11 +282,4 @@ async function main(): Promise<void> {
 }
 
 // Run
-main()
-    .then(() => {
-        process.exit(0);
-    })
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+runAgentMain(main);

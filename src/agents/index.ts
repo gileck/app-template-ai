@@ -40,6 +40,7 @@ import { spawn, execSync } from 'child_process';
 import { resolve } from 'path';
 import { acquireDirectoryLock, releaseDirectoryLock } from './shared/directory-lock';
 import { git, hasUncommittedChanges } from './shared/git-utils';
+import { runAgentMain } from './shared/main-factory';
 
 const SCRIPTS = {
     'product-dev': resolve(__dirname, 'core-agents/productDevelopmentAgent/index.ts'),
@@ -410,7 +411,4 @@ async function main() {
     }
 }
 
-main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+runAgentMain(main);

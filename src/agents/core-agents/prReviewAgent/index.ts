@@ -37,7 +37,6 @@ import {
     // Notifications
     notifyPRReviewComplete,
     notifyPRReadyToMerge,
-    notifyAgentError,
     notifyAgentStarted,
     // Types
     type CommonCLIOptions,
@@ -53,13 +52,16 @@ import {
     getCurrentBranch,
     // CLI
     createCLI,
+    // Error handler
+    handleAgentError,
+    // Main factory
+    runAgentMain,
 } from '../../shared';
 import {
     createLogContext,
     runWithLogContext,
     logExecutionStart,
     logExecutionEnd,
-    logError,
 } from '../../lib/logging';
 import {
     parsePhaseString,
@@ -475,23 +477,14 @@ export async function processItem(
             }
         }
     } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`  Error: ${errorMsg}`);
-
-        // Log error
-        logError(logCtx, error instanceof Error ? error : errorMsg, true);
-        await logExecutionEnd(logCtx, {
-            success: false,
-            toolCallsCount: 0,
-            totalTokens: 0,
-            totalCost: 0,
+        return handleAgentError({
+            error,
+            logCtx,
+            phaseName: 'PR Review',
+            issueTitle: content.title,
+            issueNumber,
+            dryRun: !!options.dryRun,
         });
-
-        if (!options.dryRun) {
-            await notifyAgentError('PR Review', content.title, issueNumber, errorMsg);
-        }
-
-        return { success: false, error: errorMsg };
     }
     });
 }
@@ -670,13 +663,4 @@ async function main(): Promise<void> {
 }
 
 // Run (skip when imported as a module in tests)
-if (!process.env.VITEST) {
-    main()
-        .then(() => {
-            process.exit(0);
-        })
-        .catch((error) => {
-            console.error('Fatal error:', error);
-            process.exit(1);
-        });
-}
+runAgentMain(main, { skipInTest: true });
