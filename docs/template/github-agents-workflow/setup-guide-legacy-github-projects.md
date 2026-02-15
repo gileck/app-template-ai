@@ -13,6 +13,10 @@ related_docs:
   - ../telegram-notifications.md
 ---
 
+> **DEPRECATED:** This guide is for the legacy GitHub Projects V2 integration.
+> For new setups, use [setup-guide.md](./setup-guide.md) which uses MongoDB workflow-items.
+> This file is kept for reference only.
+
 # GitHub Agents Workflow - Setup Guide
 
 Complete step-by-step setup instructions for the GitHub agents workflow.
