@@ -217,7 +217,7 @@ export {
     getDefaultBranch,
 } from './git-utils';
 
-// Git Adapter (DI)
+// Git Adapter (DI for E2E test mockability — see git-adapter.ts)
 export { getGitAdapter, setGitAdapter, resetGitAdapter } from './git-adapter';
 export type { GitAdapter } from './git-adapter';
 
