@@ -327,7 +327,7 @@ The next agent will pick this up automatically.
 | `src/agents/core-agents/bugInvestigatorAgent/index.ts` | Main agent |
 | `src/agents/shared/prompts/bug-investigation.ts` | Prompt builders |
 | `src/agents/shared/output-schemas.ts` | `BUG_INVESTIGATION_OUTPUT_FORMAT` |
-| `src/agents/shared/notifications.ts` | `notifyDecisionNeeded()`, `notifyDecisionAutoSubmitted()`, `notifyDecisionSubmitted()` |
+| `src/agents/shared/notifications/` | `notifyDecisionNeeded()`, `notifyDecisionAutoSubmitted()`, `notifyDecisionSubmitted()` |
 | `src/client/routes/template/Decision/` | Decision selection UI (generic) |
 | `src/client/routes/template/BugFix/` | Legacy redirect to `/decision/` |
 | `src/apis/template/agent-decision/` | Agent decision API handlers |

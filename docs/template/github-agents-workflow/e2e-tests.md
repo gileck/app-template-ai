@@ -28,6 +28,7 @@ This runs vitest with the config in `vitest.config.ts`, which includes only `src
 | `workflow-service-actions.e2e.test.ts` | Direct workflow-service function tests (approve, route, delete, advance, review, merge, revert, undo, clarification, decision routing, choose-recommended) |
 | `design-approval-s3.e2e.test.ts` | S3-backed design approval flow (approve without merge, S3 storage, next agent reads from S3) |
 | `design-mock-decision.e2e.test.ts` | Product design mock decision flow (mock options, decision creation, option selection, design routing) |
+| `workflow-review.e2e.test.ts` | Workflow review agent: Done item → LLM analysis → findings created → log section appended → DB updated |
 
 ### Feature Lifecycle
 
@@ -103,6 +104,7 @@ src/agents/tests/e2e/
   workflow-service-actions.e2e.test.ts  — Direct service function tests
   design-approval-s3.e2e.test.ts       — S3-backed design approval flow
   design-mock-decision.e2e.test.ts     — Product design mock decision flow
+  workflow-review.e2e.test.ts          — Workflow review agent lifecycle
   mocks/
     mock-project-adapter.ts        — In-memory ProjectManagementAdapter
     mock-run-agent.ts              — Canned AI responses per workflow

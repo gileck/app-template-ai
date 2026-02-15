@@ -154,5 +154,5 @@ Appended to `agent-logs/issue-{N}.md`:
 |------|---------|
 | `src/agents/core-agents/workflowReviewAgent/index.ts` | Agent implementation |
 | `src/agents/shared/output-schemas.ts` | `WorkflowReviewOutput` schema |
-| `src/agents/shared/notifications.ts` | `notifyWorkflowReviewComplete()` |
+| `src/agents/shared/notifications/` | `notifyWorkflowReviewComplete()` |
 | `src/server/database/collections/template/workflow-items/workflow-items.ts` | `setWorkflowReviewData()` |

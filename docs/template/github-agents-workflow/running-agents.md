@@ -4,7 +4,7 @@ This document explains how to run the AI agents, when to run them, the agents co
 
 ## Overview
 
-The workflow includes six AI agents that automate different phases of the development pipeline:
+The workflow includes seven AI agents that automate different phases of the development pipeline:
 
 1. **Product Development Agent** (Optional) - Transforms vague ideas into concrete product specs
 2. **Product Design Agent** - Generates UX/UI designs and mockups
@@ -12,6 +12,7 @@ The workflow includes six AI agents that automate different phases of the develo
 4. **Tech Design Agent** - Creates technical architecture documents
 5. **Implementation Agent** - Writes code and creates PRs
 6. **PR Review Agent** - Reviews implementation PRs and generates commit messages
+7. **Workflow Review Agent** - Reviews completed items and creates improvement issues
 
 ## Running Agents with Agents Copy (Recommended)
 
@@ -312,6 +313,36 @@ yarn agent:pr-review --pr 123
 6. Merge: Uses saved commit message, squash merges
 7. Request Changes: Back to implementor (admin must comment explaining changes)
 
+### 7. Workflow Review Agent
+
+**When to run:** Items have reached "Done" status
+
+**What it does:**
+- Reviews completed workflow items by analyzing their agent execution logs
+- Identifies errors, inefficiencies, and systemic improvements
+- Creates workflow items for findings via `yarn agent-workflow create`
+- Appends `[LOG:REVIEW]` section to the agent log file
+- Stores review summary on the workflow item in MongoDB
+- Sends Telegram notification with review results
+
+**Command:**
+```bash
+yarn agent:workflow-review
+
+# Or with specific issue:
+yarn agent:workflow-review --id 43
+
+# Preview without saving:
+yarn agent:workflow-review --dry-run --stream
+```
+
+**Automated Execution:**
+- Runs as the last step in `--all` pipeline (after PR Review)
+- Processes 1 item per run by default (configurable via `--limit`)
+- Skips items without local log files or already-reviewed items
+
+**See [workflow-review.md](./workflow-review.md) for full documentation.**
+
 ## Agent Execution Logs
 
 All agent executions are logged to MongoDB for debugging and auditing.
@@ -540,6 +571,7 @@ If an agent is blocked by this hook, check that the working directory is correct
 - `yarn agent:tech-design` - Create architecture docs
 - `yarn agent:implement` - Write code and create PRs
 - `yarn agent:pr-review` - Review PRs (automated via cron)
+- `yarn agent:workflow-review` - Review completed items and create improvement issues
 
 **Monitoring:**
 - Check agent logs in MongoDB

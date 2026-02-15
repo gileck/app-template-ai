@@ -1045,12 +1045,11 @@ rm -f ${LOCKFILE}
 
 ## Related Documentation
 
-- **Overall workflow:** `docs/github-projects-integration.md`
-- **PR Merge Flow:** `docs/github-projects-integration.md#pr-merge-flow-admin-approval`
-- **Multi-PR workflow:** `docs/github-projects-integration.md#multi-pr-workflow-lxl-features`
-- **Phase architecture:** `docs/github-projects-integration.md#phase-storage--retrieval`
+- **Overall workflow:** `docs/template/github-agents-workflow/overview.md`
+- **Workflow E2E scenarios:** `docs/template/github-agents-workflow/workflow-e2e.md`
+- **Running agents:** `docs/template/github-agents-workflow/running-agents.md`
 - **Project guidelines:** `docs/template/project-guidelines/`
 - **Phase utilities:** `src/agents/lib/phases.ts`
 - **Commit message utilities:** `src/agents/lib/commitMessage.ts`
 - **Telegram webhook handlers:** `src/pages/api/telegram-webhook.ts`
-- **Cron setup:** `docs/github-projects-integration.md#pr-review-agent-cron-setup`
+- **Cron setup:** `docs/template/github-agents-workflow/running-agents.md`
