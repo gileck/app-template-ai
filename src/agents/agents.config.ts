@@ -53,10 +53,10 @@ export interface AgentsConfig {
  * Agent library configuration
  *
  * Available libraries:
- * - 'claude-code-sdk' - Claude Code SDK (default, fully implemented)
- * - 'cursor' - Cursor CLI (requires cursor-agent CLI to be installed)
- * - 'gemini' - Gemini CLI (requires @google/gemini-cli to be installed)
- * - 'openai-codex' - OpenAI Codex CLI (requires @openai/codex to be installed)
+ * - 'claude-code-sdk' - Claude Code SDK (default, production-tested)
+ * - 'cursor' - Cursor CLI (production-tested, requires cursor-agent CLI to be installed)
+ * - 'gemini' - Gemini CLI (experimental, requires @google/gemini-cli to be installed)
+ * - 'openai-codex' - OpenAI Codex CLI (experimental, requires @openai/codex to be installed)
  *
  * Available models:
  * - claude-code-sdk: 'sonnet', 'opus', 'haiku'
