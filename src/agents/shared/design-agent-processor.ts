@@ -505,11 +505,9 @@ export function createDesignProcessor(
                             return !config.allowedWritePaths!.some(allowed => filePath.startsWith(allowed));
                         });
                         if (violations.length > 0) {
-                            console.warn(`  Warning: Agent wrote files outside allowed paths:`);
-                            for (const v of violations) {
-                                console.warn(`    ${v}`);
-                            }
-                            console.warn(`  Allowed paths: ${config.allowedWritePaths.join(', ')}`);
+                            const violationMsg = `Agent wrote files outside allowed paths: ${violations.join(', ')}. Allowed: ${config.allowedWritePaths.join(', ')}`;
+                            console.warn(`  Warning: ${violationMsg}`);
+                            logError(logCtx, violationMsg, false);
                             // Revert unauthorized changes
                             git('checkout -- .', { silent: true });
                             console.warn('  Reverted unauthorized file changes');
@@ -739,7 +737,9 @@ ${comment}`;
                         await saveDesignToS3(issueNumber, config.designType, designContent);
                         console.log(`  Design saved to S3: design-docs/issue-${issueNumber}/`);
                     } catch (s3Error) {
-                        console.warn(`  Warning: Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`);
+                        const s3ErrMsg = `Failed to save design to S3 (non-fatal): ${s3Error instanceof Error ? s3Error.message : String(s3Error)}`;
+                        console.warn(`  Warning: ${s3ErrMsg}`);
+                        logError(logCtx, s3ErrMsg, false);
                     }
                 }
 

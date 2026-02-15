@@ -21,6 +21,14 @@ import {
     type WorkflowReviewOutput,
     runAgentMain,
 } from '../../shared';
+import {
+    createLogContext,
+    runWithLogContext,
+    logExecutionStart,
+    logExecutionEnd,
+    logError,
+    logInfo,
+} from '../../lib/logging';
 import { findAllWorkflowItems, setWorkflowReviewData } from '@/server/database/collections/template/workflow-items/workflow-items';
 import type { WorkflowItemDocument } from '@/server/database/collections/template/workflow-items/types';
 
@@ -224,91 +232,149 @@ async function processItem(
         return { success: true, findingsCount: 0 };
     }
 
-    // Build prompt
-    const prompt = buildWorkflowReviewPrompt(item, logFilePath);
-
-    console.log('    Running LLM analysis...');
-
-    if (options.dryRun) {
-        console.log('    [DRY RUN] Would run LLM agent and process results');
-        return { success: true, findingsCount: 0 };
-    }
-
-    // Run agent
-    const result = await runAgent({
-        prompt,
-        allowedTools: ['Read', 'Grep', 'Glob'],
-        stream: options.stream,
-        verbose: options.verbose,
-        timeout: options.timeout,
-        outputFormat: WORKFLOW_REVIEW_OUTPUT_FORMAT,
+    // Create log context for structured logging
+    const logCtx = createLogContext({
+        issueNumber,
         workflow: 'workflow-review',
+        phase: 'Workflow Review',
+        mode: 'Review',
+        issueTitle: item.title,
+        issueType: item.type === 'bug' ? 'bug' : 'feature',
+        currentStatus: item.status,
     });
 
-    if (!result.success || !result.structuredOutput) {
-        console.error(`    Failed: ${result.error ?? 'No structured output'}`);
-        await notifyAgentError('Workflow Review', item.title, issueNumber, result.error ?? 'No output');
-        return { success: false, findingsCount: 0 };
-    }
+    return runWithLogContext(logCtx, async () => {
+        logExecutionStart(logCtx);
 
-    const output = result.structuredOutput as WorkflowReviewOutput;
-    const findingsCount = output.findings.length;
+        try {
+            // Build prompt
+            const prompt = buildWorkflowReviewPrompt(item, logFilePath);
 
-    console.log(`    Analysis complete: ${findingsCount} finding(s)`);
+            console.log('    Running LLM analysis...');
 
-    // Create workflow items for findings
-    let failedFindings = 0;
-    for (const finding of output.findings) {
-        console.log(`    Creating issue: ${finding.title}`);
-        const createResult = spawnSync('yarn', [
-            'agent-workflow', 'create',
-            '--type', finding.type === 'bug' ? 'bug' : 'feature',
-            '--title', finding.title,
-            '--description', `${finding.description}\n\nSource: Workflow review of issue #${finding.relatedIssue}\nCategory: ${finding.category}\nAffected files: ${finding.affectedFiles.join(', ')}`,
-            '--priority', finding.priority,
-            '--size', finding.size,
-            '--complexity', finding.complexity,
-            '--created-by', 'workflow-review',
-        ], {
-            encoding: 'utf-8',
-            cwd: process.cwd(),
-            env: process.env,
-        });
+            if (options.dryRun) {
+                console.log('    [DRY RUN] Would run LLM agent and process results');
+                return { success: true, findingsCount: 0 };
+            }
 
-        if (createResult.status !== 0) {
-            failedFindings++;
-            console.warn(`    Warning: Failed to create issue for finding "${finding.title}"`);
-            if (createResult.stderr) console.warn(`    ${createResult.stderr.slice(0, 200)}`);
+            // Run agent
+            const result = await runAgent({
+                prompt,
+                allowedTools: ['Read', 'Grep', 'Glob'],
+                stream: options.stream,
+                verbose: options.verbose,
+                timeout: options.timeout,
+                outputFormat: WORKFLOW_REVIEW_OUTPUT_FORMAT,
+                workflow: 'workflow-review',
+            });
+
+            if (!result.success || !result.structuredOutput) {
+                const errorMsg = result.error ?? 'No structured output';
+                logError(logCtx, errorMsg, true);
+                await notifyAgentError('Workflow Review', item.title, issueNumber, errorMsg);
+                await logExecutionEnd(logCtx, {
+                    success: false,
+                    toolCallsCount: 0,
+                    totalTokens: 0,
+                    totalCost: 0,
+                });
+                return { success: false, findingsCount: 0 };
+            }
+
+            const output = result.structuredOutput as WorkflowReviewOutput;
+            const findingsCount = output.findings.length;
+
+            console.log(`    Analysis complete: ${findingsCount} finding(s)`);
+            logInfo(logCtx, `Analysis complete: ${findingsCount} finding(s)`);
+
+            // Create workflow items for findings
+            let failedFindings = 0;
+            for (const finding of output.findings) {
+                console.log(`    Creating issue: ${finding.title}`);
+                const createResult = spawnSync('yarn', [
+                    'agent-workflow', 'create',
+                    '--type', finding.type === 'bug' ? 'bug' : 'feature',
+                    '--title', finding.title,
+                    '--description', `${finding.description}\n\nSource: Workflow review of issue #${finding.relatedIssue}\nCategory: ${finding.category}\nAffected files: ${finding.affectedFiles.join(', ')}`,
+                    '--priority', finding.priority,
+                    '--size', finding.size,
+                    '--complexity', finding.complexity,
+                    '--created-by', 'workflow-review',
+                ], {
+                    encoding: 'utf-8',
+                    cwd: process.cwd(),
+                    env: process.env,
+                });
+
+                if (createResult.status !== 0) {
+                    failedFindings++;
+                    const failMsg = `Failed to create issue for finding "${finding.title}"`;
+                    console.warn(`    Warning: ${failMsg}`);
+                    logError(logCtx, failMsg, false);
+                    if (createResult.stderr) console.warn(`    ${createResult.stderr.slice(0, 200)}`);
+                }
+            }
+
+            // If some findings failed to create, don't mark as reviewed so it gets retried
+            if (failedFindings > 0 && failedFindings === findingsCount) {
+                const allFailedMsg = `All ${failedFindings} finding(s) failed to create — not marking as reviewed`;
+                console.warn(`    ${allFailedMsg}`);
+                logError(logCtx, allFailedMsg, true);
+                await logExecutionEnd(logCtx, {
+                    success: false,
+                    toolCallsCount: 0,
+                    totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                    totalCost: result.usage?.totalCostUSD ?? 0,
+                });
+                return { success: false, findingsCount: 0 };
+            }
+            if (failedFindings > 0) {
+                console.warn(`    ${failedFindings}/${findingsCount} finding(s) failed to create — proceeding with partial results`);
+            }
+
+            // Append review section to log file
+            const reviewSection = formatReviewSection(output, issueNumber);
+            try {
+                appendFileSync(logFilePath, reviewSection);
+                console.log(`    Appended ${LOG_REVIEW_MARKER} section to log file`);
+            } catch (err) {
+                const appendErr = `Failed to append review section to log file: ${err}`;
+                console.warn(`    Warning: ${appendErr}`);
+                logError(logCtx, appendErr, false);
+            }
+
+            // Update DB
+            const summaryText = output.executiveSummary.overallAssessment;
+            await setWorkflowReviewData(issueNumber, true, summaryText);
+            console.log('    Updated DB: reviewed = true');
+
+            // Send Telegram notification
+            await notifyWorkflowReviewComplete(item.title, issueNumber, summaryText, findingsCount);
+
+            // Log execution end
+            await logExecutionEnd(logCtx, {
+                success: true,
+                toolCallsCount: 0,
+                totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                totalCost: result.usage?.totalCostUSD ?? 0,
+            });
+
+            return { success: true, findingsCount };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            console.error(`    Error: ${errorMsg}`);
+
+            logError(logCtx, error instanceof Error ? error : errorMsg, true);
+            await logExecutionEnd(logCtx, {
+                success: false,
+                toolCallsCount: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            });
+
+            return { success: false, findingsCount: 0 };
         }
-    }
-
-    // If some findings failed to create, don't mark as reviewed so it gets retried
-    if (failedFindings > 0 && failedFindings === findingsCount) {
-        console.warn(`    All ${failedFindings} finding(s) failed to create — not marking as reviewed`);
-        return { success: false, findingsCount: 0 };
-    }
-    if (failedFindings > 0) {
-        console.warn(`    ${failedFindings}/${findingsCount} finding(s) failed to create — proceeding with partial results`);
-    }
-
-    // Append review section to log file
-    const reviewSection = formatReviewSection(output, issueNumber);
-    try {
-        appendFileSync(logFilePath, reviewSection);
-        console.log(`    Appended ${LOG_REVIEW_MARKER} section to log file`);
-    } catch (err) {
-        console.warn(`    Warning: Failed to append review section to log file: ${err}`);
-    }
-
-    // Update DB
-    const summaryText = output.executiveSummary.overallAssessment;
-    await setWorkflowReviewData(issueNumber, true, summaryText);
-    console.log('    Updated DB: reviewed = true');
-
-    // Send Telegram notification
-    await notifyWorkflowReviewComplete(item.title, issueNumber, summaryText, findingsCount);
-
-    return { success: true, findingsCount };
+    });
 }
 
 // ============================================================

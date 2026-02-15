@@ -81,6 +81,7 @@ import {
     logExecutionEnd,
     logGitHubAction,
     logFeatureBranch,
+    logError,
 } from '../../lib/logging';
 import { handleAgentError } from '../../shared/error-handler';
 import { runAgentMain } from '../../shared/main-factory';
@@ -464,13 +465,18 @@ export async function processItem(
             if (prSummary && comment) {
                 console.log('  PR summary extracted (structured output)');
             } else {
-                console.warn('  ⚠️ Structured output returned but missing fields:');
-                if (!prSummary) console.warn('    - prSummary is missing');
-                if (!comment) console.warn('    - comment is missing');
+                const missingFields = [
+                    ...(!prSummary ? ['prSummary'] : []),
+                    ...(!comment ? ['comment'] : []),
+                ].join(', ');
+                const warnMsg = `Structured output missing fields: ${missingFields}`;
+                console.warn(`  ⚠️ ${warnMsg}`);
+                logError(logCtx, warnMsg, false);
             }
         } else {
-            console.warn('  ⚠️ Structured output not returned by agent adapter');
-            console.warn('    Agent library may not support structured output');
+            const warnMsg = 'Structured output not returned by agent adapter — library may not support it';
+            console.warn(`  ⚠️ ${warnMsg}`);
+            logError(logCtx, warnMsg, false);
         }
 
         // Check if there are changes to commit

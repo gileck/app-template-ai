@@ -62,6 +62,7 @@ import {
     runWithLogContext,
     logExecutionStart,
     logExecutionEnd,
+    logError,
 } from '../../lib/logging';
 import {
     parsePhaseString,
@@ -383,7 +384,9 @@ export async function processItem(
                         }
                         console.log('  Updated artifact comment - PR approved');
                     } catch (error) {
-                        console.warn('  Warning: Failed to update artifact comment:', error instanceof Error ? error.message : String(error));
+                        const warnMsg = `Failed to update artifact comment: ${error instanceof Error ? error.message : String(error)}`;
+                        console.warn(`  Warning: ${warnMsg}`);
+                        logError(logCtx, warnMsg, false);
                     }
 
                     // 2. Get PR info for commit message
@@ -453,7 +456,9 @@ export async function processItem(
                         }
                         console.log('  Updated artifact comment - changes requested');
                     } catch (error) {
-                        console.warn('  Warning: Failed to update artifact comment:', error instanceof Error ? error.message : String(error));
+                        const warnMsg = `Failed to update artifact comment: ${error instanceof Error ? error.message : String(error)}`;
+                        console.warn(`  Warning: ${warnMsg}`);
+                        logError(logCtx, warnMsg, false);
                     }
 
                     await notifyPRReviewComplete(content.title, issueNumber, prNumber, decision, summary, issueType);
