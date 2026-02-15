@@ -200,7 +200,7 @@ ${improvementRows}
 // PROCESSING
 // ============================================================
 
-async function processItem(
+export async function processItem(
     item: WorkflowItemDocument,
     options: CommonCLIOptions
 ): Promise<{ success: boolean; findingsCount: number }> {
@@ -452,4 +452,4 @@ async function main(): Promise<void> {
     await run(options);
 }
 
-runAgentMain(main);
+runAgentMain(main, { skipInTest: true });

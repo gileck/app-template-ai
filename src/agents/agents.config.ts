@@ -67,14 +67,18 @@ export interface AgentsConfig {
  * To use a different library for a specific workflow, add it to workflowOverrides.
  */
 export const agentsConfig: AgentsConfig = {
-    // When true, ALL agents use Claude Opus 4.6 (overrides all library/model settings)
+    // When true, ALL agents use Claude Opus 4.6 via claude-code-sdk.
+    // IMPORTANT: This overrides ALL per-workflow library selections (workflowOverrides)
+    // and ALL per-library model settings (libraryModels). Those fields are silently
+    // ignored when useOpus is enabled.
     useOpus: true,
 
     // Default library for all workflows
     defaultLibrary: 'claude-code-sdk',
 
-    // Per-workflow overrides
-    // Uncomment to use different libraries for specific workflows
+    // Per-workflow library overrides.
+    // NOTE: These are IGNORED when useOpus is true — all workflows will use
+    // claude-code-sdk with Opus regardless of what is configured here.
     workflowOverrides: {
         'product-design': 'cursor',
         // 'tech-design': 'claude-code-sdk',
@@ -82,7 +86,9 @@ export const agentsConfig: AgentsConfig = {
         // 'pr-review': 'claude-code-sdk',
     },
 
-    // Model configuration per library
+    // Model configuration per library.
+    // NOTE: These are IGNORED when useOpus is true — all workflows will use
+    // Claude Opus 4.6 regardless of the model configured here for each library.
     libraryModels: {
         'claude-code-sdk': {
             model: 'sonnet',
