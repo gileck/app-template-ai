@@ -44,7 +44,12 @@ const TAIL_BYTES = 4096; // Read last 4KB to check for review marker
 // PROMPT
 // ============================================================
 
-function buildWorkflowReviewPrompt(item: WorkflowItemDocument, logFilePath: string): string {
+interface ExistingWorkflowItem {
+    title: string;
+    description: string;
+}
+
+function buildWorkflowReviewPrompt(item: WorkflowItemDocument, logFilePath: string, existingItems: ExistingWorkflowItem[] = []): string {
     const phases = item.artifacts?.phases ?? [];
     const designs = item.artifacts?.designs ?? [];
     const history = item.history ?? [];
@@ -146,10 +151,19 @@ If you find errors, missing phases, or anomalies in the issue log, cross-referen
 3. **Third: General prompt principles** — only if truly universal across ALL features
 4. **Last resort: Feature-specific prompt additions** — avoid, usually means a missing doc
 
+## Existing Workflow Items (DO NOT DUPLICATE)
+
+The following items already exist in the workflow pipeline. **Do NOT create findings that duplicate these items.** If your analysis identifies an issue that matches an existing item below, skip it — it is already tracked.
+
+${existingItems.length > 0
+        ? existingItems.map((ei, i) => `${i + 1}. **${ei.title}**\n   ${ei.description}`).join('\n')
+        : '(No existing items)'}
+
 ## Output
 
 Return structured output with findings, executive summary, and systemic improvements.
-Every finding MUST include a root cause — if unknown, say so and recommend logging improvements.`;
+Every finding MUST include a root cause — if unknown, say so and recommend logging improvements.
+IMPORTANT: Do NOT create findings that duplicate any of the existing workflow items listed above.`;
 }
 
 // ============================================================
@@ -247,8 +261,23 @@ export async function processItem(
         logExecutionStart(logCtx);
 
         try {
+            // Fetch recent workflow items to avoid creating duplicate findings
+            // Limited to last 7 days and capped at 50 items to keep prompt size manageable
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const allItems = await findAllWorkflowItems();
+            const existingItems: ExistingWorkflowItem[] = allItems
+                .filter(wi =>
+                    String(wi._id) !== String(item._id) &&
+                    new Date(wi.createdAt) >= sevenDaysAgo
+                )
+                .slice(0, 50)
+                .map(wi => ({
+                    title: wi.title,
+                    description: (wi.description ?? '').split('\n')[0].slice(0, 200),
+                }));
+
             // Build prompt
-            const prompt = buildWorkflowReviewPrompt(item, logFilePath);
+            const prompt = buildWorkflowReviewPrompt(item, logFilePath, existingItems);
 
             console.log('    Running LLM analysis...');
 
