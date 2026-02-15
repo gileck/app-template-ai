@@ -66,11 +66,7 @@ import {
 } from '../../lib/logging';
 import {
     parsePhaseString,
-    extractPhasesFromTechDesign,
 } from '../../lib/parsing';
-import {
-    parsePhasesFromComment,
-} from '../../lib/phases';
 import {
     extractTechDesign,
     generateCommitMessage,
@@ -78,7 +74,8 @@ import {
     getTechDesignPath,
     updateImplementationPhaseArtifact,
 } from '../../lib';
-import { getArtifactsFromIssue, getPhasesFromDB, saveCommitMessage, savePhaseStatusToDB } from '../../lib/workflow-db';
+import { getArtifactsFromIssue, saveCommitMessage, savePhaseStatusToDB } from '../../lib/workflow-db';
+import { resolvePhaseDetails } from '../../shared/phase-resolution';
 import {
     readDesignDoc,
 } from '../../lib/design-files';
@@ -557,7 +554,7 @@ async function run(options: PRReviewOptions): Promise<void> {
                 updatedAt: c.updatedAt,
             }));
 
-            // Try to get phases from DB first, then comments, then markdown
+            // Get tech design for fallback phase resolution
             let techDesign: string | null = null;
 
             // Try DB-first artifact read for tech design path
@@ -572,21 +569,18 @@ async function run(options: PRReviewOptions): Promise<void> {
                 techDesign = extractTechDesign(item.content.body);
             }
 
-            const phases = await getPhasesFromDB(issueNumber) ||
-                          parsePhasesFromComment(commentsList) ||
-                          (techDesign ? extractPhasesFromTechDesign(techDesign) : null);
-
-            const currentPhaseDetails = phases?.find(p => p.order === parsed.current);
+            // Resolve phase details from DB/comments/markdown
+            const resolved = await resolvePhaseDetails(issueNumber, commentsList, techDesign, parsed.current);
 
             phaseInfo = {
                 current: parsed.current,
                 total: parsed.total,
-                phaseName: currentPhaseDetails?.name,
-                phaseDescription: currentPhaseDetails?.description,
-                phaseFiles: currentPhaseDetails?.files,
+                phaseName: resolved?.currentPhaseDetails?.name,
+                phaseDescription: resolved?.currentPhaseDetails?.description,
+                phaseFiles: resolved?.currentPhaseDetails?.files,
             };
 
-            console.log(`  📋 Phase ${parsed.current}/${parsed.total}: ${currentPhaseDetails?.name || 'Unknown'}`);
+            console.log(`  📋 Phase ${parsed.current}/${parsed.total}: ${resolved?.currentPhaseDetails?.name || 'Unknown'}`);
         }
 
         processableItems.push({ item, prNumber, branchName, phaseInfo });

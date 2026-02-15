@@ -231,3 +231,7 @@ export { runAgentMain } from './main-factory';
 // Decision utilities
 export { toDecisionOptions } from './decision-utils';
 export type { DecisionOptionSource } from './decision-utils';
+
+// Phase resolution
+export { resolvePhaseDetails } from './phase-resolution';
+export type { ResolvedPhaseDetails } from './phase-resolution';

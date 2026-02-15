@@ -1,306 +1,24 @@
 /**
- * Telegram Notifications for Agent Scripts
+ * Notification sender functions for the agent workflow.
  *
- * Provides notification functions for each step of the GitHub Projects workflow.
- * Supports inline keyboard buttons for quick approve/reject actions.
+ * Each function composes a message using helpers, attaches keyboard buttons,
+ * and sends via the Telegram API layer.
  */
 
-import { agentConfig, getIssueUrl, getPrUrl, getProjectUrl } from './config';
-import { appConfig } from '../../app.config';
+import { getIssueUrl, getPrUrl, getProjectUrl } from '../config';
 import { generateClarificationToken } from '@/apis/template/clarification/utils';
 import { generateDecisionToken } from '@/apis/template/agent-decision/utils';
 import { addHistoryEntry } from '@/server/database/collections/template/workflow-items';
 
-// ============================================================
-// TELEGRAM API
-// ============================================================
-
-const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
-
-interface SendResult {
-    success: boolean;
-    error?: string;
-}
-
-/**
- * Inline keyboard button for Telegram
- * Supports both callback buttons and URL buttons
- */
-interface InlineButton {
-    text: string;
-    callback_data?: string;
-    url?: string;
-}
-
-/**
- * Inline keyboard markup for Telegram
- */
-interface InlineKeyboardMarkup {
-    inline_keyboard: InlineButton[][];
-}
-
-/**
- * Parse a chat ID string that may include a topic thread ID.
- * Format: "chatId" or "chatId:threadId"
- */
-function parseChatId(chatIdString: string): { chatId: string; threadId?: number } {
-    const lastColonIndex = chatIdString.lastIndexOf(':');
-
-    if (lastColonIndex <= 0) {
-        return { chatId: chatIdString };
-    }
-
-    const potentialThreadId = chatIdString.slice(lastColonIndex + 1);
-
-    if (/^\d+$/.test(potentialThreadId)) {
-        return {
-            chatId: chatIdString.slice(0, lastColonIndex),
-            threadId: parseInt(potentialThreadId, 10)
-        };
-    }
-
-    return { chatId: chatIdString };
-}
-
-/**
- * Get the actionable channel chat ID for agent workflow notifications.
- * Uses AGENT_TELEGRAM_CHAT_ID env var, falls back to ownerTelegramChatId.
- */
-function getActionableChatId(): { chatId: string; threadId?: number } | null {
-    const rawChatId = process.env.AGENT_TELEGRAM_CHAT_ID || appConfig.ownerTelegramChatId;
-    if (!rawChatId) return null;
-    return parseChatId(rawChatId);
-}
-
-/**
- * Get the info channel chat ID for non-actionable updates.
- * Uses AGENT_INFO_TELEGRAM_CHAT_ID env var, falls back to actionable channel.
- */
-function getInfoChatId(): { chatId: string; threadId?: number } | null {
-    const rawChatId = process.env.AGENT_INFO_TELEGRAM_CHAT_ID;
-    if (!rawChatId) return getActionableChatId(); // Fallback to actionable channel
-    return parseChatId(rawChatId);
-}
-
-/**
- * Build simple View PR button (for implementation PRs)
- * Implementation PRs should be reviewed by PR Review agent, not manually approved
- */
-function buildViewPRButton(prUrl: string): InlineKeyboardMarkup {
-    return {
-        inline_keyboard: [
-            [
-                { text: '🔀 View PR', url: prUrl },
-            ],
-        ],
-    };
-}
-
-/**
- * Build buttons with View Issue + review actions
- */
-function buildIssueReviewButtons(issueNumber: number, issueUrl: string): InlineKeyboardMarkup {
-    return {
-        inline_keyboard: [
-            [
-                { text: '📋 View Issue', url: issueUrl },
-            ],
-            [
-                { text: '✅ Approve', callback_data: `approve:${issueNumber}` },
-                { text: '📝 Request Changes', callback_data: `changes:${issueNumber}` },
-                { text: '❌ Reject', callback_data: `reject:${issueNumber}` },
-            ],
-        ],
-    };
-}
-
-/**
- * Build simple View Issue button
- */
-function buildViewIssueButton(issueUrl: string): InlineKeyboardMarkup {
-    return {
-        inline_keyboard: [
-            [{ text: '📋 View Issue', url: issueUrl }],
-        ],
-    };
-}
-
-/**
- * Build View Project button
- */
-function buildViewProjectButton(projectUrl: string): InlineKeyboardMarkup {
-    return {
-        inline_keyboard: [
-            [{ text: '🗂 View Project', url: projectUrl }],
-        ],
-    };
-}
-
-/**
- * Sleep for a specified number of milliseconds
- */
-async function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Send a Telegram message to the admin/owner
- * Retries up to 3 times with 3 second delays on failure
- */
-async function sendToAdmin(
-    message: string,
-    replyMarkup?: InlineKeyboardMarkup
-): Promise<SendResult> {
-    if (!agentConfig.telegram.enabled) {
-        return { success: true }; // Silently skip if disabled
-    }
-
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-        console.warn('  Telegram notification skipped: missing TELEGRAM_BOT_TOKEN');
-        return { success: false, error: 'Missing bot token' };
-    }
-
-    const parsedChatId = getActionableChatId();
-    if (!parsedChatId) {
-        console.warn('  Telegram notification skipped: AGENT_TELEGRAM_CHAT_ID not configured');
-        return { success: false, error: 'Actionable chat ID not configured' };
-    }
-
-    const { chatId, threadId } = parsedChatId;
-
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 3000; // 3 seconds
-
-    // Log which chat ID is being used (helpful for debugging)
-    const chatIdDisplay = threadId ? `${chatId}:${threadId}` : chatId;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const body: Record<string, unknown> = {
-                chat_id: chatId,
-                text: message,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-            };
-
-            // Add thread ID for topic-based supergroups
-            if (threadId) {
-                body.message_thread_id = threadId;
-            }
-
-            if (replyMarkup) {
-                body.reply_markup = replyMarkup;
-            }
-
-            const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(`Telegram API error: ${error}`);
-            }
-
-            console.log('  Telegram notification sent');
-            return { success: true };
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`  Telegram notification attempt ${attempt}/${MAX_RETRIES} failed (chat_id: ${chatIdDisplay}):`, errorMessage);
-
-            if (attempt < MAX_RETRIES) {
-                console.log(`  Retrying in ${RETRY_DELAY_MS / 1000} seconds...`);
-                await sleep(RETRY_DELAY_MS);
-            } else {
-                console.error(`  All retry attempts exhausted. Telegram notification not sent. (chat_id: ${chatIdDisplay})`);
-                return { success: false, error: errorMessage };
-            }
-        }
-    }
-
-    // This should never be reached, but TypeScript requires it
-    return { success: false, error: 'Max retries reached' };
-}
-
-/**
- * Send a Telegram message to the info channel (non-actionable updates)
- * Falls back to admin channel if info channel is not configured
- */
-async function sendToInfoChannel(
-    message: string,
-    replyMarkup?: InlineKeyboardMarkup
-): Promise<SendResult> {
-    if (!agentConfig.telegram.enabled) {
-        return { success: true };
-    }
-
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-        console.warn('  Telegram notification skipped: missing TELEGRAM_BOT_TOKEN');
-        return { success: false, error: 'Missing bot token' };
-    }
-
-    const parsedChatId = getInfoChatId();
-    if (!parsedChatId) {
-        console.warn('  Telegram notification skipped: no chat ID configured');
-        return { success: false, error: 'Chat ID not configured' };
-    }
-
-    const { chatId, threadId } = parsedChatId;
-
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 3000;
-
-    const chatIdDisplay = threadId ? `${chatId}:${threadId}` : chatId;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const body: Record<string, unknown> = {
-                chat_id: chatId,
-                text: message,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-            };
-
-            if (threadId) {
-                body.message_thread_id = threadId;
-            }
-
-            if (replyMarkup) {
-                body.reply_markup = replyMarkup;
-            }
-
-            const response = await fetch(`${TELEGRAM_API_URL}${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(`Telegram API error: ${error}`);
-            }
-
-            console.log('  Telegram info notification sent');
-            return { success: true };
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`  Telegram info notification attempt ${attempt}/${MAX_RETRIES} failed (chat_id: ${chatIdDisplay}):`, errorMessage);
-
-            if (attempt < MAX_RETRIES) {
-                console.log(`  Retrying in ${RETRY_DELAY_MS / 1000} seconds...`);
-                await sleep(RETRY_DELAY_MS);
-            } else {
-                console.error(`  All retry attempts exhausted. Telegram info notification not sent. (chat_id: ${chatIdDisplay})`);
-                return { success: false, error: errorMessage };
-            }
-        }
-    }
-
-    return { success: false, error: 'Max retries reached' };
-}
+import type { SendResult, InlineButton, InlineKeyboardMarkup } from './types';
+import { escapeHtml, getAppUrl } from './helpers';
+import {
+    buildViewPRButton,
+    buildIssueReviewButtons,
+    buildViewIssueButton,
+    buildViewProjectButton,
+} from './buttons';
+import { sendToAdmin, sendToInfoChannel } from './telegram-api';
 
 // ============================================================
 // NOTIFICATION TEMPLATES
@@ -581,19 +299,6 @@ Obvious fix auto-submitted. The implementation agent will pick this up next.`;
 }
 
 /**
- * Get the base app URL for clarification links
- *
- * Uses appConfig.appUrl which has the following priority:
- * 1. NEXT_PUBLIC_APP_URL - Manual override
- * 2. VERCEL_PROJECT_PRODUCTION_URL - Stable production domain
- * 3. VERCEL_URL - Deployment-specific URL
- * 4. Default production URL from config
- */
-function getAppUrl(): string {
-    return appConfig.appUrl;
-}
-
-/**
  * Notify admin that agent needs clarification
  */
 export async function notifyAgentNeedsClarification(
@@ -689,20 +394,6 @@ export async function notifyBatchComplete(
 ${failed > 0 ? 'Check logs for failed items.' : 'All items processed successfully.'}`;
 
     return sendToInfoChannel(message, buildViewProjectButton(projectUrl));
-}
-
-// ============================================================
-// UTILITIES
-// ============================================================
-
-/**
- * Escape HTML special characters for Telegram HTML mode
- */
-function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
 }
 
 /**
