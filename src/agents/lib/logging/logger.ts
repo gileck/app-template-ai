@@ -306,16 +306,45 @@ ${stack ? `\n\nStack trace:\n${stack}` : ''}
 
 /**
  * Log token usage
+ *
+ * Includes cached tokens in the total when available. Total input tokens
+ * is calculated as: inputTokens + cacheReadInputTokens + cacheCreationInputTokens
+ *
+ * @param ctx - Log context
+ * @param usage - Token usage stats including optional cache tokens
  */
 export function logTokenUsage(
     ctx: LogContext,
-    usage: { inputTokens: number; outputTokens: number; cost?: number }
+    usage: {
+        inputTokens: number;
+        outputTokens: number;
+        cost?: number;
+        cacheReadInputTokens?: number;
+        cacheCreationInputTokens?: number;
+    }
 ): void {
     const timestamp = formatTime(new Date());
-    const total = usage.inputTokens + usage.outputTokens;
+
+    // Calculate total input tokens including cache tokens
+    // According to Anthropic SDK: total input = input_tokens + cache_read_input_tokens + cache_creation_input_tokens
+    const cacheRead = usage.cacheReadInputTokens ?? 0;
+    const cacheCreation = usage.cacheCreationInputTokens ?? 0;
+    const totalInputTokens = usage.inputTokens + cacheRead + cacheCreation;
+    const totalTokens = totalInputTokens + usage.outputTokens;
     const costStr = usage.cost ? ` | **Cost:** ${formatCost(usage.cost)}` : '';
 
-    const content = `**[${timestamp}]** [LOG:TOKENS] 📊 Tokens: ${usage.inputTokens} in / ${usage.outputTokens} out (${total} total)${costStr}
+    // Show cache breakdown if cache tokens are present
+    const hasCacheTokens = cacheRead > 0 || cacheCreation > 0;
+    let inputDisplay: string;
+    if (hasCacheTokens) {
+        // Show: "150 in (50 new + 100 cached)" format
+        const cachedTotal = cacheRead + cacheCreation;
+        inputDisplay = `${totalInputTokens} in (${usage.inputTokens} new + ${cachedTotal} cached)`;
+    } else {
+        inputDisplay = `${usage.inputTokens} in`;
+    }
+
+    const content = `**[${timestamp}]** [LOG:TOKENS] 📊 Tokens: ${inputDisplay} / ${usage.outputTokens} out (${totalTokens} total)${costStr}
 
 `;
 
