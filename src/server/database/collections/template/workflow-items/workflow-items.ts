@@ -1,5 +1,6 @@
 import { Collection, ObjectId, Filter } from 'mongodb';
 import { getDb } from '../../../connection';
+import { normalizeDomain } from '@/server/template/project-management/domains';
 import type {
     WorkflowItemDocument,
     WorkflowItemCreate,
@@ -101,6 +102,11 @@ export const updateWorkflowFields = async (
 ): Promise<void> => {
     const collection = await getWorkflowItemsCollection();
     const idObj = typeof id === 'string' ? new ObjectId(id) : id;
+
+    // Normalize domain before saving
+    if (fields.domain && fields.domain !== null) {
+        fields = { ...fields, domain: normalizeDomain(fields.domain) };
+    }
 
     const $set: Record<string, unknown> = { updatedAt: new Date() };
     const $unset: Record<string, string> = {};
@@ -503,4 +509,13 @@ export const addHistoryEntry = async (
             $set: { updatedAt: new Date() },
         }
     );
+};
+
+/**
+ * Get all unique domain values across workflow items
+ */
+export const getUniqueDomains = async (): Promise<string[]> => {
+    const collection = await getWorkflowItemsCollection();
+    const domains = await collection.distinct('domain', { domain: { $exists: true, $ne: '' } });
+    return (domains as string[]).filter(Boolean).sort();
 };

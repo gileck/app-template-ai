@@ -1,19 +1,24 @@
 /**
  * Domain Configuration
  *
- * Defines the list of valid domain values for workflow item classification.
- * Domains categorize items by the area of the application they affect.
+ * Seed domain suggestions for the triage agent prompt.
+ * Domains are free-form strings — agents can reuse existing ones or create new ones.
+ * These seeds provide initial guidance when no existing domains exist yet.
  */
 
-export const DOMAINS = [
-    { value: 'ui', label: 'UI', description: 'User interface, components, pages, styling' },
-    { value: 'api', label: 'API', description: 'Server endpoints, API handlers' },
-    { value: 'database', label: 'Database', description: 'MongoDB collections, schemas, queries' },
-    { value: 'agents', label: 'Agents', description: 'AI agents, workflow pipeline' },
-    { value: 'infra', label: 'Infrastructure', description: 'Build, CI/CD, deployment, config' },
-    { value: 'auth', label: 'Auth', description: 'Authentication, authorization' },
+export const SEED_DOMAINS = [
+    { value: 'ui', description: 'User interface, components, pages, styling' },
+    { value: 'api', description: 'Server endpoints, API handlers' },
+    { value: 'database', description: 'MongoDB collections, schemas, queries' },
+    { value: 'agents', description: 'AI agents, workflow pipeline' },
+    { value: 'infra', description: 'Build, CI/CD, deployment, config' },
+    { value: 'auth', description: 'Authentication, authorization' },
 ] as const;
 
-export type DomainValue = typeof DOMAINS[number]['value'];
-export const VALID_DOMAIN_VALUES = new Set<string>(DOMAINS.map(d => d.value));
-export const DOMAIN_VALUES = DOMAINS.map(d => d.value);
+/**
+ * Normalize a domain string: lowercase and trim.
+ * All domain values should pass through this before being saved.
+ */
+export function normalizeDomain(domain: string): string {
+    return domain.trim().toLowerCase();
+}

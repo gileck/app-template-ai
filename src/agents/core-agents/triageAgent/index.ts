@@ -32,8 +32,9 @@ import {
 import {
     findWorkflowItemByIssueNumber,
     updateWorkflowFields,
+    getUniqueDomains,
 } from '@/server/database/collections/template/workflow-items/workflow-items';
-import { VALID_DOMAIN_VALUES } from '@/server/template/project-management/domains';
+import { normalizeDomain } from '@/server/template/project-management/domains';
 
 export async function processItem(
     processable: ProcessableItem,
@@ -81,6 +82,9 @@ export async function processItem(
         // Non-fatal - proceed without issue body
     }
 
+    // Fetch existing domains for prompt context
+    const existingDomains = await getUniqueDomains();
+
     const prompt = buildTriagePrompt({
         title: content.title,
         description: doc.description,
@@ -89,6 +93,7 @@ export async function processItem(
         hasPriority: !!doc.priority,
         hasSize: !!doc.size,
         hasComplexity: !!doc.complexity,
+        existingDomains,
     });
 
     if (options.dryRun) {
@@ -130,14 +135,9 @@ export async function processItem(
         }
     }
 
-    // Validate domain
-    if (!VALID_DOMAIN_VALUES.has(output.domain)) {
-        return { success: false, error: `Invalid domain from AI: ${output.domain}` };
-    }
-
     // Build fields to update (only set fields that are currently missing)
     const fields: Record<string, string> = {};
-    if (!doc.domain) fields.domain = output.domain;
+    if (!doc.domain) fields.domain = normalizeDomain(output.domain);
     if (!doc.priority && output.priority) fields.priority = output.priority;
     if (!doc.size && output.size) fields.size = output.size;
     if (!doc.complexity && output.complexity) fields.complexity = output.complexity;

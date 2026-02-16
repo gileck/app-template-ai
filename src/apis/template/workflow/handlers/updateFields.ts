@@ -7,7 +7,6 @@
 import { ApiHandlerContext } from '@/apis/types';
 import { updateWorkflowFields } from '@/server/database/collections/template/workflow-items/workflow-items';
 import { isObjectIdFormat } from '@/server/template/utils';
-import { VALID_DOMAIN_VALUES } from '@/server/template/project-management/domains';
 import type { UpdateWorkflowFieldsRequest, UpdateWorkflowFieldsResponse } from '../types';
 
 const VALID_PRIORITIES = new Set(['critical', 'high', 'medium', 'low']);
@@ -42,10 +41,6 @@ export async function updateFields(
     if (fields.complexity !== undefined && fields.complexity !== null && !VALID_COMPLEXITIES.has(fields.complexity)) {
         return { error: `Invalid complexity: ${fields.complexity}` };
     }
-    if (fields.domain !== undefined && fields.domain !== null && !VALID_DOMAIN_VALUES.has(fields.domain)) {
-        return { error: `Invalid domain: ${fields.domain}` };
-    }
-
     try {
         await updateWorkflowFields(itemId, fields);
         return { success: true };

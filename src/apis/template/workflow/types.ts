@@ -5,13 +5,6 @@
  */
 
 // ============================================================================
-// Domain Values (shared between client and server)
-// ============================================================================
-
-export const DOMAIN_VALUES = ['ui', 'api', 'database', 'agents', 'infra', 'auth', 'workflow'] as const;
-export type DomainValue = typeof DOMAIN_VALUES[number];
-
-// ============================================================================
 // Shared Types
 // ============================================================================
 

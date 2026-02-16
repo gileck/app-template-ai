@@ -8,7 +8,6 @@ import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument, FeatureRequestStatus, FeatureRequestPriority } from '@/server/database/collections/template/feature-requests/types';
 import type { ReportDocument, ReportStatus } from '@/server/database/collections/template/reports/types';
 import { findWorkflowItemBySourceRef, updateWorkflowFields } from '@/server/database/collections/template/workflow-items/workflow-items';
-import { VALID_DOMAIN_VALUES } from '@/server/template/project-management/domains';
 import { parseArgs } from '../utils/parse-args';
 
 const FEATURE_STATUSES: FeatureRequestStatus[] = ['new', 'in_progress', 'done', 'rejected'];
@@ -124,12 +123,6 @@ export async function handleUpdate(args: string[]): Promise<void> {
         console.error('Valid values: High, Medium, Low');
         process.exit(1);
     }
-    if (parsed.domain && !VALID_DOMAIN_VALUES.has(parsed.domain)) {
-        console.error(`\nError: Invalid domain "${parsed.domain}".`);
-        console.error(`Valid values: ${[...VALID_DOMAIN_VALUES].join(', ')}`);
-        process.exit(1);
-    }
-
     // Validate and apply updates
     if (result.type === 'feature') {
         const feature = result.item as FeatureRequestDocument;

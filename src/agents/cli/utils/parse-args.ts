@@ -4,8 +4,6 @@
  * Simple argument parsing for CLI commands.
  */
 
-import { VALID_DOMAIN_VALUES } from '@/server/template/project-management/domains';
-
 export interface ParsedArgs {
     type?: string;
     title?: string;
@@ -150,9 +148,6 @@ export function validateCreateArgs(args: ParsedArgs): { valid: boolean; error?: 
     }
     if (args.complexity && !['High', 'Medium', 'Low'].includes(args.complexity)) {
         return { valid: false, error: 'Invalid --complexity. Use: High | Medium | Low' };
-    }
-    if (args.domain && !VALID_DOMAIN_VALUES.has(args.domain)) {
-        return { valid: false, error: `Invalid --domain. Use: ${[...VALID_DOMAIN_VALUES].join(' | ')}` };
     }
     return { valid: true };
 }

@@ -801,8 +801,7 @@ export const TRIAGE_OUTPUT_FORMAT = {
         properties: {
             domain: {
                 type: 'string',
-                enum: ['ui', 'api', 'database', 'agents', 'infra', 'auth'],
-                description: 'The domain/area of the application this item belongs to.',
+                description: 'The domain/area of the application this item belongs to. Use an existing domain if one fits, or create a new short lowercase label.',
             },
             priority: {
                 type: 'string',
