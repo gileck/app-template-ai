@@ -315,7 +315,7 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 **Key Points:**
 - Entry points: UI feature request, UI bug report, or CLI
-- Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review
+- Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review, Triage (standalone)
 - Status tracking: Source collections (high-level) + workflow-items collection (pipeline)
 - All actions logged to agent-logs/issue-N.md
 
@@ -325,15 +325,16 @@ Architecture and flow of the AI-powered feature/bug pipeline. Use this to unders
 
 ## Agent Workflow CLI
 
-CLI for managing feature requests and bug reports. Use this when working with `yarn agent-workflow` commands.
+CLI for managing workflow items. Use this when working with `yarn agent-workflow` commands.
 
-**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity). Supports `--auto-approve`, `--route`, and `--created-by` for automated workflows.
+**Summary:** Commands: `start` (interactive), `create` (new item), `list` (filter items), `get` (details + live pipeline status), `update` (change status/priority/size/complexity/domain). Supports `--auto-approve`, `--route`, and `--created-by` for automated workflows.
 
 **Key Points:**
-- list command: filter by --type, --status, --source
-- get command: shows live pipeline status, workflow item details (artifacts, history, createdBy)
-- update command: change status/priority/size/complexity with --dry-run
-- ID prefix matching supported (first 8 chars of ObjectId)
+- list command: filter by --type, --status, --domain
+- get command: shows workflow item details (artifacts, history, createdBy, description)
+- update command: change status/priority/size/complexity/domain with --dry-run
+- ID lookup: workflow-item ObjectId, ID prefix (first 8 chars), or GitHub issue number
+- create command: creates GitHub issue + workflow-item directly (no source docs)
 
 **Docs:** [cli.md](docs/template/github-agents-workflow/cli.md), [overview.md](docs/template/github-agents-workflow/overview.md), [workflow-e2e.md](docs/template/github-agents-workflow/workflow-e2e.md)
 
@@ -423,7 +424,7 @@ Complete documentation for the Bug Investigator agent and bug fix selection flow
 - Bugs auto-route to Bug Investigation on approval (no routing message)
 - Bug Investigator agent uses read-only tools (Glob, Grep, Read, WebFetch)
 - Investigation posted as GitHub issue comment with fix options
-- Obvious fixes (high confidence, S complexity) auto-submit without admin selection
+- Obvious fixes auto-submit when all conditions met: autoSubmit=true, high confidence, S complexity, destination=implement, and a recommended option exists
 - Admin selects fix approach via /decision/:issueNumber web UI (when not auto-submitted)
 - Routes to Tech Design (complex fixes) or Implementation (simple fixes)
 - Telegram notifications sent for auto-submits and manual submissions
