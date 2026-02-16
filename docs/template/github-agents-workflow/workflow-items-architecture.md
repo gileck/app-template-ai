@@ -60,6 +60,7 @@ This is the **pipeline** collection. Items are created here when approved and sy
     priority?: 'critical' | 'high' | 'medium' | 'low',
     size?: 'XS' | 'S' | 'M' | 'L' | 'XL',
     complexity?: 'High' | 'Medium' | 'Low',
+    domain?: string,                      // Domain classification (e.g., 'ui', 'api', 'agents')
     artifacts?: {                         // Structured workflow metadata (see Artifacts section)
         designs?: DesignArtifactRecord[],
         phases?: PhaseArtifactRecord[],

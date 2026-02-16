@@ -4,7 +4,7 @@ This document explains how to run the AI agents, when to run them, the agents co
 
 ## Overview
 
-The workflow includes seven AI agents that automate different phases of the development pipeline:
+The workflow includes eight AI agents that automate different phases of the development pipeline:
 
 1. **Product Development Agent** (Optional) - Transforms vague ideas into concrete product specs
 2. **Product Design Agent** - Generates UX/UI designs and mockups
@@ -13,6 +13,7 @@ The workflow includes seven AI agents that automate different phases of the deve
 5. **Implementation Agent** - Writes code and creates PRs
 6. **PR Review Agent** - Reviews implementation PRs and generates commit messages
 7. **Workflow Review Agent** - Reviews completed items and creates improvement issues
+8. **Triage Agent** (Standalone) - Classifies Backlog items by domain and suggests metadata
 
 ## Running Agents with Agents Copy (Recommended)
 
@@ -343,6 +344,42 @@ yarn agent:workflow-review --dry-run --stream
 
 **See [workflow-review.md](./workflow-review.md) for full documentation.**
 
+### 8. Triage Agent (Standalone)
+
+**When to run:** Items are in "Backlog" with missing domain or metadata
+
+**What it does:**
+- Classifies Backlog items by domain (e.g., `ui`, `api`, `agents`, `database`)
+- Suggests priority, size, and complexity if not already set
+- Verifies bugs still exist and features are not yet implemented
+- Appends a triage summary to the item description with investigation findings
+- Flags items that may no longer be relevant (already resolved)
+- Processes up to 3 items per run by default
+
+**Command:**
+```bash
+yarn agent:triage
+
+# Preview without saving:
+yarn agent:triage --dry-run
+
+# Stream output:
+yarn agent:triage --stream
+
+# Limit items:
+yarn agent:triage --limit 5
+```
+
+**Standalone execution:**
+- NOT part of the `--all` pipeline — runs independently via task config
+- Configured in `agent-tasks/triage/config.json` to run every 30 minutes
+- Domain values are free-form strings, normalized to lowercase
+- Existing domains from the database are shown in the prompt to encourage reuse
+
+**Skip conditions:**
+- Items already triaged (description contains `**Triage Summary:**`) AND all metadata fields present
+- Items without issue numbers or content
+
 ## Agent Execution Logs
 
 All agent executions are logged to MongoDB for debugging and auditing.
@@ -572,6 +609,7 @@ If an agent is blocked by this hook, check that the working directory is correct
 - `yarn agent:implement` - Write code and create PRs
 - `yarn agent:pr-review` - Review PRs (automated via cron)
 - `yarn agent:workflow-review` - Review completed items and create improvement issues
+- `yarn agent:triage` - Classify Backlog items by domain and suggest metadata (standalone)
 
 **Monitoring:**
 - Check agent logs in MongoDB

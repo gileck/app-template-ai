@@ -8,6 +8,7 @@ This folder contains task-cli configurations for scheduled agent tasks. These ta
 |------|----------|---------|
 | `all/` | Every 10 min | Runs all GitHub workflow agents sequentially |
 | `repo-commits-code-reviewer/` | Every 4 hours | Reviews commits for bugs and improvements |
+| `triage/` | Every 30 min | Classifies Backlog items by domain and suggests metadata |
 
 ---
 
@@ -48,6 +49,23 @@ Standalone agent that reviews git commits for bugs and improvements.
 
 ---
 
+## `triage/` — Triage Agent
+
+Standalone agent that classifies Backlog items by domain and suggests metadata.
+
+**How it works:**
+1. Finds Backlog items missing domain or metadata
+2. Uses AI to investigate the codebase and classify items
+3. Sets domain, priority, size, complexity (only missing fields)
+4. Verifies bugs still exist / features not yet implemented
+5. Appends triage summary to item description
+
+**Working directory:** Runs on main project.
+
+**Limits:** Processes up to 3 items per run by default.
+
+---
+
 ## Folder Structure
 
 ```
@@ -58,9 +76,14 @@ agent-tasks/
 │   └── runs/
 │       ├── output.log             # Latest run output
 │       └── status.json            # Run status
-└── repo-commits-code-reviewer/
+├── repo-commits-code-reviewer/
+│   ├── config.json                # task-cli configuration
+│   ├── state.json                 # Last reviewed commit
+│   └── runs/
+│       ├── output.log             # Latest run output
+│       └── status.json            # Run status
+└── triage/
     ├── config.json                # task-cli configuration
-    ├── state.json                 # Last reviewed commit
     └── runs/
         ├── output.log             # Latest run output
         └── status.json            # Run status
@@ -77,10 +100,12 @@ task-cli list
 # Check task status
 task-cli get app-template:agent:all
 task-cli get app-template:agent:repo-commits-code-reviewer
+task-cli get app-template:agent:triage
 
 # Run manually
 task-cli run app-template:agent:all --wait
 task-cli run app-template:agent:repo-commits-code-reviewer --wait
+task-cli run app-template:agent:triage --wait
 
 # Enable/disable
 task-cli disable app-template:agent:all

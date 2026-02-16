@@ -5,7 +5,7 @@ summary: "9-status workflow (Backlog → Product Development → Product Design 
 priority: 2
 key_points:
   - "Entry points: UI feature request, UI bug report, or CLI"
-  - "Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review"
+  - "Agents: Product Design, Bug Investigator, Tech Design, Implementor, PR Review, Workflow Review, Triage (standalone)"
   - "Status tracking: Source collections (high-level) + workflow-items collection (pipeline)"
   - "All actions logged to agent-logs/issue-N.md"
 related_docs:
@@ -183,7 +183,7 @@ All transports -- Telegram, UI, CLI, and agents -- go through a unified service 
 │  MongoDB Collections:                                                   │
 │  ├── feature-requests  # Intake: title, description, priority, status  │
 │  ├── reports           # Intake: error, stack trace, session logs       │
-│  └── workflow-items    # Pipeline: status, review, priority, size, complexity │
+│  └── workflow-items    # Pipeline: status, review, priority, size, complexity, domain │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -228,6 +228,7 @@ Since all agents use the same bot account, each agent prefixes its comments with
 | PR Review | 👀 | PR Review Agent |
 | Workflow Review | 📋 | Workflow Review Agent |
 | Auto-Advance | ⏭️ | Auto-Advance Agent |
+| Triage | 🏷️ | Triage Agent |
 
 **Example Comments:**
 
