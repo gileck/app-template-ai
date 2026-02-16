@@ -71,8 +71,6 @@ export function WorkflowCard({ item, onSelect, selectMode, selected, onToggleSel
                                 <StatusBadge label={item.reviewStatus} />
                             )}
                             {item.priority && <StatusBadge label={item.priority} colorKey={item.priority} />}
-                            {item.size && <StatusBadge label={item.size} colorKey={item.size} />}
-                            {item.complexity && <StatusBadge label={item.complexity} colorKey={item.complexity} />}
                             {item.domain && <StatusBadge label={item.domain} colorKey="domain" />}
                             {item.createdBy && <StatusBadge label={item.createdBy} />}
                         </div>
