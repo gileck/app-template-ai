@@ -16,6 +16,7 @@ import {
     type LogContext,
 } from './logging';
 import { buildPlanSubagentPrompt } from '@/agents/shared/prompts';
+import { calcTotalTokens } from '@/agents/shared/types';
 
 // Import adapters directly
 import claudeCodeSDKAdapter from './adapters/claude-code-sdk';
@@ -333,12 +334,9 @@ async function runImplementationPlanSubagent(
         }
 
         // Calculate totals for summary
-        const totalTokens = result.usage
-            ? result.usage.inputTokens + result.usage.outputTokens
-            : 0;
+        const totalTokens = calcTotalTokens(result.usage);
         const totalCost = result.usage?.totalCostUSD || 0;
-        // Use files examined as a proxy for tool calls (not tracked directly)
-        const toolCallsCount = result.filesExamined?.length || 0;
+        const toolCallsCount = result.toolCallsCount ?? result.filesExamined?.length ?? 0;
 
         if (result.success && result.content) {
             console.log(`  ✅ Plan subagent completed successfully:

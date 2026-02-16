@@ -365,6 +365,7 @@ IMPORTANT:
                         filesExamined,
                         usage,
                         durationSeconds,
+                        toolCallsCount: toolCallCount,
                     };
                 }
 
@@ -377,6 +378,7 @@ IMPORTANT:
                         filesExamined,
                         usage,
                         durationSeconds,
+                        toolCallsCount: toolCallCount,
                     };
                 }
 
@@ -392,6 +394,7 @@ IMPORTANT:
                     usage,
                     durationSeconds,
                     structuredOutput,
+                    toolCallsCount: toolCallCount,
                 };
             } else {
                 // Non-streaming execution
@@ -443,6 +446,7 @@ IMPORTANT:
                         filesExamined,
                         usage,
                         durationSeconds,
+                        toolCallsCount: toolCallCount,
                     };
                 }
 
@@ -455,6 +459,7 @@ IMPORTANT:
                         filesExamined,
                         usage,
                         durationSeconds,
+                        toolCallsCount: toolCallCount,
                     };
                 }
 
@@ -470,6 +475,7 @@ IMPORTANT:
                     usage,
                     durationSeconds,
                     structuredOutput,
+                    toolCallsCount: toolCallCount,
                 };
             }
         } catch (error) {
@@ -488,6 +494,7 @@ IMPORTANT:
                 filesExamined,
                 usage: null,
                 durationSeconds,
+                toolCallsCount: toolCallCount,
             };
         }
     }

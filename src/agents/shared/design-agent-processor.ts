@@ -49,6 +49,7 @@
 import { REVIEW_STATUSES } from './config';
 import { getProjectConfig } from './config';
 import type { CommonCLIOptions, GitHubComment } from './types';
+import { calcTotalTokens } from './types';
 import type { ProjectItemContent } from '@/server/template/project-management';
 import { getProjectManagementAdapter } from '@/server/template/project-management';
 import { runAgent, extractMarkdown, getLibraryForWorkflow, getModelForWorkflow } from '../lib';
@@ -873,8 +874,8 @@ ${comment}`;
 
                 await logExecutionEnd(logCtx, {
                     success: true,
-                    toolCallsCount: 0,
-                    totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                    toolCallsCount: result.toolCallsCount ?? 0,
+                    totalTokens: calcTotalTokens(result.usage),
                     totalCost: result.usage?.totalCostUSD ?? 0,
                 });
 

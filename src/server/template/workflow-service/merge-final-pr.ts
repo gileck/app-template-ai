@@ -48,6 +48,9 @@ export async function mergeFinalPR(
     // Get PR info for commit message
     const prInfo = await adapter.getPRInfo(prNumber);
     if (!prInfo) {
+        if (logExists(issueNumber)) {
+            logWebhookPhaseEnd(issueNumber, 'Final Review Merge', 'failed', 'webhook');
+        }
         return { success: false, error: 'Could not fetch PR info' };
     }
 
@@ -70,6 +73,9 @@ export async function mergeFinalPR(
         if (errorMsg.includes('already been merged') || errorMsg.includes('not open')) {
             mergeCommitSha = await adapter.getMergeCommitSha(prNumber);
         } else {
+            if (logExists(issueNumber)) {
+                logWebhookPhaseEnd(issueNumber, 'Final Review Merge', 'failed', 'webhook');
+            }
             throw mergeError;
         }
     }

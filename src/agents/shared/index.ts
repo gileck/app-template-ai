@@ -55,6 +55,7 @@ export type {
     ProcessingResult,
     BatchProcessingSummary,
 } from './types';
+export { calcTotalTokens } from './types';
 
 // Output schemas for structured outputs
 export type {

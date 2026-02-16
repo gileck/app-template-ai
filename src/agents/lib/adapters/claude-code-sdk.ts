@@ -317,6 +317,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                 usage,
                 durationSeconds,
                 structuredOutput,
+                toolCallsCount: toolCallCount,
             };
         } catch (error) {
             // Cleanup
@@ -348,6 +349,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     usage,
                     durationSeconds,
                     structuredOutput,
+                    toolCallsCount: toolCallCount,
                     timeoutDiagnostics: {
                         classification,
                         lastToolCalls: toolCallHistory.slice(-10),
@@ -368,6 +370,7 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                 usage,
                 durationSeconds,
                 structuredOutput,
+                toolCallsCount: toolCallCount,
             };
         }
     }

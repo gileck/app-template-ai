@@ -112,6 +112,8 @@ export interface AgentRunResult {
     usage: UsageStats | null;
     /** Execution time in seconds */
     durationSeconds: number;
+    /** Number of tool calls made during execution */
+    toolCallsCount?: number;
     /** Structured output when outputFormat is specified */
     structuredOutput?: unknown;
     /** Timeout diagnostic information (only present when agent timed out) */

@@ -187,6 +187,9 @@ export async function mergeImplementationPR(
                 });
             }
         } else {
+            if (logExists(issueNumber)) {
+                logWebhookPhaseEnd(issueNumber, 'PR Merge', 'failed', 'webhook');
+            }
             return { success: false, error: `Failed to merge PR #${prNumber}: ${errorMsg}` };
         }
     }

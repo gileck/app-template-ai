@@ -66,6 +66,8 @@ import {
     runAgentMain,
     // Decision utils
     toDecisionOptions,
+    // Token calculation
+    calcTotalTokens,
 } from '../../shared';
 import {
     createLogContext,
@@ -467,8 +469,8 @@ export async function processItem(
             // Log execution end
             await logExecutionEnd(logCtx, {
                 success: true,
-                toolCallsCount: 0,
-                totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                toolCallsCount: result.toolCallsCount ?? 0,
+                totalTokens: calcTotalTokens(result.usage),
                 totalCost: result.usage?.totalCostUSD ?? 0,
             });
 

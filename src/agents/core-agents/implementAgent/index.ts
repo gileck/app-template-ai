@@ -59,6 +59,8 @@ import {
     checkoutBranch,
     commitChanges,
     pushBranch,
+    // Token calculation
+    calcTotalTokens,
 } from '../../shared';
 import {
     getProductDesignPath,
@@ -434,8 +436,8 @@ export async function processItem(
             }
             await logExecutionEnd(logCtx, {
                 success: false,
-                toolCallsCount: 0,
-                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                toolCallsCount: result.toolCallsCount ?? 0,
+                totalTokens: calcTotalTokens(result.usage),
                 totalCost: result.usage?.totalCostUSD ?? 0,
             });
             return { success: false, error };
@@ -449,8 +451,8 @@ export async function processItem(
             git(`checkout ${defaultBranch}`);
             await logExecutionEnd(logCtx, {
                 success: false,
-                toolCallsCount: 0,
-                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                toolCallsCount: result.toolCallsCount ?? 0,
+                totalTokens: calcTotalTokens(result.usage),
                 totalCost: result.usage?.totalCostUSD ?? 0,
             });
             return await handleClarificationRequest(
@@ -508,8 +510,8 @@ export async function processItem(
                     git(`checkout ${defaultBranch}`);
                     await logExecutionEnd(logCtx, {
                         success: false,
-                        toolCallsCount: 0,
-                        totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                        toolCallsCount: result.toolCallsCount ?? 0,
+                        totalTokens: calcTotalTokens(result.usage),
                         totalCost: result.usage?.totalCostUSD ?? 0,
                     });
                     return { success: false, error: 'Agent did not make any changes' };
@@ -519,8 +521,8 @@ export async function processItem(
                 git(`checkout ${defaultBranch}`);
                 await logExecutionEnd(logCtx, {
                     success: false,
-                    toolCallsCount: 0,
-                    totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                    toolCallsCount: result.toolCallsCount ?? 0,
+                    totalTokens: calcTotalTokens(result.usage),
                     totalCost: result.usage?.totalCostUSD ?? 0,
                 });
                 return { success: false, error: 'Agent did not make any changes' };
@@ -556,8 +558,8 @@ export async function processItem(
             }
             await logExecutionEnd(logCtx, {
                 success: true,
-                toolCallsCount: 0,
-                totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                toolCallsCount: result.toolCallsCount ?? 0,
+                totalTokens: calcTotalTokens(result.usage),
                 totalCost: result.usage?.totalCostUSD ?? 0,
             });
             return { success: true };
@@ -596,8 +598,8 @@ export async function processItem(
                 if (!verifyAllPushed(branchName)) {
                     await logExecutionEnd(logCtx, {
                         success: false,
-                        toolCallsCount: 0,
-                        totalTokens: result.usage ? (result.usage.inputTokens + result.usage.outputTokens) : 0,
+                        toolCallsCount: result.toolCallsCount ?? 0,
+                        totalTokens: calcTotalTokens(result.usage),
                         totalCost: result.usage?.totalCostUSD ?? 0,
                     });
                     return { success: false, error: 'Failed to push all commits to remote. Please check network connection and try again.' };
@@ -674,8 +676,8 @@ export async function processItem(
         // Log execution end
         await logExecutionEnd(logCtx, {
             success: true,
-            toolCallsCount: 0, // Not tracked in UsageStats
-            totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+            toolCallsCount: result.toolCallsCount ?? 0,
+            totalTokens: calcTotalTokens(result.usage),
             totalCost: result.usage?.totalCostUSD ?? 0,
         });
 

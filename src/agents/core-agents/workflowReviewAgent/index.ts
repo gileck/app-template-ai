@@ -20,6 +20,7 @@ import {
     type CommonCLIOptions,
     type WorkflowReviewOutput,
     runAgentMain,
+    calcTotalTokens,
 } from '../../shared';
 import {
     createLogContext,
@@ -351,8 +352,8 @@ export async function processItem(
                 logError(logCtx, allFailedMsg, true);
                 await logExecutionEnd(logCtx, {
                     success: false,
-                    toolCallsCount: 0,
-                    totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                    toolCallsCount: result.toolCallsCount ?? 0,
+                    totalTokens: calcTotalTokens(result.usage),
                     totalCost: result.usage?.totalCostUSD ?? 0,
                 });
                 return { success: false, findingsCount: 0 };
@@ -383,8 +384,8 @@ export async function processItem(
             // Log execution end
             await logExecutionEnd(logCtx, {
                 success: true,
-                toolCallsCount: 0,
-                totalTokens: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+                toolCallsCount: result.toolCallsCount ?? 0,
+                totalTokens: calcTotalTokens(result.usage),
                 totalCost: result.usage?.totalCostUSD ?? 0,
             });
 

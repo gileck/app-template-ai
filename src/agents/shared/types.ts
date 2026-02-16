@@ -21,6 +21,16 @@ export interface UsageStats {
 }
 
 /**
+ * Calculate total tokens including cache tokens.
+ * inputTokens from the SDK already excludes cache tokens, so we must add them back.
+ */
+export function calcTotalTokens(usage: UsageStats | null | undefined): number {
+    if (!usage) return 0;
+    return (usage.inputTokens ?? 0) + (usage.cacheReadInputTokens ?? 0) +
+           (usage.cacheCreationInputTokens ?? 0) + (usage.outputTokens ?? 0);
+}
+
+/**
  * Result from running an agent
  */
 export interface AgentResult {
