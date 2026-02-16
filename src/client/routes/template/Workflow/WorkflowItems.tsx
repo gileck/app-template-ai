@@ -5,9 +5,10 @@
  * Delegates rendering to extracted components.
  */
 
-import { useMemo } from 'react';
-import { ChevronsUpDown, Loader2, RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronsUpDown, Loader2, RefreshCw, CheckCircle, Trash2, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
+import { Badge } from '@/client/components/template/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/client/components/template/ui/select';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
@@ -25,6 +26,7 @@ import { ItemPreviewDialog } from './ItemPreviewDialog';
 import { KanbanBoard } from './KanbanBoard';
 import { ActivityFeed } from './ActivityFeed';
 import { PIPELINE_STATUSES, ALL_SECTION_KEYS } from './constants';
+import { WorkflowFilterSheet, countActiveFilters } from './WorkflowFilterSheet';
 import type { TypeFilter, PriorityFilter, SizeFilter, SortBy } from './store';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
@@ -84,6 +86,9 @@ export function WorkflowItems() {
     const resetBulkDelete = useWorkflowPageStore((s) => s.resetBulkDelete);
     const setIsBulkDeleting = useWorkflowPageStore((s) => s.setIsBulkDeleting);
     const setIsBulkApproving = useWorkflowPageStore((s) => s.setIsBulkApproving);
+
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog open state
+    const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
     const queryClient = useQueryClient();
     const { deleteFeature, deleteBug } = useDeleteItem();
@@ -296,57 +301,75 @@ export function WorkflowItems() {
     const isEmpty = isListView && !hasPending && !hasPipelineGroups && !hasDone;
     const selectedCount = Object.keys(selectedItems).length;
     const allCollapsed = collapsedSections.length > 0;
+    const activeFilterCount = countActiveFilters(typeFilter, priorityFilter, sizeFilter, sortBy);
 
     return (
         <div className="p-4">
             <div className="flex items-center justify-between mb-3">
                 <h1 className="text-lg font-semibold">Workflow</h1>
                 <div className="flex items-center gap-1.5">
-                    <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
-                        <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs px-3">
-                            <SelectValue>{TYPE_LABELS[typeFilter]}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All types</SelectItem>
-                            <SelectItem value="feature">Features</SelectItem>
-                            <SelectItem value="bug">Bugs</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
-                        <SelectTrigger className="h-8 w-auto min-w-[80px] text-xs px-3">
-                            <SelectValue>{priorityFilter === 'all' ? 'Priority' : priorityFilter}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All priorities</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="low">Low</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={sizeFilter} onValueChange={(v) => setSizeFilter(v as SizeFilter)}>
-                        <SelectTrigger className="h-8 w-auto min-w-[60px] text-xs px-3">
-                            <SelectValue>{sizeFilter === 'all' ? 'Size' : sizeFilter}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All sizes</SelectItem>
-                            <SelectItem value="XS">XS</SelectItem>
-                            <SelectItem value="S">S</SelectItem>
-                            <SelectItem value="M">M</SelectItem>
-                            <SelectItem value="L">L</SelectItem>
-                            <SelectItem value="XL">XL</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                        <SelectTrigger className="h-8 w-auto min-w-[70px] text-xs px-3">
-                            <SelectValue>{sortBy === 'date' ? 'Date' : sortBy === 'priority' ? 'Priority' : 'Size'}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="date">Sort: Date</SelectItem>
-                            <SelectItem value="priority">Sort: Priority</SelectItem>
-                            <SelectItem value="size">Sort: Size</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {/* Mobile: Filter button opening bottom sheet */}
+                    <div className="sm:hidden">
+                        <Button variant="outline" size="sm" onClick={() => setFilterSheetOpen(true)} className="gap-1.5 h-8 px-2.5">
+                            <SlidersHorizontal className="h-4 w-4" />
+                            <span className="text-xs">Filters</span>
+                            {activeFilterCount > 0 && (
+                                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                                    {activeFilterCount}
+                                </Badge>
+                            )}
+                        </Button>
+                    </div>
+
+                    {/* Desktop: Inline dropdowns */}
+                    <div className="hidden sm:flex items-center gap-1.5">
+                        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
+                            <SelectTrigger className="h-8 w-auto min-w-[100px] text-xs px-3">
+                                <SelectValue>{TYPE_LABELS[typeFilter]}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All types</SelectItem>
+                                <SelectItem value="feature">Features</SelectItem>
+                                <SelectItem value="bug">Bugs</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
+                            <SelectTrigger className="h-8 w-auto min-w-[80px] text-xs px-3">
+                                <SelectValue>{priorityFilter === 'all' ? 'Priority' : priorityFilter}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All priorities</SelectItem>
+                                <SelectItem value="critical">Critical</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={sizeFilter} onValueChange={(v) => setSizeFilter(v as SizeFilter)}>
+                            <SelectTrigger className="h-8 w-auto min-w-[60px] text-xs px-3">
+                                <SelectValue>{sizeFilter === 'all' ? 'Size' : sizeFilter}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All sizes</SelectItem>
+                                <SelectItem value="XS">XS</SelectItem>
+                                <SelectItem value="S">S</SelectItem>
+                                <SelectItem value="M">M</SelectItem>
+                                <SelectItem value="L">L</SelectItem>
+                                <SelectItem value="XL">XL</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+                            <SelectTrigger className="h-8 w-auto min-w-[70px] text-xs px-3">
+                                <SelectValue>{sortBy === 'date' ? 'Date' : sortBy === 'priority' ? 'Priority' : 'Size'}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="date">Sort: Date</SelectItem>
+                                <SelectItem value="priority">Sort: Priority</SelectItem>
+                                <SelectItem value="size">Sort: Size</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <button
                         onClick={toggleSelectMode}
                         disabled={isBulkBusy}
@@ -530,6 +553,19 @@ export function WorkflowItems() {
                 confirmText={isBulkDeleting ? 'Deleting...' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
                 onConfirm={handleBulkDelete}
                 variant="destructive"
+            />
+
+            <WorkflowFilterSheet
+                open={filterSheetOpen}
+                onOpenChange={setFilterSheetOpen}
+                typeFilter={typeFilter}
+                onTypeChange={setTypeFilter}
+                priorityFilter={priorityFilter}
+                onPriorityChange={setPriorityFilter}
+                sizeFilter={sizeFilter}
+                onSizeChange={setSizeFilter}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
             />
         </div>
     );
