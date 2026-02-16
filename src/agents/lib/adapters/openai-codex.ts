@@ -291,6 +291,8 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,
                         cost: usage.totalCostUSD,
+                        cacheReadInputTokens: usage.cacheReadInputTokens,
+                        cacheCreationInputTokens: usage.cacheCreationInputTokens,
                     });
                 }
 
@@ -366,6 +368,8 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,
                         cost: usage.totalCostUSD,
+                        cacheReadInputTokens: usage.cacheReadInputTokens,
+                        cacheCreationInputTokens: usage.cacheCreationInputTokens,
                     });
                 }
 

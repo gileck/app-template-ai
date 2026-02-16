@@ -327,6 +327,8 @@ async function runImplementationPlanSubagent(
                 inputTokens: result.usage.inputTokens,
                 outputTokens: result.usage.outputTokens,
                 cost: result.usage.totalCostUSD,
+                cacheReadInputTokens: result.usage.cacheReadInputTokens,
+                cacheCreationInputTokens: result.usage.cacheCreationInputTokens,
             });
         }
 
