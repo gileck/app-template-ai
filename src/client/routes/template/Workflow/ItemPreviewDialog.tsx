@@ -2,16 +2,17 @@
  * ItemPreviewDialog
  *
  * Full modal dialog for previewing and acting on a workflow item.
- * Fetches item details, shows description, actions, history, and status changes.
+ * Organized into three zones: header (fixed top), scrollable content, actions panel (fixed bottom).
  */
 
 import { useState, useMemo } from 'react';
-import { Loader2, ExternalLink, Clock, CheckCircle, Trash2, Copy, ArrowRightLeft, Archive } from 'lucide-react';
+import { Loader2, ExternalLink, Clock, CheckCircle, Trash2, Copy, Archive } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/client/components/template/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/client/components/template/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/client/components/template/ui/select';
+import { Separator } from '@/client/components/template/ui/separator';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { toast } from '@/client/components/template/ui/toast';
 import { useRouter } from '@/client/features';
@@ -192,9 +193,16 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
         }
     };
 
+    const ghUrl = item
+        ? (isFeature ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl)
+        : null;
+    const source = item
+        ? (isFeature ? item.feature!.source : item.report!.source)
+        : null;
+
     return (
         <Dialog open={!!itemId} onOpenChange={(open) => { if (!open) { setShowRouting(false); onClose(); } }}>
-            <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+            <DialogContent className="max-w-lg max-h-[80vh] flex flex-col !p-0">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -205,75 +213,201 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                     </div>
                 ) : (
                     <>
-                        <DialogHeader>
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="flex flex-wrap items-center gap-1.5 mb-2 min-w-0">
-                                    <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
-                                    <StatusBadge label={status} />
-                                    {matchedWorkflowItem?.priority ? (
-                                        <StatusBadge label={matchedWorkflowItem.priority} colorKey={matchedWorkflowItem.priority} />
-                                    ) : isFeature && item.feature!.priority ? (
-                                        <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
-                                    ) : null}
-                                    {matchedWorkflowItem?.size && (
-                                        <StatusBadge label={matchedWorkflowItem.size} colorKey={matchedWorkflowItem.size} />
-                                    )}
-                                    {matchedWorkflowItem?.complexity && (
-                                        <StatusBadge label={matchedWorkflowItem.complexity} colorKey={matchedWorkflowItem.complexity} />
-                                    )}
-                                    {isFeature && item.feature!.source && (
-                                        <StatusBadge label={`via ${item.feature!.source}`} colorKey="source" />
-                                    )}
-                                    {!isFeature && item.report!.source && (
-                                        <StatusBadge label={`via ${item.report!.source}`} colorKey="source" />
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0 mr-6">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={handleCopyDetails}
-                                        title="Copy details"
-                                    >
-                                        <Copy className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={() => {
-                                            onClose();
-                                            navigate(`/admin/item/${itemId}`);
-                                        }}
-                                        title="View full details"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>
+                        {/* Zone 1 — Header */}
+                        <DialogHeader className="px-6 pt-6 pb-3">
+                            <DialogTitle className="text-base leading-snug text-left pr-6">{title}</DialogTitle>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
+                                <StatusBadge label={matchedWorkflowItem?.status || status} />
+                                {matchedWorkflowItem?.reviewStatus && (
+                                    <StatusBadge label={matchedWorkflowItem.reviewStatus} colorKey={matchedWorkflowItem.reviewStatus} />
+                                )}
+                                {createdAt && (
+                                    <>
+                                        <span className="text-muted-foreground text-xs">·</span>
+                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Clock className="h-3 w-3 shrink-0" />
+                                            {new Date(createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                    </>
+                                )}
+                                {isFeature && item.feature!.requestedByName && (
+                                    <>
+                                        <span className="text-muted-foreground text-xs">·</span>
+                                        <span className="text-xs text-muted-foreground">by {item.feature!.requestedByName}</span>
+                                    </>
+                                )}
+                                {!isFeature && item.report!.route && (
+                                    <>
+                                        <span className="text-muted-foreground text-xs">·</span>
+                                        <span className="text-xs text-muted-foreground">on {item.report!.route}</span>
+                                    </>
+                                )}
+                                {matchedWorkflowItem?.createdBy && (
+                                    <>
+                                        <span className="text-muted-foreground text-xs">·</span>
+                                        <span className="text-xs text-muted-foreground">by {matchedWorkflowItem.createdBy}</span>
+                                    </>
+                                )}
                             </div>
-                            <DialogTitle className="text-base leading-snug pr-6">{title}</DialogTitle>
-                            {createdAt && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                                    <Clock className="h-3 w-3 shrink-0" />
-                                    <span>{new Date(createdAt).toLocaleDateString()}</span>
-                                    {isFeature && item.feature!.requestedByName && (
-                                        <span>by {item.feature!.requestedByName}</span>
-                                    )}
-                                    {!isFeature && item.report!.route && (
-                                        <span>on {item.report!.route}</span>
-                                    )}
-                                </div>
-                            )}
                         </DialogHeader>
 
-                        <div className="overflow-y-auto flex-1 min-h-0 -mx-6 px-6 py-2">
-                            {description && (
-                                <div className="markdown-body text-sm mb-4">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {description}
-                                    </ReactMarkdown>
+                        <Separator />
+
+                        {/* Zone 2 — Scrollable Content */}
+                        <div className="overflow-y-auto flex-1 min-h-0 px-6 py-3">
+                            {/* Properties grid with inline editing */}
+                            {matchedWorkflowItem && (
+                                <div className="bg-muted/50 rounded-lg p-3 mb-4 flex flex-col gap-2.5">
+                                    {/* Status */}
+                                    {workflowItemId && matchedWorkflowItem.status && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <span className="text-muted-foreground shrink-0 w-20">Status</span>
+                                            <Select value={matchedWorkflowItem.status} onValueChange={handleStatusChange}>
+                                                <SelectTrigger className="h-7 text-xs flex-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="z-[70]">
+                                                    {ALL_STATUSES.map((s) => (
+                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                    {/* Editable fields */}
+                                    {workflowItemId && (
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[10px] text-muted-foreground px-1">Priority</span>
+                                                <Select
+                                                    value={matchedWorkflowItem.priority || 'none'}
+                                                    onValueChange={(v) => handleFieldChange('priority', v)}
+                                                >
+                                                    <SelectTrigger className="h-7 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="z-[70]">
+                                                        <SelectItem value="none">—</SelectItem>
+                                                        <SelectItem value="critical">Critical</SelectItem>
+                                                        <SelectItem value="high">High</SelectItem>
+                                                        <SelectItem value="medium">Medium</SelectItem>
+                                                        <SelectItem value="low">Low</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[10px] text-muted-foreground px-1">Size</span>
+                                                <Select
+                                                    value={matchedWorkflowItem.size || 'none'}
+                                                    onValueChange={(v) => handleFieldChange('size', v)}
+                                                >
+                                                    <SelectTrigger className="h-7 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="z-[70]">
+                                                        <SelectItem value="none">—</SelectItem>
+                                                        <SelectItem value="XS">XS</SelectItem>
+                                                        <SelectItem value="S">S</SelectItem>
+                                                        <SelectItem value="M">M</SelectItem>
+                                                        <SelectItem value="L">L</SelectItem>
+                                                        <SelectItem value="XL">XL</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-[10px] text-muted-foreground px-1">Complexity</span>
+                                                <Select
+                                                    value={matchedWorkflowItem.complexity || 'none'}
+                                                    onValueChange={(v) => handleFieldChange('complexity', v)}
+                                                >
+                                                    <SelectTrigger className="h-7 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="z-[70]">
+                                                        <SelectItem value="none">—</SelectItem>
+                                                        <SelectItem value="High">High</SelectItem>
+                                                        <SelectItem value="Medium">Medium</SelectItem>
+                                                        <SelectItem value="Low">Low</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Read-only metadata rows */}
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                                        {matchedWorkflowItem.domain && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Domain</span>
+                                                <StatusBadge label={matchedWorkflowItem.domain} colorKey="domain" />
+                                            </div>
+                                        )}
+                                        {source && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Source</span>
+                                                <span className="text-foreground">via {source}</span>
+                                            </div>
+                                        )}
+                                        {ghUrl && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">GitHub</span>
+                                                <a href={ghUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                                    View Issue →
+                                                </a>
+                                            </div>
+                                        )}
+                                        {matchedWorkflowItem.prData?.currentPrNumber && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">PR</span>
+                                                <span className="text-foreground">#{matchedWorkflowItem.prData.currentPrNumber}</span>
+                                            </div>
+                                        )}
+                                        {matchedWorkflowItem.prData?.finalPrNumber && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Final PR</span>
+                                                <span className="text-foreground">#{matchedWorkflowItem.prData.finalPrNumber}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                            )}
+
+                            {/* Non-workflow item: show source/priority/github */}
+                            {!matchedWorkflowItem && (source || ghUrl || (isFeature && item.feature!.priority)) && (
+                                <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                                        {isFeature && item.feature!.priority && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Priority</span>
+                                                <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
+                                            </div>
+                                        )}
+                                        {source && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Source</span>
+                                                <span className="text-foreground">via {source}</span>
+                                            </div>
+                                        )}
+                                        {ghUrl && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">GitHub</span>
+                                                <a href={ghUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                                    View Issue →
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {description && (
+                                <>
+                                    <div className="markdown-body text-sm mb-4">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {description}
+                                        </ReactMarkdown>
+                                    </div>
+                                </>
                             )}
 
                             {!isFeature && item.report!.errorMessage && (
@@ -294,96 +428,17 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 </div>
                             )}
 
-                            {(() => {
-                                const ghUrl = isFeature
-                                    ? item.feature!.githubIssueUrl
-                                    : item.report!.githubIssueUrl;
-                                if (!ghUrl) return null;
-                                return (
-                                    <p className="text-xs text-muted-foreground mb-4">
-                                        GitHub:{' '}
-                                        <a
-                                            href={ghUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary underline"
-                                        >
-                                            View Issue
-                                        </a>
-                                    </p>
-                                );
-                            })()}
+                            {matchedWorkflowItem?.history?.length ? (
+                                <>
+                                    <Separator className="my-3" />
+                                    <WorkflowHistory entries={matchedWorkflowItem.history} />
+                                </>
+                            ) : null}
                         </div>
 
-                        <div className="pt-3 border-t -mx-6 px-6 flex flex-col gap-2">
-                            {workflowItemId && matchedWorkflowItem?.status && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground shrink-0">{matchedWorkflowItem.status}</span>
-                                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <Select
-                                        value=""
-                                        onValueChange={handleStatusChange}
-                                    >
-                                        <SelectTrigger className="h-8 text-xs flex-1">
-                                            <SelectValue placeholder="Move to..." />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[70]">
-                                            {ALL_STATUSES.map((s) => (
-                                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                            {workflowItemId && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <Select
-                                        value={matchedWorkflowItem?.priority || 'none'}
-                                        onValueChange={(v) => handleFieldChange('priority', v)}
-                                    >
-                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[90px]">
-                                            <SelectValue placeholder="Priority" />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[70]">
-                                            <SelectItem value="none">No priority</SelectItem>
-                                            <SelectItem value="critical">Critical</SelectItem>
-                                            <SelectItem value="high">High</SelectItem>
-                                            <SelectItem value="medium">Medium</SelectItem>
-                                            <SelectItem value="low">Low</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Select
-                                        value={matchedWorkflowItem?.size || 'none'}
-                                        onValueChange={(v) => handleFieldChange('size', v)}
-                                    >
-                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
-                                            <SelectValue placeholder="Size" />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[70]">
-                                            <SelectItem value="none">No size</SelectItem>
-                                            <SelectItem value="XS">XS</SelectItem>
-                                            <SelectItem value="S">S</SelectItem>
-                                            <SelectItem value="M">M</SelectItem>
-                                            <SelectItem value="L">L</SelectItem>
-                                            <SelectItem value="XL">XL</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Select
-                                        value={matchedWorkflowItem?.complexity || 'none'}
-                                        onValueChange={(v) => handleFieldChange('complexity', v)}
-                                    >
-                                        <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]">
-                                            <SelectValue placeholder="Complexity" />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[70]">
-                                            <SelectItem value="none">No complexity</SelectItem>
-                                            <SelectItem value="High">High</SelectItem>
-                                            <SelectItem value="Medium">Medium</SelectItem>
-                                            <SelectItem value="Low">Low</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
+                        {/* Zone 3 — Actions Panel */}
+                        <div className="border-t px-6 py-3 flex flex-col gap-2">
+                            {/* Workflow action buttons (approve/reject/merge/etc) */}
                             {matchedWorkflowItem && matchedWorkflowItem.content?.number && (
                                 <WorkflowActionButtons
                                     item={matchedWorkflowItem}
@@ -392,10 +447,7 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 />
                             )}
 
-                            {matchedWorkflowItem?.history?.length ? (
-                                <WorkflowHistory entries={matchedWorkflowItem.history} />
-                            ) : null}
-
+                            {/* Routing buttons (post-approval) */}
                             {showRouting && (
                                 <div className="flex flex-col gap-2">
                                     <p className="text-xs text-muted-foreground">Choose where to route:</p>
@@ -416,6 +468,7 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 </div>
                             )}
 
+                            {/* Approve + Backlog (for new pending items) */}
                             {!showRouting && canApprove && (
                                 <div className="flex gap-2">
                                     <Button
@@ -441,20 +494,45 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 </div>
                             )}
 
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setShowDeleteConfirm(true)}
-                                disabled={isApproving || isDeleting}
-                            >
-                                {isDeleting ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                )}
-                                Delete
-                            </Button>
+                            {/* Bottom row: open detail + copy + delete */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs text-muted-foreground"
+                                        onClick={() => {
+                                            onClose();
+                                            navigate(`/admin/item/${itemId}`);
+                                        }}
+                                    >
+                                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                                        Open
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs text-muted-foreground"
+                                        onClick={handleCopyDetails}
+                                    >
+                                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                                        Copy
+                                    </Button>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    disabled={isApproving || isDeleting}
+                                >
+                                    {isDeleting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     </>
                 )}
