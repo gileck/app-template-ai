@@ -414,7 +414,7 @@ export async function processItem(
 async function run(options: CommonCLIOptions): Promise<void> {
     // Query Done items that haven't been reviewed
     console.log('  Fetching Done items...');
-    const doneItems = await findAllWorkflowItems('Done');
+    const doneItems = await findAllWorkflowItems({ status: 'Done' });
     const candidates = doneItems
         .filter(item => item.reviewed !== true && item.githubIssueNumber != null)
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());

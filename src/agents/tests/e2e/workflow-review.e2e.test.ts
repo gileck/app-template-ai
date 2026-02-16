@@ -287,7 +287,7 @@ describe('Workflow Review Agent', () => {
         const { processItem } = await import('@/agents/core-agents/workflowReviewAgent');
 
         // Fetch the item from DB
-        const doneItems = await findAllWorkflowItems('Done');
+        const doneItems = await findAllWorkflowItems({ status: 'Done' });
         const itemToReview = doneItems.find(
             item => item.githubIssueNumber === issueNumber && item.reviewed !== true
         );
@@ -311,7 +311,7 @@ describe('Workflow Review Agent', () => {
         expect(reviewCall!.allowedTools).toEqual(['Read', 'Grep', 'Glob']);
 
         // 7. Assert: reviewed field set to true and reviewSummary stored in DB
-        const updatedItems = await findAllWorkflowItems('Done');
+        const updatedItems = await findAllWorkflowItems({ status: 'Done' });
         const reviewedItem = updatedItems.find(item => item.githubIssueNumber === issueNumber);
         expect(reviewedItem).toBeTruthy();
         expect(reviewedItem!.reviewed).toBe(true);
@@ -399,7 +399,7 @@ describe('Workflow Review Agent', () => {
 
         const { processItem } = await import('@/agents/core-agents/workflowReviewAgent');
 
-        const doneItems = await findAllWorkflowItems('Done');
+        const doneItems = await findAllWorkflowItems({ status: 'Done' });
         const itemToReview = doneItems.find(
             item => item.githubIssueNumber === issueNumber
         );
@@ -454,7 +454,7 @@ describe('Workflow Review Agent', () => {
 
         const { processItem } = await import('@/agents/core-agents/workflowReviewAgent');
 
-        const doneItems = await findAllWorkflowItems('Done');
+        const doneItems = await findAllWorkflowItems({ status: 'Done' });
         const itemToReview = doneItems.find(
             item => item.githubIssueNumber === issueNumber
         );
@@ -475,7 +475,7 @@ describe('Workflow Review Agent', () => {
         expect(agentCalls.length).toBe(0);
 
         // DB should be updated
-        const updatedItems = await findAllWorkflowItems('Done');
+        const updatedItems = await findAllWorkflowItems({ status: 'Done' });
         const reviewedItem = updatedItems.find(
             item => item.githubIssueNumber === issueNumber
         );
@@ -519,7 +519,7 @@ describe('Workflow Review Agent', () => {
 
         const { processItem } = await import('@/agents/core-agents/workflowReviewAgent');
 
-        const doneItems = await findAllWorkflowItems('Done');
+        const doneItems = await findAllWorkflowItems({ status: 'Done' });
         const itemToReview = doneItems.find(
             item => item.githubIssueNumber === issueNumber
         );
@@ -538,7 +538,7 @@ describe('Workflow Review Agent', () => {
         expect(mockSpawnSync).not.toHaveBeenCalled();
 
         // DB should still be updated
-        const updatedItems = await findAllWorkflowItems('Done');
+        const updatedItems = await findAllWorkflowItems({ status: 'Done' });
         const reviewedItem = updatedItems.find(
             item => item.githubIssueNumber === issueNumber
         );

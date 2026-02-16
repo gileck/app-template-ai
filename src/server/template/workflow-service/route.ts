@@ -122,8 +122,45 @@ export async function routeWorkflowItemByWorkflowId(
 
     // Extract source ref from workflow item
     const sourceRef = workflowItem.sourceRef;
+
+    // Items without sourceRef (CLI-created) — route directly via workflow-items DB
     if (!sourceRef) {
-        return { success: false, error: 'Workflow item has no source reference' };
+        const statusMap = getRoutingStatusMap(workflowItem.type === 'task' ? 'feature' : workflowItem.type as 'feature' | 'bug');
+        const targetStatus = statusMap[destination];
+        if (!targetStatus) {
+            return { success: false, error: `Invalid routing destination: ${destination}` };
+        }
+        const targetLabel = ROUTING_DESTINATION_LABELS[destination] || destination;
+
+        // Update workflow-items DB directly (single atomic update)
+        const updates: Parameters<typeof updateWorkflowFields>[1] = { workflowStatus: targetStatus };
+        if (destination !== 'backlog') {
+            updates.workflowReviewStatus = null;
+        }
+        await updateWorkflowFields(workflowItemId, updates);
+
+        // Agent logging
+        const issueNumber = workflowItem.githubIssueNumber;
+        if (issueNumber && logExists(issueNumber)) {
+            logWebhookPhaseStart(issueNumber, 'Admin Routing', 'webhook');
+            logWebhookAction(issueNumber, 'routed', `Routed to ${targetLabel}`, {
+                itemId: workflowItemId,
+                destination,
+                targetStatus,
+            });
+            logWebhookPhaseEnd(issueNumber, 'Admin Routing', 'success', 'webhook');
+        }
+
+        // History log
+        if (issueNumber) {
+            void logHistory(issueNumber, 'routed', `Routed to ${targetLabel}`, 'admin');
+        }
+
+        // Telegram notification
+        const ref: WorkflowItemRef = { id: workflowItemId, type: workflowItem.type === 'task' ? 'feature' : workflowItem.type as 'feature' | 'bug' };
+        notifyRouted(ref, destination, workflowItem.githubIssueUrl, issueNumber).catch(() => {});
+
+        return { success: true, targetStatus, targetLabel };
     }
 
     const itemType = sourceRef.collection === 'feature-requests' ? 'feature' : 'bug';

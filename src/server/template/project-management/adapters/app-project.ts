@@ -65,7 +65,7 @@ export class AppProjectAdapter implements ProjectManagementAdapter {
     // --------------------------------------------------------
 
     async listItems(options?: ListItemsOptions): Promise<ProjectItem[]> {
-        const docs = await findAllWorkflowItems(options?.status, options?.reviewStatus);
+        const docs = await findAllWorkflowItems({ status: options?.status, reviewStatus: options?.reviewStatus });
 
         const items = docs.map((doc) => this.workflowItemToProjectItem(doc));
 
