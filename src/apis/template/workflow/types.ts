@@ -87,6 +87,7 @@ export interface WorkflowItem {
     size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
     complexity?: 'High' | 'Medium' | 'Low';
     domain?: string;
+    description?: string;
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
     prData?: WorkflowItemPRData;

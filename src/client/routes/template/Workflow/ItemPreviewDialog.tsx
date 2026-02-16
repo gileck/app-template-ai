@@ -28,7 +28,12 @@ import type { WorkflowItem } from '@/apis/template/workflow/types';
 export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: string | null; onClose: () => void; workflowItems?: WorkflowItem[] }) {
     const { navigate } = useRouter();
     const queryClient = useQueryClient();
-    const { item, isLoading } = useItemDetail(itemId || undefined);
+
+    // Workflow-only items (no ':' in ID) don't have source docs — skip source doc fetch
+    const isWorkflowItem = itemId ? !itemId.includes(':') : false;
+    const sourceDetailId = isWorkflowItem ? undefined : (itemId || undefined);
+    const { item, isLoading } = useItemDetail(sourceDetailId);
+
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
     const { routeItem, isPending: isRouting } = useRouteItem();
@@ -41,25 +46,6 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral post-approval routing state
     const [showRouting, setShowRouting] = useState(false);
 
-    const isFeature = item?.type === 'feature';
-    const title = item
-        ? (isFeature
-            ? item.feature!.title
-            : item.report!.description?.split('\n')[0]?.slice(0, 100) || 'Bug Report')
-        : '';
-    const description = item
-        ? (isFeature ? item.feature!.description : item.report!.description || '')
-        : '';
-    const status = item ? (isFeature ? item.feature!.status : item.report!.status) : '';
-    const createdAt = item ? (isFeature ? item.feature!.createdAt : item.report!.createdAt) : '';
-    const isNew = status === 'new';
-    const isAlreadySynced = item
-        ? (isFeature ? !!item.feature!.githubIssueUrl : !!item.report!.githubIssueUrl)
-        : false;
-    const canApprove = isNew && !isAlreadySynced;
-
-    const isWorkflowItem = itemId ? !itemId.includes(':') : false;
-
     const matchedWorkflowItem = useMemo(() => {
         if (!workflowItems || !itemId) return null;
         if (isWorkflowItem) {
@@ -68,27 +54,53 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
         return workflowItems.find((wi) => wi.sourceId === itemId) || null;
     }, [workflowItems, itemId, isWorkflowItem]);
 
+    // Derive display data from source doc (when available) or workflow item
+    const isFeature = item ? item.type === 'feature' : (matchedWorkflowItem?.type === 'feature' || matchedWorkflowItem?.type === 'task');
+    const title = item
+        ? (item.type === 'feature'
+            ? item.feature!.title
+            : item.report!.description?.split('\n')[0]?.slice(0, 100) || 'Bug Report')
+        : (matchedWorkflowItem?.content?.title || 'Untitled');
+    const description = item
+        ? (item.type === 'feature' ? item.feature!.description : item.report!.description || '')
+        : (matchedWorkflowItem?.description || '');
+    const status = item
+        ? (item.type === 'feature' ? item.feature!.status : item.report!.status)
+        : (matchedWorkflowItem?.status || '');
+    const createdAt = item
+        ? (item.type === 'feature' ? item.feature!.createdAt : item.report!.createdAt)
+        : (matchedWorkflowItem?.createdAt || '');
+    const isNew = status === 'new';
+    const isAlreadySynced = item
+        ? (item.type === 'feature' ? !!item.feature!.githubIssueUrl : !!item.report!.githubIssueUrl)
+        : !!matchedWorkflowItem?.content?.url;
+    const canApprove = isNew && !isAlreadySynced;
+
+    // For workflow-only items, the item is "found" if matchedWorkflowItem exists
+    const hasData = !!item || !!matchedWorkflowItem;
+
     const workflowItemId = isWorkflowItem ? itemId : (matchedWorkflowItem?.id || null);
     const { mongoId } = itemId ? parseItemId(itemId) : { mongoId: '' };
 
     const handleCopyDetails = async () => {
-        if (!item) return;
+        if (!hasData) return;
         const lines: string[] = [];
         lines.push(`[${isFeature ? 'Feature' : 'Bug'}] ${title}`);
-        lines.push(`Status: ${status}`);
-        if (isFeature && item.feature!.priority) lines.push(`Priority: ${item.feature!.priority}`);
+        lines.push(`Status: ${matchedWorkflowItem?.status || status}`);
+        if (matchedWorkflowItem?.priority) lines.push(`Priority: ${matchedWorkflowItem.priority}`);
+        else if (item?.feature?.priority) lines.push(`Priority: ${item.feature.priority}`);
         if (createdAt) lines.push(`Created: ${new Date(createdAt).toLocaleDateString()}`);
-        if (isFeature && item.feature!.requestedByName) lines.push(`Requested by: ${item.feature!.requestedByName}`);
-        if (!isFeature && item.report!.route) lines.push(`Route: ${item.report!.route}`);
+        if (item?.feature?.requestedByName) lines.push(`Requested by: ${item.feature.requestedByName}`);
+        if (item?.report?.route) lines.push(`Route: ${item.report.route}`);
+        if (matchedWorkflowItem?.domain) lines.push(`Domain: ${matchedWorkflowItem.domain}`);
         if (description) {
             lines.push('');
             lines.push(description);
         }
-        if (!isFeature && item.report!.errorMessage) {
+        if (item?.report?.errorMessage) {
             lines.push('');
-            lines.push(`Error: ${item.report!.errorMessage}`);
+            lines.push(`Error: ${item.report.errorMessage}`);
         }
-        const ghUrl = isFeature ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl;
         if (ghUrl) {
             lines.push('');
             lines.push(`GitHub: ${ghUrl}`);
@@ -194,10 +206,10 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
     };
 
     const ghUrl = item
-        ? (isFeature ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl)
-        : null;
+        ? (item.type === 'feature' ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl)
+        : (matchedWorkflowItem?.content?.url || null);
     const source = item
-        ? (isFeature ? item.feature!.source : item.report!.source)
+        ? (item.type === 'feature' ? item.feature!.source : item.report!.source)
         : null;
 
     return (
@@ -207,7 +219,7 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                     <div className="flex items-center justify-center py-12">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                ) : !item ? (
+                ) : !hasData ? (
                     <div className="py-8 text-center text-sm text-muted-foreground">
                         Item not found.
                     </div>
@@ -217,7 +229,7 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                         <DialogHeader className="px-6 pt-6 pb-3">
                             <DialogTitle className="text-base leading-snug text-left pr-6">{title}</DialogTitle>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                                <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={item.type} />
+                                <StatusBadge label={isFeature ? 'Feature' : 'Bug'} colorKey={matchedWorkflowItem?.type || item?.type || 'feature'} />
                                 <StatusBadge label={matchedWorkflowItem?.status || status} />
                                 {matchedWorkflowItem?.reviewStatus && (
                                     <StatusBadge label={matchedWorkflowItem.reviewStatus} colorKey={matchedWorkflowItem.reviewStatus} />
@@ -231,16 +243,16 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                         </span>
                                     </>
                                 )}
-                                {isFeature && item.feature!.requestedByName && (
+                                {item?.feature?.requestedByName && (
                                     <>
                                         <span className="text-muted-foreground text-xs">·</span>
-                                        <span className="text-xs text-muted-foreground">by {item.feature!.requestedByName}</span>
+                                        <span className="text-xs text-muted-foreground">by {item.feature.requestedByName}</span>
                                     </>
                                 )}
-                                {!isFeature && item.report!.route && (
+                                {item?.report?.route && (
                                     <>
                                         <span className="text-muted-foreground text-xs">·</span>
-                                        <span className="text-xs text-muted-foreground">on {item.report!.route}</span>
+                                        <span className="text-xs text-muted-foreground">on {item.report.route}</span>
                                     </>
                                 )}
                                 {matchedWorkflowItem?.createdBy && (
@@ -373,13 +385,13 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                             )}
 
                             {/* Non-workflow item: show source/priority/github */}
-                            {!matchedWorkflowItem && (source || ghUrl || (isFeature && item.feature!.priority)) && (
+                            {!matchedWorkflowItem && (source || ghUrl || item?.feature?.priority) && (
                                 <div className="bg-muted/50 rounded-lg p-3 mb-4">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                                        {isFeature && item.feature!.priority && (
+                                        {item?.feature?.priority && (
                                             <div className="flex items-center justify-between">
                                                 <span className="text-muted-foreground">Priority</span>
-                                                <StatusBadge label={item.feature!.priority} colorKey={item.feature!.priority} />
+                                                <StatusBadge label={item.feature.priority} colorKey={item.feature.priority} />
                                             </div>
                                         )}
                                         {source && (
@@ -410,20 +422,20 @@ export function ItemPreviewDialog({ itemId, onClose, workflowItems }: { itemId: 
                                 </>
                             )}
 
-                            {!isFeature && item.report!.errorMessage && (
+                            {item?.report?.errorMessage && (
                                 <div className="mb-4">
                                     <p className="text-xs font-medium text-destructive mb-1">Error Message</p>
                                     <code className="block text-xs bg-muted p-2 rounded overflow-auto">
-                                        {item.report!.errorMessage}
+                                        {item.report.errorMessage}
                                     </code>
                                 </div>
                             )}
 
-                            {!isFeature && item.report!.stackTrace && (
+                            {item?.report?.stackTrace && (
                                 <div className="mb-4">
                                     <p className="text-xs font-medium text-destructive mb-1">Stack Trace</p>
                                     <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
-                                        {item.report!.stackTrace}
+                                        {item.report.stackTrace}
                                     </pre>
                                 </div>
                             )}

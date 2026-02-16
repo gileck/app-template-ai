@@ -26,7 +26,12 @@ interface ItemDetailPageProps {
 export function ItemDetailPage({ id }: ItemDetailPageProps) {
     const { navigate } = useRouter();
     const { mongoId } = parseItemId(id);
-    const { item, isLoading, error } = useItemDetail(id);
+
+    // Workflow-only items (no ':' in ID) don't have source docs
+    const isWorkflowItem = !id.includes(':');
+    const sourceDetailId = isWorkflowItem ? undefined : id;
+    const { item, isLoading, error } = useItemDetail(sourceDetailId);
+
     const { approveFeature, approveBug, isPending: isApproving } = useApproveItem();
     const { deleteFeature, deleteBug, isPending: isDeleting } = useDeleteItem();
     const { routeItem, isPending: isRouting } = useRouteItem();
@@ -52,12 +57,16 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral item type for routing
     const [routingItemType, setRoutingItemType] = useState<ItemType>('feature');
 
-    // Look up workflow item history from cached workflow data
-    const historyEntries = useMemo(() => {
-        if (!workflowData?.workflowItems) return EMPTY_HISTORY;
-        const matched = workflowData.workflowItems.find((wi) => wi.sourceId === id);
-        return matched?.history || EMPTY_HISTORY;
-    }, [workflowData?.workflowItems, id]);
+    // Match workflow item by ID or sourceId
+    const matchedWorkflowItem = useMemo(() => {
+        if (!workflowData?.workflowItems) return null;
+        if (isWorkflowItem) {
+            return workflowData.workflowItems.find((wi) => wi.id === id) || null;
+        }
+        return workflowData.workflowItems.find((wi) => wi.sourceId === id) || null;
+    }, [workflowData?.workflowItems, id, isWorkflowItem]);
+
+    const historyEntries = matchedWorkflowItem?.history || EMPTY_HISTORY;
 
     const navigateBack = () => {
         navigate('/admin/workflow');
@@ -89,8 +98,9 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
         );
     }
 
-    // Not found state
-    if (!item) {
+    // Not found state — need either source doc or workflow item
+    const hasData = !!item || !!matchedWorkflowItem;
+    if (!hasData) {
         return (
             <div className="container mx-auto max-w-4xl px-3 py-6">
                 <Card>
@@ -105,20 +115,24 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
         );
     }
 
-    const { type } = item;
+    const type = item?.type ?? (matchedWorkflowItem?.type === 'bug' ? 'bug' : 'feature');
     const isFeature = type === 'feature';
-    const title = isFeature
-        ? item.feature!.title
-        : item.report!.description?.split('\n')[0]?.slice(0, 100) || 'Bug Report';
-    const description = isFeature
-        ? item.feature!.description
-        : item.report!.description || '';
-    const status = isFeature ? item.feature!.status : item.report!.status;
-    const createdAt = isFeature ? item.feature!.createdAt : item.report!.createdAt;
+    const title = item
+        ? (isFeature ? item.feature!.title : item.report!.description?.split('\n')[0]?.slice(0, 100) || 'Bug Report')
+        : (matchedWorkflowItem?.content?.title || 'Untitled');
+    const description = item
+        ? (isFeature ? item.feature!.description : item.report!.description || '')
+        : (matchedWorkflowItem?.description || '');
+    const status = item
+        ? (isFeature ? item.feature!.status : item.report!.status)
+        : (matchedWorkflowItem?.status || '');
+    const createdAt = item
+        ? (isFeature ? item.feature!.createdAt : item.report!.createdAt)
+        : (matchedWorkflowItem?.createdAt || '');
     const isNew = status === 'new';
-    const isAlreadySynced = isFeature
-        ? !!item.feature!.githubIssueUrl
-        : !!item.report!.githubIssueUrl;
+    const isAlreadySynced = item
+        ? (isFeature ? !!item.feature!.githubIssueUrl : !!item.report!.githubIssueUrl)
+        : !!matchedWorkflowItem?.content?.url;
 
     const handleApprove = async () => {
         try {
@@ -207,10 +221,10 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                 title={title}
                 status={status}
                 createdAt={createdAt}
-                priority={isFeature ? item.feature!.priority : undefined}
-                source={isFeature ? item.feature!.source : item.report!.source}
-                requestedByName={isFeature ? item.feature!.requestedByName : undefined}
-                route={!isFeature ? item.report!.route : undefined}
+                priority={matchedWorkflowItem?.priority || item?.feature?.priority}
+                source={item ? (isFeature ? item.feature!.source : item.report!.source) : undefined}
+                requestedByName={item?.feature?.requestedByName}
+                route={item?.report?.route}
             />
 
             {/* Description */}
@@ -234,23 +248,23 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
             )}
 
             {/* Bug-specific details */}
-            {!isFeature && item.report!.errorMessage && (
+            {item?.report?.errorMessage && (
                 <Card className="mb-6">
                     <CardContent className="pt-6">
                         <p className="text-sm font-medium text-destructive mb-1">Error Message</p>
                         <code className="block text-xs bg-muted p-2 rounded overflow-auto">
-                            {item.report!.errorMessage}
+                            {item.report.errorMessage}
                         </code>
                     </CardContent>
                 </Card>
             )}
 
-            {!isFeature && item.report!.stackTrace && (
+            {item?.report?.stackTrace && (
                 <Card className="mb-6">
                     <CardContent className="pt-6">
                         <p className="text-sm font-medium text-destructive mb-1">Stack Trace</p>
                         <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-48">
-                            {item.report!.stackTrace}
+                            {item.report.stackTrace}
                         </pre>
                     </CardContent>
                 </Card>
@@ -263,7 +277,7 @@ export function ItemDetailPage({ id }: ItemDetailPageProps) {
                         <p className="text-sm text-muted-foreground">
                             Already synced to GitHub:{' '}
                             <a
-                                href={isFeature ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl}
+                                href={item ? (isFeature ? item.feature!.githubIssueUrl : item.report!.githubIssueUrl) : matchedWorkflowItem?.content?.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary underline"

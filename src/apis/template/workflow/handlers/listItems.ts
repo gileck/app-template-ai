@@ -106,6 +106,7 @@ export async function listItems(
                 size: doc.size,
                 complexity: doc.complexity,
                 domain: doc.domain,
+                description: doc.description,
                 content: {
                     type: 'Issue' as const,
                     number: doc.githubIssueNumber,
