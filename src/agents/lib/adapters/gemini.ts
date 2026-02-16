@@ -313,6 +313,8 @@ class GeminiAdapter implements AgentLibraryAdapter {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,
                         cost: usage.totalCostUSD,
+                        cacheReadInputTokens: usage.cacheReadInputTokens,
+                        cacheCreationInputTokens: usage.cacheCreationInputTokens,
                     });
                 }
 
@@ -388,6 +390,8 @@ class GeminiAdapter implements AgentLibraryAdapter {
                         inputTokens: usage.inputTokens,
                         outputTokens: usage.outputTokens,
                         cost: usage.totalCostUSD,
+                        cacheReadInputTokens: usage.cacheReadInputTokens,
+                        cacheCreationInputTokens: usage.cacheCreationInputTokens,
                     });
                 }
 
