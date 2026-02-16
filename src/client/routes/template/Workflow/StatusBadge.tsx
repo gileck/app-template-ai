@@ -49,6 +49,8 @@ const BADGE_VARIANT_MAP: Record<string, BadgeVariant> = {
     Low: 'success',
     // Source
     source: 'outline',
+    // Domain
+    domain: 'outline',
 };
 
 const DEFAULT_VARIANT: BadgeVariant = 'secondary';

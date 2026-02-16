@@ -115,6 +115,7 @@ export interface WorkflowItemDocument {
     priority?: 'critical' | 'high' | 'medium' | 'low';
     size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
     complexity?: 'High' | 'Medium' | 'Low';
+    domain?: string;
     artifacts?: WorkflowItemArtifacts;
     history?: HistoryEntry[];
     reviewed?: boolean;

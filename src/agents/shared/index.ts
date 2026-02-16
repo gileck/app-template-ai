@@ -73,6 +73,7 @@ export type {
     CodeReviewOutput,
     WorkflowReviewFinding,
     WorkflowReviewOutput,
+    TriageOutput,
 } from './output-schemas';
 export {
     PRODUCT_DEVELOPMENT_OUTPUT_FORMAT,
@@ -85,6 +86,7 @@ export {
     BUG_INVESTIGATION_OUTPUT_FORMAT,
     CODE_REVIEW_OUTPUT_FORMAT,
     WORKFLOW_REVIEW_OUTPUT_FORMAT,
+    TRIAGE_OUTPUT_FORMAT,
 } from './output-schemas';
 
 // Agent library abstraction
@@ -149,6 +151,7 @@ export {
     buildBugInvestigationPrompt,
     buildBugInvestigationRevisionPrompt,
     buildBugInvestigationClarificationPrompt,
+    buildTriagePrompt,
 } from './prompts';
 
 // Utilities

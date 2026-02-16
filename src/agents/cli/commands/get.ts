@@ -253,6 +253,7 @@ function printWorkflowItemDetails(item: WorkflowItemDocument): void {
     if (item.priority) console.log(`  Priority:        ${item.priority}`);
     if (item.size) console.log(`  Size:            ${item.size}`);
     if (item.complexity) console.log(`  Complexity:      ${item.complexity}`);
+    if (item.domain) console.log(`  Domain:          ${item.domain}`);
     if (item.labels?.length) console.log(`  Labels:          ${item.labels.join(', ')}`);
     if (item.createdBy) console.log(`  Created By:      ${item.createdBy}`);
     console.log(`  Reviewed:        ${item.reviewed ?? false}`);

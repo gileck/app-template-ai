@@ -23,6 +23,7 @@ import type { ProjectManagementAdapter } from './types';
 // Export types
 export * from './types';
 export * from './config';
+export * from './domains';
 
 // Singleton adapter instance
 let adapter: ProjectManagementAdapter | null = null;

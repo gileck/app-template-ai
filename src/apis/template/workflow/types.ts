@@ -5,6 +5,13 @@
  */
 
 // ============================================================================
+// Domain Values (shared between client and server)
+// ============================================================================
+
+export const DOMAIN_VALUES = ['ui', 'api', 'database', 'agents', 'infra', 'auth', 'workflow'] as const;
+export type DomainValue = typeof DOMAIN_VALUES[number];
+
+// ============================================================================
 // Shared Types
 // ============================================================================
 
@@ -86,6 +93,7 @@ export interface WorkflowItem {
     priority?: 'critical' | 'high' | 'medium' | 'low';
     size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
     complexity?: 'High' | 'Medium' | 'Low';
+    domain?: string;
     content: WorkflowItemContent | null;
     implementationPhase?: string | null;
     prData?: WorkflowItemPRData;
@@ -169,6 +177,7 @@ export interface UpdateWorkflowFieldsRequest {
         priority?: 'critical' | 'high' | 'medium' | 'low' | null;
         size?: 'XS' | 'S' | 'M' | 'L' | 'XL' | null;
         complexity?: 'High' | 'Medium' | 'Low' | null;
+        domain?: string | null;
     };
 }
 

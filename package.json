@@ -35,6 +35,7 @@
     "agent:pr-review": "tsx src/agents/core-agents/prReviewAgent/index.ts",
     "agent:workflow-review": "tsx src/agents/core-agents/workflowReviewAgent/index.ts",
     "agent:auto-advance": "tsx src/agents/auto-advance.ts",
+    "agent:triage": "tsx src/agents/core-agents/triageAgent/index.ts",
     "agent:code-reviewer": "tsx src/agents/repo-commits-code-reviewer.ts",
     "agent:logs": "tsx scripts/template/view-agent-logs.ts",
     "github-pr": "tsx scripts/template/github-pr.ts",

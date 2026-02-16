@@ -8,6 +8,7 @@ import { featureRequests, reports } from '@/server/database';
 import type { FeatureRequestDocument, FeatureRequestStatus, FeatureRequestPriority } from '@/server/database/collections/template/feature-requests/types';
 import type { ReportDocument, ReportStatus } from '@/server/database/collections/template/reports/types';
 import { findWorkflowItemBySourceRef, updateWorkflowFields } from '@/server/database/collections/template/workflow-items/workflow-items';
+import { VALID_DOMAIN_VALUES } from '@/server/template/project-management/domains';
 import { parseArgs } from '../utils/parse-args';
 
 const FEATURE_STATUSES: FeatureRequestStatus[] = ['new', 'in_progress', 'done', 'rejected'];
@@ -92,9 +93,9 @@ export async function handleUpdate(args: string[]): Promise<void> {
     }
 
     // Must have at least one update field
-    if (!parsed.status && !parsed.priority && !parsed.size && !parsed.complexity) {
-        console.error('Error: Must specify at least one field to update (--status, --priority, --size, or --complexity)');
-        console.error('Usage: yarn agent-workflow update <id> --status <status> [--priority <priority>] [--size <size>] [--complexity <complexity>]');
+    if (!parsed.status && !parsed.priority && !parsed.size && !parsed.complexity && !parsed.domain) {
+        console.error('Error: Must specify at least one field to update (--status, --priority, --size, --complexity, or --domain)');
+        console.error('Usage: yarn agent-workflow update <id> --status <status> [--priority <priority>] [--size <size>] [--complexity <complexity>] [--domain <domain>]');
         process.exit(1);
     }
 
@@ -121,6 +122,11 @@ export async function handleUpdate(args: string[]): Promise<void> {
     if (parsed.complexity && !['High', 'Medium', 'Low'].includes(parsed.complexity)) {
         console.error(`\nError: Invalid complexity "${parsed.complexity}".`);
         console.error('Valid values: High, Medium, Low');
+        process.exit(1);
+    }
+    if (parsed.domain && !VALID_DOMAIN_VALUES.has(parsed.domain)) {
+        console.error(`\nError: Invalid domain "${parsed.domain}".`);
+        console.error(`Valid values: ${[...VALID_DOMAIN_VALUES].join(', ')}`);
         process.exit(1);
     }
 
@@ -152,6 +158,7 @@ export async function handleUpdate(args: string[]): Promise<void> {
             if (parsed.priority) console.log(`  Priority: ${feature.priority} -> ${parsed.priority}`);
             if (parsed.size) console.log(`  Size: ${parsed.size}`);
             if (parsed.complexity) console.log(`  Complexity: ${parsed.complexity}`);
+            if (parsed.domain) console.log(`  Domain: ${parsed.domain}`);
             return;
         }
 
@@ -168,10 +175,10 @@ export async function handleUpdate(args: string[]): Promise<void> {
             console.log(`  Priority: ${feature.priority} -> ${parsed.priority}`);
         }
 
-        // Update workflow item fields (priority/size/complexity)
+        // Update workflow item fields (priority/size/complexity/domain)
         await updateWorkflowItemFields(
             'feature-requests', feature._id.toString(),
-            parsed.priority, parsed.size, parsed.complexity
+            parsed.priority, parsed.size, parsed.complexity, parsed.domain
         );
 
         console.log('\nFeature request updated successfully!');
@@ -202,6 +209,7 @@ export async function handleUpdate(args: string[]): Promise<void> {
             if (parsed.priority) console.log(`  Priority: ${parsed.priority}`);
             if (parsed.size) console.log(`  Size: ${parsed.size}`);
             if (parsed.complexity) console.log(`  Complexity: ${parsed.complexity}`);
+            if (parsed.domain) console.log(`  Domain: ${parsed.domain}`);
             return;
         }
 
@@ -213,10 +221,10 @@ export async function handleUpdate(args: string[]): Promise<void> {
             console.log(`  Status: ${report.status} -> ${parsed.status}`);
         }
 
-        // Update workflow item fields (priority/size/complexity)
+        // Update workflow item fields (priority/size/complexity/domain)
         await updateWorkflowItemFields(
             'reports', report._id.toString(),
-            parsed.priority, parsed.size, parsed.complexity
+            parsed.priority, parsed.size, parsed.complexity, parsed.domain
         );
 
         console.log('\nBug report updated successfully!');
@@ -231,11 +239,13 @@ async function updateWorkflowItemFields(
     priority?: string,
     size?: string,
     complexity?: string,
+    domain?: string,
 ): Promise<void> {
     const fields: Record<string, string> = {};
     if (priority) fields.priority = priority;
     if (size) fields.size = size;
     if (complexity) fields.complexity = complexity;
+    if (domain) fields.domain = domain;
     if (Object.keys(fields).length === 0) return;
 
     const workflowItem = await findWorkflowItemBySourceRef(sourceCollection, sourceId);

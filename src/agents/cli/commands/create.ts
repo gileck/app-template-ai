@@ -21,6 +21,7 @@ export interface CreateOptions {
     priority?: string;
     size?: string;
     complexity?: string;
+    domain?: string;
     workflowRoute?: string;    // Workflow routing (product-dev, tech-design, etc.)
     clientPageRoute?: string;  // Affected client page route for bugs (e.g., "/settings")
     dryRun?: boolean;
@@ -56,6 +57,7 @@ export async function handleCreate(args: string[]): Promise<void> {
         priority: parsed.priority,
         size: parsed.size,
         complexity: parsed.complexity,
+        domain: parsed.domain,
         workflowRoute: parsed.workflowRoute,
         clientPageRoute: parsed.clientPageRoute,
         dryRun: parsed.dryRun,
@@ -79,6 +81,7 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
         console.log(`  Title: ${options.title}`);
         console.log(`  Description: ${options.description}`);
         console.log(`  Priority: ${options.priority || 'medium'}`);
+        if (options.domain) console.log(`  Domain: ${options.domain}`);
         if (options.createdBy) console.log(`  Created By: ${options.createdBy}`);
         console.log(`  Auto-approve: ${options.autoApprove ? 'yes' : 'no (sends approval notification)'}`);
         if (options.autoApprove) {
@@ -143,11 +146,12 @@ export async function createFeatureWorkflow(options: CreateOptions): Promise<voi
         console.log(`  Telegram routing notification sent`);
     }
 
-    // Propagate priority/size/complexity/createdBy to the workflow item
+    // Propagate priority/size/complexity/domain/createdBy to the workflow item
     const workflowFields: Record<string, string | undefined> = {};
     if (options.priority) workflowFields.priority = options.priority;
     if (options.size) workflowFields.size = options.size;
     if (options.complexity) workflowFields.complexity = options.complexity;
+    if (options.domain) workflowFields.domain = options.domain;
     if (options.createdBy) workflowFields.createdBy = options.createdBy;
     if (Object.keys(workflowFields).length > 0) {
         const workflowItem = await findWorkflowItemBySourceRef('feature-requests', request._id);
@@ -168,6 +172,7 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
         console.log('\nDRY RUN - Would create bug report:');
         console.log(`  Title: ${options.title}`);
         console.log(`  Description: ${options.description}`);
+        if (options.domain) console.log(`  Domain: ${options.domain}`);
         if (options.createdBy) console.log(`  Created By: ${options.createdBy}`);
         console.log(`  Auto-approve: ${options.autoApprove ? 'yes' : 'no (sends approval notification)'}`);
         if (options.autoApprove) {
@@ -238,11 +243,12 @@ export async function createBugWorkflow(options: CreateOptions): Promise<void> {
         console.log(`  Auto-routed to: Bug Investigation`);
     }
 
-    // Propagate priority/size/complexity/createdBy to the workflow item
+    // Propagate priority/size/complexity/domain/createdBy to the workflow item
     const workflowFields: Record<string, string | undefined> = {};
     if (options.priority) workflowFields.priority = options.priority;
     if (options.size) workflowFields.size = options.size;
     if (options.complexity) workflowFields.complexity = options.complexity;
+    if (options.domain) workflowFields.domain = options.domain;
     if (options.createdBy) workflowFields.createdBy = options.createdBy;
     if (Object.keys(workflowFields).length > 0) {
         const workflowItem = await findWorkflowItemBySourceRef('reports', report._id);

@@ -3,6 +3,7 @@ import { createStore } from '@/client/stores';
 export type TypeFilter = 'all' | 'feature' | 'bug';
 export type PriorityFilter = 'all' | 'critical' | 'high' | 'medium' | 'low';
 export type SizeFilter = 'all' | 'XS' | 'S' | 'M' | 'L' | 'XL';
+export type DomainFilter = 'all' | string;
 export type SortBy = 'date' | 'priority' | 'size';
 export type LayoutMode = 'list' | 'board' | 'activity';
 export type SelectableItem = { type: 'feature' | 'bug'; mongoId: string };
@@ -12,6 +13,7 @@ interface WorkflowPageState {
     typeFilter: TypeFilter;
     priorityFilter: PriorityFilter;
     sizeFilter: SizeFilter;
+    domainFilter: DomainFilter;
     sortBy: SortBy;
     layoutMode: LayoutMode;
     collapsedSections: string[];
@@ -28,6 +30,7 @@ interface WorkflowPageState {
     setTypeFilter: (filter: TypeFilter) => void;
     setPriorityFilter: (filter: PriorityFilter) => void;
     setSizeFilter: (filter: SizeFilter) => void;
+    setDomainFilter: (filter: DomainFilter) => void;
     setSortBy: (sort: SortBy) => void;
     setLayoutMode: (mode: LayoutMode) => void;
     toggleSection: (section: string) => void;
@@ -48,6 +51,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
         typeFilter: 'all',
         priorityFilter: 'all',
         sizeFilter: 'all',
+        domainFilter: 'all',
         sortBy: 'date',
         layoutMode: 'list',
         collapsedSections: [],
@@ -61,6 +65,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
         setTypeFilter: (filter) => set({ typeFilter: filter }),
         setPriorityFilter: (filter) => set({ priorityFilter: filter }),
         setSizeFilter: (filter) => set({ sizeFilter: filter }),
+        setDomainFilter: (filter) => set({ domainFilter: filter }),
         setSortBy: (sort) => set({ sortBy: sort }),
         setLayoutMode: (mode) => set({ layoutMode: mode }),
 
@@ -115,6 +120,7 @@ export const useWorkflowPageStore = createStore<WorkflowPageState>({
             typeFilter: state.typeFilter,
             priorityFilter: state.priorityFilter,
             sizeFilter: state.sizeFilter,
+            domainFilter: state.domainFilter,
             sortBy: state.sortBy,
             layoutMode: state.layoutMode,
             collapsedSections: state.collapsedSections,

@@ -782,6 +782,52 @@ export interface WorkflowReviewOutput {
     }>;
 }
 
+// ============================================================
+// TRIAGE OUTPUT
+// ============================================================
+
+export interface TriageOutput {
+    domain: string;
+    priority?: 'critical' | 'high' | 'medium' | 'low';
+    size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
+    complexity?: 'High' | 'Medium' | 'Low';
+    reasoning: string;
+}
+
+export const TRIAGE_OUTPUT_FORMAT = {
+    type: 'json_schema' as const,
+    schema: {
+        type: 'object',
+        properties: {
+            domain: {
+                type: 'string',
+                enum: ['ui', 'api', 'database', 'agents', 'infra', 'auth'],
+                description: 'The domain/area of the application this item belongs to.',
+            },
+            priority: {
+                type: 'string',
+                enum: ['critical', 'high', 'medium', 'low'],
+                description: 'Suggested priority. Only provide if not already set on the item.',
+            },
+            size: {
+                type: 'string',
+                enum: ['XS', 'S', 'M', 'L', 'XL'],
+                description: 'Estimated size. Only provide if not already set on the item.',
+            },
+            complexity: {
+                type: 'string',
+                enum: ['High', 'Medium', 'Low'],
+                description: 'Estimated complexity. Only provide if not already set on the item.',
+            },
+            reasoning: {
+                type: 'string',
+                description: 'Brief explanation of the classification decisions.',
+            },
+        },
+        required: ['domain', 'reasoning'],
+    },
+};
+
 export const WORKFLOW_REVIEW_OUTPUT_FORMAT = {
     type: 'json_schema' as const,
     schema: {

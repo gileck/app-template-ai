@@ -77,3 +77,6 @@ export {
 
 // Plan Subagent prompt
 export { buildPlanSubagentPrompt } from './plan-subagent';
+
+// Triage prompts
+export { buildTriagePrompt } from './triage';

@@ -27,7 +27,7 @@ import { KanbanBoard } from './KanbanBoard';
 import { ActivityFeed } from './ActivityFeed';
 import { PIPELINE_STATUSES, ALL_SECTION_KEYS } from './constants';
 import { WorkflowFilterSheet, countActiveFilters } from './WorkflowFilterSheet';
-import type { TypeFilter, PriorityFilter, SizeFilter, SortBy } from './store';
+import type { TypeFilter, PriorityFilter, SizeFilter, DomainFilter, SortBy } from './store';
 import type { WorkflowItem } from '@/apis/template/workflow/types';
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
@@ -39,10 +39,11 @@ const TYPE_LABELS: Record<TypeFilter, string> = {
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 const SIZE_RANK: Record<string, number> = { XL: 0, L: 1, M: 2, S: 3, XS: 4 };
 
-function applyFieldFilters(items: WorkflowItem[], priorityF: PriorityFilter, sizeF: SizeFilter): WorkflowItem[] {
+function applyFieldFilters(items: WorkflowItem[], priorityF: PriorityFilter, sizeF: SizeFilter, domainF: DomainFilter): WorkflowItem[] {
     let result = items;
     if (priorityF !== 'all') result = result.filter(i => i.priority === priorityF);
     if (sizeF !== 'all') result = result.filter(i => i.size === sizeF);
+    if (domainF !== 'all') result = result.filter(i => i.domain === domainF);
     return result;
 }
 
@@ -62,6 +63,7 @@ export function WorkflowItems() {
     const typeFilter = useWorkflowPageStore((s) => s.typeFilter);
     const priorityFilter = useWorkflowPageStore((s) => s.priorityFilter);
     const sizeFilter = useWorkflowPageStore((s) => s.sizeFilter);
+    const domainFilter = useWorkflowPageStore((s) => s.domainFilter);
     const sortBy = useWorkflowPageStore((s) => s.sortBy);
     const layoutMode = useWorkflowPageStore((s) => s.layoutMode);
     const collapsedSections = useWorkflowPageStore((s) => s.collapsedSections);
@@ -75,6 +77,7 @@ export function WorkflowItems() {
     const setTypeFilter = useWorkflowPageStore((s) => s.setTypeFilter);
     const setPriorityFilter = useWorkflowPageStore((s) => s.setPriorityFilter);
     const setSizeFilter = useWorkflowPageStore((s) => s.setSizeFilter);
+    const setDomainFilter = useWorkflowPageStore((s) => s.setDomainFilter);
     const setSortBy = useWorkflowPageStore((s) => s.setSortBy);
     const setLayoutMode = useWorkflowPageStore((s) => s.setLayoutMode);
     const toggleSection = useWorkflowPageStore((s) => s.toggleSection);
@@ -199,7 +202,7 @@ export function WorkflowItems() {
         if (typeFilter !== 'all') {
             items = items.filter((item) => item.type === typeFilter);
         }
-        items = applyFieldFilters(items, priorityFilter, sizeFilter);
+        items = applyFieldFilters(items, priorityFilter, sizeFilter, domainFilter);
         items = items.filter((item) => item.status !== 'Done');
         items = applySorting(items, sortBy);
 
@@ -224,7 +227,7 @@ export function WorkflowItems() {
         }
 
         return groups;
-    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, sortBy, isListView]);
+    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, domainFilter, sortBy, isListView]);
 
     const doneItems = useMemo(() => {
         if (!data?.workflowItems) return [];
@@ -240,10 +243,10 @@ export function WorkflowItems() {
         if (typeFilter !== 'all') {
             items = items.filter((item) => item.type === typeFilter);
         }
-        items = applyFieldFilters(items, priorityFilter, sizeFilter);
+        items = applyFieldFilters(items, priorityFilter, sizeFilter, domainFilter);
         items = applySorting(items, sortBy);
         return items;
-    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, sortBy, isListView]);
+    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, domainFilter, sortBy, isListView]);
 
     const allFilteredWorkflowItems = useMemo(() => {
         if (!data?.workflowItems) return [];
@@ -251,10 +254,10 @@ export function WorkflowItems() {
         if (typeFilter !== 'all') {
             items = items.filter((item) => item.type === typeFilter);
         }
-        items = applyFieldFilters(items, priorityFilter, sizeFilter);
+        items = applyFieldFilters(items, priorityFilter, sizeFilter, domainFilter);
         items = applySorting(items, sortBy);
         return items;
-    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, sortBy]);
+    }, [data?.workflowItems, typeFilter, priorityFilter, sizeFilter, domainFilter, sortBy]);
 
     const statusCounts = useMemo(() => {
         if (!data?.workflowItems) return [];
@@ -275,6 +278,15 @@ export function WorkflowItems() {
             result.push({ status, count });
         }
         return result;
+    }, [data?.workflowItems]);
+
+    const domainOptions = useMemo(() => {
+        if (!data?.workflowItems) return [];
+        const domains = new Set<string>();
+        for (const item of data.workflowItems) {
+            if (item.domain) domains.add(item.domain);
+        }
+        return [...domains].sort();
     }, [data?.workflowItems]);
 
     if (isLoading || data === undefined) {
@@ -301,7 +313,7 @@ export function WorkflowItems() {
     const isEmpty = isListView && !hasPending && !hasPipelineGroups && !hasDone;
     const selectedCount = Object.keys(selectedItems).length;
     const allCollapsed = collapsedSections.length > 0;
-    const activeFilterCount = countActiveFilters(typeFilter, priorityFilter, sizeFilter, sortBy);
+    const activeFilterCount = countActiveFilters(typeFilter, priorityFilter, sizeFilter, domainFilter, sortBy);
 
     return (
         <div className="p-4">
@@ -358,6 +370,19 @@ export function WorkflowItems() {
                                 <SelectItem value="XL">XL</SelectItem>
                             </SelectContent>
                         </Select>
+                        {domainOptions.length > 0 && (
+                            <Select value={domainFilter} onValueChange={(v) => setDomainFilter(v as DomainFilter)}>
+                                <SelectTrigger className="h-8 w-auto min-w-[80px] text-xs px-3">
+                                    <SelectValue>{domainFilter === 'all' ? 'Domain' : domainFilter}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All domains</SelectItem>
+                                    {domainOptions.map((d) => (
+                                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                         <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
                             <SelectTrigger className="h-8 w-auto min-w-[70px] text-xs px-3">
                                 <SelectValue>{sortBy === 'date' ? 'Date' : sortBy === 'priority' ? 'Priority' : 'Size'}</SelectValue>
@@ -564,6 +589,9 @@ export function WorkflowItems() {
                 onPriorityChange={setPriorityFilter}
                 sizeFilter={sizeFilter}
                 onSizeChange={setSizeFilter}
+                domainFilter={domainFilter}
+                onDomainChange={setDomainFilter}
+                domainOptions={domainOptions}
                 sortBy={sortBy}
                 onSortChange={setSortBy}
             />

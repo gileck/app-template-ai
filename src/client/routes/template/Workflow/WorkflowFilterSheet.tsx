@@ -5,7 +5,7 @@ import { Separator } from '@/client/components/template/ui/separator';
 import { Filter, X, Bug, Sparkles, ArrowUpDown } from 'lucide-react';
 import { useIOSKeyboardOffset } from '@/client/lib/hooks';
 import { cn } from '@/client/lib/utils';
-import type { TypeFilter, PriorityFilter, SizeFilter, SortBy } from './store';
+import type { TypeFilter, PriorityFilter, SizeFilter, DomainFilter, SortBy } from './store';
 
 interface WorkflowFilterSheetProps {
     open: boolean;
@@ -16,6 +16,9 @@ interface WorkflowFilterSheetProps {
     onPriorityChange: (v: PriorityFilter) => void;
     sizeFilter: SizeFilter;
     onSizeChange: (v: SizeFilter) => void;
+    domainFilter: DomainFilter;
+    onDomainChange: (v: DomainFilter) => void;
+    domainOptions: string[];
     sortBy: SortBy;
     onSortChange: (v: SortBy) => void;
 }
@@ -53,11 +56,12 @@ function FilterOption({ label, isActive, onClick, icon, colorDot }: {
     );
 }
 
-function countActiveFilters(type: TypeFilter, priority: PriorityFilter, size: SizeFilter, sort: SortBy): number {
+function countActiveFilters(type: TypeFilter, priority: PriorityFilter, size: SizeFilter, domain: DomainFilter, sort: SortBy): number {
     let count = 0;
     if (type !== 'all') count++;
     if (priority !== 'all') count++;
     if (size !== 'all') count++;
+    if (domain !== 'all') count++;
     if (sort !== 'date') count++;
     return count;
 }
@@ -71,18 +75,22 @@ export function WorkflowFilterSheet({
     onPriorityChange,
     sizeFilter,
     onSizeChange,
+    domainFilter,
+    onDomainChange,
+    domainOptions,
     sortBy,
     onSortChange,
 }: WorkflowFilterSheetProps) {
     const keyboardOffset = useIOSKeyboardOffset();
 
-    const activeCount = countActiveFilters(typeFilter, priorityFilter, sizeFilter, sortBy);
+    const activeCount = countActiveFilters(typeFilter, priorityFilter, sizeFilter, domainFilter, sortBy);
     const hasActiveFilters = activeCount > 0;
 
     const clearAll = () => {
         onTypeChange('all');
         onPriorityChange('all');
         onSizeChange('all');
+        onDomainChange('all');
         onSortChange('date');
     };
 
@@ -125,6 +133,23 @@ export function WorkflowFilterSheet({
                             <FilterOption label="Bugs" isActive={typeFilter === 'bug'} onClick={() => onTypeChange('bug')} icon={<Bug className="h-4 w-4" />} />
                         </div>
                     </div>
+
+                    {domainOptions.length > 0 && (
+                        <>
+                            <Separator />
+
+                            {/* Domain */}
+                            <div className="space-y-2">
+                                <div className="py-2 text-sm font-medium text-foreground">Domain</div>
+                                <div className="grid grid-cols-2 gap-2 pb-2">
+                                    <FilterOption label="All" isActive={domainFilter === 'all'} onClick={() => onDomainChange('all')} />
+                                    {domainOptions.map((d) => (
+                                        <FilterOption key={d} label={d} isActive={domainFilter === d} onClick={() => onDomainChange(d)} />
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     <Separator />
 

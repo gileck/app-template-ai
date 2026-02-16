@@ -16,7 +16,7 @@ import type { UsageStats } from '../shared/types';
  * Note: 'code-review' is used by the standalone repo-commits-code-reviewer
  * and is distinct from the pipeline's 'pr-review' and 'workflow-review' stages.
  */
-export type WorkflowName = 'product-dev' | 'product-design' | 'tech-design' | 'bug-investigation' | 'implementation' | 'pr-review' | 'code-review' | 'workflow-review';
+export type WorkflowName = 'product-dev' | 'product-design' | 'tech-design' | 'bug-investigation' | 'implementation' | 'pr-review' | 'code-review' | 'workflow-review' | 'triage';
 
 // ============================================================
 // AGENT LIBRARY ADAPTER INTERFACE
