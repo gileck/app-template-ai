@@ -12,7 +12,6 @@
  *   yarn github-workflows-agent --implement [options]         # Run implementation agent
  *   yarn github-workflows-agent --pr-review [options]         # Run PR review agent
  *   yarn github-workflows-agent --auto-advance [options]      # Run auto-advance script
- *   yarn github-workflows-agent --triage [options]            # Run triage agent
  *   yarn github-workflows-agent --workflow-review [options]   # Run workflow review agent
  *   yarn github-workflows-agent --all [options]               # Run all in sequence
  *
@@ -52,11 +51,10 @@ const SCRIPTS = {
     'pr-review': resolve(__dirname, 'core-agents/prReviewAgent/index.ts'),
     'workflow-review': resolve(__dirname, 'core-agents/workflowReviewAgent/index.ts'),
     'auto-advance': resolve(__dirname, 'auto-advance.ts'),
-    'triage': resolve(__dirname, 'core-agents/triageAgent/index.ts'),
 };
 
 // Order for --all flag
-const ALL_ORDER = ['auto-advance', 'triage', 'product-dev', 'product-design', 'bug-investigator', 'tech-design', 'implement', 'pr-review', 'workflow-review'];
+const ALL_ORDER = ['auto-advance', 'product-dev', 'product-design', 'bug-investigator', 'tech-design', 'implement', 'pr-review', 'workflow-review'];
 
 /**
  * Reset to clean main branch
@@ -143,7 +141,6 @@ Usage:
   yarn github-workflows-agent --implement [options]         Run implementation agent
   yarn github-workflows-agent --pr-review [options]         Run PR review agent
   yarn github-workflows-agent --auto-advance [options]      Run auto-advance script
-  yarn github-workflows-agent --triage [options]            Run triage agent
   yarn github-workflows-agent --workflow-review [options]   Run workflow review agent
   yarn github-workflows-agent --all [options]               Run all in sequence
 
@@ -278,8 +275,6 @@ async function main() {
             scriptsToRun.push('workflow-review');
         } else if (arg === '--auto-advance') {
             scriptsToRun.push('auto-advance');
-        } else if (arg === '--triage') {
-            scriptsToRun.push('triage');
         } else if (arg === '--skip-pull') {
             skipPull = true;
         } else if (arg === '--reset') {
@@ -293,7 +288,7 @@ async function main() {
     }
 
     if (scriptsToRun.length === 0) {
-        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --workflow-review, --auto-advance, --triage, or --all\n');
+        console.error('Error: No agent specified. Use --product-dev, --product-design, --bug-investigator, --tech-design, --implement, --pr-review, --workflow-review, --auto-advance, or --all\n');
         printUsage();
         process.exit(1);
     }

@@ -97,6 +97,7 @@ export const updateWorkflowFields = async (
         size?: 'XS' | 'S' | 'M' | 'L' | 'XL' | null;
         complexity?: 'High' | 'Medium' | 'Low' | null;
         domain?: string | null;
+        description?: string | null;
         createdBy?: string | null;
     }
 ): Promise<void> => {

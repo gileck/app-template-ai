@@ -71,7 +71,7 @@ export const agentsConfig: AgentsConfig = {
     // IMPORTANT: This overrides ALL per-workflow library selections (workflowOverrides)
     // and ALL per-library model settings (libraryModels). Those fields are silently
     // ignored when useOpus is enabled.
-    useOpus: true,
+    useOpus: false,
 
     // Default library for all workflows
     defaultLibrary: 'claude-code-sdk',

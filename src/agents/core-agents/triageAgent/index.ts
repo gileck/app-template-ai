@@ -59,9 +59,10 @@ export async function processItem(
         return { success: false, error: `No workflow item found for issue #${issueNumber}` };
     }
 
-    // Skip if domain is already set AND all metadata fields are present
-    if (doc.domain && doc.priority && doc.size && doc.complexity) {
-        console.log(`  Skipping #${issueNumber}: already fully classified (domain=${doc.domain})`);
+    // Skip if already triaged (has triage summary in description) AND all metadata fields are present
+    const alreadyTriaged = doc.description?.includes('**Triage Summary:**');
+    if (alreadyTriaged && doc.domain && doc.priority && doc.size && doc.complexity) {
+        console.log(`  Skipping #${issueNumber}: already triaged (domain=${doc.domain})`);
         return { success: true };
     }
 
@@ -142,13 +143,25 @@ export async function processItem(
     if (!doc.size && output.size) fields.size = output.size;
     if (!doc.complexity && output.complexity) fields.complexity = output.complexity;
 
+    // Append triage summary to description
+    if (output.triageSummary) {
+        const separator = '\n\n---\n\n**Triage Summary:**\n';
+        const existingDesc = doc.description || '';
+        fields.description = existingDesc + separator + output.triageSummary;
+        if (!output.stillRelevant) {
+            fields.description += '\n\n⚠️ **Note:** This item may no longer be relevant — the issue appears to be already resolved.';
+        }
+    }
+
     if (Object.keys(fields).length === 0) {
         console.log(`  No fields to update for #${issueNumber}`);
         return { success: true };
     }
 
     await updateWorkflowFields(doc._id, fields as Parameters<typeof updateWorkflowFields>[1]);
-    console.log(`  Updated #${issueNumber}: ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+    const metadataFields = Object.entries(fields).filter(([k]) => k !== 'description').map(([k, v]) => `${k}=${v}`).join(', ');
+    if (metadataFields) console.log(`  Updated #${issueNumber}: ${metadataFields}`);
+    if (!output.stillRelevant) console.log(`  ⚠️  Item may no longer be relevant`);
     console.log(`  Reasoning: ${output.reasoning}`);
 
     return { success: true };
@@ -167,7 +180,7 @@ async function main(): Promise<void> {
             agentDisplayName: 'Triage',
             needsExistingPR: false,
         },
-        options,
+        { ...options, limit: options.limit ?? 3 },
         processItem,
     );
 }

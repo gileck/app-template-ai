@@ -1,0 +1,40 @@
+{
+  "name": "Agent(app-template-ai): Triage",
+  "uniqueKey": "app-template:agent:triage",
+  "groupName": "app-template-ai",
+  "description": "Classifies Backlog items by domain and suggests metadata (every 30 minutes, 3 items per run)",
+  "script": {
+    "path": "agent:triage",
+    "args": ["--stream", "--triggeredBy", "task-manager"],
+    "interpreter": "npm",
+    "workingDirectory": "/Users/gileck/Projects/app-template-ai"
+  },
+  "schedule": {
+    "type": "interval",
+    "value": "1800000"
+  },
+  "retry": {
+    "enabled": true,
+    "maxAttempts": 2,
+    "backoffType": "exponential",
+    "initialDelayMs": 30000,
+    "maxDelayMs": 120000
+  },
+  "timeout": {
+    "ms": 300000
+  },
+  "notifications": {
+    "onStart": false,
+    "onSuccess": false,
+    "onFailure": true
+  },
+  "options": {
+    "enabled": true,
+    "allowParallelRuns": false,
+    "requiresInternet": true
+  },
+  "output": {
+    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/triage/runs/output.log",
+    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/triage/runs/status.json"
+  }
+}

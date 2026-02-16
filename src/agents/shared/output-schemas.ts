@@ -791,6 +791,8 @@ export interface TriageOutput {
     priority?: 'critical' | 'high' | 'medium' | 'low';
     size?: 'XS' | 'S' | 'M' | 'L' | 'XL';
     complexity?: 'High' | 'Medium' | 'Low';
+    triageSummary: string;
+    stillRelevant: boolean;
     reasoning: string;
 }
 
@@ -818,12 +820,20 @@ export const TRIAGE_OUTPUT_FORMAT = {
                 enum: ['High', 'Medium', 'Low'],
                 description: 'Estimated complexity. Only provide if not already set on the item.',
             },
+            triageSummary: {
+                type: 'string',
+                description: 'Triage summary to append to the item description. Include: what was found during investigation, affected files/areas, whether the issue still exists (for bugs) or is not yet implemented (for features), and reasoning for domain/priority/size/complexity choices. This enriches the description for whoever works on the item next.',
+            },
+            stillRelevant: {
+                type: 'boolean',
+                description: 'Whether the issue is still relevant. False if a bug is already fixed or a feature is already implemented.',
+            },
             reasoning: {
                 type: 'string',
                 description: 'Brief explanation of the classification decisions.',
             },
         },
-        required: ['domain', 'reasoning'],
+        required: ['domain', 'triageSummary', 'stillRelevant', 'reasoning'],
     },
 };
 
