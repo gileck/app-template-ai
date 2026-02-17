@@ -1,0 +1,189 @@
+{
+  // TASK PIPELINE — Simplest pipeline for well-defined work items.
+  // Linear flow: Backlog → Implementation → PR Review → Done.
+  // No design phases. If a task needs design, convert it to a feature.
+
+  "id": "task",
+  "label": "Task Pipeline",
+  "entryStatus": "Backlog",
+  "terminalStatuses": ["Done"],
+
+  "statuses": [
+    { "id": "Backlog", "label": "Backlog" },
+
+    // Tasks go straight to implementation — no design phases.
+    // The implementation agent picks up tasks the same way as features.
+    { "id": "Ready for development", "label": "Ready for Development", "agentPhase": "implementation" },
+
+    { "id": "PR Review", "label": "PR Review", "agentPhase": "pr-review" },
+
+    { "id": "Done", "label": "Done" }
+  ],
+
+  "transitions": [
+    // ─── ENTRY ───────────────────────────────────────────────────────────
+
+    {
+      "id": "approve",
+      "from": "Backlog",
+      "to": "Backlog",
+      "trigger": "system_approve",
+      "guards": [
+        { "id": "guard:not-double-approved" }
+      ],
+      "hooks": [
+        { "id": "hook:create-github-issue", "phase": "before" },
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" },
+        { "id": "hook:notify-approved", "phase": "after", "optional": true }
+      ],
+      "description": "Approve task — creates GitHub issue"
+    },
+
+    // ─── ROUTING ─────────────────────────────────────────────────────────
+    // Tasks only route to implementation (no design phases)
+
+    {
+      "id": "route-to-implementation",
+      "from": "Backlog",
+      "to": "Ready for development",
+      "trigger": "admin_route",
+      "guards": [
+        { "id": "guard:item-exists" },
+        { "id": "guard:github-synced" }
+      ],
+      "hooks": [
+        { "id": "hook:clear-review-status-db", "phase": "after" },
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" },
+        { "id": "hook:notify-routed", "phase": "after", "optional": true }
+      ],
+      "description": "Route task to Implementation"
+    },
+
+    // ─── IMPLEMENTATION → PR REVIEW ──────────────────────────────────────
+
+    {
+      "id": "agent-complete-implementation",
+      "from": "Ready for development",
+      "to": "PR Review",
+      "trigger": "agent_complete",
+      "guards": [{ "id": "guard:item-exists" }],
+      "hooks": [
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" }
+      ],
+      "description": "Implementation agent created PR — advance to PR Review"
+    },
+
+    // ─── REQUEST CHANGES LOOP ────────────────────────────────────────────
+
+    {
+      "id": "pr-request-changes",
+      "from": "PR Review",
+      "to": "Ready for development",
+      "trigger": "admin_request_changes_pr",
+      "guards": [{ "id": "guard:item-exists" }],
+      "hooks": [
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" }
+      ],
+      "description": "Request changes on PR — return to Implementation"
+    },
+
+    // ─── MERGE → DONE ────────────────────────────────────────────────────
+    // Tasks are always single-phase, so only one merge transition needed.
+
+    {
+      "id": "merge-impl-pr",
+      "from": "PR Review",
+      "to": "Done",
+      "trigger": "admin_merge_pr",
+      "guards": [
+        { "id": "guard:item-exists" },
+        { "id": "guard:pr-exists" },
+        { "id": "guard:commit-message-exists" }
+      ],
+      "hooks": [
+        { "id": "hook:merge-pr", "phase": "before" },
+        { "id": "hook:save-phase-artifact", "phase": "after" },
+        { "id": "hook:set-last-merged-pr", "phase": "after" },
+        { "id": "hook:delete-pr-branch", "phase": "after", "optional": true },
+        { "id": "hook:add-issue-comment", "phase": "after", "optional": true },
+        // markDone hooks
+        { "id": "hook:clear-review-status-db", "phase": "after" },
+        { "id": "hook:update-source-doc-status", "phase": "after" },
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" },
+        { "id": "hook:sync-log-to-repo", "phase": "after", "optional": true }
+      ],
+      "description": "Merge task PR — marks Done"
+    },
+
+    // ─── GLOBAL TRANSITIONS ──────────────────────────────────────────────
+
+    {
+      "id": "manual-status-set",
+      "from": "*",
+      "to": "*",
+      "trigger": "admin_route",
+      "guards": [{ "id": "guard:item-exists" }],
+      "hooks": [
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" }
+      ],
+      "description": "Set arbitrary status via UI — fallback for items without routing destination mapping"
+    },
+
+    {
+      "id": "manual-mark-done",
+      "from": "*",
+      "to": "Done",
+      "trigger": "admin_mark_done",
+      "guards": [{ "id": "guard:item-exists" }],
+      "hooks": [
+        { "id": "hook:clear-review-status-db", "phase": "after" },
+        { "id": "hook:update-source-doc-status", "phase": "after" },
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" },
+        { "id": "hook:sync-log-to-repo", "phase": "after", "optional": true }
+      ],
+      "description": "Admin manually marks task as Done"
+    },
+
+    {
+      "id": "undo-action",
+      "from": "*",
+      "to": "*",
+      "trigger": "admin_undo",
+      "guards": [
+        { "id": "guard:item-exists" },
+        { "id": "guard:undo-window-valid" }
+      ],
+      "hooks": [
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" }
+      ],
+      "description": "Undo within 5-minute window"
+    }
+  ],
+
+  "reviewFlows": [
+    {
+      // Tasks have a simple PR review flow — approve or request changes.
+      "statusId": "PR Review",
+      "onAgentComplete": { "reviewStatus": "Waiting for Review" },
+      "reviewActions": [
+        { "action": "approve", "reviewStatus": "Approved" },
+        { "action": "changes", "reviewStatus": "Request Changes", "triggersTransition": "pr-request-changes" }
+      ]
+    }
+  ]
+}
