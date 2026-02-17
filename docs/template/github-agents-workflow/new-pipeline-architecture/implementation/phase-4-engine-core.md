@@ -100,7 +100,18 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
   - `getValidTransitions` filters by trigger when provided
   - `getHistory` returns chronological entries
 
-- [ ] **4.9** Run `yarn checks` — zero errors; run E2E tests — all pass (engine exists but callers don't use it yet)
+- [ ] **4.9** Add integration tests: `src/server/template/workflow-service/pipeline/__tests__/integration.test.ts`
+  - Use real pipeline definitions but mock the adapter and DB
+  - Test scenarios from `testing.md`:
+    - Feature pipeline end-to-end (approve → route → agent complete → merge → done)
+    - Bug pipeline (approve → auto-route investigation → decision → implementation → done)
+    - Task pipeline (approve → route → implementation → merge → done)
+    - Multi-phase feature (3 phases: merge phase 1, advance, merge phase 2, advance, merge phase 3, final PR)
+    - Undo within time window (advance → undo → verify restored status)
+    - Revert after merge (merge → revert → merge revert PR)
+    - Guard rejection (attempt invalid transition, verify blocked with reason)
+
+- [ ] **4.10** Run `yarn checks` — zero errors; run E2E tests — all pass (engine exists but callers don't use it yet)
 
 ## Files to Modify
 
@@ -112,6 +123,7 @@ src/server/template/workflow-service/pipeline/engine.ts  (replace skeleton with 
 
 ```
 src/server/template/workflow-service/pipeline/__tests__/engine.test.ts
+src/server/template/workflow-service/pipeline/__tests__/integration.test.ts
 ```
 
 ## Implementation Notes

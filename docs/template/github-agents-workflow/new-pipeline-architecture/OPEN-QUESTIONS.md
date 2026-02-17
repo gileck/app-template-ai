@@ -15,7 +15,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option A: Engine resolves** — The engine inspects `item.artifacts.phases` to pick the right transition when multiple transitions match the same `trigger + from`. Callers just say "merge this PR" and the engine figures out the variant. Cleaner caller code, but the engine needs merge-specific logic.
 - **Option B: Caller resolves** — The caller inspects phase artifacts and passes the specific transition ID (`merge-impl-pr-next-phase`). Engine stays generic, but callers duplicate resolution logic.
 
-**Recommendation:** Option A — the engine should resolve. The pipeline definition can include metadata on transitions that the engine uses for disambiguation (e.g., a `resolveCondition` field).
+**Decision: Option A — engine resolves.** The engine inspects phase artifacts and picks the right variant. Callers just pass a generic "merge-pr" trigger. This aligns with the core architecture principle: callers don't manage state logic. A `resolveCondition` field on transitions can keep the resolution declarative within the pipeline definition.
 
 ---
 
@@ -30,7 +30,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - In the current codebase, `reviewDesign('approve')` is called from Telegram design review buttons, while `approveDesign()` is called from the design PR approval UI flow.
 - Both advance to the same next status, but `approveDesign()` captures design artifacts.
 
-**Impact:** If both are kept, the pipeline definitions need to clearly document when each is used. If one is deprecated, the migration simplifies.
+**Decision: Merge into one path.** Remove the lightweight `auto-advance-*` design transitions. The review flow's `approve` action should trigger `approve-design-{type}` (with S3 read + artifact save + phase init) as the single approval path. This ensures artifacts are always captured and phase initialization always happens, regardless of whether admin uses Telegram or web UI. The `auto-advance-*` transitions for design phases are removed from pipeline definitions.
 
 ---
 
@@ -43,7 +43,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option A: Bypass validation** — Matches current behavior. Allows admin to force any status. Risk: invalid states.
 - **Option B: Validate target exists in pipeline** — Prevents invalid statuses but may break edge cases where admin needs to force a recovery.
 
-**Recommendation:** Option B with a `force` flag in context that bypasses validation when explicitly set.
+**Decision: Option B.** Validate that the target status exists in the pipeline definition. Add a `force` flag in context that bypasses validation for manual recovery scenarios.
 
 ---
 
@@ -57,7 +57,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option B: Engine implicit behavior** — The engine automatically sets `pipelineId` on the first transition for any item that doesn't have one.
 - **Option C: Part of approve hook** — The `hook:create-github-issue` hook (which already runs during approve) also sets `pipelineId`.
 
-**Recommendation:** Option B — keeps it simple and handles edge cases (existing items without `pipelineId` get it set on their next transition).
+**Decision: One-time DB migration + set on approve.** Run a migration script to set `pipelineId` on all existing workflow items (based on `item.type`). For new items, the engine sets `pipelineId` during the approve transition as part of the dual-write. No fallback logic needed — engine requires `pipelineId` and throws if missing. Add the migration script as a Phase 1 task.
 
 ---
 
@@ -71,7 +71,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option B: Phase 5** — after internal migration. Pro: validates the wrappers work end-to-end. Con: adds to the already highest-risk phase.
 - **Option C: New Phase 4.5** — dedicated integration test phase between engine core and migration. Pro: clean separation. Con: adds a phase.
 
-**Recommendation:** Phase 4 — add the integration tests as task 4.10, since they're closely related to engine validation and can catch issues before the risky Phase 5 begins.
+**Decision: Phase 4.** Add the integration tests as task 4.10, since they're closely related to engine validation and can catch issues before the risky Phase 5 begins.
 
 ---
 
@@ -85,7 +85,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Engine behavior:** Same approach — if the adapter write succeeds but the DB write fails (or vice versa), after-hooks still run but the result includes an error. The existing `syncWorkflowStatus` reconciliation remains the safety net.
 
-**No decision needed** — documenting for awareness. The engine doesn't solve this problem, and solving it properly would require distributed transactions which is out of scope.
+**No decision needed** — documenting for awareness. The engine doesn't solve this problem, and solving it properly would require distributed transactions which is out of scope. **Verified in Phase 8 (tasks 8.1, 8.2).**
 
 ---
 
@@ -95,7 +95,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Risk:** Low. The wrapper `markDone()` preserves the same signature and return type. The engine-based implementation should produce identical side effects. But if a hook fails that the old code handled differently, behavior could diverge.
 
-**Mitigation:** Migrate callee functions before their callers. The Phase 5 task ordering already does this (`markDone` at 5.8, `mergeFinalPR` at 5.21). Run E2E after each migration to catch divergence early.
+**Mitigation:** Migrate callee functions before their callers. The Phase 5 task ordering already does this (`markDone` at 5.8, `mergeFinalPR` at 5.21). Run E2E after each migration to catch divergence early. **Verified in Phase 8 (task 8.3).**
 
 ---
 
@@ -105,7 +105,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Risk:** If any caller still uses `mergeDesignPR()`, it will stop working after Phase 7 cleanup. The E2E tests for `design-pr.e2e.test.ts` test the legacy PR-based flow.
 
-**Mitigation:** Before Phase 7, grep the codebase for `mergeDesignPR` callers. If any exist, either migrate them to `approveDesign()` or add a thin wrapper. The `design-pr.e2e.test.ts` test should be updated to use `approveDesign()` if it hasn't been already.
+**Mitigation:** Before Phase 7, grep the codebase for `mergeDesignPR` callers. If any exist, either migrate them to `approveDesign()` or add a thin wrapper. The `design-pr.e2e.test.ts` test should be updated to use `approveDesign()` if it hasn't been already. **Verified in Phase 8 (task 8.4).**
 
 ---
 
@@ -115,7 +115,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Trade-off:** This keeps the engine simpler — review status is truly a sub-state, not a pipeline state. But it means review status changes have fewer guardrails. The `ReviewFlowDefinition` validates that the action is valid for the current status, and a `triggersTransition` field can fire a real transition when needed (e.g., approve triggers auto-advance).
 
-**No decision needed** — the design is intentional and matches the current codebase where review status updates are lightweight operations. Documenting for awareness.
+**No decision needed** — the design is intentional and matches the current codebase where review status updates are lightweight operations. Documenting for awareness. **Verified in Phase 8 (task 8.5).**
 
 ---
 
@@ -123,7 +123,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Context:** The original plan specified 14 guards. During review, `guard:has-approved-review-status` was added (extracted from `auto-advance.ts`), bringing the total to 15. The guard catalog in `guards-and-hooks.md` now lists 15 guards across 5 files.
 
-**No decision needed** — the count was corrected during review. The item-guards.ts file now has 8 guards (the largest).
+**No decision needed** — the count was corrected during review. The item-guards.ts file now has 8 guards (the largest). **Verified in Phase 8 (task 8.6).**
 
 ---
 
@@ -131,7 +131,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Context:** The three example pipeline files (`feature-pipeline.json`, `bug-pipeline.json`, `task-pipeline.json`) use JSON with inline `//` comments. Standard JSON doesn't support comments.
 
-**Impact:** These files are documentation, not runtime code. The actual pipeline definitions will be TypeScript const objects. The JSONC format is intentional for readability. These files should not be parsed as JSON by any tooling.
+**Impact:** These files are documentation, not runtime code. The actual pipeline definitions will be TypeScript const objects. The JSONC format is intentional for readability. These files should not be parsed as JSON by any tooling. **Verified in Phase 8 (task 8.7).**
 
 ---
 
@@ -141,4 +141,4 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Question:** Should this remain a separate exported function, or should it be absorbed into the engine?
 
-**Recommendation:** Keep as a thin wrapper that resolves the issue number from the workflow-item ID and calls the `routeWorkflowItem()` wrapper. No engine changes needed — this is a convenience function for a specific caller.
+**Recommendation:** Keep as a thin wrapper that resolves the issue number from the workflow-item ID and calls the `routeWorkflowItem()` wrapper. No engine changes needed — this is a convenience function for a specific caller. **Verified in Phase 8 (task 8.8).**
