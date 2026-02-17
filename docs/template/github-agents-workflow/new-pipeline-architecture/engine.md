@@ -55,7 +55,7 @@ This is the core method. Every status change flows through it:
 ```
 1. Load workflow item from DB (get current status, pipelineId, statusVersion)
 2. Resolve pipeline definition (from pipelineId or item type)
-3. Find transition by ID in pipeline definition
+3. Find transition by ID in pipeline definition (or use multi-match resolution if called via trigger)
 4. Validate from-status:
    - If transition.from is a specific status: current status must match
    - If transition.from is '*': any status is valid
@@ -92,12 +92,15 @@ interface AgentCompletionResult {
 }
 ```
 
-The engine resolves the appropriate transition:
+The engine resolves the appropriate transition using **multi-match resolution** (see below):
 
 1. Load the item and its pipeline definition
-2. Find transitions with `trigger: 'agent_complete'` from the current status
-3. Match based on agent type and result (e.g., bug investigator with auto-submit goes to Implementation, without goes to review)
-4. Delegate to `engine.transition()` with the resolved transition ID
+2. Find all transitions with `trigger: 'agent_complete'` from the current status
+3. Set `context.agentType` and `context.agentResult` from the completion result
+4. Use multi-match resolution: run guards on each candidate, pick the first where all guards pass
+5. Delegate to `engine.transition()` with the resolved transition ID
+
+The engine has **no agent-specific logic**. Disambiguation between agent completion variants (e.g., bug investigator normal completion vs auto-submit) is handled entirely by guards on the pipeline definition's transitions. For example, `agent-auto-submit-investigation` has a `guard:auto-submit-conditions-met` guard that checks the agent result; if it fails, the engine falls through to `agent-complete-investigation`.
 
 This replaces the current `completeAgentRun()` which accepts arbitrary status values.
 
@@ -128,6 +131,32 @@ The current system maintains two parallel status stores. The engine preserves th
    - Source of truth for the web UI and API queries
 
 Both writes happen within `engine.transition()`, after before-hooks and before after-hooks. If the adapter write succeeds but the DB write fails (or vice versa), the after-hooks still run but the result includes an error flag. The `sync-workflow-status` hook (run periodically) reconciles any drift.
+
+## Multi-Match Resolution
+
+When the engine finds multiple transitions matching the same `trigger + from`, it uses **guard-based resolution** instead of hardcoded logic:
+
+1. Collect all transitions matching `trigger` and `from` (current status or `'*'`)
+2. For each candidate transition (in pipeline definition order):
+   a. Run all guards for this transition
+   b. If all guards pass → select this transition
+   c. If any guard fails → skip to next candidate
+3. If no candidate passes all guards → return `{ valid: false, reason: 'No matching transition' }`
+
+This keeps the engine **fully generic** — it never inspects domain-specific fields like phase artifacts or agent results. All disambiguation logic lives in the pipeline definition's guards.
+
+**Example: Merge transition resolution.** Three transitions share `trigger: admin_merge_pr` and `from: PR Review`. Each has a phase-inspection guard:
+- `merge-impl-pr` → `guard:is-single-phase` (no phases or single phase)
+- `merge-impl-pr-next-phase` → `guard:is-middle-phase` (more phases remaining)
+- `merge-impl-pr-final` → `guard:is-final-phase` (last phase)
+
+The engine runs guards on each in order and picks the first pass. The pipeline definition declares the disambiguation; the engine just evaluates guards.
+
+**Example: Agent completion resolution.** Two transitions share `trigger: agent_complete` and `from: Bug Investigation`:
+- `agent-auto-submit-investigation` → `guard:auto-submit-conditions-met` (checks auto-submit flag, confidence, complexity)
+- `agent-complete-investigation` → no special guards (fallback)
+
+The auto-submit transition is listed first. If its guard passes, the agent auto-routes. If not, the normal completion transition is selected.
 
 ## Concurrency Control
 

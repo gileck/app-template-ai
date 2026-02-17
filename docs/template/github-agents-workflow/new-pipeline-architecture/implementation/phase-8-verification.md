@@ -54,7 +54,7 @@ Phase 7 (cleanup complete — all old code removed, engine is the only path).
 - [ ] **8.6** Verify all 15 guards and 38 hooks are registered and referenced
   - Run the startup validation that checks every guard/hook ID in pipeline definitions exists in the registry
   - Cross-check: every guard/hook in the registry is referenced by at least one pipeline definition (no orphans)
-  - Verify the guard count in `guards-and-hooks.md` matches the actual registry count
+  - Verify the guard count in `guards-and-hooks.md` (19 guards, 38 hooks) matches the actual registry count
 
 ### Pipeline Definition Integrity (Awareness Item #11)
 

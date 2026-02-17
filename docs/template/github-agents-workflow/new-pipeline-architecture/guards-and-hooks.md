@@ -46,7 +46,7 @@ At startup, the engine validates that every guard and hook ID referenced in pipe
 
 ## Guard Catalog
 
-14 guards derived from current precondition checks across workflow-service functions:
+19 guards derived from current precondition checks across workflow-service functions, plus 4 new guards for generic multi-match resolution:
 
 ### Item Guards (`pipeline/guards/item-guards.ts`)
 
@@ -60,6 +60,9 @@ At startup, the engine validates that every guard and hook ID referenced in pipe
 | `guard:valid-routing-destination` | `route.ts` | Destination is in the routing map for this item type | Routing transitions |
 | `guard:waiting-for-clarification` | `clarification.ts` | Item's review status is `Waiting for Clarification` | Clarification received transition |
 | `guard:has-approved-review-status` | `auto-advance.ts` | Item's review status is `Approved` and status is not `Done` and status has a defined transition in STATUS_TRANSITIONS | Auto-advance transitions |
+| `guard:is-single-phase` | `merge-pr.ts` | Item has no phases or single phase (`!item.artifacts?.phases \|\| phases.length <= 1`) | `merge-impl-pr` (multi-match disambiguation) |
+| `guard:is-middle-phase` | `merge-pr.ts` | Item has multiple phases and current phase is not the last one | `merge-impl-pr-next-phase` (multi-match disambiguation) |
+| `guard:is-final-phase` | `merge-pr.ts` | Item has multiple phases and current phase is the last one | `merge-impl-pr-final` (multi-match disambiguation) |
 
 ### PR Guards (`pipeline/guards/pr-guards.ts`)
 
@@ -81,6 +84,7 @@ At startup, the engine validates that every guard and hook ID referenced in pipe
 | Guard ID | Derived From | Logic | Used By |
 |----------|-------------|-------|---------|
 | `guard:decision-exists` | `choose-recommended.ts` | Decision data exists (DB-first, fallback to GitHub comment parsing) with a recommended option | Choose recommended transition |
+| `guard:auto-submit-conditions-met` | `choose-recommended.ts`, bug investigator | Agent result has `autoSubmit: true`, high confidence, S complexity, destination is implement, recommended option exists | `agent-auto-submit-investigation` (multi-match disambiguation) |
 
 ### Concurrency Guards (`pipeline/guards/concurrency-guards.ts`)
 
@@ -176,7 +180,7 @@ Complete mapping of every current exported function to its pipeline engine equiv
 | `setWorkflowStatus()` | `manual-status-set` | item-exists | — | sync-workflow-status, history-log |
 | `advanceImplementationPhase()` | Subsumed by `merge-impl-pr-next-phase` | item-exists | — | advance-implementation-phase, sync-workflow-status, agent-log |
 | `clearImplementationPhase()` | Subsumed by `manual-mark-done` | item-exists | — | clear-implementation-phase, agent-log |
-| `completeAgentRun()` | `engine.completeAgent()` → resolves transition | item-exists | — | sync-workflow-status, agent-log, history-log |
+| `completeAgentRun()` | `engine.completeAgent()` → multi-match resolution by guards | item-exists | — | sync-workflow-status, agent-log, history-log |
 | `submitDecisionRouting()` | `bug-decision-to-{dest}` | item-exists | — | save-decision-selection, sync-workflow-status, agent-log, history-log |
 | `undoStatusChange()` | `undo-action` (from: '*', to: '*') | undo-window-valid | — | sync-workflow-status, agent-log, history-log |
 | `autoAdvanceApproved()` | `auto-advance-{from}` (batch) | item-exists, has-approved-review-status | — | clear-review-status-db, sync-workflow-status, notify-auto-advance |
@@ -187,7 +191,7 @@ Complete mapping of every current exported function to its pipeline engine equiv
 | `chooseRecommendedOption()` | `choose-recommended` | item-exists, decision-exists | — | save-decision-selection, post-decision-comment, sync-workflow-status, notify-decision-submitted, history-log |
 | `approveDesign()` | `approve-design-{type}` | item-exists | read-design-from-s3 | save-design-artifact, add-issue-comment, initialize-phases (tech only), sync-workflow-status, agent-log, history-log |
 | `mergeDesignPR()` | DEPRECATED — use `approveDesign()` | — | — | — |
-| `mergeImplementationPR()` | `merge-impl-pr` / `merge-impl-pr-next-phase` / `merge-impl-pr-final` | item-exists, pr-exists, commit-message-exists | merge-pr | save-phase-artifact, set-last-merged-pr, delete-pr-branch, advance-implementation-phase (multi), create-final-pr (final), add-issue-comment, sync-workflow-status, agent-log, history-log |
+| `mergeImplementationPR()` | `merge-impl-pr` / `merge-impl-pr-next-phase` / `merge-impl-pr-final` (multi-match resolution via is-single-phase / is-middle-phase / is-final-phase guards) | item-exists, pr-exists, commit-message-exists, + phase guard | merge-pr | save-phase-artifact, set-last-merged-pr, delete-pr-branch, advance-implementation-phase (multi), create-final-pr (final), add-issue-comment, sync-workflow-status, agent-log, history-log |
 | `mergeFinalPR()` | `merge-final-pr` | item-exists, pr-exists | merge-final-pr | clean-up-task-branch, add-issue-comment, *then markDone hooks* |
 | `revertMerge()` | `revert-merge` | item-exists, merge-commit-sha-valid | create-revert-pr | set-revert-pr-number, revert-source-doc-status, sync-workflow-status, agent-log, history-log |
 | `mergeRevertPR()` | `merge-revert-pr` | item-exists, pr-open-and-not-merged | merge-revert-pr | clear-revert-pr-number, delete-pr-branch, agent-log, history-log |

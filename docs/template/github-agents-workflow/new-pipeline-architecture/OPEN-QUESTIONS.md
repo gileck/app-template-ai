@@ -15,7 +15,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option A: Engine resolves** — The engine inspects `item.artifacts.phases` to pick the right transition when multiple transitions match the same `trigger + from`. Callers just say "merge this PR" and the engine figures out the variant. Cleaner caller code, but the engine needs merge-specific logic.
 - **Option B: Caller resolves** — The caller inspects phase artifacts and passes the specific transition ID (`merge-impl-pr-next-phase`). Engine stays generic, but callers duplicate resolution logic.
 
-**Decision: Option A — engine resolves.** The engine inspects phase artifacts and picks the right variant. Callers just pass a generic "merge-pr" trigger. This aligns with the core architecture principle: callers don't manage state logic. A `resolveCondition` field on transitions can keep the resolution declarative within the pipeline definition.
+**Decision: Generic multi-match resolution.** Neither Option A nor B — the engine uses a fully generic approach. When multiple transitions match the same `trigger + from`, the engine evaluates guards on each candidate in pipeline definition order and picks the first where all guards pass. Phase-inspection guards (`guard:is-single-phase`, `guard:is-middle-phase`, `guard:is-final-phase`) are added to the merge transitions. The engine has zero merge-specific logic — disambiguation is entirely declarative via pipeline definition guards.
 
 ---
 

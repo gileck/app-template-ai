@@ -92,15 +92,12 @@ Multi-phase is **not** a separate pipeline. It's a dynamic behavior within the f
 
 1. When Tech Design is approved, the `hook:initialize-phases` hook parses phases from the design document and sets `implementationPhase: "1/N"`
 2. The implementation agent creates a PR for the current phase
-3. On merge:
-   - The `hook:merge-pr` executes the squash merge
-   - The `hook:save-phase-artifact` records the merge
-   - The engine checks phase artifacts to determine which transition to resolve:
-     - **Middle phase** (not all phases merged): fire `merge-impl-pr-next-phase` → advances phase counter, returns to Ready for development
-     - **Final phase with task branch**: fire `merge-impl-pr-final` → creates final PR, advances to Final Review
-     - **Final phase without task branch**: fire `merge-impl-pr` → marks Done directly
+3. On merge, the engine uses **multi-match resolution** — three transitions share `trigger: admin_merge_pr` and `from: PR Review`, each with a phase-inspection guard:
+   - `merge-impl-pr` → `guard:is-single-phase` (no phases or single phase) → Done
+   - `merge-impl-pr-next-phase` → `guard:is-middle-phase` (more phases remaining) → Ready for development (next phase)
+   - `merge-impl-pr-final` → `guard:is-final-phase` (last phase) → Final Review (creates final PR)
 
-The `merge-impl-pr` transition in the pipeline definition has a special resolver that the engine uses to pick the right variant. This is the most complex piece and matches the current 362-line `merge-pr.ts` logic.
+The engine has no phase-specific logic — it simply evaluates guards on each candidate transition in order and picks the first pass. The guards inspect `item.artifacts.phases` to determine which transition applies. This replaces the hardcoded 362-line `merge-pr.ts` resolution logic with declarative pipeline definition data.
 
 ## Bug Pipeline
 
@@ -154,7 +151,11 @@ The Bug Investigator agent can auto-submit when all conditions are met:
 - Destination is `implement`
 - A recommended option exists
 
-When auto-submit fires, the agent calls `engine.completeAgent()` with `status: 'Ready for development'` and `clearReviewStatus: true`. The engine resolves this to the `agent-auto-submit-investigation` transition, bypassing the admin decision step.
+When auto-submit fires, the agent calls `engine.completeAgent()` which uses **multi-match resolution**. Two transitions share `trigger: agent_complete` and `from: Bug Investigation`:
+- `agent-auto-submit-investigation` (listed first) → `guard:auto-submit-conditions-met` checks all auto-submit criteria
+- `agent-complete-investigation` (fallback) → no special guards
+
+The engine evaluates the auto-submit guard first. If it passes, the item routes directly to Implementation. If not, the normal completion transition fires and the item waits for admin decision. The engine has no bug-investigator-specific logic — all disambiguation is declarative via guards in the pipeline definition.
 
 ## Task Pipeline
 

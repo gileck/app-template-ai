@@ -66,9 +66,9 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
 
 - [ ] **4.5** Implement `PipelineEngine.completeAgent(issueNumber, agentType, result)`
   - Load item and pipeline
-  - Find transitions with `trigger: 'agent_complete'` from current status
-  - Match based on agent type and result properties
-  - For bug investigator: distinguish between normal completion and auto-submit based on result
+  - Set `context.agentType` and `context.agentResult` from the completion result
+  - Use multi-match resolution (same as transition) to find the right `agent_complete` transition
+  - No agent-specific logic — disambiguation is handled by guards on the pipeline definition
   - Delegate to `this.transition()` with resolved transition ID and merged context
 
 - [ ] **4.6** Implement `PipelineEngine.getHistory(issueNumber)`
@@ -93,7 +93,10 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
   - Concurrent version check: correct version succeeds
   - Wildcard `from: '*'` transition works from any status
   - Wildcard `to: '*'` transition resolves from `context.restoreStatus`
-  - `completeAgent` resolves correct transition for each agent type
+  - Multi-match resolution: first candidate where all guards pass is selected
+  - Multi-match resolution: order matters — first match wins
+  - Multi-match resolution: no matching candidate returns error
+  - `completeAgent` resolves correct transition via multi-match (no agent-specific engine logic)
   - `updateReviewStatus` validates against ReviewFlowDefinition
   - `updateReviewStatus` fires triggered transition when applicable
   - `getValidTransitions` returns only matching transitions
@@ -170,27 +173,28 @@ for (const hookRef of beforeHooks) {
 }
 ```
 
-### Merge Transition Resolution
+### Multi-Match Resolution
 
-The most complex part: when `admin_merge_pr` fires, the engine must resolve which of the three merge transitions to use (`merge-impl-pr`, `merge-impl-pr-next-phase`, `merge-impl-pr-final`). This is done by inspecting the item's phase artifacts:
+When multiple transitions match the same `trigger + from`, the engine uses guard-based resolution:
 
 ```typescript
-// In engine.transition(), when trigger is admin_merge_pr and multiple transitions match:
-const phases = item.artifacts?.phases;
-if (!phases || phases.length <= 1) {
-  // Single phase → merge-impl-pr
-} else {
-  const allMerged = phases.every(p => p.status === 'merged');
-  const currentPhase = getCurrentPhase(item);
-  if (currentPhase < phases.length) {
-    // Middle phase → merge-impl-pr-next-phase
-  } else {
-    // Final phase → merge-impl-pr-final
+// In engine — fully generic, no domain-specific logic
+function resolveTransition(candidates: PipelineTransition[], item, context): PipelineTransition | null {
+  for (const transition of candidates) {
+    const guardResults = await runGuards(transition.guards, item, transition, context);
+    if (guardResults.every(r => r.valid)) {
+      return transition;  // First candidate where all guards pass
+    }
   }
+  return null;  // No candidate matched
 }
 ```
 
-This logic currently lives in `merge-pr.ts` and is extracted into the engine's transition resolution.
+This replaces the hardcoded merge resolution logic. The engine doesn't inspect phase artifacts or agent results — guards on each transition handle disambiguation:
+- Merge transitions: `guard:is-single-phase` / `guard:is-middle-phase` / `guard:is-final-phase`
+- Agent completion: `guard:auto-submit-conditions-met` (first) vs no special guard (fallback)
+
+Pipeline definition order determines evaluation priority — more specific transitions (with restrictive guards) must be listed before generic fallbacks.
 
 ## Validation
 

@@ -54,8 +54,33 @@
     },
 
     // ─── INVESTIGATION DECISION FLOW ─────────────────────────────────────
+    // Two agent_complete transitions from Bug Investigation. The engine uses
+    // multi-match resolution: evaluates guards in order, picks first pass.
+    // Auto-submit is listed FIRST so its guard is evaluated before the fallback.
 
-    // Normal flow: agent completes investigation, waits for admin decision
+    // Auto-submit: agent auto-routes when conditions are met
+    // (autoSubmit=true, high confidence, S complexity, destination=implement)
+    {
+      "id": "agent-auto-submit-investigation",
+      "from": "Bug Investigation",
+      "to": "Ready for development",
+      "trigger": "agent_complete",
+      "guards": [
+        { "id": "guard:item-exists" },
+        { "id": "guard:auto-submit-conditions-met" }
+      ],
+      "hooks": [
+        { "id": "hook:clear-review-status-db", "phase": "after" },
+        { "id": "hook:sync-workflow-status", "phase": "after" },
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" },
+        { "id": "hook:notify-auto-advance", "phase": "after", "optional": true }
+      ],
+      "description": "Bug Investigator auto-submits obvious fix — skip to Implementation"
+    },
+
+    // Normal flow (fallback): agent completes investigation, waits for admin decision.
+    // This is evaluated AFTER auto-submit — if auto-submit guard fails, this fires.
     {
       "id": "agent-complete-investigation",
       "from": "Bug Investigation",
@@ -68,24 +93,6 @@
         { "id": "hook:history-log", "phase": "after" }
       ],
       "description": "Bug Investigator completes — sets review status for admin decision"
-    },
-
-    // Auto-submit: agent auto-routes when conditions are met
-    // (autoSubmit=true, high confidence, S complexity, destination=implement)
-    {
-      "id": "agent-auto-submit-investigation",
-      "from": "Bug Investigation",
-      "to": "Ready for development",
-      "trigger": "agent_complete",
-      "guards": [{ "id": "guard:item-exists" }],
-      "hooks": [
-        { "id": "hook:clear-review-status-db", "phase": "after" },
-        { "id": "hook:sync-workflow-status", "phase": "after" },
-        { "id": "hook:agent-log", "phase": "after" },
-        { "id": "hook:history-log", "phase": "after" },
-        { "id": "hook:notify-auto-advance", "phase": "after", "optional": true }
-      ],
-      "description": "Bug Investigator auto-submits obvious fix — skip to Implementation"
     },
 
     // Admin decision routing — select which phase to route to
@@ -268,7 +275,8 @@
       ]
     },
 
-    // Merge transitions — same structure as feature pipeline
+    // Merge transitions — same structure as feature pipeline.
+    // Multi-match resolution via phase guards.
     {
       "id": "merge-impl-pr",
       "from": "PR Review",
@@ -277,7 +285,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-single-phase" }
       ],
       "hooks": [
         { "id": "hook:merge-pr", "phase": "before" },
@@ -297,7 +306,7 @@
       ]
     },
 
-    // Multi-phase transitions (same as feature)
+    // Multi-phase transitions (same as feature, with phase guards)
     {
       "id": "merge-impl-pr-next-phase",
       "from": "PR Review",
@@ -306,7 +315,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-middle-phase" }
       ],
       "hooks": [
         { "id": "hook:merge-pr", "phase": "before" },
@@ -330,7 +340,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-final-phase" }
       ],
       "hooks": [
         { "id": "hook:merge-pr", "phase": "before" },

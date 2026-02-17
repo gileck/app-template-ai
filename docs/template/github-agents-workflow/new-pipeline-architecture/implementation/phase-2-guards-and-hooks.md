@@ -7,7 +7,7 @@ summary: Extract all precondition checks and side effects from current workflow-
 
 ## Goal
 
-Extract the 15 guards and 38 hooks from existing workflow-service functions into standalone, registered modules. After this phase, all guards and hooks exist as reusable functions but are not yet called by the engine.
+Extract the 19 guards and 38 hooks from existing workflow-service functions into standalone, registered modules. After this phase, all guards and hooks exist as reusable functions but are not yet called by the engine.
 
 ## Dependencies
 
@@ -26,6 +26,9 @@ Phase 1 (types must exist for guard/hook function signatures).
   - Extract `guard:valid-routing-destination` — from `route.ts` routing map validation
   - Extract `guard:waiting-for-clarification` — from `clarification.ts` review status check
   - Extract `guard:has-approved-review-status` — from `auto-advance.ts` check for Approved review status + valid transition target
+  - Extract `guard:is-single-phase` — NEW guard for multi-match resolution: item has no phases or `phases.length <= 1`
+  - Extract `guard:is-middle-phase` — NEW guard for multi-match resolution: item has multiple phases and current phase is not the last
+  - Extract `guard:is-final-phase` — NEW guard for multi-match resolution: item has multiple phases and current phase is the last
 
 - [ ] **2.2** Create `src/server/template/workflow-service/pipeline/guards/pr-guards.ts`
   - Extract `guard:pr-exists` — from `merge-pr.ts` PR resolution logic (context, artifacts, or latest PR)
@@ -38,6 +41,7 @@ Phase 1 (types must exist for guard/hook function signatures).
 
 - [ ] **2.4** Create `src/server/template/workflow-service/pipeline/guards/decision-guards.ts`
   - Extract `guard:decision-exists` — from `choose-recommended.ts` decision data validation (DB-first, fallback to comment parsing)
+  - Extract `guard:auto-submit-conditions-met` — NEW guard for multi-match resolution: checks `autoSubmit: true`, high confidence, S complexity, destination=implement, recommended option exists
 
 - [ ] **2.5** Create `src/server/template/workflow-service/pipeline/guards/concurrency-guards.ts`
   - Create `guard:concurrent-version-check` — NEW guard, validates `statusVersion` matches expected value

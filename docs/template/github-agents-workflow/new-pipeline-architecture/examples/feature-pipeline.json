@@ -305,8 +305,9 @@
     },
 
     // ─── MERGE TRANSITIONS ───────────────────────────────────────────────
-    // Three variants depending on phase count. The engine resolves which one
-    // to use based on phase artifacts at runtime.
+    // Three variants sharing trigger: admin_merge_pr and from: PR Review.
+    // The engine uses multi-match resolution: evaluates guards on each in order,
+    // picks the first where all guards pass. Phase guards disambiguate.
 
     {
       "id": "merge-impl-pr",
@@ -316,7 +317,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-single-phase" }
       ],
       "hooks": [
         // Before: merge the PR (must succeed)
@@ -348,7 +350,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-middle-phase" }
       ],
       "hooks": [
         { "id": "hook:merge-pr", "phase": "before" },
@@ -374,7 +377,8 @@
       "guards": [
         { "id": "guard:item-exists" },
         { "id": "guard:pr-exists" },
-        { "id": "guard:commit-message-exists" }
+        { "id": "guard:commit-message-exists" },
+        { "id": "guard:is-final-phase" }
       ],
       "hooks": [
         { "id": "hook:merge-pr", "phase": "before" },

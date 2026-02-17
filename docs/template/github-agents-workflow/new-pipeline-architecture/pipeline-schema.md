@@ -230,6 +230,16 @@ The `optional: boolean` flag controls failure tolerance:
 
 This matches the current pattern where operations like Telegram notifications are fire-and-forget while GitHub issue creation is a hard requirement.
 
+### Multi-Match Resolution via Guards
+
+When multiple transitions share the same `trigger + from`, the engine uses **guard-based resolution**: it evaluates each candidate's guards in pipeline definition order and selects the first transition where all guards pass. This keeps the engine fully generic — no domain-specific logic in the engine itself.
+
+This pattern is used for:
+- **Merge transitions**: Three transitions share `trigger: admin_merge_pr, from: PR Review`. Phase-inspection guards (`guard:is-single-phase`, `guard:is-middle-phase`, `guard:is-final-phase`) disambiguate which transition to fire.
+- **Agent completion**: Two transitions share `trigger: agent_complete, from: Bug Investigation`. The `guard:auto-submit-conditions-met` guard disambiguates between auto-submit and normal completion.
+
+**Pipeline definition order matters** — the first matching transition wins. Place more specific transitions (with more restrictive guards) before generic fallbacks.
+
 ### Const Objects with Type Safety
 
 Pipeline definitions are TypeScript const objects, not JSON files. This enables:
