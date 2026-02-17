@@ -99,8 +99,8 @@ Start with the simplest functions and work toward the most complex (`mergeImplem
 
 - [ ] **5.16** Migrate `undoStatusChange()` → `engine.transition('undo-action', ...)`
   - Context carries `restoreStatus` and `restoreReviewStatus`
-  - Guard validates time window
-  - Returns `{ expired: true }` if window exceeded
+  - Guard validates time window — if guard fails with undo-window reason, wrapper returns `{ expired: true }`
+  - Wrapper checks `result.success` and `result.error` to determine if window expired
 
 ### Agent and Phase (Medium Risk)
 
@@ -119,9 +119,13 @@ Start with the simplest functions and work toward the most complex (`mergeImplem
 
 - [ ] **5.20** Migrate `mergeImplementationPR()` → `engine.transition('merge-impl-pr' | 'merge-impl-pr-next-phase' | 'merge-impl-pr-final', ...)`
   - **This is the hardest migration** — 362 lines of current logic
-  - Engine resolves which merge variant to use based on phase artifacts
+  - Engine resolves which merge variant via multi-match resolution (phase guards)
   - All side effects extracted to hooks: merge-pr, save-phase-artifact, delete-pr-branch, create-final-pr, etc.
-  - Preserves `MergePRResult` return type with all fields populated from hook results
+  - Wrapper extracts domain data from `hookResults` using `getHookData()`:
+    - `hook:merge-pr` → `mergeCommitSha`
+    - `hook:create-final-pr` → `{ prNumber, prUrl }`
+    - `hook:advance-implementation-phase` → `phaseInfo`
+  - Assembles `MergePRResult` return type from extracted hook data
 
 - [ ] **5.21** Migrate `mergeFinalPR()` → `engine.transition('merge-final-pr', ...)`
   - Calls markDone internally (now via hooks)
@@ -173,7 +177,7 @@ src/server/template/workflow-service/
 
 ## Wrapper Pattern
 
-Each function follows the same wrapper pattern:
+Each function follows the same wrapper pattern — call the engine, then assemble the caller-expected return type from generic engine results:
 
 ```typescript
 // Before (current implementation in advance.ts)
@@ -181,7 +185,7 @@ export async function markDone(issueNumber: number, options?: MarkDoneOptions): 
   // 150+ lines of direct logic
 }
 
-// After (thin wrapper)
+// After (thin wrapper — simple case, no hook data extraction needed)
 export async function markDone(issueNumber: number, options?: MarkDoneOptions): Promise<ServiceResult> {
   const engine = await getPipelineEngine();
   const result = await engine.transition(issueNumber, 'manual-mark-done', {
@@ -194,6 +198,35 @@ export async function markDone(issueNumber: number, options?: MarkDoneOptions): 
     error: result.error,
     advancedTo: result.newStatus,
     previousStatus: result.previousStatus,
+  };
+}
+```
+
+For wrappers that need domain-specific hook data, use `getHookData()`:
+
+```typescript
+// After (complex case — merge wrapper extracts data from hooks)
+export async function mergeImplementationPR(issueNumber: number, context: MergeContext): Promise<MergePRResult> {
+  const engine = await getPipelineEngine();
+  const result = await engine.transition(issueNumber, 'merge-impl-pr', {
+    actor: 'admin',
+    prNumber: context.prNumber,
+    commitMessage: context.commitMessage,
+  });
+  if (!result.success) return { success: false, error: result.error };
+
+  // Extract domain data from hook results
+  const mergeData = getHookData<{ mergeCommitSha: string }>(result, 'hook:merge-pr');
+  const finalPr = getHookData<{ prNumber: number; prUrl: string }>(result, 'hook:create-final-pr');
+  const phaseInfo = getHookData<{ current: number; total: number }>(result, 'hook:advance-implementation-phase');
+
+  return {
+    success: true,
+    mergeCommitSha: mergeData?.mergeCommitSha,
+    finalPrCreated: finalPr,
+    phaseInfo,
+    previousStatus: result.previousStatus,
+    newStatus: result.newStatus,
   };
 }
 ```

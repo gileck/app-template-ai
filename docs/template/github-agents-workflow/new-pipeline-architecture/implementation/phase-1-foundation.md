@@ -19,7 +19,8 @@ None — this is the first phase.
   - `PipelineDefinition`
   - `PipelineStatus`
   - `PipelineTransition`
-  - `TransitionTrigger` (union type of all trigger strings)
+  - `TransitionTrigger` (`string` type — engine accepts any trigger value)
+  - `KNOWN_TRIGGERS` const object (documents the 21 known trigger strings for pipeline definitions)
   - `TransitionGuardRef`
   - `TransitionHookRef`
   - `ReviewFlowDefinition`
@@ -30,6 +31,7 @@ None — this is the first phase.
   - `GuardFunction` type
   - `HookFunction` type
   - `HookResult`
+  - `getHookData<T>(result, hookId)` utility function (extracts typed hook data from TransitionResult.hookResults)
   - `HistoryEntry` (extend existing type from workflow-items — defines action, description, timestamp, actor, metadata)
   - `ConcurrentModificationError` error class (thrown when statusVersion check fails)
 

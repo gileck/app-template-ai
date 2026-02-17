@@ -65,31 +65,40 @@ interface PipelineTransition {
 
 ### TransitionTrigger
 
-Replaces implicit "who calls what" with explicit trigger types:
+Replaces implicit "who calls what" with explicit trigger types. The engine accepts any `string` as a trigger — pipeline definitions declare their own trigger vocabulary:
 
 ```typescript
-type TransitionTrigger =
-  | 'admin_route'                      // Admin routes item to a destination
-  | 'admin_review_approve'             // Admin approves a design review
-  | 'admin_review_changes'             // Admin requests changes on design
-  | 'admin_review_reject'              // Admin rejects a design
-  | 'admin_merge_pr'                   // Admin merges implementation PR
-  | 'admin_merge_final_pr'             // Admin merges final PR
-  | 'admin_merge_revert_pr'            // Admin merges revert PR
-  | 'admin_revert'                     // Admin reverts a merge
-  | 'admin_request_changes_pr'         // Admin requests changes on impl PR
-  | 'admin_request_changes_design_pr'  // Admin requests changes on design PR
-  | 'admin_mark_done'                  // Admin manually marks Done
-  | 'admin_delete'                     // Admin deletes item
-  | 'admin_undo'                       // Admin undoes within time window
-  | 'admin_decision'                   // Admin submits decision (bug fix selection)
-  | 'admin_choose_recommended'         // Admin selects recommended option
-  | 'admin_clarification_received'     // Admin marks clarification received
-  | 'agent_complete'                   // Agent finishes work
-  | 'auto_advance'                     // System auto-advances approved items
-  | 'system_approve'                   // System processes item approval
-  | 'system_phase_advance';            // System advances to next implementation phase
+type TransitionTrigger = string;
 ```
+
+Known triggers are documented as a const object for convenience, but are **not an engine constraint**:
+
+```typescript
+const KNOWN_TRIGGERS = {
+  admin_route: 'admin_route',                      // Admin routes item to a destination
+  admin_review_approve: 'admin_review_approve',     // Admin approves a design review
+  admin_review_changes: 'admin_review_changes',     // Admin requests changes on design
+  admin_review_reject: 'admin_review_reject',       // Admin rejects a design
+  admin_merge_pr: 'admin_merge_pr',                 // Admin merges implementation PR
+  admin_merge_final_pr: 'admin_merge_final_pr',     // Admin merges final PR
+  admin_merge_revert_pr: 'admin_merge_revert_pr',   // Admin merges revert PR
+  admin_revert: 'admin_revert',                     // Admin reverts a merge
+  admin_request_changes_pr: 'admin_request_changes_pr',           // Admin requests changes on impl PR
+  admin_request_changes_design_pr: 'admin_request_changes_design_pr', // Admin requests changes on design PR
+  admin_mark_done: 'admin_mark_done',               // Admin manually marks Done
+  admin_delete: 'admin_delete',                     // Admin deletes item
+  admin_undo: 'admin_undo',                         // Admin undoes within time window
+  admin_decision: 'admin_decision',                 // Admin submits decision (bug fix selection)
+  admin_choose_recommended: 'admin_choose_recommended', // Admin selects recommended option
+  admin_clarification_received: 'admin_clarification_received', // Admin marks clarification received
+  agent_complete: 'agent_complete',                 // Agent finishes work
+  auto_advance: 'auto_advance',                     // System auto-advances approved items
+  system_approve: 'system_approve',                 // System processes item approval
+  system_phase_advance: 'system_phase_advance',     // System advances to next implementation phase
+} as const;
+```
+
+Pipeline definitions use these constants (`KNOWN_TRIGGERS.admin_route`), but the engine matches triggers by string equality — new triggers can be added without modifying engine types.
 
 ### TransitionGuardRef and TransitionHookRef
 
@@ -164,7 +173,7 @@ interface TransitionContext {
 
 ### TransitionResult
 
-Returned after a successful transition:
+Returned after a transition. The engine populates only generic fields — all domain-specific data lives in `hookResults`:
 
 ```typescript
 interface TransitionResult {
@@ -181,15 +190,26 @@ interface TransitionResult {
     error?: string;
     data?: unknown;
   }>;
-  // Operation-specific results (passed through from hooks)
-  mergeCommitSha?: string;
-  advancedTo?: string;
-  phaseInfo?: { current: number; total: number; next?: number };
-  finalPrCreated?: { prNumber: number; prUrl: string };
-  revertPrCreated?: { prNumber: number; prUrl: string };
-  expired?: boolean;                   // For undo: time window expired
 }
 ```
+
+Domain-specific data (merge commit SHA, phase info, created PRs, etc.) is returned by hooks in their `data` field. Callers extract what they need from `hookResults` using a helper:
+
+```typescript
+// Utility for wrappers to extract typed hook data
+function getHookData<T>(result: TransitionResult, hookId: string): T | undefined {
+  return result.hookResults?.find(h => h.hookId === hookId)?.data as T | undefined;
+}
+
+// Example: merge wrapper extracts commit SHA from hook:merge-pr
+const mergeData = getHookData<{ mergeCommitSha: string }>(result, 'hook:merge-pr');
+const sha = mergeData?.mergeCommitSha;
+
+// Example: revert wrapper extracts PR info from hook:create-revert-pr
+const revertData = getHookData<{ prNumber: number; prUrl: string }>(result, 'hook:create-revert-pr');
+```
+
+This keeps the engine fully generic — it never interprets hook return values.
 
 ## Key Design Decisions
 

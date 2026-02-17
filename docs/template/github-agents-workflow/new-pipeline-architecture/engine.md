@@ -130,7 +130,9 @@ The current system maintains two parallel status stores. The engine preserves th
    - Maintains `history` array
    - Source of truth for the web UI and API queries
 
-Both writes happen within `engine.transition()`, after before-hooks and before after-hooks. If the adapter write succeeds but the DB write fails (or vice versa), the after-hooks still run but the result includes an error flag. The `sync-workflow-status` hook (run periodically) reconciles any drift.
+Both writes happen within `engine.transition()`, after before-hooks and before after-hooks. If the adapter write succeeds but the DB write fails (or vice versa), the after-hooks still run but the result includes an error. The `sync-workflow-status` hook (run periodically) reconciles any drift.
+
+The engine returns a generic `TransitionResult` containing only engine-level fields (`success`, `previousStatus`, `newStatus`, `transitionId`) plus the raw `hookResults` array. The engine never interprets hook return data — domain-specific values like merge commit SHAs, created PR numbers, or phase info are returned by hooks in their `data` field and extracted by callers using `getHookData()` (see [pipeline-schema.md](./pipeline-schema.md#transitionresult)).
 
 ## Multi-Match Resolution
 
