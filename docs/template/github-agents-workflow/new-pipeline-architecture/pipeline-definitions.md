@@ -158,7 +158,7 @@ The simplest pipeline — a linear flow with no design phases.
 | PR Review | pr-review | No | No |
 | Done | — | No | No |
 
-### Transitions (~9)
+### Transitions (~10)
 
 - `approve` — System approves → Backlog
 - `route-to-implementation` — Admin routes → Ready for development
@@ -174,7 +174,6 @@ The simplest pipeline — a linear flow with no design phases.
 
 Tasks intentionally skip all design phases. They're meant for small, well-defined work items where implementation can start immediately. If a task turns out to need design, it should be converted to a feature (a future enhancement, not in scope for initial pipeline implementation).
 
-Note: Tasks don't include the `clarification-received` transition. Only design agents request clarification; the implementation agent does not use this flow. If clarification support is needed for tasks in the future, add the transition then.
 
 ## Cross-Pipeline Design Notes
 

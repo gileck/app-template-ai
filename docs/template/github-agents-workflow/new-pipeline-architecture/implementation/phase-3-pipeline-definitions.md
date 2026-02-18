@@ -32,7 +32,7 @@ Phase 1 (types), Phase 2 (guards and hooks must be registered for validation tes
 - [ ] **3.3** Create `src/server/template/workflow-service/pipeline/definitions/task.ts`
   - Define `TASK_PIPELINE` const satisfying `PipelineDefinition`
   - 4 statuses (Backlog, Ready for development, PR Review, Done)
-  - ~9 transitions (approve, route, implement, request changes, merge, manual-status-set, mark done, undo, delete)
+  - ~10 transitions (approve, route, implement, request changes, merge, manual-status-set, mark done, undo, clarification-received, delete)
   - 1 review flow (PR Review)
   - Use the [task-pipeline.json](../examples/task-pipeline.json) example as reference
 
