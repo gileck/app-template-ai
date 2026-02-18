@@ -23,11 +23,12 @@ The top-level type representing a complete pipeline:
 
 ```typescript
 interface PipelineDefinition {
-  id: string;                          // 'feature' | 'bug' | 'task'
+  id: string;                          // 'feature' | 'bug'
   label: string;                       // 'Feature Pipeline'
   entryStatus: string;                 // Status ID where items land after approval.
-                                       // For features/tasks: Backlog (needs manual routing).
+                                       // For features: Backlog (needs manual routing).
                                        // For bugs: Bug Investigation (auto-routed on approval).
+                                       // Tasks use the feature pipeline (pipelineId: 'feature').
   terminalStatuses: string[];          // Status IDs where the pipeline is complete
   statuses: PipelineStatus[];
   transitions: PipelineTransition[];
@@ -169,7 +170,7 @@ interface TransitionContext {
     collection: string;
     id: string;
   };
-  itemType?: string;                   // 'feature' | 'bug' | 'task'
+  itemType?: string;                   // 'feature' | 'bug' | 'task' (UI label; tasks use feature pipeline)
   logAction?: string;                  // Logging action label
   logDescription?: string;             // Logging description
   statusVersion?: number;              // For optimistic concurrency

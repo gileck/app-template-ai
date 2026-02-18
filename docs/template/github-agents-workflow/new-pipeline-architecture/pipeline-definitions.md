@@ -1,11 +1,13 @@
 ---
 title: Pipeline Definitions
-summary: Design notes for the three concrete pipeline definitions (feature, bug, task) including status maps, transition overviews, multi-phase handling, and undo semantics.
+summary: Design notes for the two pipeline definitions (feature, bug) including status maps, transition overviews, multi-phase handling, and undo semantics.
 ---
 
 # Pipeline Definitions
 
-Three pipeline types cover all workflow item variants. Each is a TypeScript const object implementing `PipelineDefinition`. See [examples/](./examples/) for full annotated JSON representations.
+Two pipeline types cover all workflow item variants. Each is a TypeScript const object implementing `PipelineDefinition`. See [examples/](./examples/) for full annotated JSON representations.
+
+Items with `type: 'task'` use the **feature pipeline** — tasks are features that skip design phases and go straight to implementation. The `pipelineId` determines which pipeline definition governs the item, while `type` is purely a UI label.
 
 ## Feature Pipeline
 
@@ -145,41 +147,11 @@ When auto-submit fires, the agent calls `engine.completeAgent()` which uses **mu
 
 The engine evaluates the auto-submit guard first. If it passes, the item routes directly to Implementation. If not, the normal completion transition fires and the item waits for admin decision. The engine has no bug-investigator-specific logic — all disambiguation is declarative via guards in the pipeline definition.
 
-## Task Pipeline
-
-The simplest pipeline — a linear flow with no design phases.
-
-### Statuses (4)
-
-| Status | Agent Phase | Design Phase | Requires Decision |
-|--------|------------|-------------|-------------------|
-| Backlog | — | No | No |
-| Ready for development | implementation | No | No |
-| PR Review | pr-review | No | No |
-| Done | — | No | No |
-
-### Transitions (~10)
-
-- `approve` — System approves → Backlog
-- `route-to-implementation` — Admin routes → Ready for development
-- `agent-complete-implementation` — Implementation agent → PR Review
-- `pr-request-changes` — Admin requests changes → Ready for development
-- `merge-impl-pr` — Admin merges → Done
-- `manual-mark-done` — Admin marks done from any status → Done
-- `manual-status-set` — UI fallback for setting arbitrary status
-- `undo-action` — Admin undoes → restores previous status
-- `delete` — Admin deletes item (removes from pipeline)
-
-### Design Notes
-
-Tasks intentionally skip all design phases. They're meant for small, well-defined work items where implementation can start immediately. If a task turns out to need design, it should be converted to a feature (a future enhancement, not in scope for initial pipeline implementation).
-
-
 ## Cross-Pipeline Design Notes
 
 ### Undo Semantics
 
-All three pipelines share the same undo transition: `from: '*', to: '*'` with `admin_undo` trigger. The target status comes from `context.restoreStatus`, and the `guard:undo-window-valid` guard enforces the 5-minute window.
+Both pipelines share the same undo transition: `from: '*', to: '*'` with `admin_undo` trigger. The target status comes from `context.restoreStatus`, and the `guard:undo-window-valid` guard enforces the 5-minute window.
 
 The undo transition currently supports three scenarios:
 1. **Undo Request Changes on PR** — restores to PR Review, clears review status
@@ -212,3 +184,7 @@ const FEATURE_PIPELINE: PipelineDefinition = {
   // ...
 };
 ```
+
+### Task Items
+
+Items with `type: 'task'` use the feature pipeline (`pipelineId: 'feature'`). Tasks are routed directly to implementation, skipping design phases. The pipeline supports this natively — routing to any status (including directly to Ready for Development) is already a feature pipeline capability. No separate task pipeline is needed.

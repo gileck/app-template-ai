@@ -118,7 +118,7 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
   - Test scenarios from `testing.md`:
     - Feature pipeline end-to-end (approve → route → agent complete → merge → done)
     - Bug pipeline (approve → auto-route investigation → decision → implementation → done)
-    - Task pipeline (approve → route → implementation → merge → done)
+    - Task item using feature pipeline (approve → route to implementation → merge → done)
     - Multi-phase feature (3 phases: merge phase 1, advance, merge phase 2, advance, merge phase 3, final PR)
     - Undo within time window (advance → undo → verify restored status)
     - Revert after merge (merge → revert → merge revert PR)

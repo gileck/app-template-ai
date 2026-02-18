@@ -105,7 +105,7 @@ These are separate from E2E — they test the engine with real pipeline definiti
 ```
 - Feature pipeline: approve → route → design review approve → advance → implementation complete → merge → Done
 - Bug pipeline: approve → auto-route to investigation → agent complete → decision → implementation → merge → Done
-- Task pipeline: approve → route → implementation → merge → Done
+- Task item (using feature pipeline): approve → route to implementation → merge → Done
 - Multi-phase: implementation → merge phase 1 → advance phase → merge phase 2 → final PR → merge final → Done
 - Undo: request changes → undo within window → restored
 - Undo: request changes → undo after window → expired

@@ -57,13 +57,13 @@ Items that need decisions, clarification, or awareness before implementation beg
 - **Option B: Engine implicit behavior** — The engine automatically sets `pipelineId` on the first transition for any item that doesn't have one.
 - **Option C: Part of approve hook** — The `hook:create-github-issue` hook (which already runs during approve) also sets `pipelineId`.
 
-**Decision: One-time DB migration + set on approve.** Run a migration script to set `pipelineId` on all existing workflow items (based on `item.type`). For new items, the engine sets `pipelineId` during the approve transition as part of the dual-write. No fallback logic needed — engine requires `pipelineId` and throws if missing. Add the migration script as a Phase 1 task.
+**Decision: One-time DB migration + set on approve.** Run a migration script to set `pipelineId` on all existing workflow items based on `item.type` (`'feature'` → `'feature'`, `'bug'` → `'bug'`, `'task'` → `'feature'` — tasks use the feature pipeline). For new items, the engine sets `pipelineId` during the approve transition as part of the dual-write. No fallback logic needed — engine requires `pipelineId` and throws if missing. Add the migration script as a Phase 1 task.
 
 ---
 
 ### 5. Integration Tests: Where and When?
 
-**Context:** `testing.md` defines 7 integration test scenarios (feature pipeline end-to-end, bug pipeline, task pipeline, multi-phase, undo, revert). These use real pipeline definitions but mock the adapter and DB. However, no implementation phase has a task for creating these tests.
+**Context:** `testing.md` defines integration test scenarios (feature pipeline end-to-end, bug pipeline, multi-phase, undo, revert). These use real pipeline definitions but mock the adapter and DB. However, no implementation phase has a task for creating these tests.
 
 **Question:** Which phase should create integration tests?
 
@@ -129,7 +129,7 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 ### 11. JSON Examples Are JSONC (JSON with Comments)
 
-**Context:** The three example pipeline files (`feature-pipeline.json`, `bug-pipeline.json`, `task-pipeline.json`) use JSON with inline `//` comments. Standard JSON doesn't support comments.
+**Context:** The two example pipeline files (`feature-pipeline.json`, `bug-pipeline.json`) use JSON with inline `//` comments. Standard JSON doesn't support comments.
 
 **Impact:** These files are documentation, not runtime code. The actual pipeline definitions will be TypeScript const objects. The JSONC format is intentional for readability. These files should not be parsed as JSON by any tooling. **Verified in Phase 8 (task 8.7).**
 

@@ -1,13 +1,13 @@
 ---
 title: "Phase 3: Pipeline Definitions"
-summary: Create the three pipeline definition const objects (feature, bug, task) with unit tests validating internal consistency.
+summary: Create the two pipeline definition const objects (feature, bug) with unit tests validating internal consistency.
 ---
 
 # Phase 3: Pipeline Definitions
 
 ## Goal
 
-Create the three typed const objects that define every valid status, transition, guard, and hook for each pipeline type. Unit tests validate that all references are internally consistent.
+Create the two typed const objects that define every valid status, transition, guard, and hook for each pipeline type. Unit tests validate that all references are internally consistent.
 
 ## Dependencies
 
@@ -29,19 +29,12 @@ Phase 1 (types), Phase 2 (guards and hooks must be registered for validation tes
   - 4 review flows (Bug Investigation, Product Design, Tech Design, PR Review)
   - Use the [bug-pipeline.json](../examples/bug-pipeline.json) example as reference
 
-- [ ] **3.3** Create `src/server/template/workflow-service/pipeline/definitions/task.ts`
-  - Define `TASK_PIPELINE` const satisfying `PipelineDefinition`
-  - 4 statuses (Backlog, Ready for development, PR Review, Done)
-  - ~10 transitions (approve, route, implement, request changes, merge, manual-status-set, mark done, undo, clarification-received, delete)
-  - 1 review flow (PR Review)
-  - Use the [task-pipeline.json](../examples/task-pipeline.json) example as reference
-
-- [ ] **3.4** Create `src/server/template/workflow-service/pipeline/definitions/index.ts`
-  - `getPipelineForType(type: 'feature' | 'bug' | 'task'): PipelineDefinition`
+- [ ] **3.3** Create `src/server/template/workflow-service/pipeline/definitions/index.ts`
+  - `getPipelineForType(type: 'feature' | 'bug' | 'task'): PipelineDefinition` — tasks map to feature pipeline
   - `getPipelineById(id: string): PipelineDefinition`
   - `getAllPipelines(): PipelineDefinition[]`
 
-- [ ] **3.5** Add unit tests: `src/server/template/workflow-service/pipeline/__tests__/definitions.test.ts`
+- [ ] **3.4** Add unit tests: `src/server/template/workflow-service/pipeline/__tests__/definitions.test.ts`
   - For each pipeline definition:
     - All transition `from` values reference valid status IDs (or are `'*'`)
     - All transition `to` values reference valid status IDs (or are `'*'`)
@@ -56,7 +49,7 @@ Phase 1 (types), Phase 2 (guards and hooks must be registered for validation tes
     - Every pipeline has at least one transition with `trigger: 'system_approve'`
     - Every pipeline has at least one terminal status
 
-- [ ] **3.6** Run `yarn checks` — zero errors
+- [ ] **3.5** Run `yarn checks` — zero errors
 
 ## Files to Create
 
@@ -64,7 +57,6 @@ Phase 1 (types), Phase 2 (guards and hooks must be registered for validation tes
 src/server/template/workflow-service/pipeline/definitions/
   feature.ts
   bug.ts
-  task.ts
   index.ts
 
 src/server/template/workflow-service/pipeline/__tests__/
@@ -111,7 +103,11 @@ Transition IDs follow a verb-noun pattern:
 
 ### Shared vs Duplicated Transitions
 
-Some transitions are identical across pipelines (e.g., `merge-impl-pr`, `undo-action`). Rather than sharing transition objects, each pipeline defines its own copy. This keeps each pipeline self-contained and allows future divergence without coupling.
+Some transitions are identical across both pipelines (e.g., `merge-impl-pr`, `undo-action`). Rather than sharing transition objects, each pipeline defines its own copy. This keeps each pipeline self-contained and allows future divergence without coupling.
+
+### No Task Pipeline
+
+Items with `type: 'task'` use the feature pipeline (`pipelineId: 'feature'`). Tasks are typically routed directly to implementation, skipping design phases. The feature pipeline already supports this via `route-to-implementation`. No separate task pipeline definition is needed.
 
 ## Validation
 

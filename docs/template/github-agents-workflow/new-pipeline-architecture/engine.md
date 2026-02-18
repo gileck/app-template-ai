@@ -281,7 +281,7 @@ The engine follows the existing project pattern (see [error-handling.md](../../e
 The engine determines which pipeline definition to use for an item:
 
 1. **Explicit pipelineId**: If the workflow item has a `pipelineId` field, use that
-2. **Type-based fallback**: Map `item.type` to pipeline — `'feature'` → FEATURE_PIPELINE, `'bug'` → BUG_PIPELINE, `'task'` → TASK_PIPELINE
+2. **Type-based fallback**: Map `item.type` to pipeline — `'feature'` → FEATURE_PIPELINE, `'bug'` → BUG_PIPELINE, `'task'` → FEATURE_PIPELINE (tasks use the feature pipeline)
 3. **Default**: If no type match, throw — every item must have a valid pipeline
 
 During migration, existing items won't have `pipelineId`. The type-based fallback handles this. New items created after the migration get `pipelineId` set during the approve transition's `after` hook.

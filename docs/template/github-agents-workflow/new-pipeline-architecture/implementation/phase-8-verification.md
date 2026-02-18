@@ -51,7 +51,7 @@ Phase 7 (cleanup complete — all old code removed, engine is the only path).
 
 ### Guard and Hook Registry Completeness (Awareness Item #10)
 
-- [ ] **8.6** Verify all 15 guards and 38 hooks are registered and referenced
+- [ ] **8.6** Verify all 19 guards and 38 hooks are registered and referenced
   - Run the startup validation that checks every guard/hook ID in pipeline definitions exists in the registry
   - Cross-check: every guard/hook in the registry is referenced by at least one pipeline definition (no orphans)
   - Verify the guard count in `guards-and-hooks.md` (19 guards, 38 hooks) matches the actual registry count
@@ -59,10 +59,11 @@ Phase 7 (cleanup complete — all old code removed, engine is the only path).
 ### Pipeline Definition Integrity (Awareness Item #11)
 
 - [ ] **8.7** Verify pipeline definitions match actual runtime behavior
-  - For each pipeline (feature, bug, task):
+  - For each pipeline definition (feature, bug):
     - Walk every transition in the definition
     - Confirm it has a corresponding E2E or integration test that exercises it
     - Flag any transitions with no test coverage
+  - Verify task items (using feature pipeline) are covered by the feature pipeline integration test (Phase 4, task 4.10)
   - Verify the JSONC example files still match the TypeScript const definitions (or mark examples as potentially stale)
 
 ### `routeWorkflowItemByWorkflowId()` Wrapper (Awareness Item #12)

@@ -12,7 +12,7 @@ Phase 1: Foundation (types, engine skeleton, registry, DB schema)
     ↓
 Phase 2: Guards & Hooks (extract from current code)
     ↓
-Phase 3: Pipeline Definitions (create 3 pipeline consts)
+Phase 3: Pipeline Definitions (create 2 pipeline consts)
     ↓
 Phase 4: Engine Core (implement engine.transition with validation)
     ↓
@@ -35,20 +35,20 @@ Phases 5 and 6 are the highest-risk phases — each function migration could bre
 |-------|-------------|--------|-------------------|
 | 1 | Foundation | Not Started | 0 / 10 |
 | 2 | Guards & Hooks | Not Started | 0 / 14 |
-| 3 | Pipeline Definitions | Not Started | 0 / 6 |
+| 3 | Pipeline Definitions | Not Started | 0 / 5 |
 | 4 | Engine Core | Not Started | 0 / 11 |
 | 5 | Internal Migration | Not Started | 0 / 23 |
 | 6 | External Migration | Not Started | 0 / 18 |
 | 7 | Cleanup | Not Started | 0 / 9 |
 | 8 | Verification & Review | Not Started | 0 / 12 |
 
-**Total: 0 / 103 tasks**
+**Total: 0 / 102 tasks**
 
 ## Execution Order
 
 1. **Phase 1** — Create type system and skeleton. This is pure additive — no behavior changes, no risk.
 2. **Phase 2** — Extract guards and hooks into standalone functions. Still additive — these functions exist but aren't called by the engine yet.
-3. **Phase 3** — Create pipeline definitions. Additive — const objects that aren't used yet. Unit tests validate internal consistency.
+3. **Phase 3** — Create pipeline definitions (feature, bug). Additive — const objects that aren't used yet. Tasks use the feature pipeline. Unit tests validate internal consistency.
 4. **Phase 4** — Implement the engine core. Now the engine can execute transitions, but no callers use it yet. Unit tests validate engine behavior.
 5. **Phase 5** — The critical phase. Each existing function becomes a thin wrapper around the engine. Migrate one at a time, run E2E after each. This is where regressions will appear.
 6. **Phase 6** — Migrate transport layer (Telegram, API, CLI, agents). Lower risk because the wrapper functions from Phase 5 already validate the engine works.

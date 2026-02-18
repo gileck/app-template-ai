@@ -16,7 +16,7 @@ There is no central definition of which transitions are valid for which item typ
 
 Replace the current ad-hoc approach with a **JSON-driven pipeline engine** where:
 
-1. **Transitions are declared data** — each pipeline type (feature, bug, task) defines its valid statuses, transitions, guards, and hooks as a typed const object
+1. **Transitions are declared data** — each pipeline type (feature, bug) defines its valid statuses, transitions, guards, and hooks as a typed const object. Items with `type: 'task'` use the feature pipeline.
 2. **A generic engine validates and executes transitions** — callers request transitions by ID; the engine validates the current state, runs guards, executes hooks, and performs the status update
 3. **Behavior is composed via registered hooks and guards** — side effects (GitHub API calls, DB writes, notifications) and preconditions (existence checks, time window validation) are extracted into reusable units
 
@@ -25,7 +25,7 @@ Replace the current ad-hoc approach with a **JSON-driven pipeline engine** where
 ```
 ┌─────────────────────────────────────────────┐
 │  Pipeline Definitions (data)                │
-│  feature.ts | bug.ts | task.ts              │
+│  feature.ts | bug.ts                        │
 │  Statuses, transitions, guards, hooks       │
 ├─────────────────────────────────────────────┤
 │  Pipeline Engine (runtime)                  │
@@ -51,9 +51,8 @@ src/server/template/workflow-service/
   pipeline/
     types.ts              # PipelineDefinition, PipelineTransition, TransitionContext, etc.
     definitions/
-      feature.ts          # FEATURE_PIPELINE const
+      feature.ts          # FEATURE_PIPELINE const (also used by task items)
       bug.ts              # BUG_PIPELINE const
-      task.ts             # TASK_PIPELINE const
       index.ts            # getPipelineForType(), getAllPipelines()
     engine.ts             # PipelineEngine implementation
     registry.ts           # createHookRegistry() with all guards + hooks
@@ -83,15 +82,14 @@ src/server/template/workflow-service/
 | [pipeline-schema.md](./pipeline-schema.md) | Pipeline definition types, schema design, and key design decisions |
 | [engine.md](./engine.md) | Pipeline engine interface, concurrency model, agent integration |
 | [guards-and-hooks.md](./guards-and-hooks.md) | Guard/hook registry, complete catalogs, function mapping table |
-| [pipeline-definitions.md](./pipeline-definitions.md) | Feature, bug, and task pipeline overviews with design notes |
+| [pipeline-definitions.md](./pipeline-definitions.md) | Feature and bug pipeline overviews with design notes |
 | [testing.md](./testing.md) | E2E test strategy and regression validation approach |
 | [examples/feature-pipeline.json](./examples/feature-pipeline.json) | Full feature pipeline definition with inline explanations |
 | [examples/bug-pipeline.json](./examples/bug-pipeline.json) | Full bug pipeline definition with inline explanations |
-| [examples/task-pipeline.json](./examples/task-pipeline.json) | Simple task pipeline definition with inline explanations |
 | [implementation/overview.md](./implementation/overview.md) | Implementation roadmap and progress tracking |
 | [implementation/phase-1-foundation.md](./implementation/phase-1-foundation.md) | Types, engine skeleton, registry, DB schema changes |
 | [implementation/phase-2-guards-and-hooks.md](./implementation/phase-2-guards-and-hooks.md) | Extract all guards and hooks from current code |
-| [implementation/phase-3-pipeline-definitions.md](./implementation/phase-3-pipeline-definitions.md) | Create the 3 pipeline JSON definitions |
+| [implementation/phase-3-pipeline-definitions.md](./implementation/phase-3-pipeline-definitions.md) | Create the 2 pipeline definitions |
 | [implementation/phase-4-engine-core.md](./implementation/phase-4-engine-core.md) | Implement engine.transition() with validation and hooks |
 | [implementation/phase-5-internal-migration.md](./implementation/phase-5-internal-migration.md) | Refactor internal callers to use engine |
 | [implementation/phase-6-external-migration.md](./implementation/phase-6-external-migration.md) | Migrate Telegram, API, CLI, agents to engine |
