@@ -179,6 +179,7 @@ async function main(): Promise<void> {
             agentStatus: STATUSES.backlog,
             agentDisplayName: 'Triage',
             needsExistingPR: false,
+            listOptions: { domainMissing: true },
         },
         { ...options, limit: options.limit ?? 3 },
         processItem,

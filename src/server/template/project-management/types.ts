@@ -160,6 +160,8 @@ export interface ListItemsOptions {
     reviewStatus?: string;
     /** Maximum number of items to return */
     limit?: number;
+    /** Filter for items missing a domain value */
+    domainMissing?: boolean;
 }
 
 // ============================================================

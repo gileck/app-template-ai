@@ -36,6 +36,8 @@ export interface BatchConfig {
     skipItem?: (item: ProjectItem) => { skip: boolean; reason?: string };
     /** Optional: additional statuses to check for feedback items (e.g., implementAgent also checks prReview) */
     additionalFeedbackStatuses?: string[];
+    /** Optional: extra filters to pass to listItems (e.g., { domainMissing: true }) */
+    listOptions?: { domainMissing?: boolean };
 }
 
 export interface ProcessItemFn {
@@ -118,7 +120,7 @@ export async function runBatch(
         itemsToProcess.push({ item, mode, existingPR });
     } else {
         // Fetch all items in the agent's status
-        const allItems = await adapter.listItems({ status: config.agentStatus, limit: options.limit || 50 });
+        const allItems = await adapter.listItems({ status: config.agentStatus, limit: options.limit || 50, ...config.listOptions });
 
         // Flow A: New items (empty Review Status)
         const newItems = allItems.filter((item) => !item.reviewStatus);

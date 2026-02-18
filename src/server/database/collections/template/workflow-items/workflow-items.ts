@@ -68,7 +68,7 @@ export const findWorkflowItemBySourceRef = async (
  * Find all workflow items with optional filters
  */
 export const findAllWorkflowItems = async (
-    filters?: { status?: string; reviewStatus?: string; type?: string; domain?: string }
+    filters?: { status?: string; reviewStatus?: string; type?: string; domain?: string; domainMissing?: boolean }
 ): Promise<WorkflowItemDocument[]> => {
     const collection = await getWorkflowItemsCollection();
     const query: Filter<WorkflowItemDocument> = {};
@@ -84,6 +84,9 @@ export const findAllWorkflowItems = async (
     }
     if (filters?.domain) {
         query.domain = filters.domain;
+    }
+    if (filters?.domainMissing) {
+        query.$or = [{ domain: { $exists: false } }, { domain: '' }] as Filter<WorkflowItemDocument>[];
     }
 
     return collection.find(query).sort({ updatedAt: -1 }).toArray();
