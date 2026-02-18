@@ -172,6 +172,21 @@
         { "id": "hook:history-log", "phase": "after" }
       ],
       "description": "Undo within 5-minute window"
+    },
+
+    {
+      "id": "delete",
+      "from": "*",
+      "to": "*",
+      "trigger": "admin_delete",
+      "guards": [{ "id": "guard:not-github-synced" }],
+      "hooks": [
+        { "id": "hook:delete-source-doc", "phase": "before" },
+        { "id": "hook:delete-workflow-item", "phase": "after" },
+        { "id": "hook:close-github-issue", "phase": "after", "optional": true },
+        { "id": "hook:notify-deleted", "phase": "after", "optional": true }
+      ],
+      "description": "Delete task — removes from all collections"
     }
   ],
 

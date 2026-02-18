@@ -25,7 +25,9 @@ The top-level type representing a complete pipeline:
 interface PipelineDefinition {
   id: string;                          // 'feature' | 'bug' | 'task'
   label: string;                       // 'Feature Pipeline'
-  entryStatus: string;                 // Status ID for newly approved items
+  entryStatus: string;                 // Status ID where items land after approval.
+                                       // For features/tasks: Backlog (needs manual routing).
+                                       // For bugs: Bug Investigation (auto-routed on approval).
   terminalStatuses: string[];          // Status IDs where the pipeline is complete
   statuses: PipelineStatus[];
   transitions: PipelineTransition[];
@@ -55,7 +57,11 @@ A single valid transition between statuses:
 interface PipelineTransition {
   id: string;                          // Unique transition ID: 'route-to-product-design', 'merge-impl-pr', etc.
   from: string | '*';                  // Source status ID, or '*' for any-status transitions
-  to: string | '*';                    // Target status ID, or '*' for dynamic target (undo)
+  to: string | '*';                    // Target status ID, or '*' for dynamic resolution:
+                                       //   - If context.restoreStatus provided: use it (undo)
+                                       //   - If context.decisionSelection?.routing?.targetStatus provided: use it (choose-recommended)
+                                       //   - If no dynamic target and not a delete: keep current status (no-op like merge-revert-pr)
+                                       //   - For delete transitions: item is removed (status irrelevant)
   trigger: TransitionTrigger;          // What causes this transition
   guards?: TransitionGuardRef[];       // Preconditions that must pass
   hooks?: TransitionHookRef[];         // Side effects to execute
@@ -171,6 +177,26 @@ interface TransitionContext {
 }
 ```
 
+### TransitionContext Field Usage
+
+| Field | Used By Transitions |
+|-------|-------------------|
+| `actor` | All transitions |
+| `destination` | `route-to-*` |
+| `prNumber` | `merge-*`, `revert-*` |
+| `commitMessage` | `merge-impl-pr*` |
+| `restoreStatus` / `restoreReviewStatus` | `undo-action` |
+| `shortSha` | `revert-merge` |
+| `decisionSelection` | `bug-decision-to-*`, `choose-recommended` |
+| `phase` | `merge-impl-pr-next-phase`, `merge-impl-pr-final` |
+| `sourceRef` | `approve` |
+| `statusVersion` | All (concurrency check) |
+| `agentType` / `agentResult` | `agent-complete-*` (set by `completeAgent`) |
+| `designType` | `approve-design-*` |
+| `itemType` | `approve` (determines pipeline) |
+| `logAction` / `logDescription` | All (passed to `hook:agent-log` and `hook:history-log`) |
+| `metadata` | Hook-specific additional context |
+
 ### TransitionResult
 
 Returned after a transition. The engine populates only generic fields — all domain-specific data lives in `hookResults`:
@@ -234,7 +260,15 @@ This allows pipeline definitions to restrict certain transitions to certain trig
 Some operations apply regardless of current status:
 
 - **`from: '*'`** transitions: cancel/delete (any status → removed), manual-mark-done (any status → Done)
-- **`from: '*', to: '*'`** transitions: undo (target is dynamic from `context.restoreStatus`)
+- **`from: '*', to: '*'`** transitions have three distinct semantics:
+
+1. **Undo (restore previous status):** `context.restoreStatus` is provided → engine uses it as the target status. Example: `undo-action` restores the status and review status from before the last action.
+
+2. **Decision routing (resolve from recommendation):** `context.decisionSelection?.routing?.targetStatus` is provided → engine uses it as the target status. Example: `choose-recommended` routes to the destination specified by the recommended fix option's routing config.
+
+3. **No-op (keep current status):** No dynamic target in context and transition is not a delete → engine keeps the current status unchanged. The transition runs hooks (cleanup, logging) but doesn't change the pipeline status. Examples: `merge-revert-pr` (merges revert PR, clears revert PR number), `design-pr-request-changes` (only changes review status).
+
+4. **Delete (item removed):** For `delete` transitions → the item is removed from the pipeline entirely via hooks (`hook:delete-workflow-item`). The target status is irrelevant since the item no longer exists.
 
 The engine resolves wildcard targets at runtime using `TransitionContext` data. Guards on wildcard transitions are especially important since they're the only thing preventing invalid state changes.
 
@@ -259,6 +293,8 @@ This pattern is used for:
 - **Agent completion**: Two transitions share `trigger: agent_complete, from: Bug Investigation`. The `guard:auto-submit-conditions-met` guard disambiguates between auto-submit and normal completion.
 
 **Pipeline definition order matters** — the first matching transition wins. Place more specific transitions (with more restrictive guards) before generic fallbacks.
+
+The engine exposes multi-match resolution via `transitionByTrigger(issueNumber, trigger, context)`, which finds all transitions matching `trigger + from(currentStatus)`, runs guard-based resolution, and delegates to `transition()`. This is the primary method for callers that know the trigger but not the specific transition ID. See [engine.md](./engine.md) for the full interface.
 
 ### Const Objects with Type Safety
 

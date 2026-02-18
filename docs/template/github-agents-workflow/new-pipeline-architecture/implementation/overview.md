@@ -33,16 +33,16 @@ Phases 5 and 6 are the highest-risk phases — each function migration could bre
 
 | Phase | Description | Status | Tasks Done / Total |
 |-------|-------------|--------|-------------------|
-| 1 | Foundation | Not Started | 0 / 9 |
+| 1 | Foundation | Not Started | 0 / 10 |
 | 2 | Guards & Hooks | Not Started | 0 / 14 |
 | 3 | Pipeline Definitions | Not Started | 0 / 6 |
-| 4 | Engine Core | Not Started | 0 / 10 |
+| 4 | Engine Core | Not Started | 0 / 11 |
 | 5 | Internal Migration | Not Started | 0 / 23 |
 | 6 | External Migration | Not Started | 0 / 18 |
 | 7 | Cleanup | Not Started | 0 / 9 |
 | 8 | Verification & Review | Not Started | 0 / 12 |
 
-**Total: 0 / 101 tasks**
+**Total: 0 / 103 tasks**
 
 ## Execution Order
 

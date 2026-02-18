@@ -64,23 +64,31 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
   - If review action has `triggersTransition`, fire that transition via `this.transition()`
   - Return result
 
-- [ ] **4.5** Implement `PipelineEngine.completeAgent(issueNumber, agentType, result)`
+- [ ] **4.5** Implement `PipelineEngine.transitionByTrigger(issueNumber, trigger, context)`
   - Load item and pipeline
-  - Set `context.agentType` and `context.agentResult` from the completion result
-  - Use multi-match resolution (same as transition) to find the right `agent_complete` transition
-  - No agent-specific logic — disambiguation is handled by guards on the pipeline definition
-  - Delegate to `this.transition()` with resolved transition ID and merged context
+  - Find all transitions matching `trigger` and `from` (current status or `'*'`)
+  - Use multi-match guard resolution: run guards on each candidate in order, pick first pass
+  - If no candidate passes, return `{ success: false, error: 'No matching transition for trigger' }`
+  - Delegate to `this.transition()` with the resolved transition ID and context
 
-- [ ] **4.6** Implement `PipelineEngine.getHistory(issueNumber)`
+- [ ] **4.6** Implement `PipelineEngine.completeAgent(issueNumber, agentType, result)`
+  - Set `context.agentType` and `context.agentResult` from the completion result
+  - Delegate to `this.transitionByTrigger(issueNumber, 'agent_complete', context)`
+  - No agent-specific logic — disambiguation is handled by guards on the pipeline definition
+
+- [ ] **4.7** Implement `PipelineEngine.getHistory(issueNumber)`
   - Load workflow item
   - Return `item.history` array sorted chronologically
 
-- [ ] **4.7** Handle `from: '*'` and `to: '*'` transitions:
+- [ ] **4.8** Handle `from: '*'` and `to: '*'` transitions:
   - `from: '*'`: Match from any current status
-  - `to: '*'`: Resolve target from `context.restoreStatus` (undo) or keep current status (no-op transitions like merge-revert-pr)
-  - Validate that for `to: '*'`, `context.restoreStatus` is provided (or transition is a no-op type)
+  - `to: '*'`: Resolve target using four semantics:
+    1. If `context.restoreStatus` provided → use it (undo case)
+    2. If `context.decisionSelection?.routing?.targetStatus` provided → use it (choose-recommended)
+    3. If no dynamic target and transition is not delete → keep current status unchanged (no-op like merge-revert-pr, design-pr-request-changes)
+    4. For delete transitions → item is removed from pipeline (status irrelevant)
 
-- [ ] **4.8** Add unit tests: `src/server/template/workflow-service/pipeline/__tests__/engine.test.ts`
+- [ ] **4.9** Add unit tests: `src/server/template/workflow-service/pipeline/__tests__/engine.test.ts`
   - Valid transition succeeds with correct TransitionResult
   - Invalid transition (wrong current status) rejected with reason
   - Guard failure blocks transition and returns guard error
@@ -99,11 +107,13 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
   - `completeAgent` resolves correct transition via multi-match (no agent-specific engine logic)
   - `updateReviewStatus` validates against ReviewFlowDefinition
   - `updateReviewStatus` fires triggered transition when applicable
+  - `transitionByTrigger` resolves correct transition via multi-match resolution
+  - `transitionByTrigger` returns error when no candidate passes guards
   - `getValidTransitions` returns only matching transitions
   - `getValidTransitions` filters by trigger when provided
   - `getHistory` returns chronological entries
 
-- [ ] **4.9** Add integration tests: `src/server/template/workflow-service/pipeline/__tests__/integration.test.ts`
+- [ ] **4.10** Add integration tests: `src/server/template/workflow-service/pipeline/__tests__/integration.test.ts`
   - Use real pipeline definitions but mock the adapter and DB
   - Test scenarios from `testing.md`:
     - Feature pipeline end-to-end (approve → route → agent complete → merge → done)
@@ -114,7 +124,7 @@ Phase 1 (types, engine skeleton), Phase 2 (guards and hooks registered), Phase 3
     - Revert after merge (merge → revert → merge revert PR)
     - Guard rejection (attempt invalid transition, verify blocked with reason)
 
-- [ ] **4.10** Run `yarn checks` — zero errors; run E2E tests — all pass (engine exists but callers don't use it yet)
+- [ ] **4.11** Run `yarn checks` — zero errors; run E2E tests — all pass (engine exists but callers don't use it yet)
 
 ## Files to Modify
 

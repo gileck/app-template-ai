@@ -57,9 +57,11 @@ None — this is the first phase.
   - `getPipelineById(id: string): PipelineDefinition` — stub that throws
   - `getAllPipelines(): PipelineDefinition[]` — stub returning empty array
 
-- [ ] **1.8** Run `yarn checks` — zero errors
+- [ ] **1.8** Create migration script `scripts/migrate-pipeline-id.ts` that sets `pipelineId` on all existing workflow items based on `item.type` (`'feature'` → `'feature'`, `'bug'` → `'bug'`, `'task'` → `'task'`). This implements Decision #4 from OPEN-QUESTIONS.md.
 
-- [ ] **1.9** Run E2E tests — all pass (no behavior changes)
+- [ ] **1.9** Run `yarn checks` — zero errors
+
+- [ ] **1.10** Run E2E tests — all pass (no behavior changes)
 
 ## Files to Create
 

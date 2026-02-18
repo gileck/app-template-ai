@@ -156,54 +156,7 @@
 
     // ─── DESIGN PHASE FLOW ──────────────────────────────────────────────
 
-    // Auto-advance after design review approval (used by reviewDesign 'approve' action)
-    // STATUS_TRANSITIONS: Product Dev → Product Design → Tech Design → Ready for development
-    {
-      "id": "auto-advance-product-dev",
-      "from": "Product Development",
-      "to": "Product Design",
-      "trigger": "auto_advance",
-      "guards": [{ "id": "guard:item-exists" }],
-      "hooks": [
-        { "id": "hook:clear-review-status-db", "phase": "after" },
-        { "id": "hook:sync-workflow-status", "phase": "after" },
-        { "id": "hook:agent-log", "phase": "after" },
-        { "id": "hook:notify-auto-advance", "phase": "after", "optional": true }
-      ],
-      "description": "Auto-advance from Product Development to Product Design after approval"
-    },
-
-    {
-      "id": "auto-advance-product-design",
-      "from": "Product Design",
-      "to": "Technical Design",
-      "trigger": "auto_advance",
-      "guards": [{ "id": "guard:item-exists" }],
-      "hooks": [
-        { "id": "hook:clear-review-status-db", "phase": "after" },
-        { "id": "hook:sync-workflow-status", "phase": "after" },
-        { "id": "hook:agent-log", "phase": "after" },
-        { "id": "hook:notify-auto-advance", "phase": "after", "optional": true }
-      ],
-      "description": "Auto-advance from Product Design to Technical Design after approval"
-    },
-
-    {
-      "id": "auto-advance-tech-design",
-      "from": "Technical Design",
-      "to": "Ready for development",
-      "trigger": "auto_advance",
-      "guards": [{ "id": "guard:item-exists" }],
-      "hooks": [
-        { "id": "hook:clear-review-status-db", "phase": "after" },
-        { "id": "hook:sync-workflow-status", "phase": "after" },
-        { "id": "hook:agent-log", "phase": "after" },
-        { "id": "hook:notify-auto-advance", "phase": "after", "optional": true }
-      ],
-      "description": "Auto-advance from Technical Design to Ready for Development after approval"
-    },
-
-    // Design approval via S3 (reads design from S3, saves artifact, advances)
+    // Design approval (reads design from S3, saves artifact, advances)
     {
       "id": "approve-design-product-dev",
       "from": "Product Development",
@@ -517,6 +470,22 @@
     },
 
     {
+      "id": "clarification-received",
+      "from": "*",
+      "to": "*",
+      "trigger": "admin_clarification_received",
+      "guards": [
+        { "id": "guard:item-exists" },
+        { "id": "guard:waiting-for-clarification" }
+      ],
+      "hooks": [
+        { "id": "hook:agent-log", "phase": "after" },
+        { "id": "hook:history-log", "phase": "after" }
+      ],
+      "description": "Admin marks clarification received — logs action (review status cleared separately via engine.updateReviewStatus)"
+    },
+
+    {
       "id": "delete",
       "from": "*",
       "to": "*",  // Item removed from pipeline
@@ -539,7 +508,7 @@
       "statusId": "Product Development",
       "onAgentComplete": { "reviewStatus": "Waiting for Review" },
       "reviewActions": [
-        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "auto-advance-product-dev" },
+        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "approve-design-product-dev" },
         { "action": "changes", "reviewStatus": "Request Changes" },
         { "action": "reject", "reviewStatus": "Rejected" }
       ]
@@ -548,7 +517,7 @@
       "statusId": "Product Design",
       "onAgentComplete": { "reviewStatus": "Waiting for Review" },
       "reviewActions": [
-        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "auto-advance-product-design" },
+        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "approve-design-product" },
         { "action": "changes", "reviewStatus": "Request Changes" },
         { "action": "reject", "reviewStatus": "Rejected" }
       ]
@@ -557,7 +526,7 @@
       "statusId": "Technical Design",
       "onAgentComplete": { "reviewStatus": "Waiting for Review" },
       "reviewActions": [
-        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "auto-advance-tech-design" },
+        { "action": "approve", "reviewStatus": "Approved", "triggersTransition": "approve-design-tech" },
         { "action": "changes", "reviewStatus": "Request Changes" },
         { "action": "reject", "reviewStatus": "Rejected" }
       ]

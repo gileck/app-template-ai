@@ -46,7 +46,7 @@ At startup, the engine validates that every guard and hook ID referenced in pipe
 
 ## Guard Catalog
 
-19 guards derived from current precondition checks across workflow-service functions, plus 4 new guards for generic multi-match resolution:
+19 guards total: 14 extracted from current workflow-service functions, 5 new for multi-match resolution and concurrency control:
 
 ### Item Guards (`pipeline/guards/item-guards.ts`)
 
@@ -183,8 +183,8 @@ Complete mapping of every current exported function to its pipeline engine equiv
 | `completeAgentRun()` | `engine.completeAgent()` → multi-match resolution by guards | item-exists | — | sync-workflow-status, agent-log, history-log |
 | `submitDecisionRouting()` | `bug-decision-to-{dest}` | item-exists | — | save-decision-selection, sync-workflow-status, agent-log, history-log |
 | `undoStatusChange()` | `undo-action` (from: '*', to: '*') | undo-window-valid | — | sync-workflow-status, agent-log, history-log |
-| `autoAdvanceApproved()` | `auto-advance-{from}` (batch) | item-exists, has-approved-review-status | — | clear-review-status-db, sync-workflow-status, notify-auto-advance |
-| `reviewDesign()` | Handled via `engine.updateReviewStatus()` → ReviewFlowDefinition triggers `auto-advance-{from}` on approve | item-exists, in-design-phase | — | sync-workflow-status, agent-log, history-log |
+| `autoAdvanceApproved()` | `approve-design-{type}` (batch) | item-exists, has-approved-review-status | read-design-from-s3 | save-design-artifact, clear-review-status-db, sync-workflow-status, agent-log, history-log |
+| `reviewDesign()` | Handled via `engine.updateReviewStatus()` → ReviewFlowDefinition triggers `approve-design-{type}` on approve | item-exists, in-design-phase | read-design-from-s3 | save-design-artifact, sync-workflow-status, agent-log, history-log |
 | `markClarificationReceived()` | `clarification-received` | item-exists, waiting-for-clarification | — | agent-log, history-log |
 | `requestChangesOnPR()` | `pr-request-changes` | item-exists | — | sync-workflow-status, agent-log, history-log |
 | `requestChangesOnDesignPR()` | `design-pr-request-changes` | item-exists | — | agent-log, history-log |

@@ -26,7 +26,7 @@ The most complex pipeline, covering the full lifecycle from backlog through desi
 
 Note: "Ready for development" is the single implementation status in the adapter (`STATUSES.implementation`). The implementation agent picks up items from this column.
 
-### Transitions (~20)
+### Transitions (~23)
 
 **Entry and Routing:**
 - `approve` — System approves item, creates GitHub issue → Backlog
@@ -37,10 +37,7 @@ Note: "Ready for development" is the single implementation status in the adapter
 - `route-to-backlog` — Admin routes back → Backlog
 
 **Design Phase Flow:**
-- Design review actions (approve/changes/reject) are handled via `engine.updateReviewStatus()` using the `ReviewFlowDefinition` for each design phase. Approve triggers `auto-advance-{from}` transition; changes/reject set review status only.
-- `auto-advance-product-dev` — Auto-advance from Product Dev → Product Design (after review approve)
-- `auto-advance-product-design` — Auto-advance from Product Design → Technical Design (after review approve)
-- `auto-advance-tech-design` — Auto-advance from Technical Design → Ready for development (after review approve)
+- Design review actions (approve/changes/reject) are handled via `engine.updateReviewStatus()` using the `ReviewFlowDefinition` for each design phase. Approve triggers `approve-design-{type}` transition (reads from S3, saves artifact, advances); changes/reject set review status only.
 - `approve-design-product-dev` — Admin approves Product Dev design via S3 → Product Design
 - `approve-design-product` — Admin approves Product Design → Technical Design
 - `approve-design-tech` — Admin approves Tech Design → Ready for development (+ initialize phases)
@@ -71,20 +68,10 @@ Note: "Ready for development" is the single implementation status in the adapter
 
 | Status | On Agent Complete | Review Actions |
 |--------|------------------|----------------|
-| Product Development | review = Waiting for Review | approve → advance, changes → Request Changes, reject → Rejected |
-| Product Design | review = Waiting for Review | approve → advance, changes → Request Changes, reject → Rejected |
-| Technical Design | review = Waiting for Review | approve → advance, changes → Request Changes, reject → Rejected |
-| PR Review | review = Waiting for Review | approve → Approved (auto-advance to merge-ready), changes → Request Changes |
-
-### Two Design Approval Paths
-
-There are two distinct mechanisms for advancing past a design phase — this is intentional, not a conflict:
-
-1. **Review flow approve** (`reviewDesign('approve')`) — Sets review status to `Approved`. The `ReviewFlowDefinition` triggers `auto-advance-{from}`, which clears the review status and advances the pipeline status. This path does NOT read from S3 or save design artifacts — it's a simple status advancement used when the admin reviews the design output inline (e.g., via Telegram buttons).
-
-2. **S3 design approval** (`approveDesign()`) — Triggered by `approve-design-{type}` transitions with `admin_review_approve` trigger. This path reads the design from S3, saves it as a design artifact in the DB, posts an artifact comment to GitHub, and for tech design, initializes implementation phases. Used when the admin approves via the web UI design PR approval flow.
-
-Both paths advance to the same next status. The key difference is whether design artifacts are persisted. The `auto-advance-*` path is lightweight (no S3, no artifacts); the `approve-design-*` path captures the design output.
+| Product Development | review = Waiting for Review | approve → `approve-design-product-dev`, changes → Request Changes, reject → Rejected |
+| Product Design | review = Waiting for Review | approve → `approve-design-product`, changes → Request Changes, reject → Rejected |
+| Technical Design | review = Waiting for Review | approve → `approve-design-tech`, changes → Request Changes, reject → Rejected |
+| PR Review | review = Waiting for Review | approve → Approved, changes → Request Changes |
 
 ### Multi-Phase Handling
 
@@ -116,7 +103,7 @@ Similar to features but with an investigation phase instead of Product Developme
 | Final Review | — | No | No |
 | Done | — | No | No |
 
-### Transitions (~15)
+### Transitions (~23)
 
 **Entry (auto-route on approval):**
 - `approve-and-route-to-investigation` — System approves bug → Bug Investigation (auto-route, no routing message)
@@ -138,8 +125,8 @@ Similar to features but with an investigation phase instead of Product Developme
 | Status | On Agent Complete | Review Actions |
 |--------|------------------|----------------|
 | Bug Investigation | review = Waiting for Review or Waiting for Decision | approve → advance, changes → Request Changes, choose_recommended → auto-select |
-| Product Design | review = Waiting for Review | approve → advance, changes → Request Changes |
-| Technical Design | review = Waiting for Review | approve → advance, changes → Request Changes |
+| Product Design | review = Waiting for Review | approve → `approve-design-product`, changes → Request Changes |
+| Technical Design | review = Waiting for Review | approve → `approve-design-tech`, changes → Request Changes |
 | PR Review | review = Waiting for Review | approve → Approved, changes → Request Changes |
 
 ### Auto-Submit Logic
@@ -152,6 +139,7 @@ The Bug Investigator agent can auto-submit when all conditions are met:
 - A recommended option exists
 
 When auto-submit fires, the agent calls `engine.completeAgent()` which uses **multi-match resolution**. Two transitions share `trigger: agent_complete` and `from: Bug Investigation`:
+
 - `agent-auto-submit-investigation` (listed first) → `guard:auto-submit-conditions-met` checks all auto-submit criteria
 - `agent-complete-investigation` (fallback) → no special guards
 
@@ -170,7 +158,7 @@ The simplest pipeline — a linear flow with no design phases.
 | PR Review | pr-review | No | No |
 | Done | — | No | No |
 
-### Transitions (~7)
+### Transitions (~9)
 
 - `approve` — System approves → Backlog
 - `route-to-implementation` — Admin routes → Ready for development
@@ -178,11 +166,15 @@ The simplest pipeline — a linear flow with no design phases.
 - `pr-request-changes` — Admin requests changes → Ready for development
 - `merge-impl-pr` — Admin merges → Done
 - `manual-mark-done` — Admin marks done from any status → Done
+- `manual-status-set` — UI fallback for setting arbitrary status
 - `undo-action` — Admin undoes → restores previous status
+- `delete` — Admin deletes item (removes from pipeline)
 
 ### Design Notes
 
 Tasks intentionally skip all design phases. They're meant for small, well-defined work items where implementation can start immediately. If a task turns out to need design, it should be converted to a feature (a future enhancement, not in scope for initial pipeline implementation).
+
+Note: Tasks don't include the `clarification-received` transition. Only design agents request clarification; the implementation agent does not use this flow. If clarification support is needed for tasks in the future, add the transition then.
 
 ## Cross-Pipeline Design Notes
 

@@ -18,21 +18,21 @@ Phase 1 (types), Phase 2 (guards and hooks must be registered for validation tes
 - [ ] **3.1** Create `src/server/template/workflow-service/pipeline/definitions/feature.ts`
   - Define `FEATURE_PIPELINE` const satisfying `PipelineDefinition`
   - 8 statuses (Backlog through Done) using `STATUSES` constants
-  - ~20 transitions covering all feature flows
+  - ~23 transitions covering all feature flows
   - 4 review flows (Product Dev, Product Design, Tech Design, PR Review)
   - Use the [feature-pipeline.json](../examples/feature-pipeline.json) example as reference
 
 - [ ] **3.2** Create `src/server/template/workflow-service/pipeline/definitions/bug.ts`
   - Define `BUG_PIPELINE` const satisfying `PipelineDefinition`
   - 8 statuses (Backlog, Bug Investigation, design phases, impl, review, done)
-  - ~15 transitions covering investigation, decision routing, shared flows
+  - ~23 transitions covering investigation, decision routing, shared design/impl/merge/revert/global flows
   - 4 review flows (Bug Investigation, Product Design, Tech Design, PR Review)
   - Use the [bug-pipeline.json](../examples/bug-pipeline.json) example as reference
 
 - [ ] **3.3** Create `src/server/template/workflow-service/pipeline/definitions/task.ts`
   - Define `TASK_PIPELINE` const satisfying `PipelineDefinition`
   - 4 statuses (Backlog, Ready for development, PR Review, Done)
-  - ~7 transitions (approve, route, implement, request changes, merge, mark done, undo)
+  - ~9 transitions (approve, route, implement, request changes, merge, manual-status-set, mark done, undo, delete)
   - 1 review flow (PR Review)
   - Use the [task-pipeline.json](../examples/task-pipeline.json) example as reference
 
@@ -105,8 +105,7 @@ Transition IDs follow a verb-noun pattern:
 - `merge-impl-pr` — merging implementation PR (single-phase)
 - `merge-impl-pr-next-phase` — merging implementation PR (multi-phase middle)
 - `merge-impl-pr-final` — merging implementation PR (multi-phase final)
-- `auto-advance-{from}` — auto-advancing from a specific design phase
-- `approve-design-{type}` — approving a specific design type
+- `approve-design-{type}` — approving a specific design type (reads from S3, saves artifact, advances)
 - `manual-mark-done` — admin manual completion
 - `undo-action` — undo within time window
 

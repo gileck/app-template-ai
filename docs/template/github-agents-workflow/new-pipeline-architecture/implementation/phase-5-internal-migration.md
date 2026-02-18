@@ -63,16 +63,16 @@ Start with the simplest functions and work toward the most complex (`mergeImplem
   - Most side effects are now hooks (source doc update, design PR close, S3 cleanup, log sync)
   - Verify all markDone side effects fire via hooks
 
-- [ ] **5.9** Migrate `autoAdvanceApproved()` → batch `engine.transition('auto-advance-{from}', ...)`
+- [ ] **5.9** Migrate `autoAdvanceApproved()` → batch `engine.transitionByTrigger(issueNumber, 'admin_review_approve', ...)`
   - Iterates over items with `Approved` review status
-  - Each item's transition is resolved from pipeline definition
+  - Each item's transition is resolved via multi-match resolution from pipeline definition
   - Preserves batch result format `{ total, advanced, failed, details }`
 
 ### Review and Changes (Medium Risk)
 
 - [ ] **5.10** Migrate `reviewDesign()` → `engine.updateReviewStatus()` with ReviewFlowDefinition
   - Maps action string (`'approve'` | `'changes'` | `'reject'`) to review status update
-  - Approve triggers `auto-advance-{from}` via review flow's `triggersTransition`
+  - Approve triggers `approve-design-{type}` via review flow's `triggersTransition`
 
 - [ ] **5.11** Migrate `requestChangesOnPR()` → `engine.transition('pr-request-changes', ...)`
   - Sets status to Implementation + review to Request Changes
@@ -117,9 +117,10 @@ Start with the simplest functions and work toward the most complex (`mergeImplem
 
 ### Merge Operations (High Risk — Most Complex)
 
-- [ ] **5.20** Migrate `mergeImplementationPR()` → `engine.transition('merge-impl-pr' | 'merge-impl-pr-next-phase' | 'merge-impl-pr-final', ...)`
+- [ ] **5.20** Migrate `mergeImplementationPR()` → `engine.transitionByTrigger(issueNumber, 'admin_merge_pr', ...)`
   - **This is the hardest migration** — 362 lines of current logic
-  - Engine resolves which merge variant via multi-match resolution (phase guards)
+  - Uses `transitionByTrigger` so the engine resolves which merge variant via multi-match resolution (phase guards)
+  - Caller does NOT need to determine the specific transition ID — the engine picks `merge-impl-pr`, `merge-impl-pr-next-phase`, or `merge-impl-pr-final` based on guards
   - All side effects extracted to hooks: merge-pr, save-phase-artifact, delete-pr-branch, create-final-pr, etc.
   - Wrapper extracts domain data from `hookResults` using `getHookData()`:
     - `hook:merge-pr` → `mergeCommitSha`
@@ -205,10 +206,10 @@ export async function markDone(issueNumber: number, options?: MarkDoneOptions): 
 For wrappers that need domain-specific hook data, use `getHookData()`:
 
 ```typescript
-// After (complex case — merge wrapper extracts data from hooks)
+// After (complex case — merge wrapper uses transitionByTrigger for multi-match resolution)
 export async function mergeImplementationPR(issueNumber: number, context: MergeContext): Promise<MergePRResult> {
   const engine = await getPipelineEngine();
-  const result = await engine.transition(issueNumber, 'merge-impl-pr', {
+  const result = await engine.transitionByTrigger(issueNumber, 'admin_merge_pr', {
     actor: 'admin',
     prNumber: context.prNumber,
     commitMessage: context.commitMessage,

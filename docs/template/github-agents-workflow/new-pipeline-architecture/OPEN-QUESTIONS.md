@@ -113,17 +113,17 @@ Items that need decisions, clarification, or awareness before implementation beg
 
 **Context:** Review status changes (Waiting for Review → Approved, Request Changes, etc.) are handled by `engine.updateReviewStatus()`, not by `engine.transition()`. This means review status changes don't go through the full transition pipeline (guards, hooks, history).
 
-**Trade-off:** This keeps the engine simpler — review status is truly a sub-state, not a pipeline state. But it means review status changes have fewer guardrails. The `ReviewFlowDefinition` validates that the action is valid for the current status, and a `triggersTransition` field can fire a real transition when needed (e.g., approve triggers auto-advance).
+**Trade-off:** This keeps the engine simpler — review status is truly a sub-state, not a pipeline state. But it means review status changes have fewer guardrails. The `ReviewFlowDefinition` validates that the action is valid for the current status, and a `triggersTransition` field can fire a real transition when needed (e.g., approve triggers `approve-design-{type}`).
 
 **No decision needed** — the design is intentional and matches the current codebase where review status updates are lightweight operations. Documenting for awareness. **Verified in Phase 8 (task 8.5).**
 
 ---
 
-### 10. Guard Count: 14 vs 15
+### 10. Guard Count: 14 → 19
 
-**Context:** The original plan specified 14 guards. During review, `guard:has-approved-review-status` was added (extracted from `auto-advance.ts`), bringing the total to 15. The guard catalog in `guards-and-hooks.md` now lists 15 guards across 5 files.
+**Context:** The original plan specified 14 guards. During review, guards were added: `guard:has-approved-review-status` (extracted from `auto-advance.ts`), plus 5 new guards for multi-match resolution and concurrency control. The guard catalog in `guards-and-hooks.md` now lists 19 guards across 5 files: 11 item guards, 4 PR guards, 1 undo guard, 2 decision guards, 1 concurrency guard.
 
-**No decision needed** — the count was corrected during review. The item-guards.ts file now has 8 guards (the largest). **Verified in Phase 8 (task 8.6).**
+**No decision needed** — the count was corrected during review. The item-guards.ts file now has 11 guards (the largest). **Verified in Phase 8 (task 8.6).**
 
 ---
 

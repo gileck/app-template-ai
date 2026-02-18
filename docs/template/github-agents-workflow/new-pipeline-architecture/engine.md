@@ -39,8 +39,18 @@ interface IPipelineEngine {
   updateReviewStatus(issueNumber: number, reviewStatus: string, context?: TransitionContext): Promise<TransitionResult>;
 
   /**
+   * Resolves and executes a transition by trigger instead of transition ID.
+   * Finds all transitions matching trigger + from(currentStatus), runs
+   * multi-match guard resolution, and delegates to transition().
+   * Used by callers that know the trigger but not the specific transition ID
+   * (e.g., merge wrappers calling with 'admin_merge_pr').
+   */
+  transitionByTrigger(issueNumber: number, trigger: string, context: TransitionContext): Promise<TransitionResult>;
+
+  /**
    * Called when an agent completes work. Resolves the appropriate transition
    * from the pipeline definition and delegates to transition().
+   * Internally uses transitionByTrigger with 'agent_complete' trigger.
    */
   completeAgent(issueNumber: number, agentType: string, result: AgentCompletionResult): Promise<TransitionResult>;
 }
@@ -80,6 +90,30 @@ This is the core method. Every status change flows through it:
 11. Return TransitionResult with all collected data
 ```
 
+### `engine.transitionByTrigger(issueNumber, trigger, context)`
+
+Resolves and executes a transition by trigger instead of by explicit transition ID. This is the primary method for callers that know *what action* to perform but not *which specific transition* applies (e.g., merge wrappers, auto-advance):
+
+```
+1. Load workflow item from DB (get current status, pipelineId)
+2. Resolve pipeline definition
+3. Find all transitions matching trigger + from (current status or '*')
+4. Use multi-match resolution: run guards on each candidate in order, pick first pass
+5. If no candidate passes: return { success: false, reason: 'No matching transition for trigger' }
+6. Delegate to engine.transition(issueNumber, resolvedTransitionId, context)
+```
+
+`completeAgent()` uses this internally with `trigger: 'agent_complete'`. Callers like the merge wrapper use it directly:
+
+```typescript
+// Merge wrapper — caller doesn't know which merge variant applies
+await engine.transitionByTrigger(issueNumber, 'admin_merge_pr', {
+  actor: 'admin',
+  prNumber,
+  commitMessage,
+});
+```
+
 ### `engine.completeAgent(issueNumber, agentType, result)`
 
 Agents don't know about transition IDs — they report completion with a result object:
@@ -92,13 +126,11 @@ interface AgentCompletionResult {
 }
 ```
 
-The engine resolves the appropriate transition using **multi-match resolution** (see below):
+The engine resolves the appropriate transition using `transitionByTrigger`:
 
-1. Load the item and its pipeline definition
-2. Find all transitions with `trigger: 'agent_complete'` from the current status
-3. Set `context.agentType` and `context.agentResult` from the completion result
-4. Use multi-match resolution: run guards on each candidate, pick the first where all guards pass
-5. Delegate to `engine.transition()` with the resolved transition ID
+1. Set `context.agentType` and `context.agentResult` from the completion result
+2. Delegate to `engine.transitionByTrigger(issueNumber, 'agent_complete', context)`
+3. `transitionByTrigger` handles multi-match resolution internally
 
 The engine has **no agent-specific logic**. Disambiguation between agent completion variants (e.g., bug investigator normal completion vs auto-submit) is handled entirely by guards on the pipeline definition's transitions. For example, `agent-auto-submit-investigation` has a `guard:auto-submit-conditions-met` guard that checks the agent result; if it fails, the engine falls through to `agent-complete-investigation`.
 
@@ -112,7 +144,7 @@ Review status changes don't change the pipeline status but must be validated:
 2. Find the `ReviewFlowDefinition` for the current status
 3. Validate the requested review status is valid for this status
 4. Update review status via adapter and DB
-5. If the review action triggers a transition (e.g., approve triggers auto-advance), fire that transition
+5. If the review action triggers a transition (e.g., approve triggers `approve-design-{type}`), fire that transition
 6. Return result
 
 ## Dual-Write Pattern
