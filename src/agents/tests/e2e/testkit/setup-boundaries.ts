@@ -27,6 +27,7 @@ export async function setupBoundaries(): Promise<TestBoundaries> {
     process.env.GITHUB_OWNER = 'test';
     process.env.GITHUB_REPO = 'repo';
     process.env.GITHUB_PROJECT_NUMBER = '1';
+    process.env.CLARIFICATION_SECRET = 'test-secret-for-e2e';
 
     // 1. Start in-memory MongoDB
     mongoServer = await MongoMemoryServer.create();
