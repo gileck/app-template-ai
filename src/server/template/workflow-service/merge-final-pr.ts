@@ -81,11 +81,15 @@ export async function mergeFinalPR(
     }
 
     // Mark as Done
-    await markDone(issueNumber, {
-        logAction: 'status_done',
-        logDescription: 'Final PR merged, issue marked as Done',
-        logMetadata: { prNumber },
-    });
+    try {
+        await markDone(issueNumber, {
+            logAction: 'status_done',
+            logDescription: 'Final PR merged, issue marked as Done',
+            logMetadata: { prNumber },
+        });
+    } catch (error) {
+        console.error(`[MERGE_FINAL:CRITICAL] Failed to mark done for issue #${issueNumber}:`, error);
+    }
 
     // Clean up branches
     const artifact = await getArtifactsFromIssue(adapter, issueNumber);
