@@ -28,21 +28,20 @@ import type { DecisionArtifactRecord } from '@/server/database/collections/templ
 // TOKEN UTILITIES
 // ============================================================
 
-if (!process.env.CLARIFICATION_SECRET) {
-    console.error(
-        '[AGENT DECISION ERROR] CLARIFICATION_SECRET environment variable is not set. Decision token generation will not work.'
-    );
-    throw new Error('CLARIFICATION_SECRET environment variable is required');
+function getClarificationSecret(): string {
+    const secret = process.env.CLARIFICATION_SECRET;
+    if (!secret) {
+        throw new Error('CLARIFICATION_SECRET environment variable is required');
+    }
+    return secret;
 }
-
-const CLARIFICATION_SECRET = process.env.CLARIFICATION_SECRET;
 
 /**
  * Generate a security token for a decision page.
  * Uses HMAC-SHA256 with a secret key, returns first 8 chars.
  */
 export function generateDecisionToken(issueNumber: number): string {
-    const hmac = crypto.createHmac('sha256', CLARIFICATION_SECRET);
+    const hmac = crypto.createHmac('sha256', getClarificationSecret());
     hmac.update(`decision:${issueNumber}`);
     return hmac.digest('hex').substring(0, 8);
 }
