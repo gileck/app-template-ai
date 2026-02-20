@@ -88,7 +88,7 @@ export async function mergeFinalPR(
             logMetadata: { prNumber },
         });
     } catch (error) {
-        console.error(`[MERGE:CRITICAL] Failed to mark done for issue #${issueNumber}:`, error);
+        console.error(`[MERGE_FINAL:CRITICAL] Failed to mark done for issue #${issueNumber}:`, error);
     }
 
     // Clean up branches
