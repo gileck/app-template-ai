@@ -5,6 +5,7 @@ import { CacheResult } from "@/common/cache/types";
 import { fsCacheProvider, s3CacheProvider } from "@/server/template/cache/providers";
 import { appConfig } from "@/app.config";
 import { getUserContext } from "./getUserContext";
+import { sendNotificationToOwner } from "@/server/template/telegram";
 
 // Create server-side cache instance
 const provider = appConfig.cacheType === 's3' ? s3CacheProvider : fsCacheProvider;
@@ -68,6 +69,12 @@ export const processApiCall = async (
   } catch (error) {
     // Expected/handled behavior: never throw to the route layer; always return HTTP 200 with an error payload.
     console.error(`processApiCall failed for ${String(name)}:`, error);
+
+    // Fire-and-forget: notify admin of server errors via Telegram
+    void sendNotificationToOwner(
+      `🚨 API Error: ${String(name)}\n\n${error instanceof Error ? error.message : String(error)}${error instanceof Error && error.stack ? `\n\n${error.stack.slice(0, 500)}` : ''}`
+    );
+
     return {
       data: {
         error: error instanceof Error ? error.message : "Unknown error",
