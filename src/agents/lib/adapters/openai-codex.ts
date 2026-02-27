@@ -28,6 +28,7 @@ import {
     logPrompt,
     logTextResponse,
     logToolCall,
+    logToolResult,
     logTokenUsage,
 } from '../logging';
 import { getModelForLibrary } from '../config';
@@ -271,6 +272,16 @@ class OpenAICodexAdapter implements AgentLibraryAdapter {
                                     target = ` → ${filePath.split('/').slice(-2).join('/')}`;
                                 }
                                 console.log(`  \x1b[36m[${elapsed}s] Tool: ${toolName}${target}\x1b[0m`);
+                            }
+
+                            if (event.type === 'tool_result') {
+                                // Log tool result
+                                if (logCtx) {
+                                    const toolId = event.tool_id || '';
+                                    const toolName = event.tool || 'unknown';
+                                    const output = event.output || '';
+                                    logToolResult(logCtx, toolId, toolName, output);
+                                }
                             }
 
                             if (event.type === 'result') {

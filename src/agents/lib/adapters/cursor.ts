@@ -31,6 +31,7 @@ import {
     logPrompt,
     logTextResponse,
     logToolCall,
+    logToolResult,
     logTokenUsage,
 } from '../logging';
 import { getModelForLibrary } from '../config';
@@ -58,6 +59,7 @@ interface CursorStreamEvent {
     name?: string;          // Tool name for tool_use events
     path?: string;          // File path for read_file tool
     input?: Record<string, unknown>; // Tool input
+    output?: string;        // Tool result output
     tool_call_id?: string;  // Tool call identifier
     session_id?: string;
     result?: string;        // Final result content
@@ -317,6 +319,16 @@ IMPORTANT:
                                     target = ` → ${event.path.split('/').slice(-2).join('/')}`;
                                 }
                                 console.log(`  \x1b[36m[${elapsed}s] Tool: ${toolName}${target}\x1b[0m`);
+                            }
+
+                            if (event.type === 'tool_result') {
+                                // Log tool result
+                                if (logCtx) {
+                                    const toolId = event.tool_call_id || '';
+                                    const toolName = event.name || 'unknown';
+                                    const output = event.output || event.content || '';
+                                    logToolResult(logCtx, toolId, toolName, output);
+                                }
                             }
 
                             if (event.type === 'result') {
