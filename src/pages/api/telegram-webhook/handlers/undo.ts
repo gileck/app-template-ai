@@ -54,6 +54,12 @@ export async function handleUndoRequestChanges(
             return { success: false, error: result.error };
         }
 
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for PR #${prNumber}, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
+        }
+
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const cleanedText = originalText
@@ -178,6 +184,12 @@ export async function handleUndoDesignChanges(
             return { success: false, error: result.error };
         }
 
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for design PR #${prNumber}, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
+        }
+
         if (callbackQuery.message) {
             const originalText = callbackQuery.message.text || '';
             const cleanedText = originalText
@@ -262,6 +274,12 @@ export async function handleUndoDesignReview(
                 console.warn(`[LOG:UNDO] Undo window expired for design review, issue #${issueNumber}`);
             }
             return { success: false, error: result.error };
+        }
+
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for design review, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
         }
 
         if (callbackQuery.message) {
