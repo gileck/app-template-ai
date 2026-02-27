@@ -12,6 +12,7 @@ import { getRoutingStatusMap } from '@/server/template/workflow-service/constant
 import { writeLogHeader } from '@/agents/lib/logging/writer';
 import { ensureArtifactComment } from '@/agents/lib/artifacts';
 import { parseArgs, validateCreateArgs } from '../utils/parse-args';
+import { sendItemCreatedNotification } from '@/server/template/telegram';
 
 export interface CreateOptions {
     type: 'feature' | 'bug';
@@ -144,6 +145,23 @@ async function createWorkflowItemDirect(options: CreateOptions): Promise<void> {
 
     if (options.workflowRoute) {
         console.log(`  Routed to: ${options.workflowRoute} (${initialStatus})`);
+    }
+
+    // 7. Send Telegram notification
+    try {
+        await sendItemCreatedNotification(
+            workflowItem._id.toString(),
+            options.type,
+            options.title,
+            { number: issue.number, url: issue.url },
+            {
+                priority: options.priority,
+                createdBy: options.createdBy,
+            }
+        );
+        console.log(`  Telegram notification sent`);
+    } catch (error) {
+        console.warn(`  Warning: Failed to send Telegram notification: ${error}`);
     }
 
     console.log(`\n${options.type === 'feature' ? 'Feature request' : 'Bug report'} created successfully!`);
