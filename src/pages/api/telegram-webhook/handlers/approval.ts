@@ -45,7 +45,17 @@ export async function handleFeatureRequestApproval(
     }
 
     // Call service
-    const result = await approveWorkflowItem({ id: requestId, type: 'feature' });
+    let result;
+    try {
+        result = await approveWorkflowItem({ id: requestId, type: 'feature' });
+    } catch (error) {
+        // Restore the approval token on exception so the user can retry
+        if (request.approvalToken) {
+            await featureRequests.updateApprovalToken(requestId, request.approvalToken);
+        }
+        console.error(`[LOG:APPROVAL] Exception while approving feature request ${requestId}:`, error);
+        return { success: false, error: 'Failed to approve' };
+    }
 
     if (!result.success) {
         // Restore the approval token so the user can retry
@@ -104,7 +114,17 @@ export async function handleBugReportApproval(
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
-    const result = await approveWorkflowItem({ id: reportId, type: 'bug' });
+    let result;
+    try {
+        result = await approveWorkflowItem({ id: reportId, type: 'bug' });
+    } catch (error) {
+        // Restore the approval token on exception so the user can retry
+        if (report.approvalToken) {
+            await reports.updateApprovalToken(reportId, report.approvalToken);
+        }
+        console.error(`[LOG:APPROVAL] Exception while approving bug report ${reportId}:`, error);
+        return { success: false, error: 'Failed to approve' };
+    }
 
     if (!result.success) {
         if (report.approvalToken) {
@@ -235,7 +255,17 @@ export async function handleFeatureRequestApprovalToBacklog(
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
-    const result = await approveWorkflowItem({ id: requestId, type: 'feature' }, { initialRoute: 'backlog' });
+    let result;
+    try {
+        result = await approveWorkflowItem({ id: requestId, type: 'feature' }, { initialRoute: 'backlog' });
+    } catch (error) {
+        // Restore the approval token on exception so the user can retry
+        if (request.approvalToken) {
+            await featureRequests.updateApprovalToken(requestId, request.approvalToken);
+        }
+        console.error(`[LOG:APPROVAL] Exception while approving feature request to backlog ${requestId}:`, error);
+        return { success: false, error: 'Failed to approve' };
+    }
 
     if (!result.success) {
         if (request.approvalToken) {
@@ -292,7 +322,17 @@ export async function handleBugReportApprovalToBacklog(
         return { success: false, error: 'Invalid or expired approval token' };
     }
 
-    const result = await approveWorkflowItem({ id: reportId, type: 'bug' }, { initialRoute: 'backlog' });
+    let result;
+    try {
+        result = await approveWorkflowItem({ id: reportId, type: 'bug' }, { initialRoute: 'backlog' });
+    } catch (error) {
+        // Restore the approval token on exception so the user can retry
+        if (report.approvalToken) {
+            await reports.updateApprovalToken(reportId, report.approvalToken);
+        }
+        console.error(`[LOG:APPROVAL] Exception while approving bug report to backlog ${reportId}:`, error);
+        return { success: false, error: 'Failed to approve' };
+    }
 
     if (!result.success) {
         if (report.approvalToken) {
