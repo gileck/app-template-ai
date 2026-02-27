@@ -260,6 +260,9 @@ IMPORTANT:
         try {
             // Execute with streaming support
             if (stream) {
+                // Map tool call IDs to tool names for logging tool results
+                const toolIdToName = new Map<string, string>();
+
                 const result = await this.executeWithStreaming(
                     args,
                     {
@@ -299,10 +302,16 @@ IMPORTANT:
                                 toolCallCount++;
                                 const toolName = event.name || 'unknown';
                                 const toolInput = event.input || {};
+                                const toolId = event.tool_call_id || '';
+
+                                // Store tool name for later logging of tool results
+                                if (toolId && toolName !== 'unknown') {
+                                    toolIdToName.set(toolId, toolName);
+                                }
 
                                 // Log tool call
                                 if (logCtx) {
-                                    logToolCall(logCtx, event.tool_call_id || '', toolName, toolInput);
+                                    logToolCall(logCtx, toolId, toolName, toolInput);
                                 }
 
                                 // Track files examined
@@ -325,7 +334,8 @@ IMPORTANT:
                                 // Log tool result
                                 if (logCtx) {
                                     const toolId = event.tool_call_id || '';
-                                    const toolName = event.name || 'unknown';
+                                    // Look up the tool name from the tool call ID
+                                    const toolName = toolIdToName.get(toolId) || 'unknown';
                                     const output = event.output || event.content || '';
                                     logToolResult(logCtx, toolId, toolName, output);
                                 }

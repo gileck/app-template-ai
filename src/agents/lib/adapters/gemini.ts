@@ -253,6 +253,9 @@ class GeminiAdapter implements AgentLibraryAdapter {
         try {
             // Execute with streaming support
             if (stream) {
+                // Map tool use IDs to tool names for logging tool results
+                const toolIdToName = new Map<string, string>();
+
                 const result = await this.executeWithStreaming(
                     args,
                     {
@@ -273,10 +276,16 @@ class GeminiAdapter implements AgentLibraryAdapter {
                                 toolCallCount++;
                                 const toolName = event.tool_name || 'unknown';
                                 const toolInput = event.parameters || {};
+                                const toolId = event.tool_id || '';
+
+                                // Store tool name for later logging of tool results
+                                if (toolId && toolName !== 'unknown') {
+                                    toolIdToName.set(toolId, toolName);
+                                }
 
                                 // Log tool call
                                 if (logCtx) {
-                                    logToolCall(logCtx, event.tool_id || '', toolName, toolInput);
+                                    logToolCall(logCtx, toolId, toolName, toolInput);
                                 }
 
                                 // Track files examined
@@ -300,7 +309,8 @@ class GeminiAdapter implements AgentLibraryAdapter {
                                 // Log tool result
                                 if (logCtx) {
                                     const toolId = event.tool_id || '';
-                                    const toolName = event.tool_name || 'unknown';
+                                    // Look up the tool name from the tool use ID
+                                    const toolName = toolIdToName.get(toolId) || 'unknown';
                                     const output = event.output || '';
                                     logToolResult(logCtx, toolId, toolName, output);
                                 }
