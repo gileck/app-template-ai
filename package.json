@@ -73,6 +73,7 @@
     "@aws-sdk/s3-request-presigner": "^3.777.0",
     "@google/genai": "1.28.0",
     "@octokit/rest": "^22.0.1",
+    "@openai/codex": "^0.115.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
