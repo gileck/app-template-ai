@@ -203,6 +203,17 @@ export const CODEX_MODELS: AIModelDefinition[] = [
     inputPricePer1M: 1.25,
     outputPricePer1M: 10.00,
     capabilities: ['agentic-coding', 'reasoning', 'coding', 'analysis']
+  },
+  {
+    id: 'gpt-5.4',
+    name: 'GPT-5.4',
+    provider: 'codex',
+    tier: 'Pro',
+    maxTokens: 272000,
+    maxOutputTokens: 128000,
+    inputPricePer1M: 2.50,
+    outputPricePer1M: 15.00,
+    capabilities: ['reasoning', 'coding', 'analysis', 'agentic-workflows']
   }
 ];
 
