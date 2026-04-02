@@ -528,3 +528,94 @@ export const getUniqueDomains = async (): Promise<string[]> => {
     const domains = await collection.distinct('domain', { domain: { $exists: true, $ne: '' } });
     return (domains as string[]).filter(Boolean).sort();
 };
+
+// ============================================================
+// ATOMIC UNDO OPERATIONS (Race Condition Protection)
+// ============================================================
+
+/**
+ * Atomically undo request changes for an issue
+ * Uses findOneAndUpdate with state conditions to prevent race conditions
+ *
+ * @param issueNumber - GitHub issue number
+ * @param targetStatus - Expected target status (e.g., "PR Review")
+ * @returns The updated document if successful, null if already undone (idempotent)
+ */
+export const atomicUndoRequestChanges = async (
+    issueNumber: number,
+    targetStatus: string
+): Promise<WorkflowItemDocument | null> => {
+    const collection = await getWorkflowItemsCollection();
+
+    // Atomic operation: only succeeds if status matches AND reviewStatus exists
+    const result = await collection.findOneAndUpdate(
+        {
+            githubIssueNumber: issueNumber,
+            status: targetStatus,
+            reviewStatus: { $exists: true, $ne: '' }
+        },
+        {
+            $unset: { reviewStatus: '' },
+            $set: { updatedAt: new Date() }
+        },
+        { returnDocument: 'after' }
+    );
+
+    return result || null;
+};
+
+/**
+ * Atomically undo design changes for an issue
+ * Uses findOneAndUpdate with state conditions to prevent race conditions
+ *
+ * @param issueNumber - GitHub issue number
+ * @returns The updated document if successful, null if already undone (idempotent)
+ */
+export const atomicUndoDesignChanges = async (
+    issueNumber: number
+): Promise<WorkflowItemDocument | null> => {
+    const collection = await getWorkflowItemsCollection();
+
+    // Atomic operation: only succeeds if reviewStatus exists
+    const result = await collection.findOneAndUpdate(
+        {
+            githubIssueNumber: issueNumber,
+            reviewStatus: { $exists: true, $ne: '' }
+        },
+        {
+            $unset: { reviewStatus: '' },
+            $set: { updatedAt: new Date() }
+        },
+        { returnDocument: 'after' }
+    );
+
+    return result || null;
+};
+
+/**
+ * Atomically undo design review for an issue
+ * Uses findOneAndUpdate with state conditions to prevent race conditions
+ *
+ * @param issueNumber - GitHub issue number
+ * @returns The updated document if successful, null if already undone (idempotent)
+ */
+export const atomicUndoDesignReview = async (
+    issueNumber: number
+): Promise<WorkflowItemDocument | null> => {
+    const collection = await getWorkflowItemsCollection();
+
+    // Atomic operation: only succeeds if reviewStatus exists
+    const result = await collection.findOneAndUpdate(
+        {
+            githubIssueNumber: issueNumber,
+            reviewStatus: { $exists: true, $ne: '' }
+        },
+        {
+            $unset: { reviewStatus: '' },
+            $set: { updatedAt: new Date() }
+        },
+        { returnDocument: 'after' }
+    );
+
+    return result || null;
+};
