@@ -194,7 +194,6 @@ export function formatStructuredClarification(clarification: StructuredClarifica
         descriptionLines.forEach(line => {
             lines.push(`   ${line}`);
         });
-        lines.push('');
     });
 
     // Recommendation section
