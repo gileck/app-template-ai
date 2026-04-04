@@ -608,15 +608,26 @@ When `allowRegistration` is `false`, the "Don't have an account? Sign up" toggle
 
 > **Security note:** `allowRegistration: false` only hides the signup UI. Direct API calls to `auth/register` will still succeed unless you also add a `validateRegistration` server override. Always set **both** when disabling signups.
 
-### File Ownership
+### File Ownership & Template Sync
 
-Both files are **project-owned** (not in `templatePaths`) and will not be overwritten by template sync. The template provides default no-op implementations.
+Both config files are included in `templatePaths` with safe defaults (no overrides, registration enabled). They sync to all child projects automatically so the template never breaks.
 
-| File | Owner | Purpose |
-|------|-------|---------|
-| `src/apis/template/auth/auth-overrides-types.ts` | Template | `AuthOverrides` interface |
-| `src/apis/auth-overrides.ts` | Project | Server-side override implementations |
-| `src/client/auth-config.ts` | Project | Client-side UI configuration |
+To customize: edit the files in your child project, then add them to `projectOverrides` in `.template-sync.json` to prevent future syncs from overwriting your changes.
+
+```json
+{
+  "projectOverrides": [
+    "src/apis/auth-overrides.ts",
+    "src/client/auth-config.ts"
+  ]
+}
+```
+
+| File | Synced | Purpose |
+|------|--------|---------|
+| `src/apis/template/auth/auth-overrides-types.ts` | Yes (template) | `AuthOverrides` interface |
+| `src/apis/auth-overrides.ts` | Yes (defaults), add to `projectOverrides` to customize | Server-side overrides |
+| `src/client/auth-config.ts` | Yes (defaults), add to `projectOverrides` to customize | Client-side UI config |
 
 ## Usage Examples
 
