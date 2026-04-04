@@ -1,7 +1,7 @@
 ---
 title: Authentication
 description: Instant-boot authentication pattern for PWA. Use this when working with auth flows.
-summary: Uses `isProbablyLoggedIn` hint in localStorage for instant render, validates with server in background. JWT in HttpOnly cookie. Use `useUser()` for validated user, `useAuthStore(s => s.userPublicHint)` for instant-boot UI.
+summary: Uses `isProbablyLoggedIn` hint in localStorage for instant render, validates with server in background. JWT in HttpOnly cookie. Use `useUser()` for validated user, `useAuthStore(s => s.userPublicHint)` for instant-boot UI. Child projects can override login/signup logic via `src/apis/auth-overrides.ts` and control UI via `src/client/auth-config.ts`.
 priority: 2
 ---
 
@@ -545,6 +545,78 @@ Authentication responses include `user.isAdmin` so the client can enable admin-o
 | Auth hint (Zustand) | 7 days | Clear stale hints after inactivity |
 | React Query cache | 24 hours | localStorage persistence max age |
 | JWT token + Cookie | 10 years | Session expiry (effectively permanent) |
+
+## Auth Overrides (Project-Specific Logic)
+
+Child projects can customize login/signup behavior without modifying template code. Two project-owned files control this:
+
+### Server-Side Overrides (`src/apis/auth-overrides.ts`)
+
+Define `validateLogin` and/or `validateRegistration` hooks to reject login or signup attempts with custom logic. Return an error string to reject, or `undefined` to allow.
+
+```typescript
+import type { AuthOverrides } from './template/auth/auth-overrides-types';
+
+export const authOverrides: AuthOverrides = {
+  // Example: Admin-only login
+  validateLogin: async ({ user }) => {
+    const adminUserId = process.env.ADMIN_USER_ID;
+    if (adminUserId && user._id.toString() !== adminUserId) {
+      return 'Login is restricted to administrators only';
+    }
+  },
+
+  // Example: Disable new signups
+  validateRegistration: async () => {
+    return 'Registration is currently disabled';
+  },
+};
+```
+
+**Hook timing:**
+- `validateLogin` runs **after** password verification, before JWT is issued. Receives the full `User` object from the database.
+- `validateRegistration` runs **before** user creation, after input validation.
+
+**Available parameters:**
+
+| Hook | Parameters |
+|------|-----------|
+| `validateLogin` | `{ user: User, request: LoginRequest, context: ApiHandlerContext }` |
+| `validateRegistration` | `{ request: RegisterRequest, context: ApiHandlerContext }` |
+
+### Client-Side Config (`src/client/auth-config.ts`)
+
+Controls login form UI behavior:
+
+```typescript
+export const authConfig = {
+  /** Set to false to hide the registration option from the login form */
+  allowRegistration: true,
+};
+```
+
+When `allowRegistration` is `false`, the "Don't have an account? Sign up" toggle is hidden from the login form.
+
+### Common Patterns
+
+| Use Case | Server Override | Client Config |
+|----------|----------------|---------------|
+| Disable signups | `validateRegistration` returns error | `allowRegistration: false` |
+| Admin-only login | `validateLogin` checks `ADMIN_USER_ID` | No change needed |
+| Email domain restriction | `validateRegistration` checks email domain | No change needed |
+| Invite-only registration | `validateRegistration` checks invite code | No change needed |
+
+> **Security note:** `allowRegistration: false` only hides the signup UI. Direct API calls to `auth/register` will still succeed unless you also add a `validateRegistration` server override. Always set **both** when disabling signups.
+
+### File Ownership
+
+Both files are **project-owned** (not in `templatePaths`) and will not be overwritten by template sync. The template provides default no-op implementations.
+
+| File | Owner | Purpose |
+|------|-------|---------|
+| `src/apis/template/auth/auth-overrides-types.ts` | Template | `AuthOverrides` interface |
+| `src/apis/auth-overrides.ts` | Project | Server-side override implementations |
+| `src/client/auth-config.ts` | Project | Client-side UI configuration |
 
 ## Usage Examples
 
