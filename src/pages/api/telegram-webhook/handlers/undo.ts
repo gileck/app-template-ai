@@ -31,12 +31,8 @@ export async function handleUndoRequestChanges(
     timestamp: number
 ): Promise<HandlerResult> {
     try {
-        // Check idempotency first
+        // Fetch item for later use in notification (after undo completes)
         const item = await findItemByIssueNumber(issueNumber);
-        if (item && item.status === STATUSES.prReview && !item.reviewStatus) {
-            console.log(`[LOG:UNDO] Undo already performed for PR #${prNumber}, issue #${issueNumber}`);
-            return { success: true };
-        }
 
         // Undo: restore to PR Review + clear review status
         const result = await undoStatusChange(
@@ -56,6 +52,12 @@ export async function handleUndoRequestChanges(
                 console.warn(`[LOG:UNDO] Undo window expired for PR #${prNumber}, issue #${issueNumber}`);
             }
             return { success: false, error: result.error };
+        }
+
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for PR #${prNumber}, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
         }
 
         if (callbackQuery.message) {
@@ -159,12 +161,8 @@ export async function handleUndoDesignChanges(
     timestamp: number
 ): Promise<HandlerResult> {
     try {
-        // Check idempotency first
+        // Fetch item for later use in notification (after undo completes)
         const item = await findItemByIssueNumber(issueNumber);
-        if (item && !item.reviewStatus) {
-            console.log(`[LOG:UNDO] Undo already performed for design PR #${prNumber}, issue #${issueNumber}`);
-            return { success: true };
-        }
 
         // Undo: just clear review status (don't change main status)
         const result = await undoStatusChange(
@@ -184,6 +182,12 @@ export async function handleUndoDesignChanges(
                 console.warn(`[LOG:UNDO] Undo window expired for design PR #${prNumber}, issue #${issueNumber}`);
             }
             return { success: false, error: result.error };
+        }
+
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for design PR #${prNumber}, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
         }
 
         if (callbackQuery.message) {
@@ -249,12 +253,8 @@ export async function handleUndoDesignReview(
     timestamp: number
 ): Promise<HandlerResult> {
     try {
-        // Check idempotency first
+        // Fetch item for later use in notification (after undo completes)
         const item = await findItemByIssueNumber(issueNumber);
-        if (item && !item.reviewStatus) {
-            console.log(`[LOG:UNDO] Undo already performed for design review, issue #${issueNumber}`);
-            return { success: true };
-        }
 
         // Undo: just clear review status
         const result = await undoStatusChange(
@@ -274,6 +274,12 @@ export async function handleUndoDesignReview(
                 console.warn(`[LOG:UNDO] Undo window expired for design review, issue #${issueNumber}`);
             }
             return { success: false, error: result.error };
+        }
+
+        // If undo was already performed, skip notifications to prevent duplicate side effects
+        if (result.alreadyDone) {
+            console.log(`[LOG:UNDO] Undo already performed for design review, issue #${issueNumber} - skipping notifications`);
+            return { success: true };
         }
 
         if (callbackQuery.message) {

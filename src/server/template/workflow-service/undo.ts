@@ -51,6 +51,42 @@ export async function undoStatusChange(
         return { success: false, error: `Issue #${issueNumber} not found in project` };
     }
 
+    // Idempotency check: detect if the undo was already performed
+    // This prevents race conditions when multiple concurrent requests attempt to undo the same action
+    const isAlreadyUndone = (() => {
+        // If we're restoring a specific status, check if it's already set correctly
+        if (restoreStatus) {
+            // For undo request changes: check if status is already prReview AND reviewStatus is clear
+            if (item.status === restoreStatus && !item.reviewStatus) {
+                return true;
+            }
+        } else {
+            // If not restoring status, we're just clearing review status
+            // Check if reviewStatus is already cleared
+            if (restoreReviewStatus === null && !item.reviewStatus) {
+                return true;
+            }
+            // If setting a specific review status, check if it's already set
+            if (restoreReviewStatus !== null && restoreReviewStatus !== undefined) {
+                if (item.reviewStatus === restoreReviewStatus) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    })();
+
+    if (isAlreadyUndone) {
+        if (logExists(issueNumber)) {
+            logWebhookAction(issueNumber, 'undo_already_done', 'Undo already performed', {
+                issueNumber,
+                currentStatus: item.status,
+                currentReviewStatus: item.reviewStatus,
+            });
+        }
+        return { success: true, alreadyDone: true, itemId: item.itemId };
+    }
+
     const adapter = await getInitializedAdapter();
 
     // Restore status if provided
