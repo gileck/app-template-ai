@@ -611,23 +611,28 @@ When `allowRegistration` is `false`, the "Don't have an account? Sign up" toggle
 
 ### Admin-Approved Signups
 
-Set `requireAdminApproval: true` in `src/apis/auth-overrides.ts` to gate signups behind admin approval. With the flag enabled:
+**Enabled by default in the template.** Set `requireAdminApproval: false` in `src/apis/auth-overrides.ts` to allow open signups without admin review. With the flag enabled:
 
 1. **New signups** are created in the database with `approvalStatus: 'pending'`. The register endpoint does **not** issue a JWT and returns `{ pendingApproval: true }` instead of a user object. The login form shows a "Waiting for approval" screen.
 2. **Login attempts** by pending users are blocked with `"Your account is pending admin approval"`. Rejected users see `"Your account has been rejected"`. The admin user (`ADMIN_USER_ID`) bypasses the gate.
-3. **The admin is notified via Telegram** immediately after each new signup (uses the existing `sendNotificationToOwner()` helper + `OWNER_TELEGRAM_CHAT_ID`). The message includes a deep link to `/admin/approvals`. To customize the link host, set `NEXT_PUBLIC_APP_URL` or `APP_URL`.
-4. **The admin opens `/admin/approvals`** — a new admin-only route listing pending users with Approve / Reject actions.
+3. **The admin is notified via Telegram** immediately after each new signup (uses the existing `sendNotificationToOwner()` helper + `OWNER_TELEGRAM_CHAT_ID`). The message renders an inline keyboard button opening `/admin/approvals`. The URL is resolved via `appConfig.appUrl` (cascades through `NEXT_PUBLIC_APP_URL` → `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → hardcoded default).
+4. **The admin opens `/admin/approvals`** — an admin-only route (also linked from the admin menu) listing pending users with Approve / Reject actions.
 5. **Approve** sets `approvalStatus: 'approved'` and stamps `approvedAt`. The user can now log in normally.
 6. **Reject** is a soft delete: `approvalStatus: 'rejected'` with `rejectedAt`. The user row is kept, so the username/email stays reserved and the rejected user cannot immediately re-register with the same credentials.
 
 ```typescript
-// src/apis/auth-overrides.ts
+// src/apis/auth-overrides.ts — disable to allow open signups
 export const authOverrides: AuthOverrides = {
-  requireAdminApproval: true,
+  requireAdminApproval: false,
 };
 ```
 
-**Bootstrap caveat:** the admin user must already exist (register) **before** you enable `requireAdminApproval` — otherwise there's no one who can approve new signups. If the admin registers while the flag is already on, they are auto-approved on signup.
+**Bootstrap caveat — critical for fresh deployments:** since the flag is on by default, the very first signup on a fresh deployment will land in `'pending'` with no one able to approve it unless `ADMIN_USER_ID` is already set to that user's `_id`. Since the `_id` is only generated at insert time, you have a chicken-and-egg problem. Two recommended setup paths:
+
+- **Path A (recommended) — flip flag off for bootstrap, then on:** set `requireAdminApproval: false`, deploy or run locally, have the admin register, grab their `_id` from MongoDB, set `ADMIN_USER_ID=<id>` in env, flip the flag back to `true`, redeploy.
+- **Path B — manual DB promote:** deploy with flag on, admin registers into `'pending'` state, manually run `db.users.updateOne({username: "<admin>"}, {$set: {approvalStatus: "approved"}})`, set `ADMIN_USER_ID` to their `_id`, restart.
+
+Once the admin is registered and `ADMIN_USER_ID` is set, any subsequent admin re-registration (e.g. after a DB wipe) auto-approves via the admin-bypass branch in `registerUser.ts`.
 
 **Schema compatibility:** legacy users created before this feature existed have no `approvalStatus` field. The login gate treats missing status as `'approved'`, so existing users are unaffected when the flag is flipped on.
 

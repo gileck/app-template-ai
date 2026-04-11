@@ -10,11 +10,21 @@ import type { AuthOverrides } from './template/auth/auth-overrides-types';
  * Return undefined (or don't return) to allow it.
  */
 export const authOverrides: AuthOverrides = {
-  // Example: Admin-approved signups only
-  // When enabled, new users are placed in 'pending' status and cannot log in
-  // until an admin approves them via /admin/approvals. The admin bypasses
-  // the gate, so you MUST register your admin user before enabling this flag.
-  // requireAdminApproval: true,
+  // Admin-approved signups (enabled by default).
+  //
+  // New users are created with `approvalStatus: 'pending'` and cannot log
+  // in until an admin approves them via /admin/approvals. The admin user
+  // (ADMIN_USER_ID env var) bypasses the gate and is auto-approved on
+  // signup to handle the bootstrap case.
+  //
+  // Set this to `false` to allow open signups without admin review.
+  //
+  // Bootstrap note: on a fresh deployment you must set ADMIN_USER_ID to
+  // the admin's _id BEFORE they register (or flip this flag off, register
+  // the admin, then flip it back on and set ADMIN_USER_ID). Otherwise the
+  // first signup will land in 'pending' with no one to approve it.
+  // See docs/template/authentication.md for the full setup flow.
+  requireAdminApproval: true,
 
   // Example: Disable new signups
   // validateRegistration: async () => {
