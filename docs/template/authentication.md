@@ -602,11 +602,44 @@ When `allowRegistration` is `false`, the "Don't have an account? Sign up" toggle
 | Use Case | Server Override | Client Config |
 |----------|----------------|---------------|
 | Disable signups | `validateRegistration` returns error | `allowRegistration: false` |
+| Admin-approved signups | `requireAdminApproval: true` | No change needed |
 | Admin-only login | `validateLogin` checks `ADMIN_USER_ID` | No change needed |
 | Email domain restriction | `validateRegistration` checks email domain | No change needed |
 | Invite-only registration | `validateRegistration` checks invite code | No change needed |
 
 > **Security note:** `allowRegistration: false` only hides the signup UI. Direct API calls to `auth/register` will still succeed unless you also add a `validateRegistration` server override. Always set **both** when disabling signups.
+
+### Admin-Approved Signups
+
+Set `requireAdminApproval: true` in `src/apis/auth-overrides.ts` to gate signups behind admin approval. With the flag enabled:
+
+1. **New signups** are created in the database with `approvalStatus: 'pending'`. The register endpoint does **not** issue a JWT and returns `{ pendingApproval: true }` instead of a user object. The login form shows a "Waiting for approval" screen.
+2. **Login attempts** by pending users are blocked with `"Your account is pending admin approval"`. Rejected users see `"Your account has been rejected"`. The admin user (`ADMIN_USER_ID`) bypasses the gate.
+3. **The admin is notified via Telegram** immediately after each new signup (uses the existing `sendNotificationToOwner()` helper + `OWNER_TELEGRAM_CHAT_ID`). The message includes a deep link to `/admin/approvals`. To customize the link host, set `NEXT_PUBLIC_APP_URL` or `APP_URL`.
+4. **The admin opens `/admin/approvals`** — a new admin-only route listing pending users with Approve / Reject actions.
+5. **Approve** sets `approvalStatus: 'approved'` and stamps `approvedAt`. The user can now log in normally.
+6. **Reject** is a soft delete: `approvalStatus: 'rejected'` with `rejectedAt`. The user row is kept, so the username/email stays reserved and the rejected user cannot immediately re-register with the same credentials.
+
+```typescript
+// src/apis/auth-overrides.ts
+export const authOverrides: AuthOverrides = {
+  requireAdminApproval: true,
+};
+```
+
+**Bootstrap caveat:** the admin user must already exist (register) **before** you enable `requireAdminApproval` — otherwise there's no one who can approve new signups. If the admin registers while the flag is already on, they are auto-approved on signup.
+
+**Schema compatibility:** legacy users created before this feature existed have no `approvalStatus` field. The login gate treats missing status as `'approved'`, so existing users are unaffected when the flag is flipped on.
+
+**User notification on approval (future phase):** notifying the approved user themselves is intentionally deferred. Only email is captured at signup, so user-facing notifications will require adding email infrastructure.
+
+**API endpoints added:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `admin/user-approvals/list` | List pending users (admin only) |
+| `admin/user-approvals/approve` | Mark a user as approved (admin only) |
+| `admin/user-approvals/reject` | Soft-delete a user as rejected (admin only) |
 
 ### File Ownership & Template Sync
 

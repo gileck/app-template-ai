@@ -10,6 +10,7 @@
 import { mergeApiHandlers } from "./registry";
 import { clearCacheApiHandlers } from "./template/settings/clearCache/server";
 import { authApiHandlers } from "./template/auth/server";
+import { userApprovalsApiHandlers } from "./template/user-approvals/server";
 import { reportsApiHandlers } from "./template/reports/server";
 import { featureRequestsApiHandlers } from "./template/feature-requests/server";
 import { agentLogApiHandlers } from "./template/agent-log/server";
@@ -21,6 +22,7 @@ import { workflowApiHandlers } from "./template/workflow/server";
 export const templateApiHandlers = mergeApiHandlers(
   clearCacheApiHandlers,
   authApiHandlers,
+  userApprovalsApiHandlers,
   reportsApiHandlers,
   featureRequestsApiHandlers,
   agentLogApiHandlers,

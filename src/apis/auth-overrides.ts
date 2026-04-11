@@ -10,6 +10,12 @@ import type { AuthOverrides } from './template/auth/auth-overrides-types';
  * Return undefined (or don't return) to allow it.
  */
 export const authOverrides: AuthOverrides = {
+  // Example: Admin-approved signups only
+  // When enabled, new users are placed in 'pending' status and cannot log in
+  // until an admin approves them via /admin/approvals. The admin bypasses
+  // the gate, so you MUST register your admin user before enabling this flag.
+  // requireAdminApproval: true,
+
   // Example: Disable new signups
   // validateRegistration: async () => {
   //   return 'Registration is currently disabled';
