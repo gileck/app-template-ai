@@ -155,6 +155,19 @@ export const findPendingUsers = async (): Promise<User[]> => {
 };
 
 /**
+ * Check whether the users collection has zero documents.
+ * Used by the first-user-wins bootstrap branch in registerUser.
+ *
+ * Uses `countDocuments({}, { limit: 1 })` so it short-circuits after
+ * finding any document — stays fast regardless of collection size.
+ */
+export const isUsersCollectionEmpty = async (): Promise<boolean> => {
+  const collection = await getUsersCollection();
+  const count = await collection.countDocuments({}, { limit: 1 });
+  return count === 0;
+};
+
+/**
  * Update a user's approval status.
  * Also stamps `approvedAt` / `rejectedAt` for audit trail.
  * @returns The updated user, or null if not found.

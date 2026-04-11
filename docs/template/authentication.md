@@ -627,12 +627,19 @@ export const authOverrides: AuthOverrides = {
 };
 ```
 
-**Bootstrap caveat — critical for fresh deployments:** since the flag is on by default, the very first signup on a fresh deployment will land in `'pending'` with no one able to approve it unless `ADMIN_USER_ID` is already set to that user's `_id`. Since the `_id` is only generated at insert time, you have a chicken-and-egg problem. Two recommended setup paths:
+**Bootstrap flow — first-user-wins:** the flag is on by default, so the register handler has a built-in bootstrap bypass: when the users collection is empty (`db.users.countDocuments({}, { limit: 1 }) === 0`), the very first signup is auto-approved and gets a JWT immediately, with no pending state. The assumption is that on a fresh deployment, the first person to reach the signup form is the intended admin.
 
-- **Path A (recommended) — flip flag off for bootstrap, then on:** set `requireAdminApproval: false`, deploy or run locally, have the admin register, grab their `_id` from MongoDB, set `ADMIN_USER_ID=<id>` in env, flip the flag back to `true`, redeploy.
-- **Path B — manual DB promote:** deploy with flag on, admin registers into `'pending'` state, manually run `db.users.updateOne({username: "<admin>"}, {$set: {approvalStatus: "approved"}})`, set `ADMIN_USER_ID` to their `_id`, restart.
+1. **Deploy with the flag on** — no pre-setup needed. `ADMIN_USER_ID` can be empty.
+2. **First user signs up** — they land on the normal authenticated screen (not the pending screen), a `[registerUser] First-user-wins bootstrap: ...` line is logged on the server with the new user's `_id`, and they're immediately logged in.
+3. **Grab the `_id` from that log line** (or from MongoDB directly).
+4. **Set `ADMIN_USER_ID=<id>` in your environment** and restart / redeploy. Only now does the first user gain admin access — `/admin/approvals` starts working.
+5. **Subsequent signups** go through the normal pending → approve flow.
 
-Once the admin is registered and `ADMIN_USER_ID` is set, any subsequent admin re-registration (e.g. after a DB wipe) auto-approves via the admin-bypass branch in `registerUser.ts`.
+**Security caveats to understand:**
+
+- **Race window**: if two users sign up *simultaneously* on a truly empty collection, the empty-check is not transactionally race-proof — both could pass and both be auto-approved. The window is milliseconds on a first deployment. If it matters, the real admin can use `/admin/approvals` (after setting `ADMIN_USER_ID`) to see the extra user and reject them.
+- **Exposure window**: between deploying with the flag on and the admin signing up for the first time, the signup form is publicly reachable. If an attacker reaches it first, they get auto-approved. Mitigation: deploy to a preview URL only the admin knows, or sign up immediately after deployment before exposing the production URL.
+- **Admin bypass**: a user whose `_id` matches `ADMIN_USER_ID` is always auto-approved on signup, so re-registering the admin after a DB wipe (with the env var pointing to an ObjectId you preserve) still works without needing the first-user branch.
 
 **Schema compatibility:** legacy users created before this feature existed have no `approvalStatus` field. The login gate treats missing status as `'approved'`, so existing users are unaffected when the flag is flipped on.
 

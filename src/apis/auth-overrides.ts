@@ -13,17 +13,20 @@ export const authOverrides: AuthOverrides = {
   // Admin-approved signups (enabled by default).
   //
   // New users are created with `approvalStatus: 'pending'` and cannot log
-  // in until an admin approves them via /admin/approvals. The admin user
-  // (ADMIN_USER_ID env var) bypasses the gate and is auto-approved on
-  // signup to handle the bootstrap case.
+  // in until an admin approves them via /admin/approvals.
+  //
+  // Two auto-approval bypasses handle the bootstrap case:
+  //   1. First-user-wins — on a fresh deployment with zero users, the
+  //      very first signup is auto-approved. Assumes the first person
+  //      to reach the signup form is the intended admin.
+  //   2. Admin bypass — a user whose _id matches ADMIN_USER_ID is
+  //      always auto-approved (handles admin re-register after DB wipe).
+  //
+  // After the first signup, grab the user's _id from MongoDB (or from
+  // the server log line emitted on first-user-wins) and set
+  // ADMIN_USER_ID=<id> so you can access /admin/approvals.
   //
   // Set this to `false` to allow open signups without admin review.
-  //
-  // Bootstrap note: on a fresh deployment you must set ADMIN_USER_ID to
-  // the admin's _id BEFORE they register (or flip this flag off, register
-  // the admin, then flip it back on and set ADMIN_USER_ID). Otherwise the
-  // first signup will land in 'pending' with no one to approve it.
-  // See docs/template/authentication.md for the full setup flow.
   requireAdminApproval: true,
 
   // Example: Disable new signups

@@ -67,9 +67,20 @@ export const registerUser = async (
 
         // Admin-approved signups: create the user with 'pending' status,
         // do NOT issue a JWT, and notify the owner via Telegram.
-        // The admin user (ADMIN_USER_ID) is exempt and is always approved
-        // on signup so the bootstrap case works.
+        // Two bypasses:
+        //   1. First-user-wins bootstrap: on a fresh deployment with no
+        //      users yet, auto-approve the first signup. Assumption: the
+        //      first person to reach the signup form on a fresh install
+        //      IS the admin. Not transactionally race-proof — two
+        //      simultaneous signups on a truly empty collection could
+        //      both pass the check and both be auto-approved. The window
+        //      is milliseconds on a first deployment and the real admin
+        //      can reject the other via /admin/approvals if it happens.
+        //   2. Admin bypass: user whose _id matches ADMIN_USER_ID is
+        //      always auto-approved on signup (handles the "admin wipes
+        //      and re-registers" case when ADMIN_USER_ID is already set).
         const requireApproval = authOverrides.requireAdminApproval === true;
+        const isFirstUser = requireApproval && (await users.isUsersCollectionEmpty());
 
         // Hash password and create user
         const passwordHash = await bcrypt.hash(request.password, SALT_ROUNDS);
@@ -79,7 +90,10 @@ export const registerUser = async (
             createdAt: new Date(),
             updatedAt: new Date(),
             ...(request.email && { email: request.email }),
-            ...(requireApproval && { approvalStatus: 'pending' }),
+            // Only set 'pending' when approval is required AND this is not
+            // the bootstrap first user. First users go straight to the
+            // approved branch below.
+            ...(requireApproval && !isFirstUser && { approvalStatus: 'pending' }),
         };
 
         const newUser = await users.insertUser(userData);
@@ -87,9 +101,8 @@ export const registerUser = async (
         const isAdmin = !!process.env.ADMIN_USER_ID && userId === process.env.ADMIN_USER_ID;
 
         // Pending approval branch: no cookie, no user in response.
-        // The admin bypasses this gate even if they register after the flag
-        // was turned on (edge case — normally the admin registers first).
-        if (requireApproval && !isAdmin) {
+        // Skip for: admin (ADMIN_USER_ID bypass) and bootstrap first-user.
+        if (requireApproval && !isAdmin && !isFirstUser) {
             // Await the Telegram notification so it actually completes in
             // serverless environments (Vercel can suspend the function as
             // soon as the response is written). Signup is rare, so the
@@ -100,14 +113,25 @@ export const registerUser = async (
             return { pendingApproval: true };
         }
 
-        // Admin user registering under requireApproval: auto-approve them
-        // so their account is marked 'approved' rather than 'pending'.
-        // Capture the returned updated doc instead of mutating newUser in
-        // place — the returned doc is authoritative.
+        // Admin OR first-user registering under requireApproval: stamp
+        // approvalStatus/approvedAt explicitly so the audit trail is
+        // consistent with users approved through the normal flow.
+        // For isFirstUser we inserted without 'pending', so this
+        // promotion just adds the timestamps. For isAdmin we inserted
+        // with 'pending' and this flips it to 'approved'.
         const finalUser =
-            requireApproval && isAdmin
+            requireApproval && (isAdmin || isFirstUser)
                 ? (await users.setUserApprovalStatus(newUser._id, 'approved')) ?? newUser
                 : newUser;
+
+        // First-user bootstrap: log a loud note so the operator knows to
+        // grab this _id and set ADMIN_USER_ID on their environment.
+        if (isFirstUser) {
+            console.log(
+                `[registerUser] First-user-wins bootstrap: auto-approved "${newUser.username}" (_id=${userId}). ` +
+                `Set ADMIN_USER_ID=${userId} in your environment to grant admin access.`
+            );
+        }
 
         // Normal signup: issue JWT and return the user.
         const token = jwt.sign(
