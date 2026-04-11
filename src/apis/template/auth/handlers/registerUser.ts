@@ -19,6 +19,7 @@ import {
 import { toStringId } from '@/server/template/utils';
 import { authOverrides } from '@/apis/auth-overrides';
 import { sendNotificationToOwner } from '@/server/template/telegram';
+import { appConfig } from '@/app.config';
 
 // Register endpoint
 export const registerUser = async (
@@ -127,30 +128,31 @@ export const registerUser = async (
 
 /**
  * Send a Telegram notification to the owner about a new pending signup.
- * Includes a deep link to the admin approvals page.
+ * Renders an inline keyboard button that opens the admin approvals page.
+ *
+ * Uses the canonical `appConfig.appUrl` so the URL resolution matches
+ * the rest of the app's Telegram links (NEXT_PUBLIC_APP_URL override →
+ * VERCEL_PROJECT_PRODUCTION_URL → VERCEL_URL → production fallback).
  */
 async function notifyOwnerOfPendingSignup(
     username: string,
     email: string | undefined
 ): Promise<void> {
     try {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '';
-        const approvalsLink = appUrl
-            ? `${appUrl.replace(/\/$/, '')}/admin/approvals`
-            : '/admin/approvals';
+        const approvalsLink = `${appConfig.appUrl.replace(/\/$/, '')}/admin/approvals`;
 
         const message = [
             '🆕 New signup pending approval',
             '',
             `Username: ${username}`,
             email ? `Email: ${email}` : 'Email: (not provided)',
-            '',
-            `Review and approve at: ${approvalsLink}`,
         ].join('\n');
 
-        // Plain text — Telegram auto-links URLs so the approvals link is
-        // still clickable. Avoids the escape/parse-mode pitfalls.
-        await sendNotificationToOwner(message);
+        await sendNotificationToOwner(message, {
+            inlineKeyboard: [
+                [{ text: '🔍 Review & Approve', url: approvalsLink }],
+            ],
+        });
     } catch (error) {
         console.error('[registerUser] Failed to notify owner of pending signup:', error);
     }
