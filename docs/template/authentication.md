@@ -611,47 +611,9 @@ When `allowRegistration` is `false`, the "Don't have an account? Sign up" toggle
 
 ### Admin-Approved Signups
 
-**Enabled by default in the template.** Set `requireAdminApproval: false` in `src/apis/auth-overrides.ts` to allow open signups without admin review. With the flag enabled:
+**Enabled by default.** New signups land in `pending` status until an admin approves via `/admin/approvals`. First-user-wins bootstrap auto-approves the first signup on a fresh deployment. Set `requireAdminApproval: false` in `src/apis/auth-overrides.ts` to allow open signups.
 
-1. **New signups** are created in the database with `approvalStatus: 'pending'`. The register endpoint does **not** issue a JWT and returns `{ pendingApproval: true }` instead of a user object. The login form shows a "Waiting for approval" screen.
-2. **Login attempts** by pending users are blocked with `"Your account is pending admin approval"`. Rejected users see `"Your account has been rejected"`. The admin user (`ADMIN_USER_ID`) bypasses the gate.
-3. **The admin is notified via Telegram** immediately after each new signup (uses the existing `sendNotificationToOwner()` helper + `OWNER_TELEGRAM_CHAT_ID`). The message renders an inline keyboard button opening `/admin/approvals`. The URL is resolved via `appConfig.appUrl` (cascades through `NEXT_PUBLIC_APP_URL` → `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → hardcoded default).
-4. **The admin opens `/admin/approvals`** — an admin-only route (also linked from the admin menu) listing pending users with Approve / Reject actions.
-5. **Approve** sets `approvalStatus: 'approved'` and stamps `approvedAt`. The user can now log in normally.
-6. **Reject** is a soft delete: `approvalStatus: 'rejected'` with `rejectedAt`. The user row is kept, so the username/email stays reserved and the rejected user cannot immediately re-register with the same credentials.
-
-```typescript
-// src/apis/auth-overrides.ts — disable to allow open signups
-export const authOverrides: AuthOverrides = {
-  requireAdminApproval: false,
-};
-```
-
-**Bootstrap flow — first-user-wins:** the flag is on by default, so the register handler has a built-in bootstrap bypass: when the users collection is empty (`db.users.countDocuments({}, { limit: 1 }) === 0`), the very first signup is auto-approved and gets a JWT immediately, with no pending state. The assumption is that on a fresh deployment, the first person to reach the signup form is the intended admin.
-
-1. **Deploy with the flag on** — no pre-setup needed. `ADMIN_USER_ID` can be empty.
-2. **First user signs up** — they land on the normal authenticated screen (not the pending screen), a `[registerUser] First-user-wins bootstrap: ...` line is logged on the server with the new user's `_id`, and they're immediately logged in.
-3. **Grab the `_id` from that log line** (or from MongoDB directly).
-4. **Set `ADMIN_USER_ID=<id>` in your environment** and restart / redeploy. Only now does the first user gain admin access — `/admin/approvals` starts working.
-5. **Subsequent signups** go through the normal pending → approve flow.
-
-**Security caveats to understand:**
-
-- **Race window**: if two users sign up *simultaneously* on a truly empty collection, the empty-check is not transactionally race-proof — both could pass and both be auto-approved. The window is milliseconds on a first deployment. If it matters, the real admin can use `/admin/approvals` (after setting `ADMIN_USER_ID`) to see the extra user and reject them.
-- **Exposure window**: between deploying with the flag on and the admin signing up for the first time, the signup form is publicly reachable. If an attacker reaches it first, they get auto-approved. Mitigation: deploy to a preview URL only the admin knows, or sign up immediately after deployment before exposing the production URL.
-- **Admin bypass**: a user whose `_id` matches `ADMIN_USER_ID` is always auto-approved on signup, so re-registering the admin after a DB wipe (with the env var pointing to an ObjectId you preserve) still works without needing the first-user branch.
-
-**Schema compatibility:** legacy users created before this feature existed have no `approvalStatus` field. The login gate treats missing status as `'approved'`, so existing users are unaffected when the flag is flipped on.
-
-**User notification on approval (future phase):** notifying the approved user themselves is intentionally deferred. Only email is captured at signup, so user-facing notifications will require adding email infrastructure.
-
-**API endpoints added:**
-
-| Endpoint | Description |
-|----------|-------------|
-| `admin/user-approvals/list` | List pending users (admin only) |
-| `admin/user-approvals/approve` | Mark a user as approved (admin only) |
-| `admin/user-approvals/reject` | Soft-delete a user as rejected (admin only) |
+See **[admin-approved-signups.md](./admin-approved-signups.md)** for the full reference: flow details, bootstrap setup, security caveats, schema, API endpoints, client hooks, and file map.
 
 ### File Ownership & Template Sync
 
