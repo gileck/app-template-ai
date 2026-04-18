@@ -291,33 +291,33 @@ function createManifest(projectName, description, themeColor) {
     return true;
 }
 
-function getGitRemoteUrl() {
-    try {
-        return execSync('git remote get-url origin', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    } catch {
-        return null;
-    }
-}
-
 function runInitTemplate() {
-    // Check if .template-sync.json already exists
+    // Check if .template-sync.json already exists and is populated.
+    // An empty `templateRepo` means the config was bootstrapped but never initialized
+    // (e.g. copied from the template repo itself, which keeps it empty).
     const configPath = path.resolve(process.cwd(), '.template-sync.json');
     if (fs.existsSync(configPath)) {
-        console.log('[Template Tracking] Already initialized, skipping.');
-        return true;
+        try {
+            const existing = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (existing.templateRepo) {
+                console.log('[Template Tracking] Already initialized, skipping.');
+                return true;
+            }
+            console.log('[Template Tracking] Existing config has empty templateRepo, reinitializing...');
+            fs.rmSync(configPath, { force: true });
+        } catch {
+            console.log('[Template Tracking] Existing config unreadable, reinitializing...');
+            fs.rmSync(configPath, { force: true });
+        }
     }
 
-    // Get template repo URL from git remote origin
-    const remoteUrl = getGitRemoteUrl();
-    if (!remoteUrl) {
-        console.log('[Template Tracking] No git remote origin found, skipping.');
-        return false;
-    }
-
+    // Invoke init-template without a URL — it defaults to the canonical template
+    // (git@github.com:gileck/app-template-ai.git) and sets templateLocalPath to
+    // ../app-template-ai, matching every other child project.
     console.log('[Template Tracking] Initializing...');
     try {
         const initTemplateScript = path.resolve(__dirname, 'init-template.ts');
-        execSync(`npx tsx "${initTemplateScript}" "${remoteUrl}"`, {
+        execSync(`npx tsx "${initTemplateScript}"`, {
             encoding: 'utf8',
             stdio: 'inherit',
             cwd: process.cwd(),
