@@ -6,11 +6,12 @@
  */
 
 import { NavItem } from '../template/layout/types';
-import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3 } from 'lucide-react';
+import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Bug } from 'lucide-react';
 
 /** Project-specific admin menu items */
 export const projectAdminMenuItems: NavItem[] = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: <BarChart3 size={18} /> },
+  { path: '/admin/debug', label: 'Debug', icon: <Bug size={18} /> },
 ];
 
 /** Bottom navigation bar items */

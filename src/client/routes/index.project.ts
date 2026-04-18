@@ -20,6 +20,7 @@ import { AIChat } from './project/AIChat';
 import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
+import { Debug } from './project/Debug';
 
 /**
  * Project route definitions.
@@ -34,6 +35,7 @@ export const projectRoutes: Routes = {
 
   // Admin routes
   '/admin/dashboard': Dashboard,
+  '/admin/debug': Debug,
 
   // Add more project-specific routes here:
   // '/my-page': MyPage,
