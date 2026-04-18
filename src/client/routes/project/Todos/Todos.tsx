@@ -21,6 +21,7 @@ import { DeleteTodoDialog } from './components/DeleteTodoDialog';
 import { TodoStats } from './components/TodoStats';
 import { EmptyState } from './components/EmptyState';
 import { TodoControls } from './components/TodoControls';
+import { TestComponentsDialog } from './components/TestComponentsDialog';
 import { useTodoPreferencesStore } from './store';
 import { sortTodos, filterTodos, groupUncompletedFirst, filterTodosByDueDate } from './utils';
 
@@ -162,9 +163,12 @@ export function Todos() {
                         </div>
                     )}
                 </div>
-                <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
-                    <RefreshCcw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                    <TestComponentsDialog />
+                    <Button variant="outline" onClick={handleRefresh} disabled={isFetching}>
+                        <RefreshCcw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+                    </Button>
+                </div>
             </div>
 
             {/* Mobile Header - Title left, icon-only refresh button right */}
@@ -176,16 +180,19 @@ export function Todos() {
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                 </div>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleRefresh}
-                    disabled={isFetching}
-                    className="h-12 w-12 flex-shrink-0"
-                    aria-label="Refresh todos"
-                >
-                    <RefreshCcw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
-                </Button>
+                <div className="flex items-center gap-2">
+                    <TestComponentsDialog />
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleRefresh}
+                        disabled={isFetching}
+                        className="h-12 w-12 flex-shrink-0"
+                        aria-label="Refresh todos"
+                    >
+                        <RefreshCcw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
+                    </Button>
+                </div>
             </div>
 
             {displayError && (

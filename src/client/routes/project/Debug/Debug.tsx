@@ -34,6 +34,7 @@ const LEVEL_TEXT_CLASS: Record<LogLevel, string> = {
     error: 'text-destructive',
 };
 
+
 function formatLogLine(log: SessionLog): string {
     const time = new Date(log.timestamp).toISOString();
     const perf = log.performanceTime !== undefined ? ` +${log.performanceTime}ms` : '';
@@ -155,7 +156,7 @@ export function Debug() {
                     value={levelFilter}
                     onValueChange={(value) => setLevelFilter(value as LogLevelFilter)}
                 >
-                    <SelectTrigger className="h-9 w-28 text-xs">
+                    <SelectTrigger className="h-9 w-32 text-xs">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
