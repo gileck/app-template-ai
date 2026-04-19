@@ -7,10 +7,10 @@
 
 ## Summary
 
-- **Total Tasks:** 45
+- **Total Tasks:** 46
 - **Open:** 12
-- **In Progress:** 0
-- **Done:** 33
+- **In Progress:** 1
+- **Done:** 32
 
 ---
 
@@ -43,11 +43,16 @@
 | 15 | Telegram Button UX Improvements | S | Low |
 | 22 | Per-Issue Plan Subagent Toggle | S | Low |
 
-## ✅ Completed Tasks (33)
+## 🔄 In Progress (1)
+
+| # | Title | Size | Priority |
+|---|-------|------|----------|
+| 46 | Upstream MCP/SDK access pattern into template | M | **Medium** |
+
+## ✅ Completed Tasks (32)
 
 | # | Title | Completed | Commit |
 |---|-------|-----------|--------|
-| 45 | ~~Fix Template Audit Issues (2026-02-07)~~ | 2026-02-07 | `9a180f8` |
 | 44 | ~~Add Item Detail Page with Approve/Delete Actions~~ | 2026-02-06 | - |
 | 43 | ~~Add Delete Button to Telegram Approval Message~~ | 2026-02-06 | - |
 | 42 | ~~Create Bug Investigator Agent for GitHub Workflow~~ | 2026-02-05 | `c973913` |
@@ -83,4 +88,4 @@
 
 ---
 
-*Last updated: 2026-02-07*
+*Last updated: 2026-04-19*

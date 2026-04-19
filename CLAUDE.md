@@ -267,6 +267,16 @@ Design philosophy and iOS-inspired principles for UI components. Use this for un
 
 ---
 
+## MCP / SDK Programmatic Access
+
+Give agents and scripts typed, authenticated access to every app endpoint via a bearer-token + X-On-Behalf-Of pattern.
+
+**Summary:** Bake programmatic access into any child project: `ADMIN_API_TOKEN` + `X-On-Behalf-Of` lets a Node SDK or MCP server act as any user. Run `yarn init:mcp` to scaffold `packages/<name>-sdk/` and `packages/<name>-mcp/`.
+
+**Docs:** [mcp-sdk-access.md](docs/template/mcp-sdk-access.md), [admin.md](docs/template/admin.md), [authentication.md](docs/template/authentication.md)
+
+---
+
 ## Telegram Notifications (App Runtime)
 
 Application feature for sending notifications via Telegram. Use this when adding app notifications.
