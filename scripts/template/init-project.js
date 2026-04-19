@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  Minimal interactive initializer for this template:
- 1) Copy .env from ../app-template-ai/ (or parent directory) if not exists
+ 1) Copy .env (and .env.local) from ../app-template-ai/ if not present
  2) Prompt for project name (default: folder name)
  3) Update src/app.config.js: appName and dbName
  4) Create src/config/pwa.config.ts with PWA metadata
@@ -9,6 +9,7 @@
  6) Write LOCAL_USER_ID in .env
  7) Initialize template tracking (run init-template.ts)
  8) Delete template example features (Todos, Chat, AIChat, Home)
+ 9) Install git hooks + mark yarn.lock skip-worktree (yarn setup-hooks)
 */
 
 const fs = require('fs');
@@ -375,6 +376,28 @@ function deleteTemplateExampleFeatures() {
     console.log(`[Example Features] Removed ${deletedCount} item(s).`);
 }
 
+function runSetupHooks() {
+    // Idempotent: installs pre-commit hook (auto-resets yarn.lock to HEAD) and
+    // marks yarn.lock as skip-worktree so local installs against a private
+    // registry (e.g. npm.dev.wixpress.com) never contaminate commits — which
+    // would otherwise break Vercel builds that can only reach public npm.
+    const hooksScript = path.resolve(__dirname, 'hooks', 'setup-hooks.sh');
+    if (!fs.existsSync(hooksScript)) {
+        console.log('[setup-hooks] Script not found, skipping.');
+        return;
+    }
+    console.log('[setup-hooks] Installing git hooks and yarn.lock protection...');
+    try {
+        execSync(`bash "${hooksScript}"`, {
+            encoding: 'utf8',
+            stdio: 'inherit',
+            cwd: process.cwd(),
+        });
+    } catch (err) {
+        console.log('[setup-hooks] Warning: Failed:', err.message || err);
+    }
+}
+
 async function main() {
     console.log('=== Project Initialization ===\n');
 
@@ -421,6 +444,9 @@ async function main() {
 
     // Step 8: Delete template example features (Todos, Chat, AIChat, Home)
     deleteTemplateExampleFeatures();
+
+    // Step 9: Install git hooks + protect yarn.lock from wixpress URL contamination
+    runSetupHooks();
 
     console.log('\n=== Initialization complete ===');
 
