@@ -4,9 +4,10 @@ title: Upstream MCP/SDK access pattern into template
 priority: Medium
 size: M
 complexity: Medium
-status: In Progress
+status: Done
 dateAdded: 2026-04-19
 dateUpdated: 2026-04-19
+dateCompleted: 2026-04-19
 ---
 
 # Task 46: Upstream MCP/SDK access pattern into template
