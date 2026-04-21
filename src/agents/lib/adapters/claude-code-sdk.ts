@@ -4,7 +4,7 @@
  * Adapter implementation for @anthropic-ai/claude-agent-sdk
  */
 
-import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage, type HookCallbackMatcher } from '@anthropic-ai/claude-agent-sdk';
+import { query, type SDKAssistantMessage, type SDKResultMessage, type SDKToolProgressMessage, type SDKUserMessage, type HookCallbackMatcher } from '@anthropic-ai/claude-agent-sdk';
 import { agentConfig } from '../../shared/config';
 import type { AgentLibraryAdapter, AgentLibraryCapabilities, AgentRunOptions, AgentRunResult } from '../types';
 import { getModelForLibrary } from '../config';
@@ -14,6 +14,7 @@ import {
     logTextResponse,
     logThinking,
     logToolCall,
+    logToolResult,
     logTokenUsage,
 } from '../logging';
 
@@ -92,6 +93,9 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
 
         // Track SDK-level errors (error_max_turns, error_max_structured_output_retries, etc.)
         let sdkError: { subtype: string; errors: string[] } | null = null;
+
+        // Map tool use IDs to tool names for logging tool results
+        const toolUseIdToName = new Map<string, string>();
 
         // Timeout diagnostics tracking
         interface ToolCallRecord {
@@ -205,6 +209,9 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                             const toolInput = toolUse.input;
                             const toolId = toolUse.id;
 
+                            // Store tool name for later logging of tool results
+                            toolUseIdToName.set(toolId, toolName);
+
                             // Log tool call if context is available
                             if (logCtx) {
                                 logToolCall(logCtx, toolId, toolName, toolInput);
@@ -249,6 +256,19 @@ class ClaudeCodeSDKAdapter implements AgentLibraryAdapter {
                     // Keep track of last text content
                     if (textContent) {
                         lastResult = textContent;
+                    }
+                }
+
+                // Handle user messages (which contain tool results)
+                if (message.type === 'user') {
+                    const userMsg = message as SDKUserMessage;
+
+                    // Log tool result if this message contains one
+                    if (logCtx && userMsg.tool_use_result && userMsg.parent_tool_use_id) {
+                        // Look up the tool name from the tool use ID
+                        const toolName = toolUseIdToName.get(userMsg.parent_tool_use_id) || 'unknown';
+
+                        logToolResult(logCtx, userMsg.parent_tool_use_id, toolName, userMsg.tool_use_result);
                     }
                 }
 
