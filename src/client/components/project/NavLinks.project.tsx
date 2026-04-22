@@ -5,6 +5,7 @@
  * This file is NOT synced from template - it's owned by your project.
  */
 
+import type { ReactNode } from 'react';
 import { NavItem } from '../template/layout/types';
 import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Bug } from 'lucide-react';
 
@@ -31,3 +32,10 @@ export const menuItems: NavItem[] = [
   { path: '/theme', label: 'Theme', icon: <Palette size={18} /> },
   { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
 ];
+
+/**
+ * Optional: custom component rendered in the center of the top nav bar
+ * (between the hamburger and the theme/user controls). Return null to
+ * leave the slot empty. The slot is centered and capped at max-w-xs.
+ */
+export const TopNavBarSlot = (): ReactNode => null;
