@@ -8,9 +8,10 @@
 
 import { templateAdminMenuItems, filterAdminNavItems } from './template/NavLinks.template';
 import { projectAdminMenuItems, navItems, menuItems } from './project/NavLinks.project';
+import { TopNavBarSlot } from './project/TopNavBarSlot.project';
 
 // Re-export for use by Layout
-export { navItems, menuItems, filterAdminNavItems };
+export { navItems, menuItems, filterAdminNavItems, TopNavBarSlot };
 
 /** Combined admin menu items (template + project) */
 export const adminMenuItems = [

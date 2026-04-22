@@ -28,6 +28,7 @@ This project uses a **template sync system** that automatically updates certain 
 | `src/client/utils/**` | Template | ❌ No | Template client utilities (apiClient, caches, etc.) |
 | `src/client/utils/project/**` | Project | ✅ Yes | Your cross-feature client utilities |
 | `src/client/components/NavLinks.tsx` | Template | ❌ No | Combiner for navigation items |
+| `src/client/components/project/TopNavBarSlot.project.tsx` | Project | ✅ Yes | Custom component rendered in center of top nav bar |
 | `scripts/template/**` | Template | ❌ No | Synced from template |
 | `docs/template/**` | Template | ❌ No | Synced from template |
 | `.ai/commands/**` | Template | ❌ No | Synced from template |
@@ -238,6 +239,20 @@ export const navItems: NavItem[] = [
 export const menuItems: NavItem[] = [...];
 export const projectAdminMenuItems: NavItem[] = [...];
 ```
+
+### Custom Top Nav Bar Component
+
+The top navigation bar reserves a centered slot between the hamburger menu and the theme/user controls. Edit `src/client/components/project/TopNavBarSlot.project.tsx` to render any component there — search box, status pill, breadcrumb, tenant switcher, etc.
+
+```tsx
+// TopNavBarSlot.project.tsx (YOU EDIT THIS)
+import type { ReactNode } from 'react';
+import { MyStatusPill } from './MyStatusPill';
+
+export const TopNavBarSlot = (): ReactNode => <MyStatusPill />;
+```
+
+The slot is automatically centered and capped at `max-w-xs` (320px). Return `null` to leave it empty (the default).
 
 ---
 
