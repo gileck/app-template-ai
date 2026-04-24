@@ -28,30 +28,124 @@ server feature code
                     └─▶ showNotification() + `notificationclick` → openWindow
 ```
 
-## Setup
+## Per-project setup
 
-1. **Generate VAPID keys** (once per deployment):
+Follow these steps exactly once per child project. Everything else (service
+worker wiring, APIs, Settings toggle) already ships from the template — you
+only need to provision VAPID keys and make them available to the deployment.
 
-   ```bash
-   yarn generate-vapid
-   ```
+### 1. Generate a VAPID keypair (once, per project)
 
-   Paste the output into `.env` (and your hosting provider's env vars):
+```bash
+yarn generate-vapid
+```
 
-   ```
-   NEXT_PUBLIC_VAPID_PUBLIC_KEY=...     # client-safe
-   VAPID_PRIVATE_KEY=...                # secret
-   VAPID_SUBJECT=mailto:you@example.com # mailto: or https://
-   ```
+Each project needs its **own** keypair. Do **not** reuse keys between projects
+— subscriptions are bound to the public key, so sharing keys would cross-wire
+notifications between apps. Once generated, never rotate unless you accept
+that every existing user must re-enable notifications.
 
-2. **Deploy.** No extra build step — `next-pwa` picks up `/sw-push.js` via the
-   `importScripts` option in `config/next/next.template.ts`.
+The command prints three values:
 
-3. **Try it.**
-   - Desktop Chrome / Android: open the app, go to Settings → Notifications,
-     flip the toggle, accept the prompt, click **Send test**.
-   - iOS: tap Safari's share button → **Add to Home Screen**. Open the app
-     from the home-screen icon. Then go to Settings → Notifications.
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public>
+VAPID_PRIVATE_KEY=<private>
+VAPID_SUBJECT=mailto:you@example.com
+```
+
+Use a real contact address for `VAPID_SUBJECT` (`mailto:` or `https://`). Push
+services may use it to reach you about abuse or policy issues.
+
+### 2. Write them to `.env.local` (local dev)
+
+Append the three lines to `.env.local`. It's git-ignored (`.gitignore` matches
+`.env*.local`), so the private key stays off git. Restart any running `yarn
+dev` so Next.js picks up the new vars.
+
+> `.env.example` already lists these three keys with blank values — keep it
+> that way as a template for other developers; never commit real values there.
+
+### 3. Push the three vars to Vercel
+
+Link the project first if you haven't already:
+
+```bash
+vercel link
+```
+
+Then set each variable across **all three targets** (production, preview,
+development). Use the template CLI — it uses the Vercel API directly so there
+are no piped-input / trailing-newline issues:
+
+```bash
+yarn vercel-cli env:set --name NEXT_PUBLIC_VAPID_PUBLIC_KEY --value "<public>"
+yarn vercel-cli env:set --name VAPID_PRIVATE_KEY            --value "<private>"
+yarn vercel-cli env:set --name VAPID_SUBJECT                --value "mailto:you@example.com"
+```
+
+By default `--target` is `production,preview,development` — that's what you
+want. **Never** use `npx vercel env add` with piped input (see
+`docs/template/project-guidelines/vercel-cli-usage.md`).
+
+Verify:
+
+```bash
+yarn vercel-cli env | grep VAPID
+# expect 9 rows (3 vars × 3 targets)
+```
+
+### 4. Redeploy
+
+Env-var changes don't apply to existing deployments. Trigger a new build:
+
+```bash
+yarn vercel-cli redeploy     # or push any commit
+```
+
+### 5. Smoke-test the deployment
+
+- **Desktop browser (preview URL):** log in → Settings → Notifications → flip
+  toggle → accept prompt → click **Send test**.
+- **iOS device (preview URL):** Safari → Share → **Add to Home Screen** →
+  launch from the home-screen icon → Settings → Notifications → flip toggle
+  → **Send test**. Lock the screen and fire another test to confirm lock-screen
+  delivery.
+
+If the toggle is disabled and reads "Push notifications are not configured",
+the server's `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is missing — re-check step 3 and
+redeploy.
+
+### 6. Hook notifications into your features
+
+No global opt-in is needed — as soon as the env vars are set, any server code
+can call `sendPushToUser(userId, payload)`. See
+[Sending notifications from server code](#sending-notifications-from-server-code)
+below.
+
+### Optional: customize the Settings section UI
+
+The toggle lives at
+`src/client/routes/template/Settings/components/NotificationsSection.tsx`.
+That file is template-owned; to customize copy or placement for a child
+project, override it via `projectOverrides` or move the
+`PushNotificationToggle` import into a project-owned route.
+
+### Optional: tune the notification icons
+
+The `push` handler in `public/sw-push.js` defaults `icon` to
+`/icons/icon-192x192.png` and `badge` to `/icons/icon-96x96.png`. If your
+child project ships different icons, either update those paths in
+`sw-push.js` (project-override it) or pass `icon` / `badge` per-notification
+from `sendPushToUser(...)`.
+
+## Legacy one-liner (for quick local testing only)
+
+1. `yarn generate-vapid`
+2. Paste output into `.env.local`
+3. `yarn build && yarn start` (push is **disabled in `yarn dev`** —
+   `pwaConfig.disable: NODE_ENV === 'development'` in
+   `config/next/next.template.ts`)
+4. Settings → Notifications → **Send test**
 
 ## Sending notifications from server code
 
