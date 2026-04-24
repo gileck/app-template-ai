@@ -55,22 +55,99 @@ server feature code
 
 ## Sending notifications from server code
 
+`sendPushToUser(userId, payload)` is the single entry point. Import it from any
+server file — API handler, cron job, agent, workflow hook, anywhere.
+
 ```ts
 import { sendPushToUser } from '@/server/template/push';
 
 await sendPushToUser(userId, {
     title: 'New message',
     body: 'You have a new message from Alice.',
-    url: '/messages/abc',
-    tag: 'message-abc',
+    url: '/messages/abc',    // where tapping the notification should navigate
+    tag: 'message-abc',      // optional: replaces prior notifications w/ same tag
 });
 ```
 
-`sendPushToUser` returns per-endpoint results. Failures with HTTP 404/410 are
-permanent — those subscriptions are deleted automatically.
+### Return shape
 
-Payloads should stay under ~4KB (iOS limit). Keep to `{ title, body, url, tag }`
-and put large data behind the URL.
+```ts
+type PushSendResult = {
+    endpoint: string;        // the push service URL
+    success: boolean;        // true if delivery accepted
+    removed: boolean;        // true if the subscription was deleted (404/410)
+    statusCode?: number;     // HTTP status from the push service
+    error?: string;          // delivery error message (if any)
+};
+```
+
+The function never throws for delivery failures. It only throws once, up-front,
+if VAPID env vars are missing. If the user has no subscriptions the call is a
+no-op and returns `[]`.
+
+### Fire-and-forget from API handlers
+
+Don't block the API response on push delivery. Use `void` so unhandled errors
+don't crash the process:
+
+```ts
+// src/apis/.../handlers/createComment.ts
+import { sendPushToUser } from '@/server/template/push';
+
+export const createCommentHandler = async (req, context) => {
+    const comment = await comments.insert(/* … */);
+
+    void sendPushToUser(post.authorId, {
+        title: 'New comment',
+        body: `${author.username}: ${preview(comment.text)}`,
+        url: `/posts/${post._id}#c-${comment._id}`,
+        tag: `comment-${post._id}`,
+    }).catch((err) => console.error('[push] delivery failed:', err));
+
+    return { comment };
+};
+```
+
+### Pre-checking configuration
+
+If push is optional for your feature, guard the call so you don't throw when
+VAPID keys aren't set in a given environment:
+
+```ts
+import { isPushConfigured, sendPushToUser } from '@/server/template/push';
+
+if (isPushConfigured()) {
+    void sendPushToUser(userId, payload);
+}
+```
+
+### Broadcasting to many users
+
+There is no built-in `sendPushToAll`. For bulk sends, loop with a concurrency
+cap so you don't flood the push service or Mongo:
+
+```ts
+import pLimit from 'p-limit'; // or any small limiter
+const limit = pLimit(10);
+await Promise.all(
+    userIds.map((id) => limit(() => sendPushToUser(id, payload))),
+);
+```
+
+### Admin test endpoint (no code required)
+
+For ad-hoc testing without writing a handler, call
+`admin/push-notifications/sendTest` with `{ userId, title?, body?, url? }`.
+It pushes to every device that user has registered and returns
+`{ sent, removed }`. Admin-only — `context.isAdmin` must be true.
+
+### Payload tips
+
+- Keep under ~4KB (iOS APNs limit). Put large data behind the `url`.
+- `tag` coalesces notifications — a new "unread messages" push with the same
+  tag replaces the previous one instead of stacking.
+- `url` is what `notificationclick` in `public/sw-push.js` focuses or opens.
+- `icon` / `badge` default to your PWA icons — only override for per-notification art.
 
 ## iOS constraints — important
 
