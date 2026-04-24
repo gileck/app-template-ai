@@ -13,7 +13,8 @@ import {
   useSettingsStore,
   initializeOfflineListeners,
   BatchSyncAlert,
-  useOfflineSyncInitializer
+  useOfflineSyncInitializer,
+  PushNavigationBridge,
 } from '@/client/features';
 import { initializeApiClient } from '@/client/utils/apiClient';
 import { useAllPersistedStoresHydrated } from '@/client/stores';
@@ -39,6 +40,7 @@ export default function App({ Component: _Component, pageProps: _pageProps }: Ap
             <RouterProvider routes={routes}>
               {RouteComponent => (
                 <AuthWrapper>
+                  <PushNavigationBridge />
                   <Layout><RouteComponent /></Layout>
                 </AuthWrapper>
               )}

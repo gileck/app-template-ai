@@ -4,6 +4,14 @@
  *
  * This file is imported into the generated sw.js via next-pwa's `importScripts`
  * option (see config/next/next.template.ts). It must stay valid plain JS.
+ *
+ * Navigation strategy:
+ *   - If a client window is already open, we focus it AND postMessage a
+ *     `push-navigate` event so the client-side router can do an SPA
+ *     navigation. `WindowClient.navigate()` is unreliable on iOS and also
+ *     breaks with SPA URL rewrites, so we don't use it.
+ *   - If no client is open, openWindow() launches the PWA with the target
+ *     URL; the React router picks up `window.location.pathname` on mount.
  */
 
 self.addEventListener('push', (event) => {
@@ -44,30 +52,42 @@ self.addEventListener('notificationclick', (event) => {
                 includeUncontrolled: true,
             });
 
-            // Reuse an existing client if one is already open.
-            for (const client of allClients) {
+            // Reuse an existing same-origin client if one is already open.
+            let client = null;
+            for (const c of allClients) {
                 try {
-                    const clientUrl = new URL(client.url);
-                    const sameOrigin = clientUrl.origin === self.location.origin;
-                    if (sameOrigin && 'focus' in client) {
-                        if ('navigate' in client && targetUrl) {
-                            try {
-                                await client.navigate(targetUrl);
-                            } catch (_err) {
-                                // Cross-origin navigation attempts throw; fall through to focus.
-                            }
-                        }
-                        return client.focus();
+                    const clientUrl = new URL(c.url);
+                    if (clientUrl.origin === self.location.origin) {
+                        client = c;
+                        break;
                     }
                 } catch (_err) {
                     // Ignore malformed client URLs.
                 }
             }
 
-            if (self.clients.openWindow) {
-                return self.clients.openWindow(targetUrl);
+            if (client) {
+                if ('focus' in client) {
+                    try {
+                        await client.focus();
+                    } catch (_err) {
+                        // ignore
+                    }
+                }
+                // Tell the running SPA to navigate via its router.
+                try {
+                    client.postMessage({ type: 'push-navigate', url: targetUrl });
+                } catch (_err) {
+                    // ignore — worst case, user sees the last page
+                }
+                return;
             }
-            return undefined;
+
+            // Fresh open: the URL becomes the initial pathname for the
+            // React app to pick up on mount.
+            if (self.clients.openWindow) {
+                await self.clients.openWindow(targetUrl);
+            }
         })()
     );
 });

@@ -7,6 +7,7 @@
  */
 
 export { PushNotificationToggle } from './PushNotificationToggle';
+export { PushNavigationBridge } from './PushNavigationBridge';
 export {
     usePushStatusQuery,
     useSubscribePush,
