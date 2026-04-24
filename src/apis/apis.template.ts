@@ -19,6 +19,7 @@ import { dashboardApiHandlers } from "./template/dashboard/server";
 import { agentDecisionApiHandlers } from "./template/agent-decision/server";
 import { workflowApiHandlers } from "./template/workflow/server";
 import { adminUsersApiHandlers } from "./template/admin-users/server";
+import { pushNotificationsApiHandlers } from "./template/push-notifications/server";
 
 export const templateApiHandlers = mergeApiHandlers(
   clearCacheApiHandlers,
@@ -31,5 +32,6 @@ export const templateApiHandlers = mergeApiHandlers(
   dashboardApiHandlers,
   agentDecisionApiHandlers,
   workflowApiHandlers,
-  adminUsersApiHandlers
+  adminUsersApiHandlers,
+  pushNotificationsApiHandlers
 );

@@ -42,6 +42,7 @@
     "github-pr": "tsx scripts/template/github-pr.ts",
     "vercel-cli": "tsx scripts/template/vercel-cli.ts",
     "telegram-setup": "tsx scripts/template/telegram-setup.ts",
+    "generate-vapid": "tsx scripts/template/generate-vapid.ts",
     "telegram-webhook": "tsx scripts/template/telegram-webhook-setup.ts",
     "send-telegram": "tsx scripts/template/send-telegram.ts",
     "telegram-bot": "tsx scripts/template/telegram-bot/index.ts",
@@ -112,6 +113,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",
     "tiktoken": "^1.0.20",
+    "web-push": "^3.6.7",
     "zustand": "^5.0.8"
   },
   "resolutions": {
@@ -131,6 +133,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "15.2.6",
     "eslint-plugin-boundaries": "^5.3.1",

@@ -175,6 +175,16 @@ iOS-specific keyboard and viewport issues. Use this when fixing iOS PWA bugs.
 
 ---
 
+## iOS PWA Push Notifications
+
+Web Push notifications for installed PWAs on iOS, Android, and desktop. Use this when adding user-facing push notifications.
+
+**Summary:** Web Push (VAPID) subscriptions. iOS works only from a home-screen-installed PWA on iOS 16.4+. Server uses `sendPushToUser(userId, payload)`; dead endpoints are auto-pruned on 404/410. Run `yarn generate-vapid` once to create keys.
+
+**Docs:** [ios-pwa-notifications.md](docs/template/ios-pwa-notifications.md)
+
+---
+
 ## Logging & Error Tracking
 
 Session logging with bug reporting. Use this when adding logging or debugging.

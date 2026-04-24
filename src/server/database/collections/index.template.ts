@@ -11,3 +11,4 @@ export * as users from './template/users';
 export * as reports from './template/reports';
 export * as featureRequests from './template/feature-requests';
 export * as workflowItems from './template/workflow-items';
+export * as pushSubscriptions from './template/push-subscriptions';
