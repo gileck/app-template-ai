@@ -43,6 +43,7 @@
     "vercel-cli": "tsx scripts/template/vercel-cli.ts",
     "telegram-setup": "tsx scripts/template/telegram-setup.ts",
     "generate-vapid": "tsx scripts/template/generate-vapid.ts",
+    "test-push": "tsx scripts/template/test-push.ts",
     "telegram-webhook": "tsx scripts/template/telegram-webhook-setup.ts",
     "send-telegram": "tsx scripts/template/send-telegram.ts",
     "telegram-bot": "tsx scripts/template/telegram-bot/index.ts",
