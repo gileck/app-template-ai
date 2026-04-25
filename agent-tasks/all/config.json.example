@@ -1,13 +1,13 @@
 {
-  "name": "Agent(app-template-ai): All",
-  "uniqueKey": "app-template:agent:all",
-  "groupName": "app-template-ai",
+  "name": "Agent(example-project): All",
+  "uniqueKey": "example-project:agent:all",
+  "groupName": "example-project",
   "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
     "args": ["--all", "--global-limit", "--stream", "--reset", "--stale-timeout", "20", "--triggeredBy", "task-manager"],
     "interpreter": "npm",
-    "workingDirectory": "/Users/gileck/Projects/agents-copy/app-template-ai"
+    "workingDirectory": "/path/to/agents-copy/example-project"
   },
   "schedule": {
     "type": "interval",
@@ -32,7 +32,7 @@
     "requiresInternet": true
   },
   "output": {
-    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/all/runs/output.log",
-    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/all/runs/status.json"
+    "logFile": "/path/to/example-project/agent-tasks/all/runs/output.log",
+    "statusFile": "/path/to/example-project/agent-tasks/all/runs/status.json"
   }
 }

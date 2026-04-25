@@ -1,13 +1,13 @@
 {
-  "name": "RPC Daemon (app-template-ai)",
-  "uniqueKey": "app-template-ai:rpc-daemon",
-  "groupName": "app-template-ai",
+  "name": "RPC Daemon (example-project)",
+  "uniqueKey": "example-project:rpc-daemon",
+  "groupName": "example-project",
   "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
   "script": {
     "path": "daemon",
     "args": ["--verbose"],
     "interpreter": "npm",
-    "workingDirectory": "/Users/gileck/Projects/app-template-ai"
+    "workingDirectory": "/path/to/example-project"
   },
   "schedule": {
     "type": "daemon"
@@ -29,7 +29,7 @@
     "requiresInternet": true
   },
   "output": {
-    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/rpc-daemon/runs/output.log",
-    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/rpc-daemon/runs/status.json"
+    "logFile": "/path/to/example-project/agent-tasks/rpc-daemon/runs/output.log",
+    "statusFile": "/path/to/example-project/agent-tasks/rpc-daemon/runs/status.json"
   }
 }

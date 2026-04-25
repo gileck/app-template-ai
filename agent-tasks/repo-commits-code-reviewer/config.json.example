@@ -1,13 +1,13 @@
 {
-  "name": "Agent(app-template-ai): Repo Commits Code Reviewer",
-  "uniqueKey": "app-template:agent:repo-commits-code-reviewer",
-  "groupName": "app-template-ai",
+  "name": "Agent(example-project): Repo Commits Code Reviewer",
+  "uniqueKey": "example-project:agent:repo-commits-code-reviewer",
+  "groupName": "example-project",
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
     "path": "agent:code-reviewer",
     "args": ["--stream", "--triggeredBy", "task-manager"],
     "interpreter": "npm",
-    "workingDirectory": "/Users/gileck/Projects/app-template-ai"
+    "workingDirectory": "/path/to/example-project"
   },
   "schedule": {
     "type": "interval",
@@ -34,7 +34,7 @@
     "requiresInternet": true
   },
   "output": {
-    "logFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/repo-commits-code-reviewer/runs/output.log",
-    "statusFile": "/Users/gileck/Projects/app-template-ai/agent-tasks/repo-commits-code-reviewer/runs/status.json"
+    "logFile": "/path/to/example-project/agent-tasks/repo-commits-code-reviewer/runs/output.log",
+    "statusFile": "/path/to/example-project/agent-tasks/repo-commits-code-reviewer/runs/status.json"
   }
 }
