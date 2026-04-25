@@ -13,6 +13,8 @@ the app is installed as a PWA** ("Add to Home Screen").
 
 ## Architecture
 
+### Subscribe flow
+
 ```
 client (Settings toggle)
   │  user gesture → Notification.requestPermission()
@@ -20,13 +22,36 @@ client (Settings toggle)
   ▼
 POST /api/process/push-notifications/subscribe
   └─▶ MongoDB: push_subscriptions { userId, endpoint, keys, platform }
+```
 
+### Send flow
+
+```
 server feature code
   └─▶ sendPushToUser(userId, { title, body, url })
         └─▶ web-push → Apple / FCM / Mozilla push service
               └─▶ device receives push → sw-push.js `push` event
-                    └─▶ showNotification() + `notificationclick` → openWindow
+                    └─▶ showNotification(title, { body, data: { url } })
 ```
+
+### Tap → SPA navigation flow
+
+```
+user taps notification → sw-push.js `notificationclick`
+  ├─ if a same-origin client window exists:
+  │    client.focus() + client.postMessage({ type:'push-navigate', url })
+  │       └─▶ <PushNavigationBridge> in _app.tsx receives the message
+  │             └─▶ useRouter().navigate(url)   ← real SPA transition
+  │
+  └─ else:
+       clients.openWindow(url)
+          └─▶ React mounts, router reads window.location.pathname
+```
+
+> **Why the postMessage detour?** `WindowClient.navigate(url)` is unreliable on
+> iOS PWAs and also wouldn't work under our Next.js SPA rewrite (every non-API
+> path rewrites to `/`). Going through the in-app router is the only way to
+> get a proper client-side transition.
 
 ## Per-project setup
 
@@ -228,9 +253,25 @@ await Promise.all(
 );
 ```
 
-### Admin test endpoint (no code required)
+### Testing from the CLI
 
-For ad-hoc testing without writing a handler, call
+The fastest way to fire a real push during development is `yarn test-push`.
+It calls `sendPushToUser()` directly against whichever Mongo your `.env.local`
+points at — point at the production Mongo to push to a real device.
+
+```bash
+yarn test-push                                          # ADMIN_USER_ID, default copy
+yarn test-push <userId>
+yarn test-push <userId> "Title" "Body"
+yarn test-push <userId> "Title" "Body" /todos/abc123    # deep link
+```
+
+Useful for verifying lock-screen / closed-app delivery and for testing deep
+links without going through the Settings UI.
+
+### Admin test endpoint (HTTP)
+
+For ad-hoc testing without shell access, call
 `admin/push-notifications/sendTest` with `{ userId, title?, body?, url? }`.
 It pushes to every device that user has registered and returns
 `{ sent, removed }`. Admin-only — `context.isAdmin` must be true.
@@ -256,16 +297,24 @@ It pushes to every device that user has registered and returns
 ## Files
 
 - `public/sw-push.js` — service worker `push` + `notificationclick` handlers
-  (imported into the next-pwa-generated `sw.js`).
+  (imported into the next-pwa-generated `sw.js`). Sends `push-navigate`
+  messages to focused clients instead of using `WindowClient.navigate()`.
 - `src/server/template/push/sendPush.ts` — server sender, VAPID setup,
   automatic pruning of dead endpoints.
 - `src/server/database/collections/template/push-subscriptions/` —
   MongoDB collection (`push_subscriptions`, unique index on `endpoint`).
 - `src/apis/template/push-notifications/` — `subscribe`, `unsubscribe`,
   `status`, `sendTest` (self) + `admin/sendTest`.
-- `src/client/features/template/push-notifications/` — client feature with
-  `PushNotificationToggle` + `useSubscribePush` / `useUnsubscribePush` /
-  `useSendTestPush` hooks.
+- `src/client/features/template/push-notifications/` — client feature:
+  - `PushNotificationToggle` + `useSubscribePush` / `useUnsubscribePush` /
+    `useSendTestPush` hooks for the Settings UI.
+  - `PushNavigationBridge` — null-rendering component that listens for
+    `push-navigate` messages from the SW and calls the app router. Mounted
+    inside `<RouterProvider>` in `src/pages/_app.tsx`.
+- `scripts/template/test-push.ts` — `yarn test-push` CLI for sending ad-hoc
+  pushes from the terminal during development.
+- `scripts/template/generate-vapid.ts` — `yarn generate-vapid` CLI for
+  creating a VAPID keypair.
 
 ## Troubleshooting
 
@@ -277,3 +326,8 @@ It pushes to every device that user has registered and returns
   permission — it may be blocked at the OS level (System Settings → Notifications).
 - **Subscription disappears after a few days:** expected; devices rotate keys.
   Subscribing again is idempotent (the `endpoint` unique index upserts).
+- **Tap on notification opens the app but doesn't navigate:** check that
+  `<PushNavigationBridge />` is mounted inside `<RouterProvider>` in
+  `_app.tsx`. Without it, the SW posts `push-navigate` messages to the
+  client but nothing handles them. (`WindowClient.navigate()` won't save
+  you here — it's unreliable on iOS and breaks under SPA path rewrites.)
