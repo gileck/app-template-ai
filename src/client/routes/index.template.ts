@@ -22,6 +22,7 @@ import { ItemDetail } from './template/ItemDetail';
 import { WorkflowItems } from './template/Workflow';
 import { UserApprovals } from './template/UserApprovals';
 import { Admin } from './template/Admin';
+import { ServiceWorkerDebug } from './template/ServiceWorkerDebug';
 import { Routes } from '../features/template/router';
 
 /**
@@ -56,6 +57,7 @@ export const templateRoutes: Routes = {
   '/admin/item/:id': ItemDetail,
   '/admin/workflow': WorkflowItems,
   '/admin/approvals': UserApprovals,
+  '/admin/service-worker': ServiceWorkerDebug,
 
   // Fallback
   '/not-found': NotFound,

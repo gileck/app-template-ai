@@ -22,4 +22,5 @@ export {
     isStandalonePwa,
     detectPlatform,
     getVapidPublicKey,
+    getNotificationPermission,
 } from './utils';
