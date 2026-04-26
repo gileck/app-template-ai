@@ -45,6 +45,32 @@ export function usePushStatusQuery() {
     });
 }
 
+const LOCAL_PUSH_SUB_QUERY_KEY = ['push-notifications', 'local-subscription'] as const;
+
+/**
+ * Returns the current device's local PushSubscription endpoint (or null if
+ * the device isn't subscribed). This is the source of truth for the toggle —
+ * the server can have stale subscriptions from other devices that no longer
+ * exist, so a server-side `subscribed: true` doesn't imply *this* device is
+ * subscribed.
+ */
+export function useLocalPushSubscriptionQuery() {
+    return useQuery({
+        queryKey: LOCAL_PUSH_SUB_QUERY_KEY,
+        queryFn: async (): Promise<{ endpoint: string | null }> => {
+            if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+                return { endpoint: null };
+            }
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (!reg) return { endpoint: null };
+            const sub = await reg.pushManager.getSubscription();
+            return { endpoint: sub?.endpoint ?? null };
+        },
+        // Local-only check; refetch is cheap. Avoid SSR.
+        enabled: typeof window !== 'undefined',
+    });
+}
+
 export function useSubscribePush() {
     const queryClient = useQueryClient();
     const setSubscribed = usePushNotificationsStore((s) => s.setSubscribed);
@@ -95,6 +121,7 @@ export function useSubscribePush() {
         onSuccess: ({ endpoint }) => {
             setSubscribed(true, endpoint);
             queryClient.invalidateQueries({ queryKey: [API_PUSH_GET_STATUS] });
+            queryClient.invalidateQueries({ queryKey: LOCAL_PUSH_SUB_QUERY_KEY });
         },
     });
 }
@@ -117,6 +144,10 @@ export function useUnsubscribePush() {
                 }
             }
 
+            // Always tell the server to remove the endpoint, even if there
+            // was no local sub — covers the case where this device's server
+            // entry is stale (no matching local sub) and the user wants to
+            // clear it. If no endpoint at all, this is a no-op.
             if (endpoint) {
                 const res = await unsubscribePush({ endpoint });
                 if (res.data?.error) throw new Error(res.data.error);
@@ -127,6 +158,7 @@ export function useUnsubscribePush() {
         onSuccess: () => {
             setSubscribed(false, null);
             queryClient.invalidateQueries({ queryKey: [API_PUSH_GET_STATUS] });
+            queryClient.invalidateQueries({ queryKey: LOCAL_PUSH_SUB_QUERY_KEY });
         },
     });
 }

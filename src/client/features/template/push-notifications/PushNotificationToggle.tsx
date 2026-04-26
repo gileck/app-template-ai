@@ -14,6 +14,7 @@ import { toast } from '@/client/components/template/ui/toast';
 import { errorToast } from '../error-tracking';
 import {
     usePushStatusQuery,
+    useLocalPushSubscriptionQuery,
     useSubscribePush,
     useUnsubscribePush,
     useSendTestPush,
@@ -28,13 +29,19 @@ import {
 
 export function PushNotificationToggle() {
     const statusQuery = usePushStatusQuery();
+    const localSubQuery = useLocalPushSubscriptionQuery();
     const subscribe = useSubscribePush();
     const unsubscribe = useUnsubscribePush();
     const sendTest = useSendTestPush();
 
     const configured = statusQuery.data?.configured ?? Boolean(getVapidPublicKey());
-    const subscribed = statusQuery.data?.subscribed ?? false;
-    const endpoints = statusQuery.data?.endpoints ?? 0;
+    const localEndpoint = localSubQuery.data?.endpoint ?? null;
+    // Toggle reflects THIS device's subscription state. Server-side count is
+    // shown separately. Server can have stale entries from other devices that
+    // do not exist here; those should not lock the toggle into ON.
+    const subscribed = Boolean(localEndpoint);
+    const serverEndpoints = statusQuery.data?.endpoints ?? 0;
+    const hasStaleServerSubs = !subscribed && serverEndpoints > 0;
 
     const supported = isPushSupported();
     const iosDevice = isIos();
@@ -135,7 +142,7 @@ export function PushNotificationToggle() {
             {subscribed && (
                 <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-muted-foreground">
-                        Active on {endpoints} device{endpoints === 1 ? '' : 's'}.
+                        Active on {serverEndpoints} device{serverEndpoints === 1 ? '' : 's'}.
                     </p>
                     <Button
                         type="button"
@@ -154,6 +161,15 @@ export function PushNotificationToggle() {
                         )}
                     </Button>
                 </div>
+            )}
+
+            {!subscribed && hasStaleServerSubs && (
+                <InfoRow>
+                    Notifications are off on this device, but {serverEndpoints} stale
+                    server subscription{serverEndpoints === 1 ? '' : 's'} from previous
+                    sessions or other devices may still exist. They&apos;ll be cleaned up
+                    automatically the next time the server tries to send to them.
+                </InfoRow>
             )}
         </div>
     );
