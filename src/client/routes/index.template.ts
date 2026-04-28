@@ -23,6 +23,7 @@ import { WorkflowItems } from './template/Workflow';
 import { UserApprovals } from './template/UserApprovals';
 import { Admin } from './template/Admin';
 import { ServiceWorkerDebug } from './template/ServiceWorkerDebug';
+import { MongoExplorer } from './template/MongoExplorer';
 import { Routes } from '../features/template/router';
 
 /**
@@ -58,6 +59,9 @@ export const templateRoutes: Routes = {
   '/admin/workflow': WorkflowItems,
   '/admin/approvals': UserApprovals,
   '/admin/service-worker': ServiceWorkerDebug,
+  '/admin/mongo-explorer': MongoExplorer,
+  '/admin/mongo-explorer/:collectionName': MongoExplorer,
+  '/admin/mongo-explorer/:collectionName/:documentKey': MongoExplorer,
 
   // Fallback
   '/not-found': NotFound,
