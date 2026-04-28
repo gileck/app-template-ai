@@ -1,8 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from '@/client/features';
 import { Alert, AlertDescription } from '@/client/components/template/ui/alert';
 import { Badge } from '@/client/components/template/ui/badge';
 import { Button } from '@/client/components/template/ui/button';
+import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import {
     Card,
     CardContent,
@@ -24,12 +25,14 @@ import {
     ArrowLeft,
     ChevronRight,
     Database,
+    Copy,
     FileJson,
     Loader2,
     Pencil,
     RefreshCw,
     Save,
     Search,
+    Trash2,
 } from 'lucide-react';
 import type {
     MongoSerializedValue,
@@ -37,6 +40,8 @@ import type {
 } from '@/apis/template/mongo-explorer/types';
 import {
     useMongoCollections,
+    useMongoDeleteDocument,
+    useMongoDuplicateDocument,
     useMongoDocument,
     useMongoDocuments,
     useMongoUpdateDocument,
@@ -59,6 +64,15 @@ interface EditableFieldState {
     inputValue: string;
     error: string | null;
     readOnly: boolean;
+}
+
+interface ConfirmDialogState {
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    cancelText: string;
+    variant: 'default' | 'destructive';
 }
 
 function formatCountLabel(count: number): string {
@@ -641,10 +655,22 @@ function MongoDocumentPage({
         collectionName.length > 0 && documentKey.length > 0
     );
     const updateDocumentMutation = useMongoUpdateDocument();
+    const duplicateDocumentMutation = useMongoDuplicateDocument();
+    const deleteDocumentMutation = useMongoDeleteDocument();
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral field-level editor state for the active document
     const [editableFields, setEditableFields] = useState<Record<string, EditableFieldState>>({});
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral currently edited field key for the document inspector
     const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirmation dialog state scoped to this document page
+    const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+        open: false,
+        title: '',
+        description: '',
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        variant: 'default',
+    });
+    const confirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
 
     const document = documentQuery.data ?? null;
     const fieldDescriptors = useMemo(
@@ -667,20 +693,70 @@ function MongoDocumentPage({
         setEditingFieldKey(null);
     }, [document?.documentKey, document]);
 
-    const handleBack = () => {
-        if (editingFieldKey && !window.confirm('Discard unsaved field changes?')) {
+    const requestConfirmation = (config: Omit<ConfirmDialogState, 'open'>): Promise<boolean> => {
+        setConfirmDialog({
+            ...config,
+            open: true,
+        });
+
+        return new Promise((resolve) => {
+            confirmResolverRef.current = resolve;
+        });
+    };
+
+    const handleConfirmDialogOpenChange = (open: boolean) => {
+        setConfirmDialog((current) => ({ ...current, open }));
+
+        if (!open && confirmResolverRef.current) {
+            confirmResolverRef.current(false);
+            confirmResolverRef.current = null;
+        }
+    };
+
+    const handleConfirmDialogConfirm = () => {
+        if (confirmResolverRef.current) {
+            confirmResolverRef.current(true);
+            confirmResolverRef.current = null;
+        }
+
+        setConfirmDialog((current) => ({ ...current, open: false }));
+    };
+
+    const requestDiscardFieldChangesConfirmation = async (description: string) => {
+        return requestConfirmation({
+            title: 'Discard field changes?',
+            description,
+            confirmText: 'Discard changes',
+            cancelText: 'Keep editing',
+            variant: 'default',
+        });
+    };
+
+    const handleBack = async () => {
+        if (
+            editingFieldKey &&
+            !(await requestDiscardFieldChangesConfirmation(
+                'You have an unsaved field edit. Going back to the documents list will discard those changes.'
+            ))
+        ) {
             return;
         }
 
         navigate(getCollectionPath(collectionName));
     };
 
-    const handleStartFieldEdit = (field: DocumentFieldDescriptor) => {
+    const handleStartFieldEdit = async (field: DocumentFieldDescriptor) => {
         if (!document || !isFieldEditable(field)) {
             return;
         }
 
-        if (editingFieldKey && editingFieldKey !== field.key && !window.confirm('Discard unsaved field changes?')) {
+        if (
+            editingFieldKey &&
+            editingFieldKey !== field.key &&
+            !(await requestDiscardFieldChangesConfirmation(
+                'Starting to edit another field will discard the current unsaved field changes.'
+            ))
+        ) {
             return;
         }
 
@@ -700,13 +776,17 @@ function MongoDocumentPage({
         setEditingFieldKey(field.key);
     };
 
-    const handleCancelFieldEdit = () => {
+    const handleCancelFieldEdit = async () => {
         if (!editingField || !document) {
             setEditingFieldKey(null);
             return;
         }
 
-        if (!window.confirm('Discard unsaved field changes?')) {
+        if (
+            !(await requestDiscardFieldChangesConfirmation(
+                'Canceling field edit will discard the current unsaved changes for this field.'
+            ))
+        ) {
             return;
         }
 
@@ -764,6 +844,76 @@ function MongoDocumentPage({
         setEditingFieldKey(null);
     };
 
+    const handleDuplicateDocument = async () => {
+        if (!document) {
+            return;
+        }
+
+        if (
+            editingFieldKey &&
+            !(await requestDiscardFieldChangesConfirmation(
+                'Duplicating this document now will discard the current unsaved field edit.'
+            ))
+        ) {
+            return;
+        }
+
+        if (
+            !(await requestConfirmation({
+                title: 'Duplicate document?',
+                description: `A copy of ${document.idLabel} will be created in ${collectionName}.`,
+                confirmText: 'Duplicate document',
+                cancelText: 'Cancel',
+                variant: 'default',
+            }))
+        ) {
+            return;
+        }
+
+        const duplicatedDocument = await duplicateDocumentMutation.mutateAsync({
+            collection: collectionName,
+            documentKey: document.documentKey,
+        });
+
+        setEditingFieldKey(null);
+        navigate(getDocumentPath(collectionName, duplicatedDocument.documentKey));
+    };
+
+    const handleDeleteDocument = async () => {
+        if (!document) {
+            return;
+        }
+
+        if (
+            editingFieldKey &&
+            !(await requestDiscardFieldChangesConfirmation(
+                'Deleting this document now will discard the current unsaved field edit.'
+            ))
+        ) {
+            return;
+        }
+
+        if (
+            !(await requestConfirmation({
+                title: 'Delete document?',
+                description: `${document.idLabel} will be permanently removed from ${collectionName}. This cannot be undone.`,
+                confirmText: 'Delete document',
+                cancelText: 'Cancel',
+                variant: 'destructive',
+            }))
+        ) {
+            return;
+        }
+
+        await deleteDocumentMutation.mutateAsync({
+            collection: collectionName,
+            documentKey: document.documentKey,
+        });
+
+        setEditingFieldKey(null);
+        navigate(getCollectionPath(collectionName));
+    };
+
     return (
         <div className="mx-auto max-w-5xl px-2 py-4 pb-20 sm:px-4 sm:pb-6">
             <PageHeader
@@ -783,8 +933,14 @@ function MongoDocumentPage({
                         key="refresh"
                         variant="outline"
                         className="min-w-0"
-                        onClick={() => {
-                            if (editingFieldKey && !window.confirm('Discard unsaved field changes?')) {
+                        disabled={duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
+                        onClick={async () => {
+                            if (
+                                editingFieldKey &&
+                                !(await requestDiscardFieldChangesConfirmation(
+                                    'Refreshing this document will discard the current unsaved field edit.'
+                                ))
+                            ) {
                                 return;
                             }
                             onRefresh();
@@ -793,6 +949,34 @@ function MongoDocumentPage({
                     >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
+                    </Button>,
+                    <Button
+                        key="duplicate"
+                        variant="outline"
+                        className="min-w-0"
+                        disabled={!document || updateDocumentMutation.isPending || duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
+                        onClick={() => void handleDuplicateDocument()}
+                    >
+                        {duplicateDocumentMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Copy className="mr-2 h-4 w-4" />
+                        )}
+                        Duplicate
+                    </Button>,
+                    <Button
+                        key="delete"
+                        variant="destructive"
+                        className="min-w-0"
+                        disabled={!document || updateDocumentMutation.isPending || duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
+                        onClick={() => void handleDeleteDocument()}
+                    >
+                        {deleteDocumentMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete
                     </Button>,
                 ]}
             />
@@ -816,7 +1000,7 @@ function MongoDocumentPage({
                                 {editingField ? `Editing ${editingField.key}` : 'Viewing'}
                             </Badge>
                             {editingField && (
-                                <Button variant="outline" onClick={handleCancelFieldEdit}>
+                                <Button variant="outline" onClick={() => void handleCancelFieldEdit()}>
                                     Cancel field edit
                                 </Button>
                             )}
@@ -860,8 +1044,8 @@ function MongoDocumentPage({
                                         isEditable={isFieldEditable(field)}
                                         canChangeType={canFieldChangeType(field)}
                                         isBusy={updateDocumentMutation.isPending}
-                                        onStartEdit={() => handleStartFieldEdit(field)}
-                                        onCancelEdit={handleCancelFieldEdit}
+                                        onStartEdit={() => void handleStartFieldEdit(field)}
+                                        onCancelEdit={() => void handleCancelFieldEdit()}
                                         onChangeKind={(nextKind) => {
                                             setEditableFields((current) => ({
                                                 ...current,
@@ -901,6 +1085,16 @@ function MongoDocumentPage({
                     )}
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmDialog.open}
+                onOpenChange={handleConfirmDialogOpenChange}
+                title={confirmDialog.title}
+                description={confirmDialog.description}
+                confirmText={confirmDialog.confirmText}
+                cancelText={confirmDialog.cancelText}
+                variant={confirmDialog.variant}
+                onConfirm={handleConfirmDialogConfirm}
+            />
         </div>
     );
 }

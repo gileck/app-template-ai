@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { ObjectId, type Document, type Filter } from 'mongodb';
 import { appConfig } from '@/app.config';
 import { getDb } from '@/server/database';
@@ -245,6 +246,48 @@ function valuesMatch(left: unknown, right: unknown): boolean {
     return left === right;
 }
 
+function cloneExplorerValue<T>(value: T): T {
+    if (value instanceof ObjectId) {
+        return new ObjectId(value.toHexString()) as T;
+    }
+
+    if (value instanceof Date) {
+        return new Date(value.getTime()) as T;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => cloneExplorerValue(item)) as T;
+    }
+
+    if (isPlainObject(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [key, cloneExplorerValue(item)])
+        ) as T;
+    }
+
+    return value;
+}
+
+function createDuplicateId(value: unknown): unknown {
+    if (value instanceof ObjectId) {
+        return new ObjectId();
+    }
+
+    if (typeof value === 'string') {
+        return randomUUID();
+    }
+
+    if (typeof value === 'number') {
+        return Date.now();
+    }
+
+    if (value instanceof Date) {
+        return new Date();
+    }
+
+    throw new Error('Duplicate is only supported for documents with ObjectId, string, number, or Date _id values');
+}
+
 function getExplorerFieldKind(value: unknown): ExplorerFieldKind {
     if (value === undefined) {
         return 'missing';
@@ -442,4 +485,47 @@ export async function updateDocumentForExplorer(
     }
 
     return toDocumentSummary(updatedDocument);
+}
+
+export async function duplicateDocumentForExplorer(
+    collectionName: string,
+    documentKey: string
+): Promise<MongoExplorerDocumentSummary> {
+    await assertCollectionExists(collectionName);
+
+    const db = await getDb();
+    const collection = db.collection<ExplorerDocument>(collectionName);
+    const originalId = parseDocumentKey(documentKey) as ExplorerDocument['_id'];
+    const idFilter = { _id: originalId } as Filter<ExplorerDocument>;
+    const currentDocument = await collection.findOne(idFilter);
+
+    if (!currentDocument) {
+        throw new Error('Document was not found');
+    }
+
+    const duplicatedDocument: ExplorerDocument = {
+        ...cloneExplorerValue(currentDocument),
+        _id: createDuplicateId(currentDocument._id) as ExplorerDocument['_id'],
+    };
+
+    await collection.insertOne(duplicatedDocument);
+
+    return toDocumentSummary(duplicatedDocument);
+}
+
+export async function deleteDocumentForExplorer(
+    collectionName: string,
+    documentKey: string
+): Promise<void> {
+    await assertCollectionExists(collectionName);
+
+    const db = await getDb();
+    const collection = db.collection<ExplorerDocument>(collectionName);
+    const originalId = parseDocumentKey(documentKey) as ExplorerDocument['_id'];
+    const idFilter = { _id: originalId } as Filter<ExplorerDocument>;
+    const result = await collection.deleteOne(idFilter);
+
+    if (result.deletedCount === 0) {
+        throw new Error('Document was not found');
+    }
 }

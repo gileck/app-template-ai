@@ -1,12 +1,18 @@
 import apiClient from '@/client/utils/apiClient';
 import type { CacheResult } from '@/common/cache/types';
 import {
+    API_DELETE_DOCUMENT,
+    API_DUPLICATE_DOCUMENT,
     API_GET_DOCUMENT,
     API_LIST_COLLECTIONS,
     API_LIST_DOCUMENTS,
     API_UPDATE_DOCUMENT,
 } from './index';
 import type {
+    DeleteMongoDocumentRequest,
+    DeleteMongoDocumentResponse,
+    DuplicateMongoDocumentRequest,
+    DuplicateMongoDocumentResponse,
     GetMongoDocumentRequest,
     GetMongoDocumentResponse,
     ListMongoCollectionsResponse,
@@ -36,4 +42,16 @@ export async function updateMongoDocument(
     params: UpdateMongoDocumentRequest
 ): Promise<CacheResult<UpdateMongoDocumentResponse>> {
     return apiClient.post(API_UPDATE_DOCUMENT, params);
+}
+
+export async function duplicateMongoDocument(
+    params: DuplicateMongoDocumentRequest
+): Promise<CacheResult<DuplicateMongoDocumentResponse>> {
+    return apiClient.post(API_DUPLICATE_DOCUMENT, params);
+}
+
+export async function deleteMongoDocument(
+    params: DeleteMongoDocumentRequest
+): Promise<CacheResult<DeleteMongoDocumentResponse>> {
+    return apiClient.post(API_DELETE_DOCUMENT, params);
 }

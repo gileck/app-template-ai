@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    deleteMongoDocument,
+    duplicateMongoDocument,
     getMongoDocument,
     listMongoCollections,
     listMongoDocuments,
     updateMongoDocument,
 } from '@/apis/template/mongo-explorer/client';
 import type {
+    DeleteMongoDocumentRequest,
+    DuplicateMongoDocumentRequest,
     GetMongoDocumentRequest,
     ListMongoDocumentsRequest,
     MongoExplorerCollectionSummary,
@@ -139,6 +143,71 @@ export function useMongoUpdateDocument() {
         },
         onError: (error) => {
             toast.error(error instanceof Error ? error.message : 'Failed to update document');
+        },
+    });
+}
+
+export function useMongoDuplicateDocument() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (variables: DuplicateMongoDocumentRequest) => {
+            const result = await duplicateMongoDocument(variables);
+            if (result.data?.error) {
+                throw new Error(result.data.error);
+            }
+
+            if (!result.data?.document) {
+                throw new Error('Duplicated document was not returned');
+            }
+
+            return result.data.document;
+        },
+        onSuccess: async (document, variables) => {
+            await queryClient.invalidateQueries({
+                queryKey: ['mongo-explorer', 'documents', variables.collection],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['mongo-explorer', 'collections'],
+            });
+            await queryClient.setQueryData(
+                mongoExplorerQueryKeys.document(variables.collection, document.documentKey),
+                document
+            );
+            toast.success('Document duplicated');
+        },
+        onError: (error) => {
+            toast.error(error instanceof Error ? error.message : 'Failed to duplicate document');
+        },
+    });
+}
+
+export function useMongoDeleteDocument() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (variables: DeleteMongoDocumentRequest) => {
+            const result = await deleteMongoDocument(variables);
+            if (result.data?.error) {
+                throw new Error(result.data.error);
+            }
+
+            return result.data;
+        },
+        onSuccess: async (_data, variables) => {
+            await queryClient.invalidateQueries({
+                queryKey: ['mongo-explorer', 'documents', variables.collection],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['mongo-explorer', 'collections'],
+            });
+            await queryClient.removeQueries({
+                queryKey: mongoExplorerQueryKeys.document(variables.collection, variables.documentKey),
+            });
+            toast.success('Document deleted');
+        },
+        onError: (error) => {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete document');
         },
     });
 }

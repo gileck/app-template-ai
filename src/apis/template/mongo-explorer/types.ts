@@ -68,3 +68,23 @@ export interface UpdateMongoDocumentResponse {
     error?: string;
     document?: MongoExplorerDocumentSummary;
 }
+
+export interface DuplicateMongoDocumentRequest {
+    collection: string;
+    documentKey: string;
+}
+
+export interface DuplicateMongoDocumentResponse {
+    error?: string;
+    document?: MongoExplorerDocumentSummary;
+}
+
+export interface DeleteMongoDocumentRequest {
+    collection: string;
+    documentKey: string;
+}
+
+export interface DeleteMongoDocumentResponse {
+    error?: string;
+    deletedDocumentKey?: string;
+}
