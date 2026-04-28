@@ -11,6 +11,13 @@ import {
     CardHeader,
     CardTitle,
 } from '@/client/components/template/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/client/components/template/ui/dropdown-menu';
 import { Input } from '@/client/components/template/ui/input';
 import { Label } from '@/client/components/template/ui/label';
 import {
@@ -20,9 +27,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/client/components/template/ui/select';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/client/components/template/ui/tabs';
 import { Textarea } from '@/client/components/template/ui/textarea';
 import {
     ArrowLeft,
+    CircleEllipsis,
     ChevronRight,
     Database,
     Copy,
@@ -292,6 +306,129 @@ function isFieldEditable(field: DocumentFieldDescriptor): boolean {
 
 function canFieldChangeType(field: DocumentFieldDescriptor): boolean {
     return field.kind === 'null';
+}
+
+function validateSerializedMongoValue(value: unknown, path: string): string | null {
+    if (
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+    ) {
+        return null;
+    }
+
+    if (Array.isArray(value)) {
+        for (let index = 0; index < value.length; index += 1) {
+            const nestedError = validateSerializedMongoValue(
+                value[index],
+                `${path}[${index}]`
+            );
+            if (nestedError) {
+                return nestedError;
+            }
+        }
+        return null;
+    }
+
+    if (value && typeof value === 'object') {
+        const entries = Object.entries(value);
+
+        if (entries.length === 1 && entries[0][0] === '$oid') {
+            const oidValue = entries[0][1];
+            if (typeof oidValue !== 'string' || !OBJECT_ID_PATTERN.test(oidValue)) {
+                return `${path} must use a valid {"$oid":"..."} value`;
+            }
+            return null;
+        }
+
+        if (entries.length === 1 && entries[0][0] === '$date') {
+            const dateValue = entries[0][1];
+            if (typeof dateValue !== 'string' || fromDateTimeLocalValue(toDateTimeLocalValue(dateValue)) === null) {
+                const parsedDate = typeof dateValue === 'string' ? new Date(dateValue) : null;
+                if (!(parsedDate instanceof Date) || Number.isNaN(parsedDate.getTime())) {
+                    return `${path} must use a valid {"$date":"..."} value`;
+                }
+            }
+            return null;
+        }
+
+        for (const [key, nestedValue] of entries) {
+            const nestedError = validateSerializedMongoValue(
+                nestedValue,
+                path === 'document' ? key : `${path}.${key}`
+            );
+            if (nestedError) {
+                return nestedError;
+            }
+        }
+        return null;
+    }
+
+    return `${path} contains an unsupported value`;
+}
+
+function validateRawDocumentSchema(
+    currentDocument: MongoSerializedObject,
+    nextValue: unknown
+): { document: MongoSerializedObject | null; error: string | null } {
+    if (!nextValue || Array.isArray(nextValue) || typeof nextValue !== 'object') {
+        return {
+            document: null,
+            error: 'Raw document must be a JSON object',
+        };
+    }
+
+    const nextDocument = nextValue as MongoSerializedObject;
+    const valueError = validateSerializedMongoValue(nextDocument, 'document');
+
+    if (valueError) {
+        return {
+            document: null,
+            error: valueError,
+        };
+    }
+
+    if (JSON.stringify(nextDocument._id) !== JSON.stringify(currentDocument._id)) {
+        return {
+            document: null,
+            error: '_id cannot be changed in raw edit mode',
+        };
+    }
+
+    const fieldNames = new Set([
+        ...Object.keys(currentDocument),
+        ...Object.keys(nextDocument),
+    ]);
+
+    for (const fieldName of fieldNames) {
+        if (fieldName === '_id') {
+            continue;
+        }
+
+        const currentKind = fieldName in currentDocument
+            ? getFieldKind(currentDocument[fieldName])
+            : 'missing';
+        const nextKind = fieldName in nextDocument
+            ? getFieldKind(nextDocument[fieldName])
+            : 'missing';
+
+        if (currentKind === 'null') {
+            continue;
+        }
+
+        if (currentKind !== nextKind) {
+            return {
+                document: null,
+                error: `Field "${fieldName}" must remain ${currentKind}; received ${nextKind}`,
+            };
+        }
+    }
+
+    return {
+        document: nextDocument,
+        error: null,
+    };
 }
 
 function encodeRouteSegment(value: string): string {
@@ -661,6 +798,14 @@ function MongoDocumentPage({
     const [editableFields, setEditableFields] = useState<Record<string, EditableFieldState>>({});
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral currently edited field key for the document inspector
     const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral document inspector mode for switching between field cards and raw JSON
+    const [documentViewMode, setDocumentViewMode] = useState<'fields' | 'raw'>('fields');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral raw JSON editor state for the active document
+    const [rawEditorValue, setRawEditorValue] = useState('');
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral raw JSON editor mode flag scoped to this document page
+    const [isRawEditing, setIsRawEditing] = useState(false);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral raw JSON validation error state scoped to this document page
+    const [rawEditorError, setRawEditorError] = useState<string | null>(null);
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirmation dialog state scoped to this document page
     const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
         open: false,
@@ -681,16 +826,27 @@ function MongoDocumentPage({
         () => fieldDescriptors.find((field) => field.key === editingFieldKey) ?? null,
         [editingFieldKey, fieldDescriptors]
     );
+    const serializedDocument = useMemo(
+        () => (document ? JSON.stringify(document.document, null, 2) : ''),
+        [document]
+    );
+    const isRawDirty = isRawEditing && rawEditorValue !== serializedDocument;
 
     useEffect(() => {
         if (!document) {
             setEditableFields({});
             setEditingFieldKey(null);
+            setRawEditorValue('');
+            setIsRawEditing(false);
+            setRawEditorError(null);
             return;
         }
 
         setEditableFields(createEditableFieldState(document.document));
         setEditingFieldKey(null);
+        setRawEditorValue(JSON.stringify(document.document, null, 2));
+        setIsRawEditing(false);
+        setRawEditorError(null);
     }, [document?.documentKey, document]);
 
     const requestConfirmation = (config: Omit<ConfirmDialogState, 'open'>): Promise<boolean> => {
@@ -732,61 +888,19 @@ function MongoDocumentPage({
         });
     };
 
-    const handleBack = async () => {
-        if (
-            editingFieldKey &&
-            !(await requestDiscardFieldChangesConfirmation(
-                'You have an unsaved field edit. Going back to the documents list will discard those changes.'
-            ))
-        ) {
-            return;
-        }
-
-        navigate(getCollectionPath(collectionName));
+    const requestDiscardRawChangesConfirmation = async (description: string) => {
+        return requestConfirmation({
+            title: 'Discard raw changes?',
+            description,
+            confirmText: 'Discard raw changes',
+            cancelText: 'Keep editing',
+            variant: 'default',
+        });
     };
 
-    const handleStartFieldEdit = async (field: DocumentFieldDescriptor) => {
-        if (!document || !isFieldEditable(field)) {
-            return;
-        }
-
-        if (
-            editingFieldKey &&
-            editingFieldKey !== field.key &&
-            !(await requestDiscardFieldChangesConfirmation(
-                'Starting to edit another field will discard the current unsaved field changes.'
-            ))
-        ) {
-            return;
-        }
-
-        setEditableFields((current) => ({
-            ...current,
-            [field.key]: {
-                ...(current[field.key] ?? {
-                    kind: field.kind,
-                    inputValue: getFieldInputValue(field.kind, field.value),
-                    error: null,
-                    readOnly: field.key === '_id',
-                }),
-                inputValue: getFieldInputValue(field.kind, field.value),
-                error: null,
-            },
-        }));
-        setEditingFieldKey(field.key);
-    };
-
-    const handleCancelFieldEdit = async () => {
+    const discardCurrentFieldEdit = () => {
         if (!editingField || !document) {
             setEditingFieldKey(null);
-            return;
-        }
-
-        if (
-            !(await requestDiscardFieldChangesConfirmation(
-                'Canceling field edit will discard the current unsaved changes for this field.'
-            ))
-        ) {
             return;
         }
 
@@ -804,6 +918,103 @@ function MongoDocumentPage({
             },
         }));
         setEditingFieldKey(null);
+    };
+
+    const discardRawEditorChanges = () => {
+        setRawEditorValue(serializedDocument);
+        setRawEditorError(null);
+        setIsRawEditing(false);
+    };
+
+    const confirmDiscardActiveEdits = async (
+        fieldDescription: string,
+        rawDescription: string
+    ): Promise<boolean> => {
+        if (
+            editingFieldKey &&
+            !(await requestDiscardFieldChangesConfirmation(fieldDescription))
+        ) {
+            return false;
+        }
+
+        if (
+            isRawDirty &&
+            !(await requestDiscardRawChangesConfirmation(rawDescription))
+        ) {
+            return false;
+        }
+
+        if (editingFieldKey) {
+            discardCurrentFieldEdit();
+        }
+
+        if (isRawEditing) {
+            discardRawEditorChanges();
+        }
+
+        return true;
+    };
+
+    const handleBack = async () => {
+        if (!(await confirmDiscardActiveEdits(
+            'You have an unsaved field edit. Going back to the documents list will discard those changes.',
+            'You have unsaved raw JSON changes. Going back to the documents list will discard those changes.'
+        ))) {
+            return;
+        }
+
+        navigate(getCollectionPath(collectionName));
+    };
+
+    const handleStartFieldEdit = async (field: DocumentFieldDescriptor) => {
+        if (!document || !isFieldEditable(field)) {
+            return;
+        }
+
+        if (
+            editingFieldKey === field.key &&
+            documentViewMode === 'fields'
+        ) {
+            return;
+        }
+
+        if (!(await confirmDiscardActiveEdits(
+            'Starting to edit another field will discard the current unsaved field changes.',
+            'Starting field editing will discard the current unsaved raw JSON changes.'
+        ))) {
+            return;
+        }
+
+        setEditableFields((current) => ({
+            ...current,
+            [field.key]: {
+                ...(current[field.key] ?? {
+                    kind: field.kind,
+                    inputValue: getFieldInputValue(field.kind, field.value),
+                    error: null,
+                    readOnly: field.key === '_id',
+                }),
+                inputValue: getFieldInputValue(field.kind, field.value),
+                error: null,
+            },
+        }));
+        setDocumentViewMode('fields');
+        setEditingFieldKey(field.key);
+    };
+
+    const handleCancelFieldEdit = async () => {
+        if (!editingField) {
+            setEditingFieldKey(null);
+            return;
+        }
+
+        if (!(await requestDiscardFieldChangesConfirmation(
+            'Canceling field edit will discard the current unsaved changes for this field.'
+        ))) {
+            return;
+        }
+
+        discardCurrentFieldEdit();
     };
 
     const handleSaveField = async () => {
@@ -844,17 +1055,132 @@ function MongoDocumentPage({
         setEditingFieldKey(null);
     };
 
+    const handleSwitchToFieldsView = async () => {
+        if (documentViewMode === 'fields' && !isRawEditing) {
+            return;
+        }
+
+        if (
+            isRawDirty &&
+            !(await requestDiscardRawChangesConfirmation(
+                'Switching back to field view will discard the current unsaved raw JSON changes.'
+            ))
+        ) {
+            return;
+        }
+
+        if (isRawEditing) {
+            discardRawEditorChanges();
+        }
+
+        setDocumentViewMode('fields');
+    };
+
+    const handleSwitchToRawView = async () => {
+        if (!document) {
+            return;
+        }
+
+        if (!(await confirmDiscardActiveEdits(
+            'Switching to raw view will discard the current unsaved field edit.',
+            'You already have unsaved raw JSON changes.'
+        ))) {
+            return;
+        }
+
+        setDocumentViewMode('raw');
+    };
+
+    const handleStartRawEdit = async () => {
+        if (!document) {
+            return;
+        }
+
+        if (!(await confirmDiscardActiveEdits(
+            'Switching to raw editing will discard the current unsaved field edit.',
+            'You already have unsaved raw JSON changes.'
+        ))) {
+            return;
+        }
+
+        setDocumentViewMode('raw');
+        setRawEditorValue(JSON.stringify(document.document, null, 2));
+        setRawEditorError(null);
+        setIsRawEditing(true);
+    };
+
+    const handleCancelRawEdit = async () => {
+        if (!isRawEditing) {
+            return;
+        }
+
+        if (
+            isRawDirty &&
+            !(await requestDiscardRawChangesConfirmation(
+                'Canceling raw edit will discard the current unsaved raw JSON changes.'
+            ))
+        ) {
+            return;
+        }
+
+        discardRawEditorChanges();
+    };
+
+    const handleSaveRawDocument = async () => {
+        if (!document) {
+            return;
+        }
+
+        let parsedValue: unknown;
+
+        try {
+            parsedValue = JSON.parse(rawEditorValue);
+        } catch (error) {
+            setRawEditorError(error instanceof Error ? error.message : 'Invalid JSON');
+            return;
+        }
+
+        const validated = validateRawDocumentSchema(document.document, parsedValue);
+        setRawEditorError(validated.error);
+
+        if (!validated.document || validated.error) {
+            return;
+        }
+
+        if (
+            !(await requestConfirmation({
+                title: 'Save raw document?',
+                description: 'This will replace the current document with the raw JSON shown in the editor, while enforcing the existing schema rules.',
+                confirmText: 'Save raw document',
+                cancelText: 'Cancel',
+                variant: 'default',
+            }))
+        ) {
+            return;
+        }
+
+        const updatedDocument = await updateDocumentMutation.mutateAsync({
+            collection: collectionName,
+            documentKey: document.documentKey,
+            document: validated.document,
+        });
+
+        setEditableFields(createEditableFieldState(updatedDocument.document));
+        setRawEditorValue(JSON.stringify(updatedDocument.document, null, 2));
+        setRawEditorError(null);
+        setIsRawEditing(false);
+        setDocumentViewMode('raw');
+    };
+
     const handleDuplicateDocument = async () => {
         if (!document) {
             return;
         }
 
-        if (
-            editingFieldKey &&
-            !(await requestDiscardFieldChangesConfirmation(
-                'Duplicating this document now will discard the current unsaved field edit.'
-            ))
-        ) {
+        if (!(await confirmDiscardActiveEdits(
+            'Duplicating this document now will discard the current unsaved field edit.',
+            'Duplicating this document now will discard the current unsaved raw JSON changes.'
+        ))) {
             return;
         }
 
@@ -884,12 +1210,10 @@ function MongoDocumentPage({
             return;
         }
 
-        if (
-            editingFieldKey &&
-            !(await requestDiscardFieldChangesConfirmation(
-                'Deleting this document now will discard the current unsaved field edit.'
-            ))
-        ) {
+        if (!(await confirmDiscardActiveEdits(
+            'Deleting this document now will discard the current unsaved field edit.',
+            'Deleting this document now will discard the current unsaved raw JSON changes.'
+        ))) {
             return;
         }
 
@@ -914,11 +1238,27 @@ function MongoDocumentPage({
         navigate(getCollectionPath(collectionName));
     };
 
+    const pageDescription = editingField
+        ? `Editing field ${editingField.key}`
+        : isRawEditing
+          ? 'Editing raw document'
+          : documentViewMode === 'raw'
+            ? 'Viewing raw document'
+            : 'View mode';
+
+    const statusBadgeLabel = editingField
+        ? `Editing ${editingField.key}`
+        : isRawEditing
+          ? 'Editing raw'
+          : documentViewMode === 'raw'
+            ? 'Viewing raw'
+            : 'Viewing fields';
+
     return (
         <div className="mx-auto max-w-5xl px-2 py-4 pb-20 sm:px-4 sm:pb-6">
             <PageHeader
                 title={document?.idLabel || 'Document'}
-                description={editingField ? `Editing ${editingField.key}` : 'View mode'}
+                description={pageDescription}
                 breadcrumbs={[
                     { label: 'db', path: ROOT_PATH },
                     { label: collectionName, path: getCollectionPath(collectionName) },
@@ -929,55 +1269,70 @@ function MongoDocumentPage({
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Documents
                     </Button>,
-                    <Button
-                        key="refresh"
-                        variant="outline"
-                        className="min-w-0"
-                        disabled={duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
-                        onClick={async () => {
-                            if (
-                                editingFieldKey &&
-                                !(await requestDiscardFieldChangesConfirmation(
-                                    'Refreshing this document will discard the current unsaved field edit.'
-                                ))
-                            ) {
-                                return;
-                            }
-                            onRefresh();
-                            void documentQuery.refetch();
-                        }}
-                    >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Refresh
-                    </Button>,
-                    <Button
-                        key="duplicate"
-                        variant="outline"
-                        className="min-w-0"
-                        disabled={!document || updateDocumentMutation.isPending || duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
-                        onClick={() => void handleDuplicateDocument()}
-                    >
-                        {duplicateDocumentMutation.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Copy className="mr-2 h-4 w-4" />
-                        )}
-                        Duplicate
-                    </Button>,
-                    <Button
-                        key="delete"
-                        variant="destructive"
-                        className="min-w-0"
-                        disabled={!document || updateDocumentMutation.isPending || duplicateDocumentMutation.isPending || deleteDocumentMutation.isPending}
-                        onClick={() => void handleDeleteDocument()}
-                    >
-                        {deleteDocumentMutation.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Trash2 className="mr-2 h-4 w-4" />
-                        )}
-                        Delete
-                    </Button>,
+                    <DropdownMenu key="actions">
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="min-w-0"
+                                disabled={
+                                    updateDocumentMutation.isPending ||
+                                    duplicateDocumentMutation.isPending ||
+                                    deleteDocumentMutation.isPending
+                                }
+                            >
+                                <CircleEllipsis className="mr-2 h-4 w-4" />
+                                Actions
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem
+                                onSelect={() => {
+                                    void (async () => {
+                                        if (!(await confirmDiscardActiveEdits(
+                                            'Refreshing this document will discard the current unsaved field edit.',
+                                            'Refreshing this document will discard the current unsaved raw JSON changes.'
+                                        ))) {
+                                            return;
+                                        }
+
+                                        onRefresh();
+                                        void documentQuery.refetch();
+                                    })();
+                                }}
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Refresh document
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                disabled={!document}
+                                onSelect={() => {
+                                    void handleDuplicateDocument();
+                                }}
+                            >
+                                {duplicateDocumentMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Copy className="mr-2 h-4 w-4" />
+                                )}
+                                Duplicate document
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                disabled={!document}
+                                className="text-destructive focus:text-destructive"
+                                onSelect={() => {
+                                    void handleDeleteDocument();
+                                }}
+                            >
+                                {deleteDocumentMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                )}
+                                Delete document
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>,
                 ]}
             />
 
@@ -989,19 +1344,24 @@ function MongoDocumentPage({
                                 Document
                             </CardTitle>
                             <CardDescription>
-                                Field-by-field viewer with type-specific rendering and per-field editing.
+                                Switch between the typed field inspector and raw JSON editing.
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge
-                                variant={editingField ? 'default' : 'secondary'}
+                                variant={editingField || isRawEditing ? 'default' : 'secondary'}
                                 className="max-w-full"
                             >
-                                {editingField ? `Editing ${editingField.key}` : 'Viewing'}
+                                {statusBadgeLabel}
                             </Badge>
-                            {editingField && (
+                            {editingField && documentViewMode === 'fields' && (
                                 <Button variant="outline" onClick={() => void handleCancelFieldEdit()}>
                                     Cancel field edit
+                                </Button>
+                            )}
+                            {documentViewMode === 'raw' && isRawEditing && (
+                                <Button variant="outline" onClick={() => void handleCancelRawEdit()}>
+                                    Cancel raw edit
                                 </Button>
                             )}
                         </div>
@@ -1033,54 +1393,102 @@ function MongoDocumentPage({
                             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                                 Schema validation is enforced per field. Non-null values keep their original type. Fields currently set to `null` can be changed to any supported value type from the app.
                             </div>
-                            <div className="grid gap-4">
-                                {fieldDescriptors.map((field) => (
-                                    <DocumentFieldCard
-                                        key={field.key}
-                                        field={field}
-                                        state={editableFields[field.key]}
-                                        isEditing={editingFieldKey === field.key}
-                                        isLocked={field.key === '_id'}
-                                        isEditable={isFieldEditable(field)}
-                                        canChangeType={canFieldChangeType(field)}
+                            <Tabs
+                                value={documentViewMode}
+                                onValueChange={(value) => {
+                                    if (value === documentViewMode) {
+                                        return;
+                                    }
+
+                                    if (value === 'fields') {
+                                        void handleSwitchToFieldsView();
+                                        return;
+                                    }
+
+                                    void handleSwitchToRawView();
+                                }}
+                                className="space-y-4"
+                            >
+                                <TabsList className="w-full justify-start overflow-x-auto">
+                                    <TabsTrigger
+                                        value="fields"
+                                        disabled={updateDocumentMutation.isPending}
+                                    >
+                                        Fields
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="raw"
+                                        disabled={updateDocumentMutation.isPending}
+                                    >
+                                        Raw JSON
+                                    </TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="fields">
+                                    <div className="grid gap-4">
+                                        {fieldDescriptors.map((field) => (
+                                            <DocumentFieldCard
+                                                key={field.key}
+                                                field={field}
+                                                state={editableFields[field.key]}
+                                                isEditing={editingFieldKey === field.key}
+                                                isLocked={field.key === '_id'}
+                                                isEditable={isFieldEditable(field)}
+                                                canChangeType={canFieldChangeType(field)}
+                                                isBusy={updateDocumentMutation.isPending}
+                                                onStartEdit={() => void handleStartFieldEdit(field)}
+                                                onCancelEdit={() => void handleCancelFieldEdit()}
+                                                onChangeKind={(nextKind) => {
+                                                    setEditableFields((current) => ({
+                                                        ...current,
+                                                        [field.key]: {
+                                                            ...(current[field.key] ?? {
+                                                                kind: nextKind,
+                                                                inputValue: getDefaultInputValueForKind(nextKind),
+                                                                error: null,
+                                                                readOnly: field.key === '_id',
+                                                            }),
+                                                            kind: nextKind,
+                                                            inputValue: getDefaultInputValueForKind(nextKind),
+                                                            error: null,
+                                                        },
+                                                    }));
+                                                }}
+                                                onChange={(nextInputValue) => {
+                                                    setEditableFields((current) => ({
+                                                        ...current,
+                                                        [field.key]: {
+                                                            ...(current[field.key] ?? {
+                                                                kind: field.kind,
+                                                                inputValue: nextInputValue,
+                                                                error: null,
+                                                                readOnly: field.key === '_id',
+                                                            }),
+                                                            inputValue: nextInputValue,
+                                                            error: null,
+                                                        },
+                                                    }));
+                                                }}
+                                                onSave={() => void handleSaveField()}
+                                            />
+                                        ))}
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="raw">
+                                    <RawDocumentCard
+                                        rawValue={rawEditorValue}
+                                        rawError={rawEditorError}
+                                        isEditing={isRawEditing}
                                         isBusy={updateDocumentMutation.isPending}
-                                        onStartEdit={() => void handleStartFieldEdit(field)}
-                                        onCancelEdit={() => void handleCancelFieldEdit()}
-                                        onChangeKind={(nextKind) => {
-                                            setEditableFields((current) => ({
-                                                ...current,
-                                                [field.key]: {
-                                                    ...(current[field.key] ?? {
-                                                        kind: nextKind,
-                                                        inputValue: getDefaultInputValueForKind(nextKind),
-                                                        error: null,
-                                                        readOnly: field.key === '_id',
-                                                    }),
-                                                    kind: nextKind,
-                                                    inputValue: getDefaultInputValueForKind(nextKind),
-                                                    error: null,
-                                                },
-                                            }));
+                                        onStartEdit={() => void handleStartRawEdit()}
+                                        onChange={(nextValue) => {
+                                            setRawEditorValue(nextValue);
+                                            setRawEditorError(null);
                                         }}
-                                        onChange={(nextInputValue) => {
-                                            setEditableFields((current) => ({
-                                                ...current,
-                                                [field.key]: {
-                                                    ...(current[field.key] ?? {
-                                                        kind: field.kind,
-                                                        inputValue: nextInputValue,
-                                                        error: null,
-                                                        readOnly: field.key === '_id',
-                                                    }),
-                                                    inputValue: nextInputValue,
-                                                    error: null,
-                                                },
-                                            }));
-                                        }}
-                                        onSave={() => void handleSaveField()}
+                                        onCancel={() => void handleCancelRawEdit()}
+                                        onSave={() => void handleSaveRawDocument()}
                                     />
-                                ))}
-                            </div>
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     )}
                 </CardContent>
@@ -1095,6 +1503,78 @@ function MongoDocumentPage({
                 variant={confirmDialog.variant}
                 onConfirm={handleConfirmDialogConfirm}
             />
+        </div>
+    );
+}
+
+function RawDocumentCard({
+    rawValue,
+    rawError,
+    isEditing,
+    isBusy,
+    onStartEdit,
+    onChange,
+    onCancel,
+    onSave,
+}: {
+    rawValue: string;
+    rawError: string | null;
+    isEditing: boolean;
+    isBusy: boolean;
+    onStartEdit: () => void;
+    onChange: (nextValue: string) => void;
+    onCancel: () => void;
+    onSave: () => void;
+}) {
+    return (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold">Raw document</p>
+                    <p className="text-sm text-muted-foreground">
+                        Edit the full JSON document with schema validation and save confirmation.
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={isEditing ? 'default' : 'secondary'}>
+                        {isEditing ? 'Editing raw JSON' : 'Read only'}
+                    </Badge>
+                    {!isEditing && (
+                        <Button size="sm" variant="outline" onClick={onStartEdit}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit raw
+                        </Button>
+                    )}
+                </div>
+            </div>
+            {isEditing ? (
+                <div className="space-y-3">
+                    <Textarea
+                        value={rawValue}
+                        onChange={(event) => onChange(event.target.value)}
+                        className="min-h-[24rem] font-mono text-xs leading-6"
+                        spellCheck={false}
+                    />
+                    {rawError && <p className="text-xs text-destructive">{rawError}</p>}
+                    <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={onSave} disabled={isBusy}>
+                            {isBusy ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Save raw document
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={onCancel} disabled={isBusy}>
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <pre className="overflow-x-auto rounded-xl border border-border bg-muted/20 p-3 font-mono text-xs leading-6">
+                    {rawValue}
+                </pre>
+            )}
         </div>
     );
 }
