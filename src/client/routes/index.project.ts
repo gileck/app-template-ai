@@ -21,6 +21,7 @@ import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
 import { Debug } from './project/Debug';
+import { TelegramLoginApproval } from './project/TelegramLoginApproval';
 
 /**
  * Project route definitions.
@@ -32,6 +33,7 @@ export const projectRoutes: Routes = {
   '/ai-chat': AIChat,
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
+  '/telegram-login-approval': { component: TelegramLoginApproval, public: true, fullScreen: true },
 
   // Admin routes
   '/admin/dashboard': Dashboard,

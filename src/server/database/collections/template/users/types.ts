@@ -25,6 +25,8 @@ export interface User {
   profilePicture?: string;
   notificationsEnabled?: boolean;
   telegramChatId?: string;
+  /** Missing = false for backward compatibility */
+  telegramTwoFactorEnabled?: boolean;
   /** Missing = 'approved' (legacy users) */
   approvalStatus?: UserApprovalStatus;
   /** When admin approved the user (if applicable) */

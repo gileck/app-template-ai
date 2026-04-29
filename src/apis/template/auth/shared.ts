@@ -31,6 +31,7 @@ export const sanitizeUser = (user: User): UserResponse => {
     profilePicture: user.profilePicture,
     notificationsEnabled: user.notificationsEnabled,
     telegramChatId: user.telegramChatId,
+    telegramTwoFactorEnabled: user.telegramTwoFactorEnabled ?? false,
     // Filled by handlers based on request context
     isAdmin: false,
   };

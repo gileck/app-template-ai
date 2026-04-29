@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, User, Mail, Lock, ArrowRight, UserPlus, AlertCircle, Clock } from 'lucide-react';
 import { useAuthStore } from './store';
 import { useLogin, useRegister } from './hooks';
@@ -7,10 +7,12 @@ import { isNetworkError, cleanErrorMessage as cleanApiErrorMessage } from '../er
 import type { LoginFormState } from './types';
 import { cn } from '@/client/lib/utils';
 import { authConfig } from '@/client/auth-config';
+import { useRouter } from '../router';
 
 export const LoginForm = () => {
     const error = useAuthStore((state) => state.error);
     const setError = useAuthStore((state) => state.setError);
+    const { currentPath, navigate } = useRouter();
 
     const loginMutation = useLogin();
     const registerMutation = useRegister();
@@ -31,6 +33,24 @@ export const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const { formErrors, validateForm, clearFieldError, resetFormErrors } = useLoginFormValidator(isRegistering, formData);
+
+    useEffect(() => {
+        if (loginMutation.data?.kind !== 'pending-telegram-approval') {
+            return;
+        }
+
+        const redirectTo = authConfig.onTelegramLoginApprovalRequested?.({
+            approvalId: loginMutation.data.approvalId,
+            approvalToken: loginMutation.data.approvalToken,
+            expiresAt: loginMutation.data.expiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+            redirectPath: currentPath || '/',
+            username: formData.username,
+        });
+
+        navigate(redirectTo || `/telegram-login-approval?id=${encodeURIComponent(loginMutation.data.approvalId)}`, {
+            replace: true,
+        });
+    }, [currentPath, formData.username, loginMutation.data, navigate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -81,6 +101,10 @@ export const LoginForm = () => {
     // We don't set validated user state so AuthWrapper keeps the dialog up.
     if (registerMutation.data?.kind === 'pending-approval') {
         return <PendingApprovalScreen />;
+    }
+
+    if (loginMutation.data?.kind === 'pending-telegram-approval') {
+        return <TelegramRedirectScreen />;
     }
 
     return (
@@ -221,6 +245,22 @@ const PendingApprovalScreen: React.FC = () => (
         <p className="text-xs text-muted-foreground">
             You can safely close this window.
         </p>
+    </div>
+);
+
+const TelegramRedirectScreen: React.FC = () => (
+    <div className="space-y-6 text-center">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+            <Clock className="w-7 h-7 text-primary-foreground" />
+        </div>
+        <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">
+                Waiting for Telegram approval
+            </h1>
+            <p className="text-sm text-muted-foreground">
+                Redirecting to the approval page now.
+            </p>
+        </div>
     </div>
 );
 

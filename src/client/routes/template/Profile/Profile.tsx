@@ -15,7 +15,7 @@ import { EditableField } from './components/EditableField';
 import { ImageUploadDialog } from './components/ImageUploadDialog';
 import { ProfileLoadingSkeleton } from './components/ProfileLoadingSkeleton';
 import { useProfileImage } from './useProfileImage';
-import { Bell, Calendar, Mail, MessageSquare, User } from 'lucide-react';
+import { Bell, Calendar, Lock, Mail, MessageSquare, User } from 'lucide-react';
 import { Switch } from '@/client/components/template/ui/switch';
 
 export const Profile = () => {
@@ -170,25 +170,46 @@ export const Profile = () => {
                         />
                     </div>
 
-                    {/* Telegram Chat ID - only shown when notifications enabled */}
-                    {displayUser.notificationsEnabled && (
-                        <EditableField
-                            label="Telegram Chat ID"
-                            value={displayUser.telegramChatId || ''}
-                            icon={<MessageSquare className="h-4 w-4" />}
-                            onSave={(value) => handleSaveField('telegramChatId', value)}
-                            isSaving={savingField === 'telegramChatId'}
-                            placeholder="Enter chat ID for notifications"
-                            infoTitle="How to Get Your Telegram Chat ID"
-                            infoContent={
-                                <ol className="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
-                                    <li>Open <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary underline">@userinfobot</a> on Telegram</li>
-                                    <li>Start a chat and send any message</li>
-                                    <li>The bot will reply with your Chat ID</li>
-                                    <li>Copy the ID number and paste it in the field</li>
-                                </ol>
-                            }
+                    <EditableField
+                        label="Telegram Chat ID"
+                        value={displayUser.telegramChatId || ''}
+                        icon={<MessageSquare className="h-4 w-4" />}
+                        onSave={(value) => handleSaveField('telegramChatId', value)}
+                        isSaving={savingField === 'telegramChatId'}
+                        placeholder="Enter chat ID for notifications and login approval"
+                        infoTitle="How to Get Your Telegram Chat ID"
+                        infoContent={
+                            <ol className="ml-4 list-decimal space-y-2 text-sm text-muted-foreground">
+                                <li>Open <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary underline">@userinfobot</a> on Telegram</li>
+                                <li>Start a chat and send any message</li>
+                                <li>The bot will reply with your Chat ID</li>
+                                <li>Copy the ID number and paste it in the field</li>
+                                <li>This chat ID is used for Telegram notifications and login approvals</li>
+                            </ol>
+                        }
+                    />
+
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                            <Lock className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <span className="text-sm text-muted-foreground">Telegram 2-Factor Authentication</span>
+                                <p className="text-xs text-muted-foreground">
+                                    Requires Telegram approval on sign-in. Default is off.
+                                </p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={displayUser.telegramTwoFactorEnabled ?? false}
+                            onCheckedChange={(checked) => handleSaveField('telegramTwoFactorEnabled', checked)}
+                            disabled={savingField === 'telegramTwoFactorEnabled' || !displayUser.telegramChatId}
                         />
+                    </div>
+
+                    {!displayUser.telegramChatId && (
+                        <p className="px-4 pb-3 text-xs text-muted-foreground">
+                            Add a Telegram Chat ID to enable Telegram 2-factor authentication.
+                        </p>
                     )}
                 </ProfileSection>
 

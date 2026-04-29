@@ -18,7 +18,7 @@ export const updateUserProfile = async (
         }
 
         // Validate update data
-        if (!request.username && !request.email && !request.profilePicture && request.notificationsEnabled === undefined && request.telegramChatId === undefined) {
+        if (!request.username && !request.email && !request.profilePicture && request.notificationsEnabled === undefined && request.telegramChatId === undefined && request.telegramTwoFactorEnabled === undefined) {
             return { success: false, error: "No update data provided" };
         }
 
@@ -30,6 +30,7 @@ export const updateUserProfile = async (
             profilePicture?: string;
             notificationsEnabled?: boolean;
             telegramChatId?: string;
+            telegramTwoFactorEnabled?: boolean;
         } = {
             updatedAt: new Date()
         };
@@ -52,6 +53,19 @@ export const updateUserProfile = async (
 
         if (request.telegramChatId !== undefined) {
             updateData.telegramChatId = request.telegramChatId;
+        }
+
+        if (request.telegramTwoFactorEnabled !== undefined) {
+            const effectiveChatId =
+                request.telegramChatId !== undefined
+                    ? request.telegramChatId.trim()
+                    : (await users.findUserById(context.userId))?.telegramChatId?.trim();
+
+            if (request.telegramTwoFactorEnabled && !effectiveChatId) {
+                return { success: false, error: "Add your Telegram chat ID before enabling Telegram 2-factor authentication" };
+            }
+
+            updateData.telegramTwoFactorEnabled = request.telegramTwoFactorEnabled;
         }
 
         // Update user in database

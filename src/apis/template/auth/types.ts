@@ -14,7 +14,12 @@ export interface AuthResponse {
     error?: string;
 }
 
-export type LoginResponse = AuthResponse;
+export interface LoginResponse extends AuthResponse {
+    requiresTelegramApproval?: boolean;
+    loginApprovalId?: string;
+    loginApprovalToken?: string;
+    expiresAt?: string;
+}
 
 /**
  * Registration response. Has one of three shapes:
@@ -55,6 +60,7 @@ export interface UpdateProfileRequest {
     profilePicture?: string;
     notificationsEnabled?: boolean;
     telegramChatId?: string;
+    telegramTwoFactorEnabled?: boolean;
 }
 
 export interface UpdateProfileResponse {
@@ -72,6 +78,7 @@ export interface UserResponse {
     profilePicture?: string;
     notificationsEnabled?: boolean;
     telegramChatId?: string;
+    telegramTwoFactorEnabled?: boolean;
     isAdmin: boolean;
 }
 
