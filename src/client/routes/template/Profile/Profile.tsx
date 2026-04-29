@@ -20,6 +20,7 @@ import { Switch } from '@/client/components/template/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/template/ui/dialog';
 import type { TwoFactorMethod } from '@/apis/template/auth/types';
+import { PushNotificationToggle } from '@/client/features/template/push-notifications';
 
 export const Profile = () => {
     const user = useUser();
@@ -177,7 +178,9 @@ export const Profile = () => {
                             disabled={savingField === 'notificationsEnabled'}
                         />
                     </div>
-
+                    <div className="border-t border-border/60 px-4 py-3.5">
+                        <PushNotificationToggle />
+                    </div>
                 </ProfileSection>
 
                 <ProfileSection title="Telegram" icon={<MessageSquare className="h-5 w-5" />}>
