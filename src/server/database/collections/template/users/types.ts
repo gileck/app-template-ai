@@ -10,6 +10,7 @@ import type { ObjectId } from 'mongodb';
  * admin approves them via /admin/approvals.
  */
 export type UserApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type TwoFactorMethod = 'telegram' | 'email';
 
 /**
  * Represents a user in the system
@@ -26,6 +27,10 @@ export interface User {
   notificationsEnabled?: boolean;
   telegramChatId?: string;
   /** Missing = false for backward compatibility */
+  twoFactorEnabled?: boolean;
+  /** Missing = inferred from legacy config / first available contact */
+  twoFactorMethod?: TwoFactorMethod;
+  /** Legacy field from initial Telegram-only implementation */
   telegramTwoFactorEnabled?: boolean;
   /** Missing = 'approved' (legacy users) */
   approvalStatus?: UserApprovalStatus;

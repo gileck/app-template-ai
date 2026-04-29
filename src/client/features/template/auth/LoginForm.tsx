@@ -8,6 +8,7 @@ import type { LoginFormState } from './types';
 import { cn } from '@/client/lib/utils';
 import { authConfig } from '@/client/auth-config';
 import { useRouter } from '../router';
+import { savePendingLoginApproval } from './login-approval-storage';
 
 export const LoginForm = () => {
     const error = useAuthStore((state) => state.error);
@@ -35,19 +36,21 @@ export const LoginForm = () => {
     const { formErrors, validateForm, clearFieldError, resetFormErrors } = useLoginFormValidator(isRegistering, formData);
 
     useEffect(() => {
-        if (loginMutation.data?.kind !== 'pending-telegram-approval') {
+        if (loginMutation.data?.kind !== 'pending-login-approval') {
             return;
         }
 
-        const redirectTo = authConfig.onTelegramLoginApprovalRequested?.({
+        savePendingLoginApproval({
             approvalId: loginMutation.data.approvalId,
             approvalToken: loginMutation.data.approvalToken,
+            approvalMethod: loginMutation.data.approvalMethod,
+            approvalHint: loginMutation.data.approvalHint,
             expiresAt: loginMutation.data.expiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString(),
             redirectPath: currentPath || '/',
             username: formData.username,
         });
 
-        navigate(redirectTo || `/telegram-login-approval?id=${encodeURIComponent(loginMutation.data.approvalId)}`, {
+        navigate(`/login-approval?id=${encodeURIComponent(loginMutation.data.approvalId)}`, {
             replace: true,
         });
     }, [currentPath, formData.username, loginMutation.data, navigate]);
@@ -103,8 +106,8 @@ export const LoginForm = () => {
         return <PendingApprovalScreen />;
     }
 
-    if (loginMutation.data?.kind === 'pending-telegram-approval') {
-        return <TelegramRedirectScreen />;
+    if (loginMutation.data?.kind === 'pending-login-approval') {
+        return <LoginApprovalRedirectScreen />;
     }
 
     return (
@@ -248,14 +251,14 @@ const PendingApprovalScreen: React.FC = () => (
     </div>
 );
 
-const TelegramRedirectScreen: React.FC = () => (
+const LoginApprovalRedirectScreen: React.FC = () => (
     <div className="space-y-6 text-center">
         <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
             <Clock className="w-7 h-7 text-primary-foreground" />
         </div>
         <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
-                Waiting for Telegram approval
+                Waiting for sign-in approval
             </h1>
             <p className="text-sm text-muted-foreground">
                 Redirecting to the approval page now.

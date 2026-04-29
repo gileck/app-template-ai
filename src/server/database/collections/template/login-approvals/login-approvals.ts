@@ -3,7 +3,7 @@ import { Collection, ObjectId } from 'mongodb';
 import { getDb } from '../../../connection';
 import type { LoginApproval, LoginApprovalCreate } from './types';
 
-export const TELEGRAM_LOGIN_APPROVAL_TTL_MS = 10 * 60 * 1000;
+export const LOGIN_APPROVAL_TTL_MS = 10 * 60 * 1000;
 
 const getLoginApprovalsCollection = async (): Promise<Collection<LoginApproval>> => {
   const db = await getDb();
@@ -25,6 +25,7 @@ function toObjectId(id: ObjectId | string): ObjectId | null {
 export const createLoginApproval = async (params: {
   userId: ObjectId | string;
   username: string;
+  method: LoginApproval['method'];
 }): Promise<LoginApproval> => {
   const collection = await getLoginApprovalsCollection();
   const now = new Date();
@@ -37,11 +38,13 @@ export const createLoginApproval = async (params: {
   const document: LoginApprovalCreate = {
     userId,
     username: params.username,
+    method: params.method,
     browserToken: randomBytes(32).toString('hex'),
+    externalApprovalToken: randomBytes(32).toString('hex'),
     status: 'pending',
     createdAt: now,
     updatedAt: now,
-    expiresAt: new Date(now.getTime() + TELEGRAM_LOGIN_APPROVAL_TTL_MS),
+    expiresAt: new Date(now.getTime() + LOGIN_APPROVAL_TTL_MS),
   };
 
   const result = await collection.insertOne(document as LoginApproval);
@@ -88,7 +91,8 @@ export const findLoginApprovalByIdAndToken = async (
 
 export const approveLoginApproval = async (
   approvalId: ObjectId | string,
-  approvedByChatId?: string
+  approvedVia: LoginApproval['method'],
+  approvedBy?: string
 ): Promise<LoginApproval | null> => {
   const collection = await getLoginApprovalsCollection();
   const objectId = toObjectId(approvalId);
@@ -109,7 +113,45 @@ export const approveLoginApproval = async (
       $set: {
         status: 'approved',
         approvedAt: now,
-        approvedByChatId,
+        approvedBy,
+        approvedVia,
+        updatedAt: now,
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+  return result || null;
+};
+
+export const approveLoginApprovalByExternalToken = async (
+  approvalId: ObjectId | string,
+  externalApprovalToken: string,
+  approvedVia: LoginApproval['method'],
+  approvedBy?: string
+): Promise<LoginApproval | null> => {
+  const collection = await getLoginApprovalsCollection();
+  const objectId = toObjectId(approvalId);
+
+  if (!objectId) {
+    return null;
+  }
+
+  const now = new Date();
+
+  const result = await collection.findOneAndUpdate(
+    {
+      _id: objectId,
+      externalApprovalToken,
+      status: 'pending',
+      expiresAt: { $gt: now },
+    },
+    {
+      $set: {
+        status: 'approved',
+        approvedAt: now,
+        approvedBy,
+        approvedVia,
         updatedAt: now,
       },
     },

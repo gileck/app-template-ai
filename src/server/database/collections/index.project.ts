@@ -10,4 +10,3 @@
 
 // Template demo collections (not synced to child projects):
 export * as todos from './project/todos';
-export * as loginApprovals from './project/login-approvals';

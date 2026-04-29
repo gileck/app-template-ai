@@ -1,29 +1,33 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Loader2, MessageSquare, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, MessageSquare, ShieldCheck, AlertTriangle, Mail } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, currentUserQueryKey, useUser } from '@/client/features';
 import { useRouter } from '@/client/features';
-import { apiCompleteTelegramLoginApproval } from '@/apis/project/login-approvals/client';
+import { apiCompleteLoginApproval } from '@/apis/template/login-approvals/client';
 import {
-  clearPendingTelegramLoginApproval,
-  readPendingTelegramLoginApproval,
-} from '@/client/features/project/telegram-login-approval-storage';
+  clearPendingLoginApproval,
+  readPendingLoginApproval,
+} from '@/client/features/template/auth/login-approval-storage';
+import type { TwoFactorMethod } from '@/apis/template/auth/types';
 
 type ApprovalScreenState = 'checking' | 'pending' | 'expired' | 'invalid';
 
-export const TelegramLoginApproval = () => {
+export const LoginApproval = () => {
   const { queryParams, navigate } = useRouter();
   const user = useUser();
   const setValidatedUser = useAuthStore((state) => state.setValidatedUser);
   const queryClient = useQueryClient();
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral UI state for waiting-page status
   const [screenState, setScreenState] = useState<ApprovalScreenState>('checking');
+  // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral countdown display data for the current waiting page instance
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  // eslint-disable-next-line state-management/prefer-state-architecture -- transient retry message for temporary approval polling failures
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const pollInFlightRef = useRef(false);
 
   const storedApproval = useMemo(() => {
     const approvalId = queryParams.id;
-    const pendingApproval = readPendingTelegramLoginApproval();
+    const pendingApproval = readPendingLoginApproval();
 
     if (!approvalId || !pendingApproval || pendingApproval.approvalId !== approvalId) {
       return null;
@@ -40,7 +44,7 @@ export const TelegramLoginApproval = () => {
 
   useEffect(() => {
     if (!storedApproval) {
-      clearPendingTelegramLoginApproval();
+      clearPendingLoginApproval();
       setScreenState('invalid');
       return;
     }
@@ -58,7 +62,7 @@ export const TelegramLoginApproval = () => {
       pollInFlightRef.current = true;
 
       try {
-        const response = await apiCompleteTelegramLoginApproval({
+        const response = await apiCompleteLoginApproval({
           approvalId: storedApproval.approvalId,
           approvalToken: storedApproval.approvalToken,
         });
@@ -71,7 +75,7 @@ export const TelegramLoginApproval = () => {
         setExpiresAt(data.expiresAt || storedApproval.expiresAt);
 
         if (data.status === 'authenticated' && data.user) {
-          clearPendingTelegramLoginApproval();
+          clearPendingLoginApproval();
           queryClient.setQueryData(currentUserQueryKey, { user: data.user });
           setValidatedUser(data.user);
           navigate(storedApproval.redirectPath || '/', { replace: true });
@@ -84,7 +88,7 @@ export const TelegramLoginApproval = () => {
           return;
         }
 
-        clearPendingTelegramLoginApproval();
+        clearPendingLoginApproval();
         setScreenState(data.status === 'expired' ? 'expired' : 'invalid');
       } catch (error) {
         if (!cancelled) {
@@ -112,6 +116,8 @@ export const TelegramLoginApproval = () => {
   const expiresLabel = expiresAt
     ? new Date(expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
+  const method = storedApproval?.approvalMethod || 'email';
+  const methodCopy = getApprovalCopy(method, storedApproval?.approvalHint);
 
   if (screenState === 'invalid') {
     return (
@@ -130,7 +136,7 @@ export const TelegramLoginApproval = () => {
       <ApprovalLayout
         icon={<AlertTriangle className="h-8 w-8 text-primary-foreground" />}
         title="Login request expired"
-        description="The Telegram approval window expired before it was confirmed. Start the sign-in flow again."
+        description={`The ${method === 'telegram' ? 'Telegram' : 'email'} approval window expired before it was confirmed. Start the sign-in flow again.`}
         footerAction={() => navigate('/', { replace: true })}
         footerLabel="Try again"
       />
@@ -142,13 +148,13 @@ export const TelegramLoginApproval = () => {
       icon={screenState === 'checking'
         ? <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
         : <ShieldCheck className="h-8 w-8 text-primary-foreground" />}
-      title="Approve sign-in in Telegram"
-      description="A Telegram message was sent to your account. Approve it there and this page will continue automatically."
+      title={methodCopy.title}
+      description={methodCopy.description}
       footer={
         <div className="space-y-3 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-4 py-2 text-sm text-muted-foreground">
-            <MessageSquare className="h-4 w-4" />
-            Waiting for Telegram approval
+            {method === 'telegram' ? <MessageSquare className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+            {methodCopy.badge}
           </div>
           {expiresLabel && (
             <p className="text-xs text-muted-foreground">
@@ -165,6 +171,24 @@ export const TelegramLoginApproval = () => {
     />
   );
 };
+
+function getApprovalCopy(method: TwoFactorMethod, approvalHint?: string) {
+  if (method === 'telegram') {
+    return {
+      title: 'Approve sign-in in Telegram',
+      description: 'A Telegram message was sent to your account. Approve it there and this page will continue automatically.',
+      badge: 'Waiting for Telegram approval',
+    };
+  }
+
+  return {
+    title: 'Approve sign-in from your email',
+    description: approvalHint
+      ? `We sent an approval link to ${approvalHint}. Open it and this page will continue automatically.`
+      : 'We sent an approval link to your email address. Open it and this page will continue automatically.',
+    badge: 'Waiting for email approval',
+  };
+}
 
 function ApprovalLayout(props: {
   icon: ReactNode;

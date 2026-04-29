@@ -6,6 +6,7 @@ import {
 } from '../types';
 import * as users from '@/server/database/collections/template/users/users';
 import { sanitizeUser } from '../shared';
+import type { TwoFactorMethod } from '../types';
 
 // Update profile endpoint
 export const updateUserProfile = async (
@@ -18,8 +19,13 @@ export const updateUserProfile = async (
         }
 
         // Validate update data
-        if (!request.username && !request.email && !request.profilePicture && request.notificationsEnabled === undefined && request.telegramChatId === undefined && request.telegramTwoFactorEnabled === undefined) {
+        if (!request.username && !request.email && !request.profilePicture && request.notificationsEnabled === undefined && request.telegramChatId === undefined && request.twoFactorEnabled === undefined && request.twoFactorMethod === undefined) {
             return { success: false, error: "No update data provided" };
+        }
+
+        const existingUser = await users.findUserById(context.userId);
+        if (!existingUser) {
+            return { success: false, error: "User not found" };
         }
 
         // Prepare update object
@@ -30,7 +36,8 @@ export const updateUserProfile = async (
             profilePicture?: string;
             notificationsEnabled?: boolean;
             telegramChatId?: string;
-            telegramTwoFactorEnabled?: boolean;
+            twoFactorEnabled?: boolean;
+            twoFactorMethod?: TwoFactorMethod;
         } = {
             updatedAt: new Date()
         };
@@ -55,17 +62,41 @@ export const updateUserProfile = async (
             updateData.telegramChatId = request.telegramChatId;
         }
 
-        if (request.telegramTwoFactorEnabled !== undefined) {
-            const effectiveChatId =
-                request.telegramChatId !== undefined
-                    ? request.telegramChatId.trim()
-                    : (await users.findUserById(context.userId))?.telegramChatId?.trim();
+        const effectiveEmail = request.email !== undefined
+            ? request.email.trim()
+            : existingUser.email?.trim();
+        const effectiveTelegramChatId = request.telegramChatId !== undefined
+            ? request.telegramChatId.trim()
+            : existingUser.telegramChatId?.trim();
+        const effectiveTwoFactorEnabled = request.twoFactorEnabled
+            ?? existingUser.twoFactorEnabled
+            ?? existingUser.telegramTwoFactorEnabled
+            ?? false;
+        const effectiveTwoFactorMethod = request.twoFactorMethod
+            ?? existingUser.twoFactorMethod
+            ?? (existingUser.telegramTwoFactorEnabled ? 'telegram' : undefined)
+            ?? (effectiveEmail ? 'email' : effectiveTelegramChatId ? 'telegram' : undefined);
 
-            if (request.telegramTwoFactorEnabled && !effectiveChatId) {
-                return { success: false, error: "Add your Telegram chat ID before enabling Telegram 2-factor authentication" };
+        if (effectiveTwoFactorEnabled) {
+            if (!effectiveEmail && !effectiveTelegramChatId) {
+                return { success: false, error: "Add an email address or Telegram chat ID before enabling 2-factor authentication" };
             }
 
-            updateData.telegramTwoFactorEnabled = request.telegramTwoFactorEnabled;
+            if (effectiveTwoFactorMethod === 'email' && !effectiveEmail) {
+                return { success: false, error: "Add an email address before enabling email 2-factor authentication" };
+            }
+
+            if (effectiveTwoFactorMethod === 'telegram' && !effectiveTelegramChatId) {
+                return { success: false, error: "Add your Telegram chat ID before enabling Telegram 2-factor authentication" };
+            }
+        }
+
+        if (request.twoFactorEnabled !== undefined) {
+            updateData.twoFactorEnabled = request.twoFactorEnabled;
+        }
+
+        if (request.twoFactorMethod !== undefined || request.twoFactorEnabled !== undefined) {
+            updateData.twoFactorMethod = effectiveTwoFactorMethod;
         }
 
         // Update user in database

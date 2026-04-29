@@ -143,6 +143,7 @@ export async function handleLoginApproval(
 ): Promise<HandlerResult> {
     const approval = await loginApprovals.approveLoginApproval(
         approvalId,
+        'telegram',
         String(callbackQuery.from.id)
     );
 

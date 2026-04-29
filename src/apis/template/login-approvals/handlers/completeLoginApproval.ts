@@ -8,16 +8,16 @@ import {
   sanitizeUser,
 } from '@/apis/template/auth/shared';
 import type {
-  CompleteTelegramLoginApprovalRequest,
-  CompleteTelegramLoginApprovalResponse,
+  CompleteLoginApprovalRequest,
+  CompleteLoginApprovalResponse,
 } from '../types';
 import { loginApprovals, users } from '@/server/database';
 import { toStringId } from '@/server/template/utils';
 
-export const completeTelegramLoginApproval = async (
-  request: CompleteTelegramLoginApprovalRequest,
+export const completeLoginApproval = async (
+  request: CompleteLoginApprovalRequest,
   context: ApiHandlerContext
-): Promise<CompleteTelegramLoginApprovalResponse> => {
+): Promise<CompleteLoginApprovalResponse> => {
   if (!request?.approvalId || !request?.approvalToken) {
     return { status: 'invalid' };
   }

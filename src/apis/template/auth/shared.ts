@@ -23,6 +23,10 @@ export const COOKIE_OPTIONS = {
 };
 
 export const sanitizeUser = (user: User): UserResponse => {
+  const twoFactorEnabled = user.twoFactorEnabled ?? user.telegramTwoFactorEnabled ?? false;
+  const twoFactorMethod =
+    user.twoFactorMethod ?? (user.telegramTwoFactorEnabled ? 'telegram' : undefined);
+
   return {
     id: user._id.toString(),
     username: user.username,
@@ -31,7 +35,8 @@ export const sanitizeUser = (user: User): UserResponse => {
     profilePicture: user.profilePicture,
     notificationsEnabled: user.notificationsEnabled,
     telegramChatId: user.telegramChatId,
-    telegramTwoFactorEnabled: user.telegramTwoFactorEnabled ?? false,
+    twoFactorEnabled,
+    twoFactorMethod,
     // Filled by handlers based on request context
     isAdmin: false,
   };

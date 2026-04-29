@@ -1,3 +1,5 @@
+export type TwoFactorMethod = 'telegram' | 'email';
+
 export interface LoginRequest {
     username: string;
     password: string;
@@ -15,9 +17,11 @@ export interface AuthResponse {
 }
 
 export interface LoginResponse extends AuthResponse {
-    requiresTelegramApproval?: boolean;
+    requiresTwoFactorApproval?: boolean;
     loginApprovalId?: string;
     loginApprovalToken?: string;
+    loginApprovalMethod?: TwoFactorMethod;
+    loginApprovalHint?: string;
     expiresAt?: string;
 }
 
@@ -60,7 +64,8 @@ export interface UpdateProfileRequest {
     profilePicture?: string;
     notificationsEnabled?: boolean;
     telegramChatId?: string;
-    telegramTwoFactorEnabled?: boolean;
+    twoFactorEnabled?: boolean;
+    twoFactorMethod?: TwoFactorMethod;
 }
 
 export interface UpdateProfileResponse {
@@ -78,7 +83,8 @@ export interface UserResponse {
     profilePicture?: string;
     notificationsEnabled?: boolean;
     telegramChatId?: string;
-    telegramTwoFactorEnabled?: boolean;
+    twoFactorEnabled?: boolean;
+    twoFactorMethod?: TwoFactorMethod;
     isAdmin: boolean;
 }
 

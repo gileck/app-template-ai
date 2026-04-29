@@ -11,7 +11,7 @@ import { userToHint } from './types';
 import { apiLogin, apiLogout, apiRegister, apiFetchCurrentUser } from '@/apis/template/auth/client';
 import { waitForPreflight, getPreflightResult, isPreflightComplete, resetPreflight } from './preflight';
 import { markPhaseStart, markEvent, logStatus, BOOT_PHASES, printBootSummary } from '../boot-performance';
-import type { LoginRequest, RegisterRequest, CurrentUserResponse, UserResponse } from '@/apis/template/auth/types';
+import type { LoginRequest, RegisterRequest, CurrentUserResponse, UserResponse, TwoFactorMethod } from '@/apis/template/auth/types';
 
 /**
  * Discriminated result returned by the register mutation.
@@ -26,9 +26,11 @@ export type RegisterResult =
 export type LoginResult =
     | { kind: 'authenticated'; user: UserResponse }
     | {
-        kind: 'pending-telegram-approval';
+        kind: 'pending-login-approval';
         approvalId: string;
         approvalToken: string;
+        approvalMethod: TwoFactorMethod;
+        approvalHint?: string;
         expiresAt?: string;
       };
 
@@ -343,14 +345,16 @@ export function useLogin() {
             if (response.data?.error) {
                 throw new Error(response.data.error);
             }
-            if (response.data?.requiresTelegramApproval) {
+            if (response.data?.requiresTwoFactorApproval) {
                 if (!response.data.loginApprovalId || !response.data.loginApprovalToken) {
                     throw new Error('Login approval is missing required data');
                 }
                 return {
-                    kind: 'pending-telegram-approval',
+                    kind: 'pending-login-approval',
                     approvalId: response.data.loginApprovalId,
                     approvalToken: response.data.loginApprovalToken,
+                    approvalMethod: response.data.loginApprovalMethod || 'email',
+                    approvalHint: response.data.loginApprovalHint,
                     expiresAt: response.data.expiresAt,
                 };
             }
