@@ -529,6 +529,8 @@ Authentication responses include `user.isAdmin` so the client can enable admin-o
 | `auth/register` | POST | Create user, set JWT cookie |
 | `auth/me` | POST | Get current user (validates token) |
 | `auth/logout` | POST | Clear JWT cookie |
+| `auth/update-profile` | POST | Update profile fields (username, email, 2FA, etc.) |
+| `auth/change-password` | POST | Change password for authenticated user |
 
 ### Security Notes
 
@@ -537,6 +539,26 @@ Authentication responses include `user.isAdmin` so the client can enable admin-o
 - Real authentication is always validated server-side
 - Token expiry handled by server, client just responds to 401
 - **Long-lived tokens (10 years)**: This project uses 10-year JWT expiry for PWA/mobile-like experience where users expect to stay logged in indefinitely. Security is maintained via HttpOnly cookies and server-side validation.
+
+### Change Password Flow
+
+The `auth/change-password` endpoint lets an authenticated user replace their password. Handler: `src/apis/template/auth/handlers/changePassword.ts`. UI: `src/client/routes/template/Profile/components/ChangePasswordDialog.tsx`, opened from the Security section in Profile.
+
+**Server flow:**
+1. Require `context.userId` (rejects unauthenticated callers)
+2. Validate input — both fields present, new password ≥ 8 chars, must differ from current
+3. `bcrypt.compare(currentPassword, user.password_hash)` — generic error message on mismatch (`"Current password is incorrect"`) to avoid leaking which check failed
+4. `bcrypt.hash(newPassword, SALT_ROUNDS)` and persist via `users.updateUser`
+5. Fire-and-forget `sendTelegramNotificationToUser(userId, "Your password was just changed…")` so a hijacked session can't silently rotate the password without the real owner finding out. Skips silently if the user has no Telegram chat ID configured. Failure is logged but does not fail the request.
+
+**Client flow (`useChangePassword`):**
+- Standard React Query mutation. No optimistic update — this is a security operation that must wait for server confirmation, no offline support.
+- An empty `{}` response (the offline-queue convention from `apiClient`) is treated as failure with a "You must be online" message, so users aren't told it succeeded when the request was just queued.
+
+**Intentional simplifications (current MVP):**
+- **No token / session invalidation.** Existing JWTs on other devices remain valid until they expire. This is consistent with the rest of the system (10-year tokens, no revocation anywhere). If you later need "log out all devices", add a `tokenVersion` field on the user, include it in the JWT payload, increment it on password change, and check it in `getUserContext.ts` — that would invalidate every existing token globally in one place.
+- **No rate limiting.** The endpoint requires a valid auth cookie *and* the current password, so it isn't a public brute-force surface.
+- **No `validateNewPassword` override hook.** Min length 8 is hardcoded in the handler. Add an entry to `auth-overrides-types.ts` if a child project needs a custom policy.
 
 ## TTL (Time-to-Live) Settings
 
@@ -674,6 +696,31 @@ function LoginForm() {
                 // Show error message
             }
         });
+    };
+}
+```
+
+### Changing Password
+
+```typescript
+import { useChangePassword } from '@/client/features/auth';
+
+function ChangePasswordForm() {
+    const changePasswordMutation = useChangePassword();
+
+    const handleSubmit = (currentPassword: string, newPassword: string) => {
+        changePasswordMutation.mutate(
+            { currentPassword, newPassword },
+            {
+                onSuccess: () => {
+                    // Password changed; user stays logged in on this device.
+                    // Other devices keep their existing JWTs (no global invalidation).
+                },
+                onError: (error) => {
+                    // error.message is safe to show — generic for auth failures
+                },
+            }
+        );
     };
 }
 ```

@@ -8,10 +8,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './store';
 import { userToHint } from './types';
-import { apiLogin, apiLogout, apiRegister, apiFetchCurrentUser } from '@/apis/template/auth/client';
+import { apiChangePassword, apiLogin, apiLogout, apiRegister, apiFetchCurrentUser } from '@/apis/template/auth/client';
 import { waitForPreflight, getPreflightResult, isPreflightComplete, resetPreflight } from './preflight';
 import { markPhaseStart, markEvent, logStatus, BOOT_PHASES, printBootSummary } from '../boot-performance';
-import type { LoginRequest, RegisterRequest, CurrentUserResponse, UserResponse, TwoFactorMethod } from '@/apis/template/auth/types';
+import type { ChangePasswordRequest, LoginRequest, RegisterRequest, CurrentUserResponse, UserResponse, TwoFactorMethod } from '@/apis/template/auth/types';
 
 /**
  * Discriminated result returned by the register mutation.
@@ -410,6 +410,25 @@ export function useRegister() {
         },
         onError: (error) => {
             setError(error instanceof Error ? error.message : 'Registration failed');
+        },
+    });
+}
+
+export function useChangePassword() {
+    return useMutation<void, Error, ChangePasswordRequest>({
+        mutationFn: async (params: ChangePasswordRequest): Promise<void> => {
+            const response = await apiChangePassword(params);
+            // Empty {} response means the request was queued offline.
+            // Treat as failure so the user knows it didn't actually happen.
+            if (!response.data || Object.keys(response.data).length === 0) {
+                throw new Error('You must be online to change your password');
+            }
+            if (response.data.error) {
+                throw new Error(response.data.error);
+            }
+            if (!response.data.success) {
+                throw new Error('Failed to change password');
+            }
         },
     });
 }

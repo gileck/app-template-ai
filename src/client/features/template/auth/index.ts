@@ -20,6 +20,7 @@ export {
     useLogin,
     useRegister,
     useLogout,
+    useChangePassword,
     useCurrentUser,
     useInvalidateCurrentUser,
     currentUserQueryKey,

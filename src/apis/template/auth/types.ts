@@ -74,6 +74,16 @@ export interface UpdateProfileResponse {
     error?: string;
 }
 
+export interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+    success: boolean;
+    error?: string;
+}
+
 // User data returned to the client (without password)
 export interface UserResponse {
     id: string;

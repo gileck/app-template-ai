@@ -1,5 +1,6 @@
 import apiClient from '@/client/utils/apiClient';
 import {
+    changePassword,
     login,
     logout,
     me,
@@ -7,6 +8,8 @@ import {
     updateProfile
 } from './index';
 import {
+    ChangePasswordRequest,
+    ChangePasswordResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
@@ -35,4 +38,8 @@ export const apiLogout = () => {
 
 export const apiUpdateProfile = (params: UpdateProfileRequest) => {
     return apiClient.call<UpdateProfileResponse, UpdateProfileRequest>(updateProfile, params);
+};
+
+export const apiChangePassword = (params: ChangePasswordRequest) => {
+    return apiClient.call<ChangePasswordResponse, ChangePasswordRequest>(changePassword, params);
 };

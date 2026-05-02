@@ -13,9 +13,11 @@ import { ProfileHeader } from './components/ProfileHeader';
 import { ProfileSection } from './components/ProfileSection';
 import { EditableField } from './components/EditableField';
 import { ImageUploadDialog } from './components/ImageUploadDialog';
+import { ChangePasswordDialog } from './components/ChangePasswordDialog';
 import { ProfileLoadingSkeleton } from './components/ProfileLoadingSkeleton';
 import { useProfileImage } from './useProfileImage';
-import { Bell, Calendar, Info, Lock, Mail, MessageSquare, User } from 'lucide-react';
+import { Bell, Calendar, Info, KeyRound, Lock, Mail, MessageSquare, User } from 'lucide-react';
+import { Button } from '@/client/components/template/ui/button';
 import { Switch } from '@/client/components/template/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/client/components/template/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/client/components/template/ui/dialog';
@@ -37,6 +39,8 @@ export const Profile = () => {
     const [localUser, setLocalUser] = useState<UserResponse | null>(null);
     // eslint-disable-next-line state-management/prefer-state-architecture -- track which field is being saved
     const [savingField, setSavingField] = useState<string | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral dialog open state
+    const [openChangePasswordDialog, setOpenChangePasswordDialog] = useState(false);
 
     const handleUserUpdate = (updatedUser: UserResponse) => {
         setLocalUser(updatedUser);
@@ -164,6 +168,22 @@ export const Profile = () => {
                         isSaving={savingField === 'email'}
                         placeholder="Add email address"
                     />
+                </ProfileSection>
+
+                <ProfileSection title="Security" icon={<KeyRound className="h-5 w-5" />}>
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                            <KeyRound className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Password</span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setOpenChangePasswordDialog(true)}
+                        >
+                            Change
+                        </Button>
+                    </div>
                 </ProfileSection>
 
                 <ProfileSection title="Notifications" icon={<Bell className="h-5 w-5" />}>
@@ -298,6 +318,11 @@ export const Profile = () => {
                 onOpenChange={setOpenImageDialog}
                 onPaste={handlePaste}
                 onUploadClick={handleUploadClick}
+            />
+
+            <ChangePasswordDialog
+                open={openChangePasswordDialog}
+                onOpenChange={setOpenChangePasswordDialog}
             />
         </div>
     );
