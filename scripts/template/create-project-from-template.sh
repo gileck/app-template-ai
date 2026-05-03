@@ -28,6 +28,25 @@ require_command() {
   fi
 }
 
+log_step() {
+  echo
+  echo "==> $1"
+}
+
+ensure_gitignore_entry() {
+  local entry="$1"
+  local gitignore_path=".gitignore"
+
+  if [[ ! -f "$gitignore_path" ]]; then
+    printf '%s\n' "$entry" > "$gitignore_path"
+    return
+  fi
+
+  if ! grep -Fxq "$entry" "$gitignore_path"; then
+    printf '\n%s\n' "$entry" >> "$gitignore_path"
+  fi
+}
+
 prompt_required() {
   local prompt="$1"
   local value=""
@@ -110,27 +129,49 @@ main() {
     exit 1
   fi
 
-  echo
-  echo "Creating GitHub repo from template: $TEMPLATE_REPO"
-  echo "Cloning into: $target_dir"
-  echo
+  log_step "Creating GitHub repo '$repo_name' from template '$TEMPLATE_REPO'"
+  echo "Visibility: $visibility"
+  echo "This can take a minute while GitHub generates the repository from the template."
 
-  (
-    cd "$PROJECTS_DIR"
-    gh repo create "$repo_name" "--$visibility" --template "$TEMPLATE_REPO" --clone
-  )
+  gh repo create "$repo_name" "--$visibility" --template "$TEMPLATE_REPO"
+
+  local clone_url
+  clone_url="$(gh repo view "$repo_name" --json sshUrl --jq .sshUrl)"
+
+  log_step "Cloning repository"
+  echo "Clone URL: $clone_url"
+  echo "Target: $target_dir"
+
+  git clone --progress "$clone_url" "$target_dir"
 
   cd "$target_dir"
 
-  if [[ ! -d node_modules ]]; then
-    echo
-    echo "Installing dependencies..."
-    yarn install
+  log_step "Untracking yarn.lock"
+  echo "Adding yarn.lock to .gitignore and removing it from git tracking for this project."
+  ensure_gitignore_entry "yarn.lock"
+  git rm --cached --ignore-unmatch --sparse yarn.lock
+
+  if [[ -f yarn.lock ]]; then
+    log_step "Removing template yarn.lock"
+    echo "Deleting yarn.lock so yarn regenerates it for this machine's registry access."
+    rm yarn.lock
   fi
 
-  echo
-  echo "Running project initializer..."
+  if [[ ! -d node_modules ]]; then
+    log_step "Installing dependencies"
+    echo "Running: yarn install"
+    yarn install
+  else
+    log_step "Dependencies already installed"
+    echo "Found node_modules, skipping yarn install."
+  fi
+
+  log_step "Running project initializer"
+  echo "Running: yarn init-project"
   yarn init-project
+
+  log_step "Done"
+  echo "Project ready at: $target_dir"
 }
 
 main "$@"
