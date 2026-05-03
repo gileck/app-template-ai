@@ -13,6 +13,7 @@
     "check:unused": "knip",
     "check:unused:ci": "knip --include unresolved",
     "init-project": "node scripts/template/init-project.js",
+    "create-project": "bash scripts/template/create-project-from-template.sh",
     "push": "git pull --no-edit && git push",
     "ts": "tsc --noEmit",
     "checks": "./scripts/template/checks.sh",

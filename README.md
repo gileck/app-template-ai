@@ -21,12 +21,19 @@ A modern, production-ready Next.js template with AI capabilities, MongoDB, React
 
 ### 1. Clone or Use as Template
 
-**Option A: Use as GitHub Template**
+**Option A: Create, clone, and initialize automatically**
+```bash
+yarn create-project my-app
+```
+
+This requires the GitHub CLI (`gh`) to be installed and authenticated. It creates a new repository from this template in your GitHub account, clones it into `~/Projects`, installs dependencies, and runs `yarn init-project`. If you omit the project name, it prompts for one.
+
+**Option B: Use as GitHub Template**
 1. Click "Use this template" on GitHub
 2. Create your new repository
 3. Clone your new repository
 
-**Option B: Clone Directly**
+**Option C: Clone Directly**
 ```bash
 git clone https://github.com/yourusername/app-template-ai.git my-app
 cd my-app
@@ -149,6 +156,7 @@ yarn checks:dev       # Same as checks:ci
 yarn watch-checks     # Watch mode for checks
 
 # Template sync
+yarn create-project [name] # Create a GitHub repo from this template, clone, and initialize
 yarn init-template    # Initialize template tracking
 yarn sync-template    # Sync with template updates
 ```
@@ -352,4 +360,3 @@ MIT
 ---
 
 **Built with ❤️ using Next.js, MongoDB, and shadcn/ui**
-
