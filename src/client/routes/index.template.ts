@@ -22,6 +22,7 @@ import { LoginApproval } from './template/LoginApproval';
 import { ItemDetail } from './template/ItemDetail';
 import { WorkflowItems } from './template/Workflow';
 import { UserApprovals } from './template/UserApprovals';
+import { AdminSessions } from './template/AdminSessions';
 import { Admin } from './template/Admin';
 import { ServiceWorkerDebug } from './template/ServiceWorkerDebug';
 import { MongoExplorer } from './template/MongoExplorer';
@@ -63,6 +64,7 @@ export const templateRoutes: Routes = {
   '/admin/item/:id': ItemDetail,
   '/admin/workflow': WorkflowItems,
   '/admin/approvals': UserApprovals,
+  '/admin/sessions': AdminSessions,
   '/admin/service-worker': ServiceWorkerDebug,
   '/admin/mongo-explorer': MongoExplorer,
   '/admin/mongo-explorer/:collectionName': MongoExplorer,

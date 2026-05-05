@@ -18,6 +18,7 @@ import {
 import { toStringId } from '@/server/template/utils';
 import { authOverrides } from '@/apis/auth-overrides';
 import { createTwoFactorLoginApproval } from '@/server/template/auth/login-approval';
+import { recordSession } from '@/server/template/sessions/recordSession';
 
 // Login endpoint
 export const loginUser = async (
@@ -96,6 +97,8 @@ export const loginUser = async (
 
         // Set auth cookie
         context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
+
+        recordSession(userId, 'login');
 
         return { user: { ...sanitizeUser(user), isAdmin } };
     } catch (error: unknown) {

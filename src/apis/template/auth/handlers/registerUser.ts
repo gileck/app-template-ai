@@ -21,6 +21,7 @@ import { toStringId } from '@/server/template/utils';
 import { authOverrides } from '@/apis/auth-overrides';
 import { sendNotificationToOwner } from '@/server/template/telegram';
 import { appConfig } from '@/app.config';
+import { recordSession } from '@/server/template/sessions/recordSession';
 
 // Register endpoint
 export const registerUser = async (
@@ -143,6 +144,8 @@ export const registerUser = async (
 
         // Set auth cookie
         context.setCookie(COOKIE_NAME, token, COOKIE_OPTIONS);
+
+        recordSession(userId, 'register');
 
         return { user: { ...sanitizeUser(finalUser), isAdmin } };
     } catch (error: unknown) {

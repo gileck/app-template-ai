@@ -22,6 +22,7 @@ import { workflowApiHandlers } from "./template/workflow/server";
 import { adminUsersApiHandlers } from "./template/admin-users/server";
 import { pushNotificationsApiHandlers } from "./template/push-notifications/server";
 import { mongoExplorerApiHandlers } from "./template/mongo-explorer/server";
+import { adminSessionsApiHandlers } from "./template/admin-sessions/server";
 
 export const templateApiHandlers = mergeApiHandlers(
   clearCacheApiHandlers,
@@ -37,5 +38,6 @@ export const templateApiHandlers = mergeApiHandlers(
   workflowApiHandlers,
   adminUsersApiHandlers,
   pushNotificationsApiHandlers,
-  mongoExplorerApiHandlers
+  mongoExplorerApiHandlers,
+  adminSessionsApiHandlers
 );
