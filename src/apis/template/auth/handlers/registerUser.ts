@@ -13,6 +13,7 @@ import {
     COOKIE_OPTIONS,
     JWT_EXPIRES_IN,
     getJwtSecret,
+    isAdminUser,
     SALT_ROUNDS,
     sanitizeUser,
 } from "../shared";
@@ -98,7 +99,7 @@ export const registerUser = async (
 
         const newUser = await users.insertUser(userData);
         const userId = toStringId(newUser._id);
-        const isAdmin = !!process.env.ADMIN_USER_ID && userId === process.env.ADMIN_USER_ID;
+        const isAdmin = isAdminUser(userId);
 
         // Pending approval branch: no cookie, no user in response.
         // Skip for: admin (ADMIN_USER_ID bypass) and bootstrap first-user.

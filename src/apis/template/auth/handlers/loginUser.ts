@@ -12,6 +12,7 @@ import {
     COOKIE_OPTIONS,
     JWT_EXPIRES_IN,
     getJwtSecret,
+    isAdminUser,
     sanitizeUser,
 } from "../shared";
 import { toStringId } from '@/server/template/utils';
@@ -42,7 +43,7 @@ export const loginUser = async (
         }
 
         const userId = toStringId(user._id);
-        const isAdmin = !!process.env.ADMIN_USER_ID && userId === process.env.ADMIN_USER_ID;
+        const isAdmin = isAdminUser(userId);
 
         // Admin-approved signups gate: block login for any user whose
         // approval is still pending or was rejected. The admin user
