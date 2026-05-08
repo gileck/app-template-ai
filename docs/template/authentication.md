@@ -578,9 +578,10 @@ Lets a logged-out user reset their password via a one-time link delivered throug
 4. `auth/reset-password` hashes the incoming token, looks up an unconsumed/unexpired record, **atomically marks it consumed** (race-safe with `findOneAndUpdate`), updates the user's `password_hash`, invalidates any other outstanding tokens for that user, and sends a Telegram confirmation. On success the user is redirected to sign in.
 
 **Security properties:**
-- **Anti-enumeration**: `auth/request-password-reset` returns the same response whether the username exists, doesn't exist, or exists-but-has-no-Telegram. The Telegram send is fire-and-forget so response time doesn't leak which branch was taken. Internal failures are logged, not surfaced.
+- **Anti-enumeration (response payload)**: `auth/request-password-reset` returns the same `{ success: true }` whether the username exists, doesn't exist, exists-but-not-approved, or exists-but-has-no-Telegram. The Telegram send is fire-and-forget so response time doesn't leak whether Telegram was actually called. **Caveat**: the DB lookup and token-insert paths still differ in cost between branches, so a sophisticated attacker can probe usernames by *response timing* alone. Add upper-bounded random delays or dummy DB work in the early-exit branches if this matters for your threat model.
+- **Approval gate**: pending/rejected users cannot trigger a reset (mirrors the login gate), even though the response looks identical to the user-doesn't-exist case.
 - **Token is never stored in plaintext**: only the SHA-256 hash. A DB compromise does not expose live reset links.
-- **Single-use + TTL**: 30-minute expiry, atomic consumption. Successful reset also invalidates any sibling tokens for the same user.
+- **Single-use + 30-min validity**: tokens are atomically consumed via `findOneAndUpdate` and rejected after `expiresAt`. Successful reset also invalidates any sibling tokens for the same user. **Note**: there is no MongoDB TTL index — consumed/expired token rows accumulate indefinitely. Same pattern as `login_approvals`. Add a TTL index on `expiresAt` (or a sweeper job) if this becomes a storage concern.
 - **Confirmation notification**: a successful reset triggers a follow-up Telegram message so an attacker who manages to intercept a token can't silently take over without the real owner being notified.
 
 **Intentional simplifications (current MVP):**

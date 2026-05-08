@@ -38,6 +38,17 @@ export const requestUserPasswordReset = async (
         }
 
         const userId = toStringId(user._id);
+
+        // Mirror the gate in loginUser.ts: pending or rejected users cannot
+        // sign in, so they must not be able to rotate their password either.
+        // Admin (ADMIN_USER_ID) bypasses the gate just like at login.
+        // Missing approvalStatus is treated as 'approved' for legacy users.
+        const isAdmin = !!process.env.ADMIN_USER_ID && userId === process.env.ADMIN_USER_ID;
+        const status = user.approvalStatus ?? 'approved';
+        if (!isAdmin && status !== 'approved') {
+            console.info('[password-reset] User not approved:', username, status);
+            return { success: true };
+        }
         const { rawToken } = await createPasswordResetToken(userId);
         const resetUrl = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
