@@ -21,6 +21,8 @@ export {
     useRegister,
     useLogout,
     useChangePassword,
+    useRequestPasswordReset,
+    useResetPassword,
     useCurrentUser,
     useInvalidateCurrentUser,
     currentUserQueryKey,

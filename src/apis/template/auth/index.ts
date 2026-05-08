@@ -6,3 +6,5 @@ export const logout = 'auth/logout';
 export const me = 'auth/me';
 export const updateProfile = 'auth/update-profile';
 export const changePassword = 'auth/change-password';
+export const requestPasswordReset = 'auth/request-password-reset';
+export const resetPassword = 'auth/reset-password';

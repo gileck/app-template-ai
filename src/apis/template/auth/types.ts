@@ -84,6 +84,30 @@ export interface ChangePasswordResponse {
     error?: string;
 }
 
+export interface RequestPasswordResetRequest {
+    username: string;
+}
+
+/**
+ * Always returns `{ success: true }` regardless of whether the username
+ * exists or has Telegram configured. This is intentional anti-enumeration:
+ * an unauthenticated attacker must not be able to learn which usernames
+ * are registered or which have Telegram set up.
+ */
+export interface RequestPasswordResetResponse {
+    success: boolean;
+}
+
+export interface ResetPasswordRequest {
+    token: string;
+    newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+    success: boolean;
+    error?: string;
+}
+
 // User data returned to the client (without password)
 export interface UserResponse {
     id: string;

@@ -19,6 +19,7 @@ import { BugFix } from './template/BugFix';
 import { Decision } from './template/Decision';
 import { DesignMocks } from './template/DesignMocks';
 import { LoginApproval } from './template/LoginApproval';
+import { ResetPassword } from './template/ResetPassword';
 import { ItemDetail } from './template/ItemDetail';
 import { WorkflowItems } from './template/Workflow';
 import { UserApprovals } from './template/UserApprovals';
@@ -49,6 +50,9 @@ export const templateRoutes: Routes = {
   // Login approval page (public, full-screen)
   '/login-approval': { component: LoginApproval, public: true, fullScreen: true },
   '/telegram-login-approval': { component: LoginApproval, public: true, fullScreen: true },
+
+  // Forgot-password reset page (public, full-screen, ?token= from Telegram link)
+  '/reset-password': { component: ResetPassword, public: true, fullScreen: true },
 
   // Template protected routes
   '/settings': Settings,

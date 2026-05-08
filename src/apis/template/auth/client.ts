@@ -5,6 +5,8 @@ import {
     logout,
     me,
     register,
+    requestPasswordReset,
+    resetPassword,
     updateProfile
 } from './index';
 import {
@@ -16,6 +18,10 @@ import {
     RegisterRequest,
     RegisterResponse,
     CurrentUserResponse,
+    RequestPasswordResetRequest,
+    RequestPasswordResetResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     UpdateProfileRequest,
     UpdateProfileResponse
 } from './types';
@@ -42,4 +48,12 @@ export const apiUpdateProfile = (params: UpdateProfileRequest) => {
 
 export const apiChangePassword = (params: ChangePasswordRequest) => {
     return apiClient.call<ChangePasswordResponse, ChangePasswordRequest>(changePassword, params);
+};
+
+export const apiRequestPasswordReset = (params: RequestPasswordResetRequest) => {
+    return apiClient.call<RequestPasswordResetResponse, RequestPasswordResetRequest>(requestPasswordReset, params);
+};
+
+export const apiResetPassword = (params: ResetPasswordRequest) => {
+    return apiClient.call<ResetPasswordResponse, ResetPasswordRequest>(resetPassword, params);
 };
