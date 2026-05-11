@@ -2,6 +2,11 @@
 
 This document defines the **required mutation patterns** for this application.
 
+> **Want to skip the wiring?** `useOptimisticMutation` from `@/client/query`
+> bakes the entire pattern in (cancel + snapshot + rollback + errorToast +
+> defensive invalidate). See [use-optimistic-mutation.md](./use-optimistic-mutation.md).
+> Plain `useMutation` is still allowed — the rules below apply to both styles.
+
 ## Core Rule: Optimistic-only
 
 **The UI is the source of truth.**

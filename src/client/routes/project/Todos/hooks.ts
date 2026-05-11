@@ -1,14 +1,18 @@
 /**
  * Todo-specific React Query hooks
- * 
- * These hooks are SIMPLE - no cache config here.
- * - Cache config lives in `src/client/query/defaults.ts`
- * - Offline handling is abstracted at the apiClient level
+ *
+ * Cache config lives in `src/client/query/defaults.ts`; offline handling is
+ * abstracted at the apiClient level.
+ *
+ * Mutations use `useOptimisticMutation` from `@/client/query` which bakes in
+ * the optimistic-only pattern: cancel + snapshot + rollback + defensive
+ * invalidate + errorToast on failure. See docs/template/react-query-mutations.md
+ * and docs/template/use-optimistic-mutation.md.
  */
 
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodo, createTodo, updateTodo, deleteTodo } from '@/apis/project/todos/client';
-import { useQueryDefaults } from '@/client/query/defaults';
+import { useQueryDefaults, useOptimisticMutation } from '@/client/query';
 import { generateId } from '@/client/utils/id';
 import type {
     GetTodosResponse,
@@ -72,13 +76,10 @@ export function useTodo(todoId: string, options?: { enabled?: boolean }) {
 /**
  * Hook to invalidate todos queries
  *
- * ⚠️ USE CASE: This is for NON-OPTIMISTIC operations only:
- * - External updates (websocket events, polling)
- * - Bulk operations where optimistic update is impractical
- * - Manual refresh triggers
- *
- * ❌ DO NOT use in mutation `onSettled` handlers for optimistic updates
- * (see docs/react-query-mutations.md for optimistic-only pattern)
+ * USE CASE: NON-OPTIMISTIC operations only (external updates from websockets,
+ * polling, manual refresh). Do NOT call from a mutation's `onSettled` — use
+ * `useOptimisticMutation` for optimistic flows; it handles invalidation as a
+ * defensive safety net inside `onError`.
  */
 export function useInvalidateTodos() {
     const queryClient = useQueryClient();
@@ -101,62 +102,39 @@ export interface CreateTodoInput {
     dueDate?: string;
 }
 
+type CreateTodoVars = CreateTodoInput & { _id: string };
+
 /**
- * Hook for creating a new todo
- * 
- * Uses OPTIMISTIC CREATE with client-generated ID:
- * - Client generates UUID via generateId()
- * - Server accepts and persists this ID
- * - No temp-ID replacement needed
- * 
- * @see docs/react-query-mutations.md
+ * Hook for creating a new todo.
+ *
+ * Uses client-generated ID via `generateId()` so the optimistic item matches
+ * the persisted item without a temp-ID swap.
  */
 export function useCreateTodo() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (data: CreateTodoInput & { _id: string }) => {
+    return useOptimisticMutation<TodoItemClient | undefined, CreateTodoVars>({
+        mutationFn: async (data) => {
             const response = await createTodo(data);
-            if (response.data?.error) {
-                throw new Error(response.data.error);
-            }
+            if (response.data?.error) throw new Error(response.data.error);
             return response.data?.todo;
         },
-        onMutate: async (variables) => {
-            // Cancel any outgoing refetches
-            await queryClient.cancelQueries({ queryKey: todosQueryKey });
-
-            // Snapshot previous value for rollback
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
-
-            // Optimistically add the new todo
+        affectedKeys: [todosQueryKey],
+        applyOptimistic: (vars, queryClient) => {
             const now = new Date().toISOString();
             const optimisticTodo: TodoItemClient = {
-                _id: variables._id,
-                userId: '', // Will be set by server, not displayed
-                title: variables.title,
+                _id: vars._id,
+                userId: '',
+                title: vars.title,
                 completed: false,
-                dueDate: variables.dueDate,
+                dueDate: vars.dueDate,
                 createdAt: now,
                 updatedAt: now,
             };
-
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return { todos: [optimisticTodo] };
                 return { todos: [...old.todos, optimisticTodo] };
             });
-
-            return { previousTodos };
         },
-        onError: (_err, _variables, context) => {
-            // Rollback on error
-            if (context?.previousTodos) {
-                queryClient.setQueryData(todosQueryKey, context.previousTodos);
-            }
-        },
-        // Optimistic-only: never update from server response
-        onSuccess: () => {},
-        onSettled: () => {},
+        errorMessage: 'Failed to create todo',
     });
 }
 
@@ -192,78 +170,38 @@ export function useCreateTodoWithId() {
  * Hook for updating an existing todo
  */
 export function useUpdateTodo() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (data: UpdateTodoRequest) => {
+    return useOptimisticMutation<TodoItemClient | undefined, UpdateTodoRequest>({
+        mutationFn: async (data) => {
             const response = await updateTodo(data);
-            if (response.data?.error) {
-                throw new Error(response.data.error);
-            }
+            if (response.data?.error) throw new Error(response.data.error);
             return response.data?.todo;
         },
-        onMutate: async (variables) => {
-            // Cancel outgoing refetches for both list and single todo
-            await queryClient.cancelQueries({ queryKey: todosQueryKey });
-            await queryClient.cancelQueries({ queryKey: todoQueryKey(variables.todoId) });
-
-            // Snapshot previous values for rollback
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
-            const previousTodo = queryClient.getQueryData<GetTodoResponse>(todoQueryKey(variables.todoId));
-
-            // Build the update object with proper type handling for dueDate
+        affectedKeys: (vars) => [todosQueryKey, todoQueryKey(vars.todoId)],
+        applyOptimistic: (vars, queryClient) => {
             const updates: Partial<TodoItemClient> = {
                 updatedAt: new Date().toISOString(),
             };
-
-            // Copy over defined fields, converting null to undefined for dueDate
-            if (variables.title !== undefined) {
-                updates.title = variables.title;
-            }
-            if (variables.completed !== undefined) {
-                updates.completed = variables.completed;
-            }
-            if (variables.dueDate !== undefined) {
-                updates.dueDate = variables.dueDate === null ? undefined : variables.dueDate;
+            if (vars.title !== undefined) updates.title = vars.title;
+            if (vars.completed !== undefined) updates.completed = vars.completed;
+            if (vars.dueDate !== undefined) {
+                updates.dueDate = vars.dueDate === null ? undefined : vars.dueDate;
             }
 
-            // Optimistic update for list cache
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return old;
                 return {
                     todos: old.todos.map((todo) =>
-                        todo._id === variables.todoId
-                            ? { ...todo, ...updates }
-                            : todo
+                        todo._id === vars.todoId ? { ...todo, ...updates } : todo,
                     ),
                 };
             });
 
-            // Optimistic update for single todo cache
-            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(variables.todoId), (old) => {
+            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(vars.todoId), (old) => {
                 if (!old?.todo) return old;
-                return {
-                    todo: {
-                        ...old.todo,
-                        ...updates,
-                    }
-                };
+                return { todo: { ...old.todo, ...updates } };
             });
-
-            return { previousTodos, previousTodo };
         },
-        onError: (_err, variables, context) => {
-            // Rollback both caches on error
-            if (context?.previousTodos) {
-                queryClient.setQueryData(todosQueryKey, context.previousTodos);
-            }
-            if (context?.previousTodo) {
-                queryClient.setQueryData(todoQueryKey(variables.todoId), context.previousTodo);
-            }
-        },
-        // Optimistic-only: never update from server response
-        onSuccess: () => {},
-        onSettled: () => {},
+        errorMessage: 'Failed to update todo',
     });
 }
 
@@ -271,49 +209,20 @@ export function useUpdateTodo() {
  * Hook for deleting a todo
  */
 export function useDeleteTodo() {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (data: DeleteTodoRequest) => {
+    return useOptimisticMutation<string, DeleteTodoRequest>({
+        mutationFn: async (data) => {
             const response = await deleteTodo(data);
-            if (response.data?.error) {
-                throw new Error(response.data.error);
-            }
+            if (response.data?.error) throw new Error(response.data.error);
             return data.todoId;
         },
-        onMutate: async (variables) => {
-            // Cancel outgoing refetches for both list and single todo
-            await queryClient.cancelQueries({ queryKey: todosQueryKey });
-            await queryClient.cancelQueries({ queryKey: todoQueryKey(variables.todoId) });
-
-            // Snapshot previous values for rollback
-            const previousTodos = queryClient.getQueryData<GetTodosResponse>(todosQueryKey);
-            const previousTodo = queryClient.getQueryData<GetTodoResponse>(todoQueryKey(variables.todoId));
-
-            // Optimistic update for list cache (remove from list)
+        affectedKeys: (vars) => [todosQueryKey, todoQueryKey(vars.todoId)],
+        applyOptimistic: (vars, queryClient) => {
             queryClient.setQueryData<GetTodosResponse>(todosQueryKey, (old) => {
                 if (!old?.todos) return old;
-                return {
-                    todos: old.todos.filter((todo) => todo._id !== variables.todoId),
-                };
+                return { todos: old.todos.filter((todo) => todo._id !== vars.todoId) };
             });
-
-            // Optimistic update for single todo cache (set to undefined to indicate deleted)
-            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(variables.todoId), undefined);
-
-            return { previousTodos, previousTodo };
+            queryClient.setQueryData<GetTodoResponse>(todoQueryKey(vars.todoId), undefined);
         },
-        onError: (_err, variables, context) => {
-            // Rollback both caches on error
-            if (context?.previousTodos) {
-                queryClient.setQueryData(todosQueryKey, context.previousTodos);
-            }
-            if (context?.previousTodo) {
-                queryClient.setQueryData(todoQueryKey(variables.todoId), context.previousTodo);
-            }
-        },
-        // Optimistic-only: never update from server response
-        onSuccess: () => {},
-        onSettled: () => {},
+        errorMessage: 'Failed to delete todo',
     });
 }

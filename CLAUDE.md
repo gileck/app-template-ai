@@ -143,6 +143,21 @@ Dual-store architecture for PWA with offline support. Use this when managing app
 
 ---
 
+## useOptimisticMutation
+
+Opinionated wrapper around useMutation that bakes in the optimistic-only pattern — cancel, snapshot, rollback, errorToast, and defensive invalidate. Use this when you don't want to wire the same pattern by hand.
+
+**Guidelines:**
+- Prefer `useOptimisticMutation` over hand-rolled `useMutation` for mutations that follow the optimistic-only pattern
+- Declare every cache key the mutation touches in `affectedKeys` — the wrapper snapshots, rolls back, and defensively invalidates each one
+- Use `errorMessage` to provide a domain-specific user-facing message; return `null` from the function form to suppress the toast (rare — only when the call site shows its own dialog)
+- `onSuccess` is for UI side effects only (success toast, navigation, logging). NEVER call `setQueryData` from it — `applyOptimistic` is the source of truth
+- When offline, `apiClient.post` returns `{}` and `onError` never fires — the offline banner is the feedback, not a toast
+
+**Full docs:** [use-optimistic-mutation.md](docs/template/use-optimistic-mutation.md)
+
+---
+
 ## Admin System
 
 Single-admin setup via environment variable. Use this when implementing admin features.
