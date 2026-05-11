@@ -98,6 +98,8 @@ Guidelines for handling and displaying errors across the application. Use this w
 
 **Guidelines:**
 - Use `ErrorDisplay` for route/page errors, `errorToast` for mutations
+- 🚨 EVERY useMutation `onError` MUST call `errorToast(message, err)` — empty `onError` is a silent-failure bug. Rollback alone leaves the user with no explanation.
+- 🚨 Mission-critical flows (signup, payment, onboarding) deserve a blocking failure DIALOG with copyable trace + retry, not just a toast.
 - Never show raw `error.message` — use `cleanErrorMessage()` or `getUserFriendlyMessage()`
 - Stack traces are admin-only
 - Always pass error object to `errorToast` (enables copy)
@@ -115,10 +117,11 @@ Full offline support with optimistic updates. Use this when implementing mutatio
 
 **Guidelines:**
 - CRITICAL: Never update UI from server response — only optimistic updates in `onMutate`
-- Keep `onSuccess` empty
+- Keep `onSuccess` empty (UI side effects like a success toast are fine; never update cache)
 - Keep `onSettled` empty
-- Only rollback in `onError`
-- Mutations must handle empty `{}` responses (offline queue)
+- On error: rollback EVERY cache key `onMutate` wrote to AND call `errorToast(message, err)` to surface the error — empty `onError` is a silent-failure bug
+- Defensive: `invalidateQueries` the affected keys after rollback so a missed rollback key self-corrects on next fetch
+- Mutations must handle empty `{}` responses (offline queue) — when offline, `apiClient.post` returns `{}` and `onError` never fires, so the offline banner is the feedback, not a toast
 
 **Full docs:** [offline-pwa-support.md](docs/template/offline-pwa-support.md)
 
@@ -580,6 +583,7 @@ All UI must be designed for mobile screens first (~400px width). Use this when i
 - No horizontal scroll — content must fit within mobile viewport
 - Use `pb-20` on mobile main to clear fixed bottom navigation
 - Always use semantic color tokens — never hex values or raw Tailwind colors
+- Never use native `<select>` — always use the project's shadcn `Select` component
 
 **Full docs:** [ui-mobile-first-shadcn.md](docs/template/project-guidelines/ui-mobile-first-shadcn.md)
 
@@ -594,6 +598,8 @@ when managing state in the application (client state, server state, offline supp
 - Valid useState: text input, dialog open, in-flight submission, confirm dialog — everything else MUST use Zustand
 - All Zustand stores MUST use `createStore` from `@/client/stores` — direct zustand imports blocked by ESLint
 - NEVER update UI from server response — optimistic-only pattern: update in `onMutate`, rollback in `onError`, empty `onSuccess`/`onSettled`
+- 🚨 EVERY mutation's `onError` MUST call `errorToast(message, err)` to surface the server error. Empty `onError` (or rollback-only `onError`) is a silent-failure bug — see react-query-mutations.md.
+- 🚨 Rollback EVERY cache key `onMutate` wrote to. A missed key = stuck optimistic state (e.g. spinner that never goes away).
 - Default to Zustand persisted — use `inMemoryOnly: true` only for truly transient state
 
 **Full docs:** [state-management-guidelines.md](docs/template/project-guidelines/state-management-guidelines.md)
@@ -712,6 +718,7 @@ when building UI components - MUST use shadcn/ui
 
 **Guidelines:**
 - shadcn/ui is the ONLY component library — never use Material-UI, Ant Design, Chakra, etc.
+- Never use native `<select>` — always use the project's shadcn `Select` component
 - NEVER hardcode colors (`bg-white`, `text-black`, `bg-blue-500`) — always use semantic tokens (`bg-background`, `text-foreground`)
 - Use built-in variants (`variant="outline"`, `size="sm"`) instead of custom styling
 - Use `asChild` for proper component composition (e.g., `DialogTrigger asChild`)
