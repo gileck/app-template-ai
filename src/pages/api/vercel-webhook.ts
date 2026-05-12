@@ -123,7 +123,6 @@ function formatMessage(event: VercelDeploymentEvent): FormattedNotification | nu
       break;
     case 'deployment.succeeded':
     case 'deployment.ready':
-    case 'deployment.promoted':
       lines.push(`✅ *${env} deployment live* — \`${projectName}\``);
       break;
     case 'deployment.error':
