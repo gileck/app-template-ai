@@ -6,7 +6,7 @@ description: Configure Vercel webhook → Telegram deployment notifications for 
 
 Wire Vercel's deployment webhook to this project's `/api/vercel-webhook` handler so every deployment (CLI, dashboard, git push) posts to Telegram. The handler is already shipped in the template — this skill is just the per-project config checklist.
 
-Catches every deploy that the legacy `.github/workflows/deploy-notify.yml` flow misses: `vercel --prod` from your laptop, one-click "Redeploy" from the Vercel dashboard, and any preview from a non-GitHub branch.
+Catches every deploy — `vercel --prod` from your laptop, one-click "Redeploy" from the Vercel dashboard, branch previews without a PR, and standard git-push deploys. This is the canonical deploy-notification path; the previous `.github/workflows/deploy-notify.yml` flow was retired in favor of it.
 
 ---
 
@@ -82,17 +82,6 @@ If nothing arrives, debug with:
 
 ---
 
-## Step 5: (Optional) Disable the legacy GitHub Action
-
-If the direct webhook is working, the GitHub-Actions-based `.github/workflows/deploy-notify.yml` becomes redundant and will double-post on every git-push deploy. Two options:
-
-- **Remove**: `rm .github/workflows/deploy-notify.yml && git commit -am "remove duplicate deploy notify flow"`
-- **Keep as fallback**: leave it; you'll get duplicate messages for git-push deploys but the GitHub flow still works if the webhook is temporarily broken.
-
-The webhook is strictly more comprehensive, so removal is the cleaner choice once you've verified it for ≥1 production deploy.
-
----
-
 ## What lives where
 
 | Piece | Location |
@@ -112,4 +101,3 @@ The webhook is strictly more comprehensive, so removal is the cleaner choice onc
 - [ ] `VERCEL_WEBHOOK_SECRET` set on Vercel (Production + Preview)
 - [ ] Redeployed after env change
 - [ ] Test deploy produced both started + live messages
-- [ ] (Optional) Removed `.github/workflows/deploy-notify.yml` to avoid duplicates
