@@ -20,6 +20,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import { appConfig } from '@/app.config';
 import { sendTelegramNotification } from '@/server/template/telegram';
+import type { InlineKeyboardButton } from '@/server/template/telegram';
 
 export const config = {
   api: {
@@ -34,6 +35,9 @@ interface VercelDeploymentEvent {
   id?: string;
   createdAt?: number;
   payload?: {
+    // `target` can appear at the top level of payload OR nested under deployment
+    // depending on the Vercel event type — check both.
+    target?: 'production' | 'preview' | null;
     deployment?: {
       id?: string;
       name?: string;
@@ -44,6 +48,8 @@ interface VercelDeploymentEvent {
         githubCommitMessage?: string;
         githubCommitAuthorName?: string;
         githubCommitRef?: string;
+        githubOrg?: string;
+        githubRepo?: string;
       };
       inspectorUrl?: string;
     };
@@ -56,6 +62,17 @@ interface VercelDeploymentEvent {
     errorCode?: string;
     errorMessage?: string;
   };
+}
+
+function isProductionDeployment(event: VercelDeploymentEvent): boolean {
+  // 1. Explicit target field — preferred when present.
+  if (event.payload?.target === 'production') return true;
+  if (event.payload?.deployment?.target === 'production') return true;
+  // 2. Fallback: git push to a production branch. Vercel doesn't always set
+  //    `target` on intermediate build events, but the commit ref tells us.
+  const ref = event.payload?.deployment?.meta?.githubCommitRef;
+  if (ref === 'main' || ref === 'master') return true;
+  return false;
 }
 
 async function readRawBody(req: NextApiRequest): Promise<Buffer> {
@@ -74,16 +91,28 @@ function verifySignature(rawBody: Buffer, signature: string, secret: string): bo
   return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
 
-function formatMessage(event: VercelDeploymentEvent): string | null {
+interface FormattedNotification {
+  message: string;
+  buttons?: InlineKeyboardButton[][];
+}
+
+function formatMessage(event: VercelDeploymentEvent): FormattedNotification | null {
   const deployment = event.payload?.deployment;
   if (!deployment) return null;
 
   const projectName = event.payload?.project?.name || deployment.name || 'project';
-  const env = deployment.target === 'production' ? 'Production' : 'Preview';
+  const env = isProductionDeployment(event) ? 'Production' : 'Preview';
   const url = deployment.url ? `https://${deployment.url}` : null;
   const inspectorUrl = deployment.inspectorUrl || event.payload?.links?.deployment;
-  const commitMsg = deployment.meta?.githubCommitMessage?.split('\n')[0];
-  const author = deployment.meta?.githubCommitAuthorName || event.payload?.user?.username;
+  const meta = deployment.meta;
+  const commitMsg = meta?.githubCommitMessage?.split('\n')[0];
+  const author = meta?.githubCommitAuthorName || event.payload?.user?.username;
+
+  // Github commit URL — only when we have all the pieces.
+  const commitUrl =
+    meta?.githubOrg && meta?.githubRepo && meta?.githubCommitSha
+      ? `https://github.com/${meta.githubOrg}/${meta.githubRepo}/commit/${meta.githubCommitSha}`
+      : null;
 
   const lines: string[] = [];
   const trailer: string[] = [];
@@ -94,8 +123,8 @@ function formatMessage(event: VercelDeploymentEvent): string | null {
       break;
     case 'deployment.succeeded':
     case 'deployment.ready':
+    case 'deployment.promoted':
       lines.push(`✅ *${env} deployment live* — \`${projectName}\``);
-      if (url) trailer.push(`🔗 ${url}`);
       break;
     case 'deployment.error':
     case 'deployment.failed':
@@ -117,9 +146,16 @@ function formatMessage(event: VercelDeploymentEvent): string | null {
   if (commitMsg) lines.push(`📝 ${commitMsg}`);
   if (author) lines.push(`👤 ${author}`);
   if (trailer.length > 0) lines.push('', ...trailer);
-  if (inspectorUrl) lines.push(`🔍 ${inspectorUrl}`);
 
-  return lines.join('\n');
+  // Build inline keyboard. URL buttons keep links clickable but out of the
+  // message body — much cleaner than long links in the trailer.
+  const row: InlineKeyboardButton[] = [];
+  if (url) row.push({ text: '🔗 Open', url });
+  if (inspectorUrl) row.push({ text: '🔍 Inspector', url: inspectorUrl });
+  if (commitUrl) row.push({ text: '📋 Commit', url: commitUrl });
+  const buttons = row.length > 0 ? [row] : undefined;
+
+  return { message: lines.join('\n'), buttons };
 }
 
 export default async function handler(
@@ -165,12 +201,15 @@ export default async function handler(
   // Must AWAIT the Telegram send before responding — Vercel's serverless
   // runtime freezes the function instance the moment we ACK, so a
   // fire-and-forget background promise never gets to actually POST.
-  const message = formatMessage(event);
-  if (message) {
+  const notification = formatMessage(event);
+  if (notification) {
     const chatId = process.env.VERCEL_TELEGRAM_CHAT_ID || appConfig.ownerTelegramChatId;
     if (chatId) {
       try {
-        const result = await sendTelegramNotification(chatId, message, { parseMode: 'Markdown' });
+        const result = await sendTelegramNotification(chatId, notification.message, {
+          parseMode: 'Markdown',
+          inlineKeyboard: notification.buttons,
+        });
         if (!result.success) {
           console.warn('[vercel-webhook] telegram send returned error:', result.error);
         }
