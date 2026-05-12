@@ -162,20 +162,25 @@ export default async function handler(
     return;
   }
 
-  // ACK Vercel immediately; Telegram send is fire-and-forget so a slow
-  // Telegram API call can't trigger Vercel's webhook retry storm.
-  res.status(200).json({ ok: true });
-
+  // Must AWAIT the Telegram send before responding — Vercel's serverless
+  // runtime freezes the function instance the moment we ACK, so a
+  // fire-and-forget background promise never gets to actually POST.
   const message = formatMessage(event);
-  if (!message) return;
-
-  const chatId = process.env.VERCEL_TELEGRAM_CHAT_ID || appConfig.ownerTelegramChatId;
-  if (!chatId) {
-    console.warn('[vercel-webhook] no chat ID configured (VERCEL_TELEGRAM_CHAT_ID or ownerTelegramChatId)');
-    return;
+  if (message) {
+    const chatId = process.env.VERCEL_TELEGRAM_CHAT_ID || appConfig.ownerTelegramChatId;
+    if (chatId) {
+      try {
+        const result = await sendTelegramNotification(chatId, message, { parseMode: 'Markdown' });
+        if (!result.success) {
+          console.warn('[vercel-webhook] telegram send returned error:', result.error);
+        }
+      } catch (err) {
+        console.warn('[vercel-webhook] telegram send threw:', err);
+      }
+    } else {
+      console.warn('[vercel-webhook] no chat ID configured (VERCEL_TELEGRAM_CHAT_ID or ownerTelegramChatId)');
+    }
   }
 
-  void sendTelegramNotification(chatId, message, { parseMode: 'Markdown' }).catch((err) => {
-    console.warn('[vercel-webhook] telegram send failed:', err);
-  });
+  res.status(200).json({ ok: true });
 }
