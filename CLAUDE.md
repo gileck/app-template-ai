@@ -335,7 +335,7 @@ Per-user, admin-approved, TTL-bound session gate over every RPC call. Use this w
 **Key Points:**
 - Admin-only in v1 (route `adminOnly: true` + API name `admin/rpc-connections/*`)
 - User clicks Connect → admin approves via Telegram inline button → session is open for `RPC_CONNECTION_TTL_MS` (default 1h)
-- Gate runs inside `callRemote`, transparent to every existing/future caller
+- Gate runs inside `createRpcJob` — covers both `callRemote` waiters and fire-and-forget direct callers
 - AsyncLocalStorage propagates userId — set in `processApiCall`, read in `assertRpcConnection`
 - Disable per-deployment with `RPC_CONNECTION_ENABLED=false`
 - System callers (agents, scripts, the daemon itself) bypass the gate — they run outside an HTTP request and have no AsyncLocalStorage context

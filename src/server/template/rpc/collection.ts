@@ -1,5 +1,6 @@
 import type { Collection, ObjectId } from 'mongodb';
 import { getDb } from '@/server/database/connection';
+import { assertRpcConnection } from './connection-gate';
 import type { RpcJobDocument, RpcJobCreate } from './types';
 
 const COLLECTION_NAME = 'rpc-jobs';
@@ -16,6 +17,9 @@ export async function ensureRpcIndexes(): Promise<void> {
 }
 
 export async function createRpcJob(job: RpcJobCreate): Promise<ObjectId> {
+  // Gate here (not just in callRemote) so direct callers — fire-and-forget
+  // patterns that don't wait for a result — are also gated.
+  await assertRpcConnection();
   const col = await getCollection();
   const result = await col.insertOne(job as unknown as RpcJobDocument);
   return result.insertedId;

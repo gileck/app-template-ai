@@ -1,6 +1,5 @@
 import { resolve } from 'path';
 import { createRpcJob, findRpcJobById, findRecentJob } from './collection';
-import { assertRpcConnection } from './connection-gate';
 import type { CallRemoteOptions, RpcResult } from './types';
 
 const DEFAULT_TIMEOUT_MS = 55_000;
@@ -19,7 +18,8 @@ export async function callRemote<TResult>(
   const pendingPickupTimeoutMs =
     options?.pendingPickupTimeoutMs ?? DEFAULT_PENDING_PICKUP_TIMEOUT_MS;
 
-  await assertRpcConnection();
+  // Connection gate runs inside createRpcJob, so every enqueue (including
+  // direct callers that bypass callRemote) is gated at one boundary.
 
   const resolved = resolve(process.cwd(), handlerPath);
   const allowedBase = resolve(process.cwd(), 'src/server/');

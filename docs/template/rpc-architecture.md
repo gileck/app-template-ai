@@ -59,15 +59,16 @@ src/server/template/rpc/
 
 ### Client (`client.ts`)
 
-`callRemote<TResult>(handlerPath, args, options?)` — called from Vercel server code.
+`callRemote<TResult>(handlerPath, args, options?)` — called from Vercel server code when you want to wait for the result.
 
-- Asserts an active user session via the [connection gate](rpc-connection-gate.md) (bypassed for system callers)
 - Validates resolved path is within `src/server/`
 - Validates file exists on disk
 - Stamps `RPC_SECRET` on the job
-- Inserts pending job into MongoDB (or reuses existing job for same handler+args)
+- Inserts pending job into MongoDB via `createRpcJob` (which gates via the [connection gate](rpc-connection-gate.md)), or reuses an existing job for the same handler+args
 - Polls every 500ms until completed/failed/timeout/no-daemon
 - Defaults: 55s handler timeout, 500ms poll, 1hr DB TTL, 30s `pendingPickupTimeoutMs` (fails fast when no daemon claims the job)
+
+For **fire-and-forget** patterns (long-running daemon jobs whose progress is tracked separately), call `createRpcJob` directly from `@/server/template/rpc/collection`. It's gated by the same connection gate, so direct callers don't bypass authorization.
 
 ### Daemon (`daemon.ts`)
 

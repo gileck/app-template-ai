@@ -10,7 +10,7 @@ related_docs:
 key_points:
   - "Admin-only in v1 (route `adminOnly: true` + API name `admin/rpc-connections/*`)"
   - "User clicks Connect → admin approves via Telegram inline button → session is open for `RPC_CONNECTION_TTL_MS` (default 1h)"
-  - "Gate runs inside `callRemote`, transparent to every existing/future caller"
+  - "Gate runs inside `createRpcJob` — covers both `callRemote` waiters and fire-and-forget direct callers"
   - "AsyncLocalStorage propagates userId — set in `processApiCall`, read in `assertRpcConnection`"
   - "Disable per-deployment with `RPC_CONNECTION_ENABLED=false`"
   - "System callers (agents, scripts, the daemon itself) bypass the gate — they run outside an HTTP request and have no AsyncLocalStorage context"
@@ -90,7 +90,8 @@ Revoked / expired rows are kept as an audit trail. No cron sweeper — see [Lazy
 | `errors.ts` | `RpcConnectionRequiredError` + `RPC_CONNECTION_REQUIRED_CODE` for the API error code. |
 | `config.ts` | `RPC_CONNECTION_ENABLED`, `RPC_CONNECTION_TTL_MS`, `RPC_CONNECTION_PENDING_TIMEOUT_MS`. |
 | `connection-approval.ts` | Sends the Telegram approval message; exports `RPC_CONN_APPROVE_ACTION` / `RPC_CONN_REJECT_ACTION` callback constants. |
-| `client.ts` | `callRemote` invokes `assertRpcConnection()` first thing. Also added `pendingPickupTimeoutMs` to fail fast when the daemon is down. |
+| `collection.ts` | `createRpcJob` invokes `assertRpcConnection()` — the single gate boundary. Every enqueue path is covered. |
+| `client.ts` | `callRemote` no longer gates directly — it calls `createRpcJob`. Added `pendingPickupTimeoutMs` to fail fast when the daemon is down. |
 
 ### API surface (`src/apis/template/rpc-connections/`)
 
@@ -124,19 +125,29 @@ Single page at `/admin/rpc-connection` with three states driven by `useCurrentRp
 
 Restart = `stop` then `connect` (chained), so it requires a *fresh* admin approval. There is intentionally no silent-reapproval path.
 
+## Gate boundary
+
+The gate lives in `createRpcJob`, not in `callRemote`. Reason: child projects use **fire-and-forget** patterns that call `createRpcJob` directly (long-running daemon jobs whose progress is tracked through a separate document, e.g. tunnel start, agent turns). Gating only in `callRemote` would silently leave those paths open. Putting the gate at the enqueue boundary covers every path that triggers daemon execution:
+
+```
+callRemote (wait-for-result)         direct callers (fire-and-forget)
+─────────────────────────────         ────────────────────────────────
+findRecentJob (cache lookup)
+  ↳ cache hit (completed result) ──► return early  (no gate — re-reading already-authorized work)
+  ↳ cache miss                                       │
+createRpcJob ──────────────────────────────────────►─┴── createRpcJob
+                                                         ↳ assertRpcConnection()
+                                                            ↳ storage.getStore() → { userId }
+                                                            ↳ findActiveConnectionForUser(userId)
+                                                            ↳ throw if no row / expired / pending
+                                                         ↳ insertOne(job)
+```
+
+Cache hits in `callRemote` (a previously-authorized completed job) are not re-gated — the work was authorized when triggered; reading the result is not a new privilege.
+
 ## AsyncLocalStorage propagation
 
-The gate has to know who is calling `callRemote`, but threading `userId` through every adapter would mean updating every existing and future caller. Instead, `processApiCall` wraps each handler invocation in `runWithRpcCallContext({ userId })`, and `assertRpcConnection` reads from the store via `AsyncLocalStorage`.
-
-```
-processApiCall                   callRemote
-──────────────                   ──────────
-runWithRpcCallContext({userId},
-  () => handler(params, ctx)) ──►  assertRpcConnection()
-                                     ↳ storage.getStore()  →  { userId }
-                                     ↳ findActiveConnectionForUser(userId)
-                                     ↳ throw if no row / expired / pending
-```
+The gate has to know who is calling, but threading `userId` through every adapter would mean updating every existing and future caller. Instead, `processApiCall` wraps each handler invocation in `runWithRpcCallContext({ userId })`, and `assertRpcConnection` reads from the store via `AsyncLocalStorage`.
 
 ### Bypass rules
 
