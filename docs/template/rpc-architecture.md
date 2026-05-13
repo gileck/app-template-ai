@@ -61,12 +61,13 @@ src/server/template/rpc/
 
 `callRemote<TResult>(handlerPath, args, options?)` — called from Vercel server code.
 
+- Asserts an active user session via the [connection gate](rpc-connection-gate.md) (bypassed for system callers)
 - Validates resolved path is within `src/server/`
 - Validates file exists on disk
 - Stamps `RPC_SECRET` on the job
 - Inserts pending job into MongoDB (or reuses existing job for same handler+args)
-- Polls every 500ms until completed/failed/timeout
-- Defaults: 55s timeout, 500ms poll interval, 1hr TTL
+- Polls every 500ms until completed/failed/timeout/no-daemon
+- Defaults: 55s handler timeout, 500ms poll, 1hr DB TTL, 30s `pendingPickupTimeoutMs` (fails fast when no daemon claims the job)
 
 ### Daemon (`daemon.ts`)
 
@@ -171,3 +172,7 @@ task-cli status
 # Check for stale/failed jobs in MongoDB
 # Jobs auto-expire via TTL index after 1 hour
 ```
+
+## Related
+
+- **[RPC Connection Gate](rpc-connection-gate.md)** — the authorization layer over this transport. Every `callRemote` from a request-bound caller requires an admin-approved session. The gate is bypassed for system callers (agents, scripts, the daemon itself).

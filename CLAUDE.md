@@ -326,6 +326,24 @@ CLI for managing Vercel deployments and env vars. Use this for deployment operat
 
 ---
 
+## RPC Connection Gate
+
+Per-user, admin-approved, TTL-bound session gate over every RPC call. Use this when enabling, configuring, or extending RPC access.
+
+**Summary:** Every `callRemote` is gated behind a session the user has to "Connect" for; an admin approves via Telegram; the session is good for the configured TTL. AsyncLocalStorage propagates userId from the API handler, so every RPC caller is gated transparently with no caller changes.
+
+**Key Points:**
+- Admin-only in v1 (route `adminOnly: true` + API name `admin/rpc-connections/*`)
+- User clicks Connect → admin approves via Telegram inline button → session is open for `RPC_CONNECTION_TTL_MS` (default 1h)
+- Gate runs inside `callRemote`, transparent to every existing/future caller
+- AsyncLocalStorage propagates userId — set in `processApiCall`, read in `assertRpcConnection`
+- Disable per-deployment with `RPC_CONNECTION_ENABLED=false`
+- System callers (agents, scripts, the daemon itself) bypass the gate — they run outside an HTTP request and have no AsyncLocalStorage context
+
+**Docs:** [rpc-connection-gate.md](docs/template/rpc-connection-gate.md), [rpc-architecture.md](docs/template/rpc-architecture.md), [admin.md](docs/template/admin.md), [telegram-notifications.md](docs/template/telegram-notifications.md)
+
+---
+
 ## RPC-over-MongoDB Architecture
 
 Generic remote function execution system for running server code on a local machine via MongoDB. Use this when working with the RPC daemon or adding new remote handlers.
