@@ -157,6 +157,25 @@ export async function endRpcConnection(
   return result ?? null;
 }
 
+/**
+ * Reconcile rows whose stored status is still pending/approved but whose
+ * clock-deadline has passed. Without this the partial unique index would
+ * block a fresh `createRpcConnection` even though `getCurrent` (which
+ * uses lazy expiry) already shows the user as not-connected.
+ */
+export async function expireStaleConnectionForUser(userId: string): Promise<void> {
+  const now = new Date();
+  const collection = await getRpcConnectionsCollection();
+  await collection.updateMany(
+    { userId, status: 'pending', pendingExpiresAt: { $lte: now } },
+    { $set: { status: 'expired', endedReason: 'pending_timeout' } }
+  );
+  await collection.updateMany(
+    { userId, status: 'approved', expiresAt: { $lte: now } },
+    { $set: { status: 'expired', endedReason: 'ttl' } }
+  );
+}
+
 export async function endActiveConnectionForUser(
   userId: string,
   reason: RpcConnectionEndedReason

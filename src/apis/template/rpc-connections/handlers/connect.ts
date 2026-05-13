@@ -3,6 +3,7 @@ import {
   createRpcConnection,
   DuplicateActiveConnectionError,
   endRpcConnection,
+  expireStaleConnectionForUser,
 } from '@/server/database/collections/template/rpc-connections/rpc-connections';
 import { RPC_CONNECTION_PENDING_TIMEOUT_MS } from '@/server/template/rpc/config';
 import { sendRpcConnectionApprovalRequest } from '@/server/template/rpc/connection-approval';
@@ -14,6 +15,11 @@ export const connect = async (
   context: ApiHandlerContext
 ): Promise<ConnectResponse> => {
   if (!context.userId) return { error: 'Not authenticated' };
+
+  // Reconcile any stored-active-but-clock-expired rows. Without this the
+  // partial unique index would block the insert even though getCurrent (lazy
+  // expiry) already shows the user as not-connected.
+  await expireStaleConnectionForUser(context.userId);
 
   let connection;
   try {
