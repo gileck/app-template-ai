@@ -1,5 +1,6 @@
 import { resolve } from 'path';
 import { createRpcJob, findRpcJobById, findRecentJob } from './collection';
+import { assertRpcConnection } from './connection-gate';
 import type { CallRemoteOptions, RpcResult } from './types';
 
 const DEFAULT_TIMEOUT_MS = 55_000;
@@ -14,6 +15,8 @@ export async function callRemote<TResult>(
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
+
+  await assertRpcConnection();
 
   const resolved = resolve(process.cwd(), handlerPath);
   const allowedBase = resolve(process.cwd(), 'src/server/');

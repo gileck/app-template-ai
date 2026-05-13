@@ -23,6 +23,7 @@ import { adminUsersApiHandlers } from "./template/admin-users/server";
 import { pushNotificationsApiHandlers } from "./template/push-notifications/server";
 import { mongoExplorerApiHandlers } from "./template/mongo-explorer/server";
 import { adminSessionsApiHandlers } from "./template/admin-sessions/server";
+import { rpcConnectionsApiHandlers } from "./template/rpc-connections/server";
 
 export const templateApiHandlers = mergeApiHandlers(
   clearCacheApiHandlers,
@@ -39,5 +40,6 @@ export const templateApiHandlers = mergeApiHandlers(
   adminUsersApiHandlers,
   pushNotificationsApiHandlers,
   mongoExplorerApiHandlers,
-  adminSessionsApiHandlers
+  adminSessionsApiHandlers,
+  rpcConnectionsApiHandlers
 );

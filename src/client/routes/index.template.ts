@@ -19,6 +19,7 @@ import { BugFix } from './template/BugFix';
 import { Decision } from './template/Decision';
 import { DesignMocks } from './template/DesignMocks';
 import { LoginApproval } from './template/LoginApproval';
+import { Connection } from './template/Connection';
 import { ResetPassword } from './template/ResetPassword';
 import { ItemDetail } from './template/ItemDetail';
 import { WorkflowItems } from './template/Workflow';
@@ -73,6 +74,7 @@ export const templateRoutes: Routes = {
   '/admin/mongo-explorer': MongoExplorer,
   '/admin/mongo-explorer/:collectionName': MongoExplorer,
   '/admin/mongo-explorer/:collectionName/:documentKey': MongoExplorer,
+  '/admin/rpc-connection': { component: Connection, adminOnly: true },
 
   // Fallback
   '/not-found': NotFound,

@@ -146,7 +146,11 @@ export interface ApiHandlerContext {
     isAdmin: boolean;
     /** Debug info about auth state - useful for diagnosing auth failures */
     authDebug: AuthDebugInfo;
+    /** Originating user-agent header (may be undefined for non-HTTP callers). */
+    userAgent?: string;
+    /** Best-effort originating IP (X-Forwarded-For first hop, falls back to socket address). */
+    ip?: string;
     getCookieValue: (name: string) => string | undefined;
     setCookie: (name: string, value: string, options: Record<string, unknown>) => void;
     clearCookie: (name: string, options: Record<string, unknown>) => void;
-} 
+}
