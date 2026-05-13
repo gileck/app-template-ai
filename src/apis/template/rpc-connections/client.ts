@@ -3,6 +3,7 @@ import {
   API_RPC_CONNECTION_CONNECT,
   API_RPC_CONNECTION_GET_CURRENT,
   API_RPC_CONNECTION_STOP,
+  API_RPC_CONNECTION_TEST,
 } from './index';
 import type {
   ConnectRequest,
@@ -11,6 +12,8 @@ import type {
   GetCurrentResponse,
   StopRequest,
   StopResponse,
+  TestRpcRequest,
+  TestRpcResponse,
 } from './types';
 
 export const apiConnectRpc = () =>
@@ -29,4 +32,10 @@ export const apiStopRpcConnection = () =>
   apiClient.call<StopResponse, StopRequest>(
     API_RPC_CONNECTION_STOP,
     {} as StopRequest
+  );
+
+export const apiTestRpc = (params: TestRpcRequest = {}) =>
+  apiClient.call<TestRpcResponse, TestRpcRequest>(
+    API_RPC_CONNECTION_TEST,
+    params
   );

@@ -6,6 +6,7 @@ import type { CallRemoteOptions, RpcResult } from './types';
 const DEFAULT_TIMEOUT_MS = 55_000;
 const DEFAULT_POLL_INTERVAL_MS = 500;
 const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour
+const DEFAULT_PENDING_PICKUP_TIMEOUT_MS = 30_000;
 
 export async function callRemote<TResult>(
   handlerPath: string,
@@ -15,6 +16,8 @@ export async function callRemote<TResult>(
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pollIntervalMs = options?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
+  const pendingPickupTimeoutMs =
+    options?.pendingPickupTimeoutMs ?? DEFAULT_PENDING_PICKUP_TIMEOUT_MS;
 
   await assertRpcConnection();
 
@@ -78,6 +81,15 @@ export async function callRemote<TResult>(
 
     if (handlerStart && Date.now() - handlerStart >= timeoutMs) {
       throw new Error(`RPC call to "${handlerPath}" timed out after ${timeoutMs}ms (handler execution time)`);
+    }
+
+    if (
+      job.status === 'pending' &&
+      Date.now() - start >= pendingPickupTimeoutMs
+    ) {
+      throw new Error(
+        `No RPC daemon picked up the job within ${pendingPickupTimeoutMs}ms — is \`yarn daemon\` running?`
+      );
     }
   }
 }

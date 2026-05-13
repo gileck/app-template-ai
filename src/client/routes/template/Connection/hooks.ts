@@ -1,14 +1,16 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   apiConnectRpc,
   apiGetCurrentRpcConnection,
   apiStopRpcConnection,
+  apiTestRpc,
 } from '@/apis/template/rpc-connections/client';
 import type {
   ConnectResponse,
   GetCurrentResponse,
   RpcConnectionView,
   StopResponse,
+  TestRpcResponse,
 } from '@/apis/template/rpc-connections/types';
 import { useQueryDefaults } from '@/client/query';
 import { useOptimisticMutation } from '@/client/query';
@@ -69,5 +71,17 @@ export function useStopRpc() {
     },
     errorMessage: (err) =>
       err instanceof Error ? err.message : 'Failed to stop RPC connection',
+  });
+}
+
+export function useTestRpc() {
+  return useMutation<TestRpcResponse, Error, string | undefined>({
+    mutationFn: async (message) => {
+      const result = await apiTestRpc(message ? { message } : {});
+      const data = result.data as TestRpcResponse | undefined;
+      if (!data) throw new Error('Empty response');
+      if (data.error && !data.ok) throw new Error(data.error);
+      return data;
+    },
   });
 }

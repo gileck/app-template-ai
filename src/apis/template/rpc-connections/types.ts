@@ -37,3 +37,16 @@ export type StopRequest = Record<string, never>;
 export interface StopResponse {
   success: boolean;
 }
+
+export interface TestRpcRequest {
+  message?: string;
+}
+
+export interface TestRpcResponse {
+  ok: boolean;
+  echo?: string;
+  handlerTimestamp?: string;
+  handlerHost?: string | null;
+  durationMs?: number;
+  error?: string;
+}
