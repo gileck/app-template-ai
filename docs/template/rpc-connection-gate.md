@@ -1,7 +1,7 @@
 ---
 title: RPC Connection Gate
 description: Per-user, admin-approved, TTL-bound session gate over every RPC call. Use this when enabling, configuring, or extending RPC access.
-summary: Every `callRemote` is gated behind a session the user has to "Connect" for; an admin approves via Telegram; the session is good for the configured TTL. AsyncLocalStorage propagates userId from the API handler, so every RPC caller is gated transparently with no caller changes.
+summary: Every `callRemote` (and direct `createRpcJob` call) is gated behind an admin-approved session, bound to a per-connection bearer token issued at Connect time. AsyncLocalStorage propagates the user id + token from the API handler, so every RPC caller is gated transparently with no caller changes. A cookie alone can't impersonate an approved session — the device-local token is required too.
 priority: 5
 related_docs:
   - rpc-architecture.md
@@ -9,9 +9,11 @@ related_docs:
   - telegram-notifications.md
 key_points:
   - "Admin-only in v1 (route `adminOnly: true` + API name `admin/rpc-connections/*`)"
+  - "Gate is scoped to (userId, clientToken) — the token is issued once on Connect and sent as `X-RPC-Connection-Token` on every API call"
   - "User clicks Connect → admin approves via Telegram inline button → session is open for `RPC_CONNECTION_TTL_MS` (default 1h)"
   - "Gate runs inside `createRpcJob` — covers both `callRemote` waiters and fire-and-forget direct callers"
-  - "AsyncLocalStorage propagates userId — set in `processApiCall`, read in `assertRpcConnection`"
+  - "AsyncLocalStorage propagates `{userId, clientToken}` — set in `processApiCall`, read in `assertRpcConnection`"
+  - "Connect always supersedes any prior session for the user (fresh row, fresh token); Stop revokes immediately"
   - "Disable per-deployment with `RPC_CONNECTION_ENABLED=false`"
   - "System callers (agents, scripts, the daemon itself) bypass the gate — they run outside an HTTP request and have no AsyncLocalStorage context"
 ---
@@ -65,6 +67,7 @@ Collection: `rpc_connections` at `src/server/database/collections/template/rpc-c
 interface RpcConnection {
   _id: ObjectId;
   userId: string;
+  clientToken: string;      // per-connection bearer token, returned once on Connect
   status: 'pending' | 'approved' | 'revoked' | 'expired';
   requestedAt: Date;
   approvedAt?: Date;        // approved sessions
@@ -125,6 +128,18 @@ Single page at `/admin/rpc-connection` with three states driven by `useCurrentRp
 
 Restart = `stop` then `connect` (chained), so it requires a *fresh* admin approval. There is intentionally no silent-reapproval path.
 
+## Per-connection bearer token
+
+Connect issues a cryptographically random `clientToken` (32 bytes hex), stored on the row and returned **once** in the connect response. The client persists it in localStorage and sends it on every API call as `X-RPC-Connection-Token`. The gate matches on `{userId, clientToken}`, so:
+
+- Stealing the cookie alone is not enough — the device's localStorage is also required.
+- A new Connect issues a new token; the old one is dead.
+- Stop revokes the row immediately, killing the token before TTL.
+- `getCurrent` is scoped to the supplied token: if the client lost it, the UI correctly shows "Not connected" even if a server-side row still exists.
+- The token is *only* surfaced on Connect — never re-emitted. A stolen cookie can't fish it out later.
+
+`Connect` always supersedes any prior session for the user (force-revoke + new row), so a client that lost its token can recover by clicking Connect without needing to Stop first.
+
 ## Gate boundary
 
 The gate lives in `createRpcJob`, not in `callRemote`. Reason: child projects use **fire-and-forget** patterns that call `createRpcJob` directly (long-running daemon jobs whose progress is tracked through a separate document, e.g. tunnel start, agent turns). Gating only in `callRemote` would silently leave those paths open. Putting the gate at the enqueue boundary covers every path that triggers daemon execution:
@@ -153,7 +168,8 @@ The gate has to know who is calling, but threading `userId` through every adapte
 
 | Caller type | What `storage.getStore()` returns | Gate behavior |
 |---|---|---|
-| HTTP request, authenticated user | `{ userId: 'user_abc' }` | Look up session, throw if no active row or expired. |
+| HTTP request, authenticated user + token | `{ userId, clientToken }` | Look up session by both, throw if no match / expired / pending. |
+| HTTP request, no token | `{ userId, clientToken: undefined }` | Throw "no connection token in request." |
 | HTTP request, no auth | `{ userId: undefined }` | Throw "no authenticated user in request context." |
 | System code (agent, script, daemon) | `undefined` (no ALS context) | **Bypass** — system callers run outside an HTTP request and shouldn't be gated. |
 | Explicit bypass (any caller) | `{ bypass: true }` | Bypass. Use sparingly. |

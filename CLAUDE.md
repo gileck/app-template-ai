@@ -330,13 +330,15 @@ CLI for managing Vercel deployments and env vars. Use this for deployment operat
 
 Per-user, admin-approved, TTL-bound session gate over every RPC call. Use this when enabling, configuring, or extending RPC access.
 
-**Summary:** Every `callRemote` is gated behind a session the user has to "Connect" for; an admin approves via Telegram; the session is good for the configured TTL. AsyncLocalStorage propagates userId from the API handler, so every RPC caller is gated transparently with no caller changes.
+**Summary:** Every `callRemote` (and direct `createRpcJob` call) is gated behind an admin-approved session, bound to a per-connection bearer token issued at Connect time. AsyncLocalStorage propagates the user id + token from the API handler, so every RPC caller is gated transparently with no caller changes. A cookie alone can't impersonate an approved session — the device-local token is required too.
 
 **Key Points:**
 - Admin-only in v1 (route `adminOnly: true` + API name `admin/rpc-connections/*`)
+- Gate is scoped to (userId, clientToken) — the token is issued once on Connect and sent as `X-RPC-Connection-Token` on every API call
 - User clicks Connect → admin approves via Telegram inline button → session is open for `RPC_CONNECTION_TTL_MS` (default 1h)
 - Gate runs inside `createRpcJob` — covers both `callRemote` waiters and fire-and-forget direct callers
-- AsyncLocalStorage propagates userId — set in `processApiCall`, read in `assertRpcConnection`
+- AsyncLocalStorage propagates `{userId, clientToken}` — set in `processApiCall`, read in `assertRpcConnection`
+- Connect always supersedes any prior session for the user (fresh row, fresh token); Stop revokes immediately
 - Disable per-deployment with `RPC_CONNECTION_ENABLED=false`
 - System callers (agents, scripts, the daemon itself) bypass the gate — they run outside an HTTP request and have no AsyncLocalStorage context
 

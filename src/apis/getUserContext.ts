@@ -16,7 +16,11 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 
-function extractClientMetadata(req: NextApiRequest): { userAgent?: string; ip?: string } {
+function extractClientMetadata(req: NextApiRequest): {
+  userAgent?: string;
+  ip?: string;
+  rpcConnectionToken?: string;
+} {
   const uaHeader = req.headers['user-agent'];
   const userAgent = Array.isArray(uaHeader) ? uaHeader[0] : uaHeader;
 
@@ -24,12 +28,15 @@ function extractClientMetadata(req: NextApiRequest): { userAgent?: string; ip?: 
   const forwardedStr = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   const ip = forwardedStr?.split(',')[0]?.trim() || req.socket?.remoteAddress;
 
-  return { userAgent, ip };
+  const tokenHeader = req.headers['x-rpc-connection-token'];
+  const rpcConnectionToken = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
+
+  return { userAgent, ip, rpcConnectionToken };
 }
 
 export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
   const cookies = parse(req.headers.cookie || '');
-  const { userAgent, ip } = extractClientMetadata(req);
+  const { userAgent, ip, rpcConnectionToken } = extractClientMetadata(req);
 
   // Bearer-token auth path: used by SDKs/agents. Requires X-On-Behalf-Of.
   // Checked before dev-mode LOCAL_USER_ID shortcut so SDKs can test locally.
@@ -47,18 +54,18 @@ export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
 
     if (!expected) {
       tokenAuthDebug.tokenError = 'admin_token_not_configured';
-      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, ...noopHelpers };
+      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, rpcConnectionToken, ...noopHelpers };
     }
     if (!safeEqual(presented, expected)) {
       tokenAuthDebug.tokenError = 'invalid_bearer';
-      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, ...noopHelpers };
+      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, rpcConnectionToken, ...noopHelpers };
     }
 
     const onBehalfOfRaw = req.headers[ON_BEHALF_OF_HEADER];
     const onBehalfOf = Array.isArray(onBehalfOfRaw) ? onBehalfOfRaw[0] : onBehalfOfRaw;
     if (!onBehalfOf) {
       tokenAuthDebug.tokenError = 'missing_on_behalf_of';
-      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, ...noopHelpers };
+      return { userId: undefined, isAdmin: false, authDebug: tokenAuthDebug, userAgent, ip, rpcConnectionToken, ...noopHelpers };
     }
 
     return {
@@ -67,6 +74,7 @@ export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
       authDebug: tokenAuthDebug,
       userAgent,
       ip,
+      rpcConnectionToken,
       ...noopHelpers,
     };
   }
@@ -84,6 +92,7 @@ export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
       authDebug: { cookiePresent: true } as AuthDebugInfo,
       userAgent,
       ip,
+      rpcConnectionToken,
       getCookieValue: () => undefined,
       setCookie: () => undefined,
       clearCookie: () => undefined
@@ -130,6 +139,7 @@ export function getUserContext(req: NextApiRequest, res: NextApiResponse) {
     authDebug,
     userAgent,
     ip,
+    rpcConnectionToken,
     getCookieValue: (name: string) => cookies[name],
     setCookie: (name: string, value: string, options: Record<string, unknown>) => {
       res.setHeader('Set-Cookie', serialize(name, value, options as Record<string, string | number | boolean>));

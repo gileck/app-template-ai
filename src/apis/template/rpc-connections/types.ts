@@ -23,6 +23,8 @@ export type ConnectRequest = Record<string, never>;
 
 export interface ConnectResponse {
   connection?: RpcConnectionView;
+  /** Per-connection bearer token. Returned only on connect; the client must persist it. */
+  clientToken?: string;
   error?: string;
 }
 

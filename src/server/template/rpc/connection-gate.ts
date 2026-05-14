@@ -1,10 +1,12 @@
 import { AsyncLocalStorage } from 'async_hooks';
-import { findActiveConnectionForUser } from '@/server/database/collections/template/rpc-connections/rpc-connections';
+import { findActiveConnectionForUserByToken } from '@/server/database/collections/template/rpc-connections/rpc-connections';
 import { RPC_CONNECTION_ENABLED } from './config';
 import { RpcConnectionRequiredError } from './errors';
 
 export interface RpcCallContext {
   userId?: string;
+  /** Per-connection bearer token (X-RPC-Connection-Token header). */
+  clientToken?: string;
   /** Set by system callers (agents, scripts, daemon) that legitimately run outside an HTTP request and shouldn't be gated. */
   bypass?: boolean;
 }
@@ -35,7 +37,13 @@ export async function assertRpcConnection(): Promise<void> {
     );
   }
 
-  const active = await findActiveConnectionForUser(ctx.userId);
+  if (!ctx.clientToken) {
+    throw new RpcConnectionRequiredError(
+      'RPC connection required: no connection token in request.'
+    );
+  }
+
+  const active = await findActiveConnectionForUserByToken(ctx.userId, ctx.clientToken);
   if (!active) throw new RpcConnectionRequiredError();
 
   if (active.status === 'pending') {

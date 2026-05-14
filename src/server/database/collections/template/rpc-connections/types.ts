@@ -15,6 +15,12 @@ export type RpcConnectionEndedReason =
 export interface RpcConnection {
   _id: ObjectId;
   userId: string;
+  /**
+   * Per-connection bearer token. Generated at insert, returned to the client
+   * once via the connect response, and required on every gated RPC call.
+   * Lets a stolen cookie alone not impersonate an approved session.
+   */
+  clientToken: string;
   status: RpcConnectionStatus;
   requestedAt: Date;
   approvedAt?: Date;

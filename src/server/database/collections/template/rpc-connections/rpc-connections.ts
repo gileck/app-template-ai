@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Collection, ObjectId } from 'mongodb';
 import { getDb } from '../../../connection';
 import type {
@@ -22,14 +23,21 @@ async function getRpcConnectionsCollection(): Promise<Collection<RpcConnection>>
 
   // Promise-based memo so concurrent first-callers share one createIndex.
   if (!indexesEnsured) {
-    indexesEnsured = collection.createIndex(
-      { userId: 1 },
-      {
-        unique: true,
-        partialFilterExpression: { status: { $in: [...ACTIVE_STATUSES] } },
-        name: 'rpc_connections_active_user_unique',
-      }
-    ).then(() => undefined);
+    indexesEnsured = Promise.all([
+      collection.createIndex(
+        { userId: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { status: { $in: [...ACTIVE_STATUSES] } },
+          name: 'rpc_connections_active_user_unique',
+        }
+      ),
+      // Token lookup index — sparse so legacy rows (pre-token) don't conflict.
+      collection.createIndex(
+        { clientToken: 1 },
+        { sparse: true, name: 'rpc_connections_client_token' }
+      ),
+    ]).then(() => undefined);
   }
   await indexesEnsured;
 
@@ -63,6 +71,7 @@ export async function createRpcConnection(
   const document: RpcConnection = {
     _id: new ObjectId(),
     userId: params.userId,
+    clientToken: randomBytes(32).toString('hex'),
     status: 'pending',
     requestedAt: now,
     pendingExpiresAt: new Date(now.getTime() + params.pendingTtlMs),
@@ -79,6 +88,23 @@ export async function createRpcConnection(
     throw err;
   }
   return document;
+}
+
+/**
+ * Token-scoped variant used by the gate. Returns the row only if the
+ * supplied token matches an active row for this user. Used to enforce
+ * "only the device that received the approval can use the session."
+ */
+export async function findActiveConnectionForUserByToken(
+  userId: string,
+  clientToken: string
+): Promise<RpcConnection | null> {
+  const collection = await getRpcConnectionsCollection();
+  return collection.findOne({
+    userId,
+    clientToken,
+    status: { $in: [...ACTIVE_STATUSES] },
+  });
 }
 
 export async function findActiveConnectionForUser(

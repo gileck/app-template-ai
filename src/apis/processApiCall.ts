@@ -66,8 +66,9 @@ export const processApiCall = async (
   // can identify the calling user without every callRemote caller having
   // to thread userId through.
   const processInRpcContext = () =>
-    runWithRpcCallContext({ userId: userContext.userId }, () =>
-      Promise.resolve(processWithContext())
+    runWithRpcCallContext(
+      { userId: userContext.userId, clientToken: userContext.rpcConnectionToken },
+      () => Promise.resolve(processWithContext())
     );
 
   try {

@@ -150,6 +150,8 @@ export interface ApiHandlerContext {
     userAgent?: string;
     /** Best-effort originating IP (X-Forwarded-For first hop, falls back to socket address). */
     ip?: string;
+    /** Per-connection RPC bearer token (X-RPC-Connection-Token header). Required for gated RPC calls. */
+    rpcConnectionToken?: string;
     getCookieValue: (name: string) => string | undefined;
     setCookie: (name: string, value: string, options: Record<string, unknown>) => void;
     clearCookie: (name: string, options: Record<string, unknown>) => void;

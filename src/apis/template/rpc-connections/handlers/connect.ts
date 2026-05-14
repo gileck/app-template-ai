@@ -1,7 +1,7 @@
 import type { ApiHandlerContext } from '@/apis/template/auth/types';
 import {
   createRpcConnection,
-  DuplicateActiveConnectionError,
+  endActiveConnectionForUser,
   endRpcConnection,
   expireStaleConnectionForUser,
 } from '@/server/database/collections/template/rpc-connections/rpc-connections';
@@ -16,25 +16,19 @@ export const connect = async (
 ): Promise<ConnectResponse> => {
   if (!context.userId) return { error: 'Not authenticated' };
 
-  // Reconcile any stored-active-but-clock-expired rows. Without this the
-  // partial unique index would block the insert even though getCurrent (lazy
-  // expiry) already shows the user as not-connected.
+  // Connect = "give me a fresh approved session". Any prior row is
+  // superseded: stale-by-clock rows are tidied to 'expired', a still-active
+  // row is force-revoked (its token dies with it). Without this the partial
+  // unique index would block the new insert.
   await expireStaleConnectionForUser(context.userId);
+  await endActiveConnectionForUser(context.userId, 'user_stop');
 
-  let connection;
-  try {
-    connection = await createRpcConnection({
-      userId: context.userId,
-      userAgent: context.userAgent ?? 'unknown',
-      ip: context.ip ?? 'unknown',
-      pendingTtlMs: RPC_CONNECTION_PENDING_TIMEOUT_MS,
-    });
-  } catch (err) {
-    if (err instanceof DuplicateActiveConnectionError) {
-      return { error: 'You already have an active or pending connection. Stop it first to reconnect.' };
-    }
-    throw err;
-  }
+  const connection = await createRpcConnection({
+    userId: context.userId,
+    userAgent: context.userAgent ?? 'unknown',
+    ip: context.ip ?? 'unknown',
+    pendingTtlMs: RPC_CONNECTION_PENDING_TIMEOUT_MS,
+  });
 
   const sent = await sendRpcConnectionApprovalRequest(connection);
   if (!sent.success) {
@@ -44,5 +38,8 @@ export const connect = async (
     return { error: sent.error ?? 'Failed to send approval request to admin.' };
   }
 
-  return { connection: toRpcConnectionView(connection) };
+  return {
+    connection: toRpcConnectionView(connection),
+    clientToken: connection.clientToken,
+  };
 };
