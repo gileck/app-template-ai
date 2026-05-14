@@ -2,6 +2,7 @@ import apiClient from '@/client/utils/apiClient';
 import {
   API_RPC_CONNECTION_CONNECT,
   API_RPC_CONNECTION_GET_CURRENT,
+  API_RPC_CONNECTION_LIST_HISTORY,
   API_RPC_CONNECTION_STOP,
   API_RPC_CONNECTION_TEST,
 } from './index';
@@ -10,6 +11,8 @@ import type {
   ConnectResponse,
   GetCurrentRequest,
   GetCurrentResponse,
+  ListHistoryRequest,
+  ListHistoryResponse,
   StopRequest,
   StopResponse,
   TestRpcRequest,
@@ -37,5 +40,11 @@ export const apiStopRpcConnection = () =>
 export const apiTestRpc = (params: TestRpcRequest = {}) =>
   apiClient.call<TestRpcResponse, TestRpcRequest>(
     API_RPC_CONNECTION_TEST,
+    params
+  );
+
+export const apiListRpcHistory = (params: ListHistoryRequest = {}) =>
+  apiClient.call<ListHistoryResponse, ListHistoryRequest>(
+    API_RPC_CONNECTION_LIST_HISTORY,
     params
   );

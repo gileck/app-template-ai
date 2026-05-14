@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   apiConnectRpc,
   apiGetCurrentRpcConnection,
+  apiListRpcHistory,
   apiStopRpcConnection,
   apiTestRpc,
 } from '@/apis/template/rpc-connections/client';
 import type {
   ConnectResponse,
   GetCurrentResponse,
+  ListHistoryResponse,
   RpcConnectionView,
   StopResponse,
   TestRpcResponse,
@@ -93,5 +95,20 @@ export function useTestRpc() {
       if (data.error && !data.ok) throw new Error(data.error);
       return data;
     },
+  });
+}
+
+const rpcConnectionHistoryQueryKey = ['rpc-connections', 'history'] as const;
+
+export function useRpcConnectionHistory(limit = 50) {
+  const queryDefaults = useQueryDefaults();
+  return useQuery({
+    queryKey: [...rpcConnectionHistoryQueryKey, limit],
+    queryFn: async (): Promise<RpcConnectionView[]> => {
+      const result = await apiListRpcHistory({ limit });
+      const data = result.data as ListHistoryResponse | undefined;
+      return data?.connections ?? [];
+    },
+    ...queryDefaults,
   });
 }

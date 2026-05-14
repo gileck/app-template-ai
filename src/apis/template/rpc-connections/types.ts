@@ -5,6 +5,7 @@ import type {
 
 export interface RpcConnectionView {
   id: string;
+  userId: string;
   status: RpcConnectionStatus;
   /** ISO date */
   requestedAt: string;
@@ -14,8 +15,12 @@ export interface RpcConnectionView {
   expiresAt?: string;
   /** ISO date — pending sessions: admin-response deadline */
   pendingExpiresAt: string;
+  /** ISO date — set when status transitions to revoked or expired */
+  endedAt?: string;
   userAgent: string;
   ip: string;
+  /** Resolved at list time from the users collection; falls back to userId if not found. */
+  requestedByUsername?: string;
   endedReason?: RpcConnectionEndedReason;
 }
 
@@ -51,4 +56,12 @@ export interface TestRpcResponse {
   handlerHost?: string | null;
   durationMs?: number;
   error?: string;
+}
+
+export interface ListHistoryRequest {
+  limit?: number;
+}
+
+export interface ListHistoryResponse {
+  connections: RpcConnectionView[];
 }

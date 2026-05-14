@@ -26,6 +26,8 @@ export interface RpcConnection {
   approvedAt?: Date;
   expiresAt?: Date;
   pendingExpiresAt: Date;
+  /** Set when the row transitions to revoked or expired. */
+  endedAt?: Date;
   userAgent: string;
   ip: string;
   endedReason?: RpcConnectionEndedReason;

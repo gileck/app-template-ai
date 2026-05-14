@@ -37,6 +37,11 @@ async function getRpcConnectionsCollection(): Promise<Collection<RpcConnection>>
         { clientToken: 1 },
         { sparse: true, name: 'rpc_connections_client_token' }
       ),
+      // History listing — newest-first per user.
+      collection.createIndex(
+        { userId: 1, requestedAt: -1 },
+        { name: 'rpc_connections_user_history' }
+      ),
     ]).then(() => undefined);
   }
   await indexesEnsured;
@@ -158,7 +163,7 @@ export async function rejectPendingRpcConnection(
   const collection = await getRpcConnectionsCollection();
   const result = await collection.findOneAndUpdate(
     { _id: objectId, status: 'pending' },
-    { $set: { status: 'revoked', endedReason: 'admin_reject' } },
+    { $set: { status: 'revoked', endedReason: 'admin_reject', endedAt: new Date() } },
     { returnDocument: 'after' }
   );
   return result ?? null;
@@ -177,7 +182,7 @@ export async function endRpcConnection(
   const collection = await getRpcConnectionsCollection();
   const result = await collection.findOneAndUpdate(
     { _id: objectId, status: { $in: [...ACTIVE_STATUSES] } },
-    { $set: { status: nextStatus, endedReason: reason } },
+    { $set: { status: nextStatus, endedReason: reason, endedAt: new Date() } },
     { returnDocument: 'after' }
   );
   return result ?? null;
@@ -194,11 +199,11 @@ export async function expireStaleConnectionForUser(userId: string): Promise<void
   const collection = await getRpcConnectionsCollection();
   await collection.updateMany(
     { userId, status: 'pending', pendingExpiresAt: { $lte: now } },
-    { $set: { status: 'expired', endedReason: 'pending_timeout' } }
+    { $set: { status: 'expired', endedReason: 'pending_timeout', endedAt: now } }
   );
   await collection.updateMany(
     { userId, status: 'approved', expiresAt: { $lte: now } },
-    { $set: { status: 'expired', endedReason: 'ttl' } }
+    { $set: { status: 'expired', endedReason: 'ttl', endedAt: now } }
   );
 }
 
@@ -212,8 +217,20 @@ export async function endActiveConnectionForUser(
   const collection = await getRpcConnectionsCollection();
   const result = await collection.findOneAndUpdate(
     { userId, status: { $in: [...ACTIVE_STATUSES] } },
-    { $set: { status: nextStatus, endedReason: reason } },
+    { $set: { status: nextStatus, endedReason: reason, endedAt: new Date() } },
     { returnDocument: 'after' }
   );
   return result ?? null;
+}
+
+export async function listConnectionsForUser(
+  userId: string,
+  limit = 50
+): Promise<RpcConnection[]> {
+  const collection = await getRpcConnectionsCollection();
+  return collection
+    .find({ userId })
+    .sort({ requestedAt: -1 })
+    .limit(Math.max(1, Math.min(limit, 200)))
+    .toArray();
 }
