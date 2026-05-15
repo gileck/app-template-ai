@@ -5,6 +5,7 @@ import {
   endRpcConnection,
   expireStaleConnectionForUser,
 } from '@/server/database/collections/template/rpc-connections/rpc-connections';
+import { isDaemonAlive } from '@/server/database/collections/template/rpc-daemon-status/daemon-status';
 import { RPC_CONNECTION_PENDING_TIMEOUT_MS } from '@/server/template/rpc/config';
 import { sendRpcConnectionApprovalRequest } from '@/server/template/rpc/connection-approval';
 import type { ConnectRequest, ConnectResponse } from '../types';
@@ -15,6 +16,14 @@ export const connect = async (
   context: ApiHandlerContext
 ): Promise<ConnectResponse> => {
   if (!context.userId) return { error: 'Not authenticated' };
+
+  // Daemon liveness precheck — don't waste an admin approval on a session
+  // that can't actually execute any handler.
+  if (!(await isDaemonAlive())) {
+    return {
+      error: 'RPC daemon is offline. Start it with `yarn daemon` before connecting.',
+    };
+  }
 
   // Connect = "give me a fresh approved session". Any prior row is
   // superseded: stale-by-clock rows are tidied to 'expired', a still-active

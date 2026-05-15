@@ -6,5 +6,6 @@ export {
   useStopRpc,
   useTestRpc,
   useRpcConnectionHistory,
+  useDaemonStatus,
 } from './hooks';
 export { RpcConnectionIndicator } from './RpcConnectionIndicator';

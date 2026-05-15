@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   apiConnectRpc,
   apiGetCurrentRpcConnection,
+  apiGetDaemonStatus,
   apiListRpcHistory,
   apiStopRpcConnection,
   apiTestRpc,
 } from '@/apis/template/rpc-connections/client';
 import type {
   ConnectResponse,
+  DaemonStatusResponse,
   GetCurrentResponse,
   ListHistoryResponse,
   RpcConnectionView,
@@ -95,6 +97,29 @@ export function useTestRpc() {
       if (data.error && !data.ok) throw new Error(data.error);
       return data;
     },
+  });
+}
+
+const daemonStatusQueryKey = ['rpc-connections', 'daemon-status'] as const;
+
+export function useDaemonStatus() {
+  const queryDefaults = useQueryDefaults();
+  return useQuery({
+    queryKey: daemonStatusQueryKey,
+    queryFn: async (): Promise<DaemonStatusResponse> => {
+      const result = await apiGetDaemonStatus();
+      return (
+        (result.data as DaemonStatusResponse | undefined) ?? {
+          alive: false,
+          lastHeartbeat: null,
+          startedAt: null,
+          ageMs: null,
+        }
+      );
+    },
+    ...queryDefaults,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 }
 

@@ -1,6 +1,7 @@
 import apiClient from '@/client/utils/apiClient';
 import {
   API_RPC_CONNECTION_CONNECT,
+  API_RPC_CONNECTION_DAEMON_STATUS,
   API_RPC_CONNECTION_GET_CURRENT,
   API_RPC_CONNECTION_LIST_HISTORY,
   API_RPC_CONNECTION_STOP,
@@ -9,6 +10,8 @@ import {
 import type {
   ConnectRequest,
   ConnectResponse,
+  DaemonStatusRequest,
+  DaemonStatusResponse,
   GetCurrentRequest,
   GetCurrentResponse,
   ListHistoryRequest,
@@ -47,4 +50,10 @@ export const apiListRpcHistory = (params: ListHistoryRequest = {}) =>
   apiClient.call<ListHistoryResponse, ListHistoryRequest>(
     API_RPC_CONNECTION_LIST_HISTORY,
     params
+  );
+
+export const apiGetDaemonStatus = () =>
+  apiClient.call<DaemonStatusResponse, DaemonStatusRequest>(
+    API_RPC_CONNECTION_DAEMON_STATUS,
+    {} as DaemonStatusRequest
   );

@@ -11,6 +11,7 @@ import { IdleState } from './components/IdleState';
 import { PendingState } from './components/PendingState';
 import { ApprovedState } from './components/ApprovedState';
 import { HistoryTab } from './components/HistoryTab';
+import { DaemonStatusBadge } from './components/DaemonStatusBadge';
 
 export function Connection() {
   const currentQuery = useCurrentRpcConnection();
@@ -32,6 +33,8 @@ export function Connection() {
           expire automatically after the configured TTL.
         </p>
       </div>
+
+      <DaemonStatusBadge />
 
       <Tabs defaultValue="current">
         <TabsList className="mb-4">

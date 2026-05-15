@@ -14,3 +14,4 @@ export * as featureRequests from './template/feature-requests';
 export * as workflowItems from './template/workflow-items';
 export * as pushSubscriptions from './template/push-subscriptions';
 export * as rpcConnections from './template/rpc-connections';
+export * as rpcDaemonStatus from './template/rpc-daemon-status';

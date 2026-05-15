@@ -65,3 +65,17 @@ export interface ListHistoryRequest {
 export interface ListHistoryResponse {
   connections: RpcConnectionView[];
 }
+
+export type DaemonStatusRequest = Record<string, never>;
+
+export interface DaemonStatusResponse {
+  alive: boolean;
+  /** ISO date — last time the daemon wrote a heartbeat. null if never. */
+  lastHeartbeat: string | null;
+  /** ISO date — when this daemon process started. null if never. */
+  startedAt: string | null;
+  /** Hostname the daemon is running on, if reported. */
+  hostname?: string;
+  /** Milliseconds since the last heartbeat. null if never. */
+  ageMs: number | null;
+}
