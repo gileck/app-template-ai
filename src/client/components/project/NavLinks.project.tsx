@@ -8,6 +8,7 @@
 import type { ReactNode } from 'react';
 import { NavItem } from '../template/layout/types';
 import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Bug } from 'lucide-react';
+import { RpcConnectionIndicator } from '@/client/features/template/rpc-connection';
 
 /** Project-specific admin menu items */
 export const projectAdminMenuItems: NavItem[] = [
@@ -39,3 +40,10 @@ export const menuItems: NavItem[] = [
  * leave the slot empty. The slot is centered and capped at max-w-xs.
  */
 export const TopNavBarSlot = (): ReactNode => null;
+
+/**
+ * Optional: custom component rendered in the right-side controls cluster
+ * (before the offline indicator / theme toggle / avatar). Use for status
+ * pills like the RPC connection indicator.
+ */
+export const TopNavBarRightSlot = (): ReactNode => <RpcConnectionIndicator />;

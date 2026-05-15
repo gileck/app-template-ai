@@ -9,7 +9,9 @@ import {
 } from '@/client/utils/offlinePostQueue';
 import { logger } from '@/client/features/template/session-logs';
 import { submitApiErrorReport } from '@/client/features/template/bug-report/apiErrorReporter';
-import { getRpcConnectionToken } from '@/client/features/template/rpc-connection';
+// Import the store module directly (not via the feature barrel) to avoid a
+// cycle: apiClient → feature/index → hooks → apis/.../client → apiClient.
+import { getRpcConnectionToken } from '@/client/features/template/rpc-connection/store';
 
 function buildRequestHeaders(): HeadersInit {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

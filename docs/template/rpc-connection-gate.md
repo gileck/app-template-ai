@@ -257,6 +257,41 @@ Today the feature is admin-only by *product decision*, not by data-model constra
 
 The gate (`assertRpcConnection`), the per-user partial unique index, and all handler scoping (`context.userId`) are already user-scoped — no changes needed there.
 
+## Optional: top-bar status indicator
+
+The template ships an admin-only status pill that child projects can mount in the top nav bar. It shows a colored dot (gray = offline, yellow = pending, green = approved) plus a `RPC` label, and clicking it opens a dialog with Connect / Stop / Restart actions and a link to the full `/admin/rpc-connection` page.
+
+The component is `RpcConnectionIndicator` from `@/client/features/template/rpc-connection`. It self-hides for non-admin users via `useIsAdmin()`, so projects can render it unconditionally without an extra gate.
+
+### How to mount in a child project
+
+Edit `src/client/components/project/NavLinks.project.tsx` (project-owned, never synced) and add `RpcConnectionIndicator` to one of the two slots:
+
+```tsx
+import { RpcConnectionIndicator } from '@/client/features/template/rpc-connection';
+
+// Renders in the right-side controls cluster (next to theme toggle / avatar) — recommended
+export const TopNavBarRightSlot = (): ReactNode => <RpcConnectionIndicator />;
+
+// Or in the centered slot (capped at max-w-xs)
+export const TopNavBarSlot = (): ReactNode => <RpcConnectionIndicator />;
+```
+
+Both slots are project-controlled — the template-side `NavLinks.tsx` combiner reads `TopNavBarSlot` and `TopNavBarRightSlot` from your project file and falls back to `null` when not exported, so projects that don't want the indicator (or don't use RPC at all) just leave the export off and nothing renders. See [project-structure-guidelines.md](project-structure-guidelines.md#custom-top-nav-bar-component) for the slot mechanics.
+
+To compose the indicator with other content:
+
+```tsx
+export const TopNavBarRightSlot = (): ReactNode => (
+  <div className="flex items-center gap-2">
+    <RpcConnectionIndicator />
+    <MyOtherStatusPill />
+  </div>
+);
+```
+
+No env flags or template-level toggles — opting in is one import + one slot export.
+
 ## Adding a new gated RPC handler
 
 No changes required. Any new handler called via `callRemote` is automatically gated, because the gate lives in `callRemote` itself. Just follow the handler convention in [rpc-architecture.md](rpc-architecture.md#handler-convention).
