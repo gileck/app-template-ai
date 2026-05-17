@@ -186,6 +186,16 @@ Session logging with bug reporting. Use this when adding logging or debugging.
 
 ---
 
+## MongoDB MCP Server
+
+How agents read this project's MongoDB through the official mongodb-mcp-server. Use this when you need to inspect collections, run queries, or check schema state from inside an agent session.
+
+**Summary:** Agents have read-only MongoDB access via the official mongodb-js/mongodb-mcp-server, wired in `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Launched per session by `scripts/template/mcp/mongodb-mcp.sh`, which sources `MONGO_URI` from `.env.local` and runs the server with `--readOnly --disabledTools atlas`. Writes are intentionally blocked — use the app or a script for mutations.
+
+**Docs:** [mongodb-mcp.md](docs/template/mongodb-mcp.md), [mongodb-usage.md](docs/template/mongodb-usage.md), [mongodb-usage.md](docs/template/project-guidelines/mongodb-usage.md)
+
+---
+
 ## React Rendering & Infinite Loops
 
 Common pitfalls causing infinite re-renders. Use this when debugging render loops.

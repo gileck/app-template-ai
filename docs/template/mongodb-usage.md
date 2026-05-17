@@ -2,6 +2,8 @@
 title: MongoDB Usage
 description: Database layer patterns and schema evolution. Use this when working with MongoDB.
 priority: 3
+related_docs:
+  - mongodb-mcp.md
 related_rules:
   - mongodb-usage
 ---
@@ -9,6 +11,10 @@ related_rules:
 # MongoDB Usage Guidelines
 
 This document covers all MongoDB-related patterns, including database layer organization, ID handling, and schema evolution.
+
+## Agent Access via MCP
+
+Agents read this project's MongoDB through the official mongodb-mcp-server, configured in `.mcp.json` / `.cursor/mcp.json` and launched by `scripts/template/mcp/mongodb-mcp.sh`. Defaults to **read-only** with Atlas Admin tools disabled. See [mongodb-mcp.md](mongodb-mcp.md) for setup, usage, and how to handle write operations.
 
 ## Core Principles
 
