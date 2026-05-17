@@ -11,6 +11,9 @@ guidelines:
   - "Icons from `lucide-react` only — no other icon libraries"
   - "Always provide `Label` with `htmlFor`/`id` for form inputs"
 priority: 3
+related_docs:
+  - ../shadcn-component-library.md
+  - ../theming.md
 ---
 # shadcn/ui Component Usage Guidelines
 

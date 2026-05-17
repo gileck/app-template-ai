@@ -11,6 +11,10 @@ guidelines:
   - "🚨 Rollback EVERY cache key `onMutate` wrote to. A missed key = stuck optimistic state (e.g. spinner that never goes away)."
   - "Default to Zustand persisted — use `inMemoryOnly: true` only for truly transient state"
 priority: 2
+related_docs:
+  - ../state-management.md
+  - ../react-query-mutations.md
+  - ../zustand-stores.md
 ---
 # State Management Guidelines
 
