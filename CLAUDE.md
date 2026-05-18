@@ -190,7 +190,7 @@ Session logging with bug reporting. Use this when adding logging or debugging.
 
 How agents read this project's MongoDB through the official mongodb-mcp-server. Use this when you need to inspect collections, run queries, or check schema state from inside an agent session.
 
-**Summary:** Agents have read-only MongoDB access via the official mongodb-js/mongodb-mcp-server, wired in `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Launched per session by `scripts/template/mcp/mongodb-mcp.sh`, which sources `MONGO_URI` from `.env.local` and runs the server with `--readOnly --disabledTools atlas`. Writes are intentionally blocked — use the app or a script for mutations.
+**Summary:** Agents have read-only MongoDB access via the official mongodb-js/mongodb-mcp-server, wired in `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Launched per session by `scripts/template/mcp/mongodb-mcp.sh`, which sources `MONGO_URI` from `.env.local`, splices `appConfig.dbName` from `src/app.config.js` into the URI path, and runs the server with `--readOnly --disabledTools atlas`. Every tool call requires an explicit `database` arg — use `appConfig.dbName` (read it from `src/app.config.js`). Writes are intentionally blocked.
 
 **Docs:** [mongodb-mcp.md](docs/template/mongodb-mcp.md), [mongodb-usage.md](docs/template/mongodb-usage.md), [mongodb-usage.md](docs/template/project-guidelines/mongodb-usage.md)
 

@@ -1,7 +1,7 @@
 ---
 title: MongoDB MCP Server
 description: How agents read this project's MongoDB through the official mongodb-mcp-server. Use this when you need to inspect collections, run queries, or check schema state from inside an agent session.
-summary: "Agents have read-only MongoDB access via the official mongodb-js/mongodb-mcp-server, wired in `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Launched per session by `scripts/template/mcp/mongodb-mcp.sh`, which sources `MONGO_URI` from `.env.local` and runs the server with `--readOnly --disabledTools atlas`. Writes are intentionally blocked — use the app or a script for mutations."
+summary: "Agents have read-only MongoDB access via the official mongodb-js/mongodb-mcp-server, wired in `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor). Launched per session by `scripts/template/mcp/mongodb-mcp.sh`, which sources `MONGO_URI` from `.env.local`, splices `appConfig.dbName` from `src/app.config.js` into the URI path, and runs the server with `--readOnly --disabledTools atlas`. Every tool call requires an explicit `database` arg — use `appConfig.dbName` (read it from `src/app.config.js`). Writes are intentionally blocked."
 priority: 3
 related_docs:
   - mongodb-usage.md
@@ -18,9 +18,15 @@ Agents working on this project (and any child project synced from the template) 
 |---|---|
 | `.mcp.json` | Claude Code project-scope MCP config |
 | `.cursor/mcp.json` | Cursor MCP config (same server entry) |
-| `scripts/template/mcp/mongodb-mcp.sh` | Launcher — sources `.env.local`, maps `MONGO_URI` → `MDB_MCP_CONNECTION_STRING`, execs `npx -y mongodb-mcp-server --readOnly --disabledTools atlas` |
+| `scripts/template/mcp/mongodb-mcp.sh` | Launcher — sources `.env.local`, splices `appConfig.dbName` from `src/app.config.js` into the URI, execs `npx -y mongodb-mcp-server --readOnly --disabledTools atlas` |
 
-All three are template-owned and sync to child projects. Each child supplies its own `MONGO_URI` in its own `.env.local` — no per-project edits.
+All three are template-owned and sync to child projects. Each child supplies its own `MONGO_URI` in its own `.env.local` and its own `appConfig.dbName` in its own `src/app.config.js` — no per-project edits to the MCP wrapper.
+
+## Database name on tool calls
+
+The mongodb-mcp-server requires `database` as an explicit argument on every data tool (`find`, `count`, `list-collections`, `aggregate`, …). It does **not** infer the database from the connection URI even when one is specified.
+
+**Always pass the project's database name**, which lives in `src/app.config.js` as `appConfig.dbName`. In this repo it's `app_template_db`; in a child project it will be whatever that child set. If you're unsure, open `src/app.config.js` first.
 
 ## Defaults and why
 
