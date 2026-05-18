@@ -25,7 +25,8 @@ Each demo feature is a self-contained module that spans three directories. The f
 | **Todos** | `/todos`, `/todos/:todoId` | `src/client/routes/project/Todos/`, `src/client/routes/project/SingleTodo/`, `src/apis/project/todos/`, `src/server/database/collections/project/todos/` |
 | **Demo Home** | `/` | `src/client/routes/project/Home/` |
 | **Admin Dashboard** | `/admin/dashboard` | `src/client/routes/project/Dashboard/` |
-| **Debug Page** | `/admin/debug` | `src/client/routes/project/Debug/` |
+
+The Debug page (`/admin/debug`) is intentionally **not** in this catalog — it's a permanent admin tool every child project keeps. Skip it; never offer it as a removal target.
 
 Detect which of these still exist in the working tree. If the catalog has grown in the template since this command was written, ALSO scan `src/client/routes/project/` for any directory that's currently imported by `src/client/routes/index.project.ts` and report it as an unknown candidate — do not auto-remove it; just surface it so the user can decide.
 
