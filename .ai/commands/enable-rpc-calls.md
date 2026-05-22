@@ -25,8 +25,9 @@ The RPC system itself (daemon code, gate, `/admin/rpc-connection` page) ships wi
 | task-cli daemon registration | `agent-tasks/rpc-daemon/config.json` | **project** (not synced) |
 | `RPC_SECRET` env var | `.env.local` (local) + Vercel (production+preview) | shared between sides |
 | `MONGO_URI` env var | `.env.local` (local) + Vercel | shared (already present) |
+| MongoDB database name | `appConfig.dbName` in `src/app.config.js` | **project** (must be set before this skill runs) |
 
-Both sides of the transport (Vercel + local daemon) must share the **same** `RPC_SECRET` and the **same** `MONGO_URI`. Anything else and the daemon will reject jobs or read from the wrong database.
+Both sides of the transport (Vercel + local daemon) must share the **same** `RPC_SECRET`, the **same** `MONGO_URI`, and resolve to the **same** database name (via `appConfig.dbName`). Anything else and the daemon will silently poll a different DB from the one Vercel writes jobs to — every `callRemote` hangs until the pending-pickup timeout fires.
 
 The gate is admin-only in v1 (route + APIs gated to `ADMIN_USER_ID`), so the indicator self-hides for non-admins. Telegram approval + bot setup must already be in place — if not, this skill blocks at Step 5 and points the user at `setup-vercel-deploy-notifications` / `yarn telegram-setup`.
 
@@ -123,9 +124,19 @@ The template's own `agent-tasks/rpc-daemon/config.json` is a reference, **but it
 ```bash
 REPO_NAME=$(node -p "require('./package.json').name")
 PROJECT_DIR=$(pwd)
-echo "Repo: $REPO_NAME"
-echo "Dir:  $PROJECT_DIR"
+
+# Read the project's MongoDB database name from src/app.config.js.
+# The daemon polls THIS database (via src/server/database/connection.ts,
+# which reads appConfig.dbName). It MUST match the database Vercel writes
+# jobs to — same MONGO_URI + same dbName on both sides.
+DB_NAME=$(node -e "console.log(require('./src/app.config.js').appConfig.dbName)")
+
+echo "Repo:    $REPO_NAME"
+echo "DB name: $DB_NAME"
+echo "Dir:     $PROJECT_DIR"
 ```
+
+If `DB_NAME` is empty or still equals `app_template_db` (the template's placeholder), **stop**. The child project hasn't customized `appConfig.dbName` yet — running the daemon against the template's name would either fail or pollute the wrong DB. Tell the user to set `dbName` in `src/app.config.js` to their project's own database name first, then re-run this skill.
 
 ### 3b. Write the config
 
@@ -133,14 +144,14 @@ echo "Dir:  $PROJECT_DIR"
 mkdir -p agent-tasks/rpc-daemon/runs
 ```
 
-Then write `agent-tasks/rpc-daemon/config.json` with the derived values spliced in (replace `<repo-name>` and `<project-dir>` literally — do not leave placeholders):
+Then write `agent-tasks/rpc-daemon/config.json` with the derived values spliced in (replace `<repo-name>`, `<db-name>`, and `<project-dir>` literally — do not leave placeholders):
 
 ```json
 {
-  "name": "RPC Daemon (<repo-name>)",
+  "name": "RPC Daemon (<repo-name> / <db-name>)",
   "uniqueKey": "<repo-name>:rpc-daemon",
   "groupName": "<repo-name>",
-  "description": "Polls MongoDB for remote function calls and executes locally (residential IP)",
+  "description": "Polls MongoDB database '<db-name>' for remote function calls and executes locally (residential IP)",
   "script": {
     "path": "daemon",
     "args": ["--verbose"],
@@ -309,8 +320,9 @@ End the skill with these instructions. Do not click these yourself — the test 
 - [ ] `MONGO_URI` in `.env.local`
 - [ ] `RPC_SECRET` in `.env.local`
 - [ ] `RPC_SECRET` pushed to Vercel (production + preview), first 8 chars match local
+- [ ] `appConfig.dbName` in `src/app.config.js` is the project's own DB name (not `app_template_db`)
 - [ ] `agent-tasks/rpc-daemon/runs/` exists
-- [ ] `agent-tasks/rpc-daemon/config.json` written with `uniqueKey: <repo>:rpc-daemon`, absolute paths, `schedule.type: "daemon"`
+- [ ] `agent-tasks/rpc-daemon/config.json` written with `uniqueKey: <repo>:rpc-daemon`, `<db-name>` spliced into `name` + `description`, absolute paths, `schedule.type: "daemon"`
 - [ ] `task-cli create` succeeded (or `edit` if pre-existing)
 - [ ] `task-cli daemon start <repo>:rpc-daemon` ran
 - [ ] `NavLinks.project.tsx` imports `RpcConnectionIndicator` and exports it via `TopNavBarRightSlot`
