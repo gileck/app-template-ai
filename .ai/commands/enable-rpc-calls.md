@@ -26,6 +26,7 @@ The RPC system itself (daemon code, gate, `/admin/rpc-connection` page) ships wi
 | `RPC_SECRET` env var | `.env.local` (local) + Vercel (production+preview) | shared between sides |
 | `MONGO_URI` env var | `.env.local` (local) + Vercel | shared (already present) |
 | MongoDB database name | `appConfig.dbName` in `src/app.config.js` | **project** (must be set before this skill runs) |
+| Telegram bot's `setWebhook` URL | `https://<this-prod>/api/telegram-webhook` (registered via `yarn telegram-webhook set …`) | per-bot global (must point at THIS deployment) |
 
 Both sides of the transport (Vercel + local daemon) must share the **same** `RPC_SECRET`, the **same** `MONGO_URI`, and resolve to the **same** database name (via `appConfig.dbName`). Anything else and the daemon will silently poll a different DB from the one Vercel writes jobs to — every `callRemote` hangs until the pending-pickup timeout fires.
 
@@ -292,7 +293,60 @@ Skip this if `RPC_SECRET` was already present and unchanged on Vercel.
 
 ---
 
-## Step 7 — Tell the user how to test
+## Step 7 — Point the Telegram bot's webhook at THIS deployment
+
+**This is the step the skill originally missed.** Symptom of skipping it: tapping **Approve** on the Telegram message replies with `⚠️ Unknown connection request` and the connection stays pending.
+
+### Why it matters
+
+The Connect handler writes a row to `rpc_connections` in *this* project's DB, then sends the approval message via `TELEGRAM_BOT_TOKEN`. When the admin taps Approve, Telegram delivers the `callback_query` to **whatever URL is registered on that bot via `setWebhook`** — which is a *global, per-bot* setting. If that URL points at the template's deployment (or any other project that previously claimed this bot), the wrong `/api/telegram-webhook` handler receives the callback, queries *its* DB for the connection id, finds nothing → "Unknown connection request."
+
+Each project needs its **own** bot, with its webhook URL pointed at its own production domain. Sharing a bot across projects breaks every project except the most recently-webhook'd one.
+
+### 7a. Check the current webhook target
+
+```bash
+yarn telegram-webhook info
+```
+
+Look at the `url` field. If it's empty, or points at any domain that is not this project's production URL, fix it.
+
+### 7b. Get this project's production URL
+
+```bash
+TEAM_ID=$(jq -r .orgId .vercel/project.json)
+PROJECT_ID=$(jq -r .projectId .vercel/project.json)
+VERCEL_TOKEN=$(grep '^VERCEL_TOKEN=' .env.local | cut -d= -f2-)
+
+PROD_URL=$(curl -s "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  | python3 -c "import sys,json; aliases=json.load(sys.stdin).get('targets',{}).get('production',{}).get('alias',[]); print(aliases[0] if aliases else '')")
+echo "Production URL: $PROD_URL"
+```
+
+If empty, the project has no production deploy yet. Tell the user to run `vercel --prod` (or push to main) first, then come back.
+
+### 7c. Register the webhook
+
+```bash
+yarn telegram-webhook set "https://${PROD_URL}/api/telegram-webhook"
+```
+
+### 7d. Verify
+
+```bash
+yarn telegram-webhook info
+```
+
+Confirm `url` now matches `https://<prod>/api/telegram-webhook` and `last_error_message` is absent. If `last_error_message` is set, the URL is unreachable from Telegram — usually means the deployment hasn't finished yet or the path is wrong.
+
+### Hazard: this bot was previously webhook'd elsewhere
+
+If the user is reusing a bot token from another project, **this `setWebhook` call breaks RPC approvals for that other project** — Telegram only delivers callbacks to one URL per bot. If they want both projects to work, they need separate bots (back to `@BotFather` → `/newbot` → new token → set `TELEGRAM_BOT_TOKEN` on the *other* project's Vercel and redeploy). Call this out before running 7c so they don't quietly take down the other project.
+
+---
+
+## Step 8 — Tell the user how to test
 
 End the skill with these instructions. Do not click these yourself — the test requires Telegram approval from the human admin.
 
@@ -308,6 +362,8 @@ End the skill with these instructions. Do not click these yourself — the test 
 > If **Test** hangs and eventually fails with *"No RPC daemon picked up the job…"*, the daemon isn't actually polling — go back to Step 5 and re-check `task-cli daemon list` + logs.
 >
 > If Connect fails because no Telegram message arrives, the owner chat isn't configured. Run `yarn telegram-setup` and verify `appConfig.ownerTelegramChatId` is set.
+>
+> If the Telegram message arrives but tapping **Approve** replies with **⚠️ Unknown connection request**, the bot's webhook is pointed at the wrong deployment — Step 7 was skipped or stale. Run `yarn telegram-webhook info` and re-run `yarn telegram-webhook set https://<this-prod>/api/telegram-webhook`. (Confirm the project hasn't shipped a new prod URL since the webhook was last set.)
 
 ---
 
@@ -330,4 +386,6 @@ End the skill with these instructions. Do not click these yourself — the test 
 - [ ] `task-cli daemon list` shows the daemon as **Up**
 - [ ] Daemon log shows `polling for jobs...`
 - [ ] Vercel redeployed (only if `RPC_SECRET` was new/changed)
+- [ ] `yarn telegram-webhook info` shows the bot's webhook URL = `https://<this-prod>/api/telegram-webhook` with no `last_error_message`
+- [ ] User warned if the bot is shared with another project (setting the webhook here breaks RPC approvals there)
 - [ ] User instructed to Connect → approve in Telegram → Test
