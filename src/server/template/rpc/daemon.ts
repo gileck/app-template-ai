@@ -166,6 +166,12 @@ async function pollLoop(): Promise<void> {
 
       activeJobs++;
       processJob(job)
+        .catch((err) => {
+          // processJob has its own try/catch; this is defense-in-depth for
+          // anything thrown outside it (e.g. failRpcJob itself rejecting).
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[rpc-daemon] processJob crashed for ${job._id.toHexString()}: ${msg}`);
+        })
         .finally(() => { activeJobs--; });
     } catch (err) {
       console.error('[rpc-daemon] Poll error:', err instanceof Error ? err.message : err);
@@ -189,6 +195,18 @@ function handleShutdown(signal: string): void {
 
 process.on('SIGINT', () => handleShutdown('SIGINT'));
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+
+// Handlers can leak rejections/exceptions from detached async work that fires
+// after the handler's awaited promise resolves (e.g. an SDK control channel
+// firing post-completion). Without these listeners Node would terminate the
+// whole daemon, which would also abort any sibling jobs running concurrently.
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+  console.error('[rpc-daemon] Unhandled rejection (daemon continues):', msg);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[rpc-daemon] Uncaught exception (daemon continues):', err.stack ?? err.message);
+});
 
 pollLoop()
   .then(() => closeDbConnection())
