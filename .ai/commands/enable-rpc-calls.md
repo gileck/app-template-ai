@@ -26,7 +26,7 @@ The RPC system itself (daemon code, gate, `/admin/rpc-connection` page) ships wi
 | `RPC_SECRET` env var | `.env.local` (local) + Vercel (production+preview) | shared between sides |
 | `MONGO_URI` env var | `.env.local` (local) + Vercel | shared (already present) |
 | MongoDB database name | `appConfig.dbName` in `src/app.config.js` | **project** (must be set before this skill runs) |
-| Telegram bot's `setWebhook` URL | `https://<this-prod>/api/telegram-webhook` (registered via `yarn telegram-webhook set …`) | per-bot global (must point at THIS deployment) |
+| Telegram bot + owner chat + `setWebhook` URL | bot exists, chat ID set, bot's webhook URL points at this deployment | covered by `/setup-telegram-bot` (this skill preflights and delegates) |
 
 Both sides of the transport (Vercel + local daemon) must share the **same** `RPC_SECRET`, the **same** `MONGO_URI`, and resolve to the **same** database name (via `appConfig.dbName`). Anything else and the daemon will silently poll a different DB from the one Vercel writes jobs to — every `callRemote` hangs until the pending-pickup timeout fires.
 
@@ -293,56 +293,45 @@ Skip this if `RPC_SECRET` was already present and unchanged on Vercel.
 
 ---
 
-## Step 7 — Point the Telegram bot's webhook at THIS deployment
+## Step 7 — Verify the Telegram bot is wired (delegates to `/setup-telegram-bot`)
 
-**This is the step the skill originally missed.** Symptom of skipping it: tapping **Approve** on the Telegram message replies with `⚠️ Unknown connection request` and the connection stays pending.
+The RPC approval flow uses Telegram inline buttons. That requires three things to be set up on the project's bot:
 
-### Why it matters
+1. `TELEGRAM_BOT_TOKEN` valid on Vercel.
+2. `OWNER_TELEGRAM_CHAT_ID` set on Vercel + bot can post into that chat.
+3. The bot's `setWebhook` URL points at **this** deployment's `/api/telegram-webhook` (per-bot global — must be set, not inherited).
 
-The Connect handler writes a row to `rpc_connections` in *this* project's DB, then sends the approval message via `TELEGRAM_BOT_TOKEN`. When the admin taps Approve, Telegram delivers the `callback_query` to **whatever URL is registered on that bot via `setWebhook`** — which is a *global, per-bot* setting. If that URL points at the template's deployment (or any other project that previously claimed this bot), the wrong `/api/telegram-webhook` handler receives the callback, queries *its* DB for the connection id, finds nothing → "Unknown connection request."
+All three are handled by the shared `/setup-telegram-bot` skill. Preflight-detect them here, and hand off if anything is missing.
 
-Each project needs its **own** bot, with its webhook URL pointed at its own production domain. Sharing a bot across projects breaks every project except the most recently-webhook'd one.
-
-### 7a. Check the current webhook target
-
-```bash
-yarn telegram-webhook info
-```
-
-Look at the `url` field. If it's empty, or points at any domain that is not this project's production URL, fix it.
-
-### 7b. Get this project's production URL
+### 7a. Detect state
 
 ```bash
-TEAM_ID=$(jq -r .orgId .vercel/project.json)
-PROJECT_ID=$(jq -r .projectId .vercel/project.json)
-VERCEL_TOKEN=$(grep '^VERCEL_TOKEN=' .env.local | cut -d= -f2-)
+# Token present locally?
+grep -q '^TELEGRAM_BOT_TOKEN=' .env.local && echo "TOKEN OK" || echo "TOKEN MISSING"
 
-PROD_URL=$(curl -s "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" \
-  -H "Authorization: Bearer $VERCEL_TOKEN" \
-  | python3 -c "import sys,json; aliases=json.load(sys.stdin).get('targets',{}).get('production',{}).get('alias',[]); print(aliases[0] if aliases else '')")
-echo "Production URL: $PROD_URL"
+# Chat ID present locally?
+grep -q '^OWNER_TELEGRAM_CHAT_ID=' .env.local && echo "CHAT OK" || echo "CHAT MISSING"
+
+# Webhook URL matches THIS prod?
+WEBHOOK_URL=$(yarn -s telegram-webhook info 2>/dev/null | awk -F'URL: ' '/^URL: / {print $2}')
+echo "Webhook URL: ${WEBHOOK_URL:-(not set)}"
 ```
 
-If empty, the project has no production deploy yet. Tell the user to run `vercel --prod` (or push to main) first, then come back.
+The webhook URL is the most common miss. Symptom of skipping it: tapping **Approve** on the Telegram message replies with `⚠️ Unknown connection request` and the connection stays pending — because Telegram delivered the `callback_query` to the wrong deployment's `/api/telegram-webhook`, which queried its own DB and found no matching `rpc_connections` row.
 
-### 7c. Register the webhook
+### 7b. Hand off if anything's missing
 
-```bash
-yarn telegram-webhook set "https://${PROD_URL}/api/telegram-webhook"
-```
+If any of the three checks fail, **stop this skill** and tell the user:
 
-### 7d. Verify
+> Telegram bot isn't fully wired for this project. Run `/setup-telegram-bot` first — it handles bot creation (if needed), the owner chat ID, and the bot's `setWebhook` URL. Re-run `/enable-rpc-calls` after it completes.
 
-```bash
-yarn telegram-webhook info
-```
+Do not try to inline the bot setup here — it duplicates the shared skill, drifts out of sync, and skips its visual-confirmation gates. The only thing we verify in this skill is *that bot setup is done*.
 
-Confirm `url` now matches `https://<prod>/api/telegram-webhook` and `last_error_message` is absent. If `last_error_message` is set, the URL is unreachable from Telegram — usually means the deployment hasn't finished yet or the path is wrong.
+### 7c. Fast-path if everything's already set
 
-### Hazard: this bot was previously webhook'd elsewhere
+If all three checks pass and `WEBHOOK_URL` resolves to a URL that contains this project's production domain, proceed to Step 8.
 
-If the user is reusing a bot token from another project, **this `setWebhook` call breaks RPC approvals for that other project** — Telegram only delivers callbacks to one URL per bot. If they want both projects to work, they need separate bots (back to `@BotFather` → `/newbot` → new token → set `TELEGRAM_BOT_TOKEN` on the *other* project's Vercel and redeploy). Call this out before running 7c so they don't quietly take down the other project.
+If `WEBHOOK_URL` is set but points at a *different* deployment (e.g., the template's, or another project's), the user has a shared-bot situation — running `/setup-telegram-bot` will re-point the webhook to *this* project and break callbacks on the other deployment. Surface the conflict before doing it; recommend a separate bot if both projects need to work.
 
 ---
 
@@ -363,7 +352,7 @@ End the skill with these instructions. Do not click these yourself — the test 
 >
 > If Connect fails because no Telegram message arrives, the owner chat isn't configured. Run `yarn telegram-setup` and verify `appConfig.ownerTelegramChatId` is set.
 >
-> If the Telegram message arrives but tapping **Approve** replies with **⚠️ Unknown connection request**, the bot's webhook is pointed at the wrong deployment — Step 7 was skipped or stale. Run `yarn telegram-webhook info` and re-run `yarn telegram-webhook set https://<this-prod>/api/telegram-webhook`. (Confirm the project hasn't shipped a new prod URL since the webhook was last set.)
+> If the Telegram message arrives but tapping **Approve** replies with **⚠️ Unknown connection request**, the bot's webhook is pointed at the wrong deployment — Step 7's webhook check was stale or the bot is shared with another project. Run `/setup-telegram-bot` to re-register the webhook URL at this deployment.
 
 ---
 
@@ -386,6 +375,5 @@ End the skill with these instructions. Do not click these yourself — the test 
 - [ ] `task-cli daemon list` shows the daemon as **Up**
 - [ ] Daemon log shows `polling for jobs...`
 - [ ] Vercel redeployed (only if `RPC_SECRET` was new/changed)
-- [ ] `yarn telegram-webhook info` shows the bot's webhook URL = `https://<this-prod>/api/telegram-webhook` with no `last_error_message`
-- [ ] User warned if the bot is shared with another project (setting the webhook here breaks RPC approvals there)
+- [ ] Telegram bot wired (`TELEGRAM_BOT_TOKEN` + `OWNER_TELEGRAM_CHAT_ID` set, `yarn telegram-webhook info` shows this deployment's URL with no `last_error_message`) — handed off to `/setup-telegram-bot` if not
 - [ ] User instructed to Connect → approve in Telegram → Test
