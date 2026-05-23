@@ -9,3 +9,4 @@ export {
   useDaemonStatus,
 } from './hooks';
 export { RpcConnectionIndicator } from './RpcConnectionIndicator';
+export { RpcExpiryWarningDialog } from './RpcExpiryWarningDialog';

@@ -21,6 +21,7 @@ import {
   useCurrentRpcConnection,
   useStopRpc,
 } from './hooks';
+import { RpcExpiryWarningDialog } from './RpcExpiryWarningDialog';
 import type { RpcConnectionView } from '@/apis/template/rpc-connections/types';
 
 const CONNECTION_PAGE_PATH = '/admin/rpc-connection';
@@ -72,6 +73,7 @@ export function RpcConnectionIndicator() {
         onOpenChange={setOpen}
         connection={connection ?? null}
       />
+      <RpcExpiryWarningDialog />
     </>
   );
 }
