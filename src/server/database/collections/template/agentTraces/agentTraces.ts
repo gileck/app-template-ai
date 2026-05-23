@@ -8,21 +8,28 @@ import type {
 } from './types';
 
 const COLLECTION = 'agentTraces';
-let indexesEnsured = false;
+let collectionPromise: Promise<Collection<AgentTraceDocument>> | null = null;
 
-async function getCollection(): Promise<Collection<AgentTraceDocument>> {
-    const db = await getDb();
-    const col = db.collection<AgentTraceDocument>(COLLECTION);
-    if (!indexesEnsured) {
-        await col.createIndex({ userId: 1, conversationId: 1, startedAt: -1 });
-        // 30-day TTL on startedAt — old traces aren't useful for debug.
-        await col.createIndex(
-            { startedAt: 1 },
-            { expireAfterSeconds: 30 * 24 * 60 * 60 }
-        );
-        indexesEnsured = true;
+function getCollection(): Promise<Collection<AgentTraceDocument>> {
+    if (!collectionPromise) {
+        collectionPromise = (async () => {
+            const db = await getDb();
+            const col = db.collection<AgentTraceDocument>(COLLECTION);
+            await col.createIndex({ userId: 1, conversationId: 1, startedAt: -1 });
+            // 30-day TTL on startedAt — old traces aren't useful for debug.
+            await col.createIndex(
+                { startedAt: 1 },
+                { expireAfterSeconds: 30 * 24 * 60 * 60 }
+            );
+            return col;
+        })().catch((err) => {
+            // Reset so the next caller retries instead of getting a
+            // permanently-rejected cached promise.
+            collectionPromise = null;
+            throw err;
+        });
     }
-    return col;
+    return collectionPromise;
 }
 
 /**
@@ -48,18 +55,45 @@ export async function startTrace(input: {
 }
 
 /**
+ * Trace identity needed to create the row if it doesn't exist yet.
+ * Required because `appendTrace` upserts — callers that skipped
+ * `startTrace` still get a valid trace doc on first append.
+ */
+export interface TraceContext {
+    userId: string;
+    conversationId: ObjectId;
+}
+
+/**
  * Append one log entry to the trace. Atomic `$push`, no read-modify-
- * write race. Caller-side errors are SWALLOWED — observability must
- * never break the actual flow it's observing.
+ * write race. Upserts with `$setOnInsert` so calling `startTrace`
+ * upstream is OPTIONAL — projects that call it (e.g. Vercel-side
+ * `sendMessage.ts`) get pre-daemon events captured under a row that
+ * already exists; projects that don't still get daemon-side events
+ * because the first append creates the row. Caller-side errors are
+ * SWALLOWED — observability must never break the flow it's observing.
  */
 export async function appendTrace(
     messageId: ObjectId,
+    ctx: TraceContext,
     entry: Omit<TraceEntry, 'at'>
 ): Promise<void> {
     try {
         const col = await getCollection();
         const full: TraceEntry = { ...entry, at: new Date().toISOString() };
-        await col.updateOne({ _id: messageId }, { $push: { entries: full } });
+        await col.updateOne(
+            { _id: messageId },
+            {
+                $push: { entries: full },
+                $setOnInsert: {
+                    userId: ctx.userId,
+                    conversationId: ctx.conversationId,
+                    status: 'started',
+                    startedAt: new Date(),
+                },
+            },
+            { upsert: true }
+        );
     } catch (err) {
         // Last-resort console log — at least leaves a daemon-stdout
         // crumb that something tried to log and failed.
@@ -76,10 +110,20 @@ export async function finishTrace(
 ): Promise<void> {
     try {
         const col = await getCollection();
-        await col.updateOne(
+        const result = await col.updateOne(
             { _id: messageId },
             { $set: { status, finishedAt: new Date() } }
         );
+        if (result.matchedCount === 0) {
+            // Every code path runs at least one appendTrace (which
+            // upserts) before finishTrace, so a missing row here means
+            // something dropped the doc between then and now — TTL,
+            // manual delete, or a bug.
+            console.error(
+                '[agent-trace] finishTrace matched no document',
+                { messageId: messageId.toString(), status }
+            );
+        }
     } catch (err) {
         console.error('[agent-trace] finishTrace failed', err);
     }

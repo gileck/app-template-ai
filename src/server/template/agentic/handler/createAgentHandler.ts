@@ -65,6 +65,18 @@ interface HandlerArgs {
     effort?: 'low' | 'medium' | 'high' | 'xhigh';
 }
 
+/**
+ * True only for errors that indicate the saved session id is gone —
+ * the one case where retrying without `resumeSessionId` actually has a
+ * chance of succeeding. Excludes generic "session" mentions in rate
+ * limits, auth, network, and timeout errors.
+ */
+function isMissingSessionError(message: string): boolean {
+    return /session.*(not\s*found|missing|does\s*not\s*exist|unknown|expired|invalid|no\s*such)/i.test(
+        message
+    ) || /(no\s*such|unknown|invalid)\s+session/i.test(message);
+}
+
 function isHistoryEntry(v: unknown): v is { role: 'user' | 'assistant'; content: string } {
     if (!v || typeof v !== 'object') return false;
     const o = v as Record<string, unknown>;
@@ -120,9 +132,17 @@ export function createAgentHandler<TData>(
     return async function handleAgent(rawArgs) {
         const args = parseArgs(config.agentName, rawArgs);
         const messageObjectId = new ObjectId(args.sourceMessageId);
+        const conversationObjectId = new ObjectId(args.conversationId);
         const conversations = config.conversations(args.userId);
+        // Trace context for appendTrace upsert. The trace row is
+        // OPTIONALLY opened by the project's API layer (e.g. Vercel-
+        // side sendMessage.ts calls startTrace before enqueueing the
+        // RPC job so it can capture pre-daemon events). If the project
+        // skips that, our first appendTrace below creates the row via
+        // $setOnInsert — daemon-side traces work either way.
+        const traceCtx = { userId: args.userId, conversationId: conversationObjectId };
 
-        await appendTrace(messageObjectId, {
+        await appendTrace(messageObjectId, traceCtx, {
             layer: 'daemon',
             level: 'info',
             message: 'handler.received',
@@ -140,7 +160,7 @@ export function createAgentHandler<TData>(
             const errorText =
                 `No agentic adapter handles model "${args.modelId}". ` +
                 `Supported adapters: ${config.adapters.map((a) => a.name).join(', ')}`;
-            await appendTrace(messageObjectId, {
+            await appendTrace(messageObjectId, traceCtx, {
                 layer: 'handler',
                 level: 'error',
                 message: 'adapter.notFound',
@@ -155,7 +175,7 @@ export function createAgentHandler<TData>(
             await finishTrace(messageObjectId, 'errored');
             throw new Error(errorText);
         }
-        await appendTrace(messageObjectId, {
+        await appendTrace(messageObjectId, traceCtx, {
             layer: 'handler',
             level: 'info',
             message: 'adapter.picked',
@@ -165,7 +185,7 @@ export function createAgentHandler<TData>(
         const data = config.createDataContext(args.userId);
         const toolContext = {
             userId: args.userId,
-            conversationId: new ObjectId(args.conversationId),
+            conversationId: conversationObjectId,
             data,
             sourceMessageId: args.sourceMessageId,
         };
@@ -185,7 +205,7 @@ export function createAgentHandler<TData>(
             },
         };
 
-        await appendTrace(messageObjectId, {
+        await appendTrace(messageObjectId, traceCtx, {
             layer: 'handler',
             level: 'info',
             message: 'adapter.start',
@@ -202,22 +222,31 @@ export function createAgentHandler<TData>(
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`${logPrefix} adapter threw:`, err);
-            await appendTrace(messageObjectId, {
+            await appendTrace(messageObjectId, traceCtx, {
                 layer: 'adapter',
                 level: 'error',
                 message: 'adapter.threw',
-                data: { error: message, stack: err instanceof Error ? err.stack : undefined },
+                // Stack traces are admin-only (see CLAUDE.md) — and
+                // trace entries are exposed via findTracesByConversation
+                // scoped only to userId. Keep the message; drop the
+                // stack to avoid leaking server internals.
+                data: { error: message },
             });
             // Resume-mode failure (e.g. SDK can't find the saved
             // session because the daemon's home directory was wiped) →
             // retry once from scratch by dropping the resumeSessionId.
             // Falls back to history-in-system-prompt mode.
-            if (args.resumeSessionId && /session/i.test(message)) {
+            //
+            // Narrow match: only when the error actually says the
+            // session couldn't be found. A broad /session/i would also
+            // match rate limits, auth failures, and timeouts — wasting
+            // a retry that will fail again.
+            if (args.resumeSessionId && isMissingSessionError(message)) {
                 console.warn(
                     `${logPrefix} resume failed, retrying without session id`,
                     { sessionId: args.resumeSessionId }
                 );
-                await appendTrace(messageObjectId, {
+                await appendTrace(messageObjectId, traceCtx, {
                     layer: 'adapter',
                     level: 'warn',
                     message: 'adapter.retry-without-resume',
@@ -227,7 +256,7 @@ export function createAgentHandler<TData>(
                     result = await adapter.runAgent({ ...runOpts, resumeSessionId: undefined });
                 } catch (retryErr) {
                     const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-                    await appendTrace(messageObjectId, {
+                    await appendTrace(messageObjectId, traceCtx, {
                         layer: 'adapter',
                         level: 'error',
                         message: 'adapter.retry-failed',
@@ -254,7 +283,7 @@ export function createAgentHandler<TData>(
             }
         }
 
-        await appendTrace(messageObjectId, {
+        await appendTrace(messageObjectId, traceCtx, {
             layer: 'handler',
             level: 'info',
             message: 'adapter.finished',
@@ -279,7 +308,7 @@ export function createAgentHandler<TData>(
         // (idempotent), so we just write it.
         if (result.sessionId) {
             await conversations.setConversationSessionId(
-                new ObjectId(args.conversationId),
+                conversationObjectId,
                 result.sessionId
             );
         }

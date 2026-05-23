@@ -122,8 +122,20 @@ export function runCodexMcpServer<TData>(config: CodexMcpServerConfig<TData>): v
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        const args = parseToolArgs(tool, params.arguments);
-        const result: ToolResult = await tool.handler(args as never, context);
+        // Validation failures must come back to the model as a normal
+        // ToolResult envelope, NOT as a JSON-RPC error — otherwise the
+        // model sees a giant unstructured ZodError JSON and can't
+        // self-correct via the usual retry path.
+        const parsed = parseToolArgs(tool, params.arguments);
+        if (!parsed.ok) {
+            const errorResult: ToolResult = { ok: false, error: parsed.error };
+            return {
+                content: [{ type: 'text', text: JSON.stringify(errorResult) }],
+                structuredContent: errorResult,
+                isError: true,
+            };
+        }
+        const result: ToolResult = await tool.handler(parsed.args as never, context);
         const text = JSON.stringify(result);
         return {
             content: [{ type: 'text', text }],
@@ -161,13 +173,27 @@ function toolToMcpDefinition(
     };
 }
 
+type ParsedToolArgs =
+    | { ok: true; args: Record<string, unknown> }
+    | { ok: false; error: string };
+
 function parseToolArgs(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tool list
     tool: AgenticTool<any, any>,
     rawArgs: unknown
-): Record<string, unknown> {
+): ParsedToolArgs {
     const args = rawArgs && typeof rawArgs === 'object' ? rawArgs : {};
-    return z.object(tool.inputSchema).parse(args) as Record<string, unknown>;
+    const parsed = z.object(tool.inputSchema).safeParse(args);
+    if (parsed.success) {
+        return { ok: true, args: parsed.data as Record<string, unknown> };
+    }
+    // Flatten Zod's tree into a single readable line per issue —
+    // models recover from "field X: expected number, got string" much
+    // better than from a nested JSON blob.
+    const issues = parsed.error.issues
+        .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+        .join('; ');
+    return { ok: false, error: `Invalid tool arguments: ${issues}` };
 }
 
 function respond(id: string | number, result: unknown): void {
