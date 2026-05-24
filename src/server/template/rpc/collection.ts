@@ -62,6 +62,22 @@ export async function findRecentJob(
   );
 }
 
+/**
+ * Find the most-recent rpc-job for a given assistant-message id —
+ * agent jobs put the assistant-message id under `args.sourceMessageId`,
+ * so this is the canonical "what happened to my turn?" lookup. Returns
+ * null when the job has TTL'd out (1h default).
+ */
+export async function findRpcJobBySourceMessageId(
+  sourceMessageId: string
+): Promise<RpcJobDocument | null> {
+  const col = await getCollection();
+  return col.findOne(
+    { 'args.sourceMessageId': sourceMessageId },
+    { sort: { createdAt: -1 } }
+  );
+}
+
 export async function completeRpcJob(id: ObjectId, result: unknown): Promise<void> {
   const col = await getCollection();
   await col.updateOne(

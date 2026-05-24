@@ -26,7 +26,7 @@
  */
 
 import type { ObjectId } from 'mongodb';
-import type { AgentEvent } from '../types';
+import type { AgentEvent, TurnTokenUsage } from '../types';
 
 export interface FinalizeAssistantInput {
     /** Pre-generated ObjectId of the assistant turn — same id the
@@ -36,6 +36,9 @@ export interface FinalizeAssistantInput {
     content: string;
     /** Total turn cost in USD (sum across all model + tool calls). */
     cost: number;
+    /** Total token usage for this turn (sum across models). Absent if
+     *  the adapter didn't report usage (rare). */
+    tokens?: TurnTokenUsage;
     /** Full event timeline from the adapter. Persist as-is; the UI
      *  renders it as a thinking-timeline above the bubble. */
     events: AgentEvent[];

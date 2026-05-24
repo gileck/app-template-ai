@@ -160,6 +160,11 @@ export interface AgenticRunOptions<TData = unknown> {
     effort?: AgenticEffort;
 }
 
+export interface TurnTokenUsage {
+    input: number;
+    output: number;
+}
+
 export interface AgenticResult {
     /** Final assistant message text. */
     finalText: string;
@@ -168,6 +173,10 @@ export interface AgenticResult {
     events: AgentEvent[];
     /** Total cost for this turn in USD. */
     cost: number;
+    /** Total token usage for this turn (sum across all models). Both
+     *  adapters populate this; absent only when the SDK didn't report
+     *  usage (extremely rare, e.g. crash before any model call). */
+    tokens?: TurnTokenUsage;
     /** Reason the loop ended: 'final' (model produced final answer),
      *  'max_iterations' (hit cap), 'error' (adapter or tool threw). */
     finishReason: 'final' | 'max_iterations' | 'error';

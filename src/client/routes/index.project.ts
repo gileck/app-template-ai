@@ -17,6 +17,7 @@
 import { Routes } from '../features/template/router';
 import { Home } from './project/Home';
 import { AIChat } from './project/AIChat';
+import { Agent } from './project/Agent';
 import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
@@ -30,6 +31,7 @@ export const projectRoutes: Routes = {
   // Example app routes (template demo):
   '/': Home,
   '/ai-chat': AIChat,
+  '/agent': { component: Agent, fullScreen: true },
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
 

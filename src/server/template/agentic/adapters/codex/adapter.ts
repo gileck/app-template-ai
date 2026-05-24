@@ -65,6 +65,16 @@ function now(): string {
     return new Date().toISOString();
 }
 
+function usageToTokens(
+    usage: Usage | null
+): { input: number; output: number } | undefined {
+    if (!usage) return undefined;
+    return {
+        input: usage.input_tokens ?? 0,
+        output: usage.output_tokens ?? 0,
+    };
+}
+
 function calculateCost(modelId: string, usage: Usage | null): number {
     if (!usage) return 0;
     const model = getModelById(modelId);
@@ -220,6 +230,7 @@ export class CodexAgenticAdapter implements AgenticAdapter {
                     : `Sorry — the agent crashed: ${msg}. Try again or pick a different model.`,
                 events,
                 cost: calculateCost(opts.modelId, usage),
+                tokens: usageToTokens(usage),
                 finishReason: hitMaxIterations ? 'max_iterations' : 'error',
                 sessionId: threadId,
             };
@@ -231,6 +242,7 @@ export class CodexAgenticAdapter implements AgenticAdapter {
                 'The agent ended without a final answer. Try again or pick a different model.',
             events,
             cost: calculateCost(opts.modelId, usage),
+            tokens: usageToTokens(usage),
             finishReason: finalText ? 'final' : 'error',
             sessionId: threadId,
         };

@@ -300,6 +300,7 @@ export function createAgentHandler<TData>(
             id: messageObjectId,
             content: result.finalText,
             cost: result.cost,
+            tokens: result.tokens,
             events: result.events,
         });
 

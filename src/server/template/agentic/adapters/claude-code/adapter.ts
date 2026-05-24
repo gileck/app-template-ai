@@ -236,6 +236,7 @@ export class ClaudeCodeAgenticAdapter implements AgenticAdapter {
                 finalText: `Sorry — the agent failed: ${detail}. Try again or pick a different model.`,
                 events,
                 cost: result.total_cost_usd ?? 0,
+                tokens: sumModelUsage(result.modelUsage),
                 finishReason: 'error',
                 sessionId: result.session_id,
             };
@@ -245,10 +246,30 @@ export class ClaudeCodeAgenticAdapter implements AgenticAdapter {
             finalText: result.result,
             events,
             cost: result.total_cost_usd ?? 0,
+            tokens: sumModelUsage(result.modelUsage),
             finishReason: result.num_turns >= maxIterations ? 'max_iterations' : 'final',
             sessionId: result.session_id,
         };
     }
+}
+
+/** Collapse the SDK's per-model `modelUsage` map into a single
+ *  {input, output} pair. Cache reads/creates are folded into input —
+ *  the bubble doesn't need the breakdown, just total. */
+function sumModelUsage(
+    modelUsage: SDKResultMessage['modelUsage'] | undefined
+): { input: number; output: number } | undefined {
+    if (!modelUsage) return undefined;
+    let input = 0;
+    let output = 0;
+    for (const usage of Object.values(modelUsage)) {
+        input +=
+            (usage.inputTokens ?? 0) +
+            (usage.cacheReadInputTokens ?? 0) +
+            (usage.cacheCreationInputTokens ?? 0);
+        output += usage.outputTokens ?? 0;
+    }
+    return { input, output };
 }
 
 function buildSystemPromptWithHistory(

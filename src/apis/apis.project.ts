@@ -8,8 +8,10 @@
 import { mergeApiHandlers } from "./registry";
 import { chatApiHandlers } from "./project/chat/server";
 import { todosApiHandlers } from "./project/todos/server";
+import { agentApiHandlers } from "./project/agent/server";
 
 export const projectApiHandlers = mergeApiHandlers(
   chatApiHandlers,
-  todosApiHandlers
+  todosApiHandlers,
+  agentApiHandlers
 );
