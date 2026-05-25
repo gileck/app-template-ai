@@ -3,6 +3,38 @@ import { ApiHandlerContext, UpdateTodoRequest, UpdateTodoResponse } from '../typ
 import { todos } from '@/server/database';
 import { toStringId } from '@/server/template/utils';
 import { sendTelegramNotificationToUser } from '@/server/template/telegram';
+import { z } from 'zod';
+import { defineApiMeta } from '@/apis/types';
+
+export const apiMeta = defineApiMeta<UpdateTodoRequest>()({
+    description:
+        "Update a todo by id. Provide at least one of title, completed, or dueDate. Use this to mark a todo done (completed: true) or undone (completed: false).",
+    inputSchema: {
+        todoId: z
+            .string()
+            .describe('The todo id, as returned by list-todos in the `_id` field.'),
+        title: z
+            .string()
+            .min(1)
+            .optional()
+            .describe('Optional. New title; must be non-empty when provided.'),
+        completed: z
+            .boolean()
+            .optional()
+            .describe(
+                'Optional. true marks the todo as done, false marks it as not done.'
+            ),
+        dueDate: z
+            .string()
+            .nullable()
+            .optional()
+            .describe(
+                'Optional. ISO-8601 due date, or null to clear an existing due date.'
+            ),
+    },
+    agentExposed: true,
+    mutates: true,
+});
 
 export const updateTodo = async (
     request: UpdateTodoRequest,

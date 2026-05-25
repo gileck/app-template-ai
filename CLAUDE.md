@@ -206,6 +206,24 @@ Common pitfalls causing infinite re-renders. Use this when debugging render loop
 
 ---
 
+## Agent API Tools (auto-expose project APIs to the agent)
+
+How project APIs become agent tools. Use this when wiring an existing API endpoint into the AI agent's tool surface so the model can call it.
+
+**Summary:** Co-locate an `apiMeta` export next to an API handler, then wire it into the domain's server.ts as the `meta` field on the registry entry. `buildAgentToolsFromApis(apiHandlers)` walks the registry and emits one AgenticTool per opted-in endpoint. Default-deny, isAdmin always false, Zod-validated, error envelopes normalized.
+
+**Key Points:**
+- Two-line opt-in per endpoint — `export const apiMeta = {...}` in the handler file, plus a `meta` entry in the domain's server.ts
+- Default-deny — `agentExposed: true` is required; admin endpoints are unreachable two ways over (no opt-in plus synthesized `isAdmin: false` context)
+- Tool name is derived from API name — `todos/getTodos` becomes `api__todos_getTodos`; collisions throw at build time
+- `mutates: true` drives the UI's Saved chip and can gate behind confirmation in future
+- Agent runs with `userId` from its tool context; cross-tenant safety enforced at the DB layer (all queries filter by userId)
+- Both Claude Code and Codex adapters see the same tool list — built once per process from the same apiHandlers registry
+
+**Docs:** [agent-api-tools.md](docs/template/agent-api-tools.md)
+
+---
+
 ## Critical Deployment Issues
 
 Common deployment pitfalls. Use this before deploying to production.

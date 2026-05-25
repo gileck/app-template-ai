@@ -12,15 +12,22 @@ import {
     createAgentHandler,
     initClaudeCode,
     initCodex,
+    buildAgentToolsFromApis,
 } from '@/server/template/agentic';
 import { agentConversations } from '@/server/database';
+import { apiHandlers } from '@/apis/apis';
 import { DEMO_AGENT_TOOLS, createDemoDataContext } from './tools';
 
 const AGENT_NAME = 'demo-agent';
 
+// Auto-generate tools from every API that opted in via `apiMeta`.
+// Today: just `todos/getTodos`. Each new opt-in lands automatically
+// the next time this module reloads.
+const apiTools = buildAgentToolsFromApis({ handlers: apiHandlers });
+
 const handler = createAgentHandler({
     agentName: AGENT_NAME,
-    tools: DEMO_AGENT_TOOLS,
+    tools: [...DEMO_AGENT_TOOLS, ...apiTools],
     createDataContext: createDemoDataContext,
     conversations: (userId) =>
         agentConversations.makeAgentConversationsAdapter(userId),

@@ -3,6 +3,32 @@ import { ApiHandlerContext, CreateTodoRequest, CreateTodoResponse } from '../typ
 import { todos } from '@/server/database';
 import { ObjectId } from 'mongodb';
 import { toDocumentId, toStringId, toQueryId } from '@/server/template/utils';
+import { z } from 'zod';
+import { defineApiMeta } from '@/apis/types';
+
+export const apiMeta = defineApiMeta<CreateTodoRequest>()({
+    description:
+        "Create a new todo for the current user. Returns the created todo.",
+    // Intentionally omits `_id`. The underlying handler accepts it for
+    // client-side idempotent retries (offline mutation queue), but the
+    // agent has no concept of retrying with a stable ID — surfacing it
+    // would just let the model fabricate IDs that collide with future
+    // client-generated ones.
+    inputSchema: {
+        title: z
+            .string()
+            .min(1)
+            .describe('The todo title. Required, must be non-empty.'),
+        dueDate: z
+            .string()
+            .optional()
+            .describe(
+                'Optional ISO-8601 due date (e.g. "2026-06-01T15:00:00Z"). Omit if no due date.'
+            ),
+    },
+    agentExposed: true,
+    mutates: true,
+});
 
 export const createTodo = async (
     request: CreateTodoRequest,

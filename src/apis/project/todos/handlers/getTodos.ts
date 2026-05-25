@@ -2,6 +2,19 @@ import { API_GET_TODOS } from '../index';
 import { ApiHandlerContext, GetTodosRequest, GetTodosResponse } from '../types';
 import { todos } from '@/server/database';
 import { toStringId } from '@/server/template/utils';
+import { defineApiMeta } from '@/apis/types';
+
+/**
+ * Agent-surface metadata. Co-located so it can't drift from the
+ * handler. `defineApiMeta<TRequest>()` enforces at compile time that
+ * the Zod inputSchema matches the handler's request type.
+ */
+export const apiMeta = defineApiMeta<GetTodosRequest>()({
+    description: "List all of the current user's todos.",
+    inputSchema: {}, // no parameters — uses userId from the context
+    agentExposed: true,
+    mutates: false,
+});
 
 export const getTodos = async (
     _: GetTodosRequest,

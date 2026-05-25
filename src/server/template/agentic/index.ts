@@ -29,3 +29,7 @@ export {
     runCodexMcpServer,
 } from './adapters';
 export type { CodexMcpServerConfig } from './adapters';
+export { buildAgentToolsFromApis } from './apiTools';
+export type { BuildAgentToolsOptions } from './apiTools';
+export type { ApiMeta, ApiHandlersWithMeta } from '@/apis/types';
+export { defineApiMeta } from '@/apis/types';
