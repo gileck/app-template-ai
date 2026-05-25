@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, Bot, Terminal } from 'lucide-react';
+import { Menu, Bot, Terminal, MoreVertical } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
 import {
     Sheet,
@@ -28,10 +28,17 @@ import {
     SelectValue,
 } from '@/client/components/template/ui/select';
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/client/components/template/ui/dropdown-menu';
+import {
     CLAUDE_CODE_MODELS,
     CODEX_MODELS,
 } from '@/common/ai/models';
-import { cn } from '@/client/lib/utils';
 import { RpcConnectionIndicator } from '@/client/features/template/rpc-connection';
 import {
     useAgentUIStore,
@@ -147,11 +154,15 @@ export function Agent() {
 
                 {/* Main chat column */}
                 <main className="flex min-w-0 flex-1 flex-col">
-                    {/* Top bar */}
+                    {/* Top bar — [Threads] [Title] [RPC] [⋮ menu] */}
                     <header className="flex items-center gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                         <Button
                             variant="ghost"
                             size="icon"
+                            // Mobile: opens the conversation sheet.
+                            // Desktop: sidebar is permanent, button is
+                            // hidden — but still rendered for layout
+                            // consistency via md:hidden.
                             className="md:hidden"
                             onClick={() => setSheetOpen(true)}
                             aria-label="Open conversations"
@@ -159,53 +170,38 @@ export function Agent() {
                             <Menu className="h-5 w-5" />
                         </Button>
 
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <Bot className="hidden h-5 w-5 text-primary md:block" />
-                            <h1 className="truncate text-sm font-medium">
-                                {conversation?.title ?? 'AI Agent'}
-                            </h1>
-                        </div>
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setVerbose(!verbose)}
-                            className={cn(
-                                'h-8 gap-1.5 px-2 text-xs',
-                                verbose && 'bg-primary/10 text-primary hover:bg-primary/15'
-                            )}
-                            aria-pressed={verbose}
-                            title={verbose ? 'Hide trace log' : 'Show trace log'}
-                        >
-                            <Terminal className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Verbose</span>
-                        </Button>
+                        <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
+                            {conversation?.title ?? 'AI Agent'}
+                        </h1>
 
                         <RpcConnectionIndicator />
 
-                        <Select
-                            value={activeModelId}
-                            onValueChange={(v) => setModelId(v)}
-                        >
-                            <SelectTrigger className="h-8 w-44 text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {groupedModels.map(({ tier, models }) => (
-                                    <SelectGroup key={tier}>
-                                        <SelectLabel>{tier}</SelectLabel>
-                                        {models.map((m) => (
-                                            <SelectItem
-                                                key={m.id}
-                                                value={m.id}
-                                            >
-                                                {m.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    aria-label="Thread menu"
+                                >
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel>Debug</DropdownMenuLabel>
+                                <DropdownMenuCheckboxItem
+                                    checked={verbose}
+                                    onCheckedChange={(v) => setVerbose(!!v)}
+                                >
+                                    <Terminal className="mr-2 h-3.5 w-3.5" />
+                                    Verbose trace log
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-[10px] font-normal text-muted-foreground">
+                                    Model is set below the message input.
+                                </DropdownMenuLabel>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </header>
 
                     {/* Messages */}
@@ -229,7 +225,7 @@ export function Agent() {
                         )}
                     </div>
 
-                    {/* Input */}
+                    {/* Input + model picker */}
                     <div className="border-t border-border bg-background">
                         <MessageInput
                             ref={inputRef}
@@ -246,6 +242,34 @@ export function Agent() {
                                     : undefined
                             }
                         />
+                        <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-3 -mt-1">
+                            <span className="text-[11px] text-muted-foreground">
+                                Model
+                            </span>
+                            <Select
+                                value={activeModelId}
+                                onValueChange={(v) => setModelId(v)}
+                            >
+                                <SelectTrigger className="h-7 w-auto gap-2 border-0 bg-transparent px-2 text-xs text-foreground/80 hover:text-foreground focus:ring-0">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="start">
+                                    {groupedModels.map(({ tier, models }) => (
+                                        <SelectGroup key={tier}>
+                                            <SelectLabel>{tier}</SelectLabel>
+                                            {models.map((m) => (
+                                                <SelectItem
+                                                    key={m.id}
+                                                    value={m.id}
+                                                >
+                                                    {m.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </main>
             </div>
