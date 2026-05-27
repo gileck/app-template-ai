@@ -24,6 +24,7 @@ import {
     appendTrace,
     finishTrace,
 } from '@/server/database/collections/template/agentTraces/agentTraces';
+import { getModelById } from '@/common/ai/models';
 import { toQueryId, toStringId } from '@/server/template/utils';
 import type { ApiHandlerContext } from '@/apis/types';
 import type { SendMessageRequest, SendMessageResponse } from '../types';
@@ -33,6 +34,14 @@ const HANDLER_PATH = 'src/server/project/demo-agent/handler';
 const RPC_TTL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_SYSTEM_PROMPT =
     'You are a helpful assistant. You have two tools available: get_time (returns the current server time, optionally in a given timezone) and calculate (one arithmetic operation on two numbers). Use them when relevant. Be concise.';
+
+function getModelProvider(modelId: string): string | null {
+    try {
+        return getModelById(modelId).provider;
+    } catch {
+        return null;
+    }
+}
 
 export const sendMessage = async (
     request: SendMessageRequest,
@@ -137,6 +146,31 @@ export const sendMessage = async (
     };
 
     try {
+        const previousProvider = getModelProvider(conversation.modelId);
+        const requestedProvider = getModelProvider(request.modelId);
+        const canResumeSession = Boolean(
+            conversation.sessionId &&
+                previousProvider &&
+                requestedProvider &&
+                previousProvider === requestedProvider
+        );
+        const resumeSessionId =
+            conversation.sessionId && canResumeSession
+                ? conversation.sessionId
+                : undefined;
+        const shouldClearStoredSession = Boolean(
+            conversation.sessionId &&
+                requestedProvider &&
+                previousProvider !== requestedProvider
+        );
+
+        // Provider SDK session ids are not portable. For example,
+        // Claude Code's session id cannot be resumed by Codex, and
+        // Codex will fail with "no rollout found" if we hand it that id.
+        if (shouldClearStoredSession) {
+            await agentConversations.clearConversationSessionId(conversationId);
+        }
+
         const titleUpdate =
             priorMessages.length === 0
                 ? { title: request.text.trim().slice(0, 80) }
@@ -160,9 +194,16 @@ export const sendMessage = async (
                 message: 'send.received',
                 data: {
                     modelId: request.modelId,
+                    previousModelId: conversation.modelId,
+                    previousProvider,
+                    requestedProvider,
                     textLength: request.text.length,
                     historyLength: history.length,
-                    resumeSessionId: conversation.sessionId ?? null,
+                    resumeSessionId: resumeSessionId ?? null,
+                    droppedResumeSessionId:
+                        shouldClearStoredSession
+                            ? conversation.sessionId
+                            : null,
                 },
             }
         );
@@ -202,7 +243,7 @@ export const sendMessage = async (
                 userText: enrichedUserText,
                 userImageUrls: imageAttachments.map((a) => a.url),
                 history,
-                resumeSessionId: conversation.sessionId,
+                resumeSessionId,
             },
             secret: process.env.RPC_SECRET ?? '',
             status: 'pending',

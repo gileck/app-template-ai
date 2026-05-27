@@ -11,6 +11,9 @@
  */
 
 import path from 'path';
+import os from 'os';
+import { promises as fs } from 'fs';
+import { randomUUID } from 'crypto';
 import { getModelById } from '@/common/ai/models';
 import { summarizeToolResult } from '../../eventSummary';
 import {
@@ -20,6 +23,7 @@ import {
 } from '../../types';
 import type {
     CodexOptions,
+    Input,
     McpToolCallItem,
     ThreadItem,
     ThreadOptions,
@@ -179,47 +183,51 @@ export class CodexAgenticAdapter implements AgenticAdapter {
             const thread = threadId
                 ? codex.resumeThread(threadId, threadOptions)
                 : codex.startThread(threadOptions);
-            const prompt = this.buildPrompt(opts, !!threadId);
-            const { events: sdkEvents } = await thread.runStreamed(prompt);
+            const { input, cleanup } = await this.buildInput(opts, !!threadId);
+            const { events: sdkEvents } = await thread.runStreamed(input);
             const toolCallIds = new Map<string, string>();
 
-            for await (const sdkEvent of sdkEvents) {
-                if (sdkEvent.type === 'thread.started') {
-                    threadId = sdkEvent.thread_id;
-                    continue;
-                }
-                if (sdkEvent.type === 'turn.completed') {
-                    usage = sdkEvent.usage;
-                    continue;
-                }
-                if (sdkEvent.type === 'turn.failed') {
-                    throw new Error(sdkEvent.error.message);
-                }
-                if (sdkEvent.type === 'error') {
-                    throw new Error(sdkEvent.message);
-                }
-                if (sdkEvent.type === 'item.started') {
-                    if (
-                        sdkEvent.item.type === 'mcp_tool_call' &&
-                        sdkEvent.item.server === mcpKey
-                    ) {
-                        toolCallCount += 1;
-                        if (toolCallCount > maxIterations) {
-                            hitMaxIterations = true;
-                            throw new Error(`Codex exceeded max tool iterations (${maxIterations})`);
+            try {
+                for await (const sdkEvent of sdkEvents) {
+                    if (sdkEvent.type === 'thread.started') {
+                        threadId = sdkEvent.thread_id;
+                        continue;
+                    }
+                    if (sdkEvent.type === 'turn.completed') {
+                        usage = sdkEvent.usage;
+                        continue;
+                    }
+                    if (sdkEvent.type === 'turn.failed') {
+                        throw new Error(sdkEvent.error.message);
+                    }
+                    if (sdkEvent.type === 'error') {
+                        throw new Error(sdkEvent.message);
+                    }
+                    if (sdkEvent.type === 'item.started') {
+                        if (
+                            sdkEvent.item.type === 'mcp_tool_call' &&
+                            sdkEvent.item.server === mcpKey
+                        ) {
+                            toolCallCount += 1;
+                            if (toolCallCount > maxIterations) {
+                                hitMaxIterations = true;
+                                throw new Error(`Codex exceeded max tool iterations (${maxIterations})`);
+                            }
+                        }
+                        await translateStartedItem(sdkEvent.item, mcpKey, toolCallIds, argsByCallId, emit);
+                        continue;
+                    }
+                    if (sdkEvent.type === 'item.completed') {
+                        if (sdkEvent.item.type === 'agent_message') {
+                            finalText = sdkEvent.item.text;
+                            await emit({ type: 'message', content: sdkEvent.item.text, at: now() });
+                        } else {
+                            await translateCompletedItem(sdkEvent.item, mcpKey, toolCallIds, argsByCallId, toolByName, emit);
                         }
                     }
-                    await translateStartedItem(sdkEvent.item, mcpKey, toolCallIds, argsByCallId, emit);
-                    continue;
                 }
-                if (sdkEvent.type === 'item.completed') {
-                    if (sdkEvent.item.type === 'agent_message') {
-                        finalText = sdkEvent.item.text;
-                        await emit({ type: 'message', content: sdkEvent.item.text, at: now() });
-                    } else {
-                        await translateCompletedItem(sdkEvent.item, mcpKey, toolCallIds, argsByCallId, toolByName, emit);
-                    }
-                }
+            } finally {
+                await cleanup();
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -283,8 +291,38 @@ export class CodexAgenticAdapter implements AgenticAdapter {
         };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- forwarded through; adapter doesn't inspect ctx.data
-    private buildPrompt(opts: AgenticRunOptions<any>, resuming: boolean): string {
+    private async buildInput(
+        opts: AgenticRunOptions<unknown>,
+        resuming: boolean
+    ): Promise<{ input: Input; cleanup: () => Promise<void> }> {
+        const prompt = this.buildPrompt(opts, resuming);
+        const imageUrls = opts.userImageUrls ?? [];
+        if (imageUrls.length === 0) {
+            return { input: prompt, cleanup: async () => {} };
+        }
+
+        const imagePaths = await Promise.all(
+            imageUrls.map((url) => fetchImageToTempFile(url))
+        );
+        return {
+            input: [
+                { type: 'text', text: prompt },
+                ...imagePaths.map((imagePath) => ({
+                    type: 'local_image' as const,
+                    path: imagePath,
+                })),
+            ],
+            cleanup: async () => {
+                await Promise.all(
+                    imagePaths.map((imagePath) =>
+                        fs.rm(imagePath, { force: true }).catch(() => {})
+                    )
+                );
+            },
+        };
+    }
+
+    private buildPrompt(opts: AgenticRunOptions<unknown>, resuming: boolean): string {
         const parts = [
             '=== SYSTEM INSTRUCTIONS ===',
             opts.systemPrompt,
@@ -311,6 +349,28 @@ function stringEnv(): Record<string, string> {
             return typeof entry[1] === 'string';
         })
     );
+}
+
+function extensionForContentType(contentType: string | null): string {
+    const lower = contentType?.toLowerCase() ?? '';
+    if (lower.includes('jpeg') || lower.includes('jpg')) return '.jpg';
+    if (lower.includes('gif')) return '.gif';
+    if (lower.includes('webp')) return '.webp';
+    return '.png';
+}
+
+async function fetchImageToTempFile(url: string): Promise<string> {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch image attachment (${res.status}): ${url}`);
+    }
+
+    const contentType = res.headers.get('content-type');
+    const ext = extensionForContentType(contentType);
+    const filePath = path.join(os.tmpdir(), `codex-image-${randomUUID()}${ext}`);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    await fs.writeFile(filePath, bytes);
+    return filePath;
 }
 
 async function translateStartedItem(

@@ -67,15 +67,20 @@ interface HandlerArgs {
 }
 
 /**
- * True only for errors that indicate the saved session id is gone —
- * the one case where retrying without `resumeSessionId` actually has a
- * chance of succeeding. Excludes generic "session" mentions in rate
- * limits, auth, network, and timeout errors.
+ * True only for errors that indicate the saved provider resume id is
+ * gone or belongs to a different provider. That's the one case where
+ * retrying without `resumeSessionId` has a chance of succeeding.
+ * Excludes generic "session" mentions in rate limits, auth, network,
+ * and timeout errors.
  */
 function isMissingSessionError(message: string): boolean {
     return /session.*(not\s*found|missing|does\s*not\s*exist|unknown|expired|invalid|no\s*such)/i.test(
         message
-    ) || /(no\s*such|unknown|invalid)\s+session/i.test(message);
+    ) || /(no\s*such|unknown|invalid)\s+session/i.test(message)
+        || /thread\/resume/i.test(message)
+        || /no\s+rollout\s+found/i.test(message)
+        || /thread.*(not\s*found|missing|does\s*not\s*exist|unknown|expired|invalid|no\s*such)/i.test(message)
+        || /(no\s*such|unknown|invalid)\s+thread/i.test(message);
 }
 
 function isHistoryEntry(v: unknown): v is { role: 'user' | 'assistant'; content: string } {
@@ -224,8 +229,30 @@ export function createAgentHandler<TData>(
         // forget, so the daemon owns the full lifecycle of the
         // assistant message.
         let result: AgenticResult;
+        const retryWithoutResume = async (
+            reason: string
+        ): Promise<AgenticResult> => {
+            console.warn(
+                `${logPrefix} resume failed, retrying without session id`,
+                { sessionId: args.resumeSessionId, reason }
+            );
+            await appendTrace(messageObjectId, traceCtx, {
+                layer: 'adapter',
+                level: 'warn',
+                message: 'adapter.retry-without-resume',
+                data: { droppedSessionId: args.resumeSessionId, reason },
+            });
+            return adapter.runAgent({ ...runOpts, resumeSessionId: undefined });
+        };
         try {
             result = await adapter.runAgent(runOpts);
+            if (
+                args.resumeSessionId &&
+                result.finishReason === 'error' &&
+                isMissingSessionError(result.finalText)
+            ) {
+                result = await retryWithoutResume(result.finalText);
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(`${logPrefix} adapter threw:`, err);
@@ -249,18 +276,8 @@ export function createAgentHandler<TData>(
             // match rate limits, auth failures, and timeouts — wasting
             // a retry that will fail again.
             if (args.resumeSessionId && isMissingSessionError(message)) {
-                console.warn(
-                    `${logPrefix} resume failed, retrying without session id`,
-                    { sessionId: args.resumeSessionId }
-                );
-                await appendTrace(messageObjectId, traceCtx, {
-                    layer: 'adapter',
-                    level: 'warn',
-                    message: 'adapter.retry-without-resume',
-                    data: { droppedSessionId: args.resumeSessionId },
-                });
                 try {
-                    result = await adapter.runAgent({ ...runOpts, resumeSessionId: undefined });
+                    result = await retryWithoutResume(message);
                 } catch (retryErr) {
                     const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
                     await appendTrace(messageObjectId, traceCtx, {
