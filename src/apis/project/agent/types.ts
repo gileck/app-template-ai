@@ -1,11 +1,17 @@
 import type {
     AgentConversationClient,
+    AgentMessageAttachment,
     AgentMessageClient,
 } from '@/server/database/collections/project/agentConversations';
 import type { AgentTraceClient } from '@/server/database/collections/template/agentTraces/types';
 
 // Re-export the client shapes so all agent types live under one import.
-export type { AgentConversationClient, AgentMessageClient, AgentTraceClient };
+export type {
+    AgentConversationClient,
+    AgentMessageAttachment,
+    AgentMessageClient,
+    AgentTraceClient,
+};
 
 // ─── list conversations ──────────────────────────────────────────────────
 
@@ -74,12 +80,32 @@ export interface GetTracesResponse {
     error?: string;
 }
 
+// ─── upload attachment ───────────────────────────────────────────────────
+
+export interface UploadAttachmentRequest {
+    /** Original filename, used for display + extension hint. */
+    name: string;
+    /** MIME type, e.g. "image/png". */
+    contentType: string;
+    /** Base64-encoded file contents (no data: prefix). */
+    base64: string;
+}
+
+export interface UploadAttachmentResponse {
+    attachment?: AgentMessageAttachment;
+    error?: string;
+}
+
 // ─── send message ────────────────────────────────────────────────────────
 
 export interface SendMessageRequest {
     conversationId: string;
     modelId: string;
     text: string;
+    /** Optional pre-uploaded attachments (from the upload-attachment
+     *  API). Persisted on the user message and surfaced to the agent
+     *  inline in the user text. */
+    attachments?: AgentMessageAttachment[];
     /** Override the default system prompt for this turn. */
     systemPrompt?: string;
 }

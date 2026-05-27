@@ -30,6 +30,24 @@ export interface AgentMessageTokens {
     output: number;
 }
 
+/**
+ * A user-uploaded file attached to a message. Stored as a URL pointing
+ * to Vercel Blob (or whichever provider `fileStorageAPI` is configured
+ * with). The agent receives the URL inline in the user text — vision-
+ * capable adapters can fetch image bytes via their built-in fetch
+ * tools (Claude Code has WebFetch enabled).
+ */
+export interface AgentMessageAttachment {
+    /** Public URL of the uploaded file. */
+    url: string;
+    /** MIME type, e.g. "image/png". */
+    contentType: string;
+    /** Original filename for display. */
+    name: string;
+    /** Size in bytes. */
+    size: number;
+}
+
 export interface AgentMessageDocument {
     _id: ObjectId;
     conversationId: ObjectId;
@@ -45,6 +63,9 @@ export interface AgentMessageDocument {
     /** Token usage for the turn. Optional for backwards-compat with
      *  rows persisted before token tracking was wired in. */
     tokens?: AgentMessageTokens;
+    /** User-attached files (images, documents). Present only on
+     *  user messages. Optional for backwards-compat. */
+    attachments?: AgentMessageAttachment[];
     /** Lifecycle. User messages start (and stay) 'completed' so the
      *  client can treat status uniformly. */
     status: AgentMessageStatus;
@@ -71,6 +92,7 @@ export interface AgentMessageClient {
     events: AgentEvent[];
     cost: number;
     tokens: AgentMessageTokens | null;
+    attachments: AgentMessageAttachment[];
     status: AgentMessageStatus;
     createdAt: string;
     finalizedAt: string | null;

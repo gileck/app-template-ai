@@ -7,5 +7,6 @@ export {
     useDeleteAgentConversation,
     useSendAgentMessage,
     useCancelAgentMessage,
+    useUploadAttachment,
     isPendingMessageStale,
 } from './hooks';

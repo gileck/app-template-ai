@@ -11,3 +11,4 @@ export const API_DELETE_CONVERSATION = 'agent/deleteConversation';
 export const API_SEND_MESSAGE = 'agent/sendMessage';
 export const API_CANCEL_MESSAGE = 'agent/cancelMessage';
 export const API_GET_TRACES = 'agent/getTraces';
+export const API_UPLOAD_ATTACHMENT = 'agent/uploadAttachment';

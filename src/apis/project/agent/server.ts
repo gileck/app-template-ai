@@ -8,6 +8,7 @@ import {
     API_SEND_MESSAGE,
     API_CANCEL_MESSAGE,
     API_GET_TRACES,
+    API_UPLOAD_ATTACHMENT,
 } from './index';
 import { listConversations } from './handlers/listConversations';
 import { getConversation } from './handlers/getConversation';
@@ -16,6 +17,7 @@ import { deleteConversation } from './handlers/deleteConversation';
 import { sendMessage } from './handlers/sendMessage';
 import { cancelMessage } from './handlers/cancelMessage';
 import { getTraces } from './handlers/getTraces';
+import { uploadAttachment } from './handlers/uploadAttachment';
 
 export const agentApiHandlers = {
     [API_LIST_CONVERSATIONS]: { process: listConversations },
@@ -25,4 +27,5 @@ export const agentApiHandlers = {
     [API_SEND_MESSAGE]: { process: sendMessage },
     [API_CANCEL_MESSAGE]: { process: cancelMessage },
     [API_GET_TRACES]: { process: getTraces },
+    [API_UPLOAD_ATTACHMENT]: { process: uploadAttachment },
 };

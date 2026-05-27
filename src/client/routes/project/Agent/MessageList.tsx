@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import {
     User,
     AlertTriangle,
@@ -16,7 +14,13 @@ import {
 import { cn } from '@/client/lib/utils';
 import { Avatar, AvatarFallback } from '@/client/components/template/ui/avatar';
 import { toast } from '@/client/components/template/ui/toast';
-import type { AgentMessageClient, AgentTraceClient } from '@/apis/project/agent/types';
+import { MarkdownText } from '@/client/components/template/MarkdownText';
+import { FilePreview } from '@/client/components/template/chat/FilePreview';
+import type {
+    AgentMessageAttachment,
+    AgentMessageClient,
+    AgentTraceClient,
+} from '@/apis/project/agent/types';
 import type { TraceEntry } from '@/server/database/collections/template/agentTraces/types';
 import { isPendingMessageStale } from '@/client/features/project/agent';
 import { EventTimeline } from './EventTimeline';
@@ -283,6 +287,10 @@ function MessageBubble({
                     />
                 )}
 
+                {isUser && message.attachments.length > 0 && (
+                    <AttachmentList attachments={message.attachments} />
+                )}
+
                 {/* Assistant error → dedicated ErrorBubble with
                     summary + collapsible details + copy/retry. */}
                 {isAssistantError && (
@@ -328,11 +336,7 @@ function MessageBubble({
                                     {message.content}
                                 </p>
                             ) : (
-                                <div className="markdown-body text-sm">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {message.content}
-                                    </ReactMarkdown>
-                                </div>
+                                <MarkdownText content={message.content} />
                             )}
                         </div>
                     )}
@@ -550,6 +554,25 @@ function ErrorBubble({
                     </button>
                 )}
             </div>
+        </div>
+    );
+}
+
+function AttachmentList({
+    attachments,
+}: {
+    attachments: AgentMessageAttachment[];
+}) {
+    return (
+        <div className="flex flex-wrap justify-end gap-1.5">
+            {attachments.map((att) => (
+                <FilePreview
+                    key={att.url}
+                    url={att.url}
+                    contentType={att.contentType}
+                    name={att.name}
+                />
+            ))}
         </div>
     );
 }

@@ -76,10 +76,12 @@ export const sendMessage = async (
         .filter((m) => m.status === 'completed' && m.content.length > 0)
         .map((m) => ({ role: m.role, content: m.content }));
 
+    const attachments = request.attachments ?? [];
     const userMessage = await agentConversations.createUserMessage({
         conversationId,
         userId,
         content: request.text.trim(),
+        attachments,
     });
 
     const assistantMessage =
@@ -165,6 +167,30 @@ export const sendMessage = async (
             }
         );
 
+        // Split image attachments from other files. Images go into
+        // `userImageUrls` so vision-capable adapters can pass them as
+        // native multimodal content blocks (the model literally sees
+        // the pixels). Non-image files stay inline as text URLs —
+        // adapters without vision (or for non-image content) can
+        // fetch via their built-in URL-fetch tool.
+        const imageAttachments = attachments.filter((a) =>
+            a.contentType.startsWith('image/')
+        );
+        const nonImageAttachments = attachments.filter(
+            (a) => !a.contentType.startsWith('image/')
+        );
+        const enrichedUserText = nonImageAttachments.length === 0
+            ? request.text.trim()
+            : [
+                  request.text.trim(),
+                  '',
+                  'Attached files (fetch the URL to read contents):',
+                  ...nonImageAttachments.map(
+                      (a) =>
+                          `- ${a.name} (${a.contentType}, ${Math.round(a.size / 1024)} KB): ${a.url}`
+                  ),
+              ].join('\n');
+
         await createRpcJob({
             handlerPath: HANDLER_PATH,
             args: {
@@ -173,7 +199,8 @@ export const sendMessage = async (
                 sourceMessageId: toStringId(assistantMessage._id),
                 modelId: request.modelId,
                 systemPrompt: request.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-                userText: request.text.trim(),
+                userText: enrichedUserText,
+                userImageUrls: imageAttachments.map((a) => a.url),
                 history,
                 resumeSessionId: conversation.sessionId,
             },

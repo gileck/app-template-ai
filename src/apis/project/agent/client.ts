@@ -8,6 +8,7 @@ import {
     API_SEND_MESSAGE,
     API_CANCEL_MESSAGE,
     API_GET_TRACES,
+    API_UPLOAD_ATTACHMENT,
 } from './index';
 import type {
     ListConversationsRequest,
@@ -24,6 +25,8 @@ import type {
     CancelMessageResponse,
     GetTracesRequest,
     GetTracesResponse,
+    UploadAttachmentRequest,
+    UploadAttachmentResponse,
 } from './types';
 
 export const listConversations = (
@@ -60,3 +63,8 @@ export const getTraces = (
     params: GetTracesRequest
 ): Promise<CacheResult<GetTracesResponse>> =>
     apiClient.call(API_GET_TRACES, params);
+
+export const uploadAttachment = (
+    params: UploadAttachmentRequest
+): Promise<CacheResult<UploadAttachmentResponse>> =>
+    apiClient.post(API_UPLOAD_ATTACHMENT, params);

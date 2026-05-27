@@ -48,11 +48,17 @@ import {
     useCreateAgentConversation,
     useSendAgentMessage,
     useCancelAgentMessage,
+    useUploadAttachment,
     isPendingMessageStale,
 } from '@/client/features/project/agent';
+import type { AgentMessageAttachment } from '@/apis/project/agent/types';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
-import { MessageInput, type MessageInputHandle } from './MessageInput';
+import {
+    MessageInput,
+    type AttachmentSlot,
+    type MessageInputHandle,
+} from './MessageInput';
 
 const AGENT_MODELS = [
     { tier: 'Claude Code', models: CLAUDE_CODE_MODELS },
@@ -71,6 +77,13 @@ export function Agent() {
     const [sheetOpen, setSheetOpen] = useState(false);
 
     const inputRef = useRef<MessageInputHandle | null>(null);
+
+    // Attachment slots — each picked file becomes a slot that flips
+    // through 'uploading' → 'uploaded' (or 'failed'). On send we
+    // include only the successfully-uploaded ones.
+    // eslint-disable-next-line state-management/prefer-state-architecture -- transient pre-submit composer state
+    const [attachmentSlots, setAttachmentSlots] = useState<AttachmentSlot[]>([]);
+    const uploadMutation = useUploadAttachment();
 
     const { data: conversations = [] } = useAgentConversations();
     const conversationQuery = useAgentConversation(selectedId);
@@ -112,7 +125,27 @@ export function Agent() {
 
     const groupedModels = useMemo(() => AGENT_MODELS, []);
 
+    const patchSlot = (id: string, patch: Partial<AttachmentSlot>) => {
+        setAttachmentSlots((cur) =>
+            cur.map((s) => (s.id === id ? { ...s, ...patch } : s))
+        );
+    };
+
     const handleSend = async (text: string) => {
+        // 'uploading' was blocked by MessageInput's submit guard;
+        // 'failed' slots are silently dropped (user already saw the
+        // toast from the upload mutation).
+        const ready: AgentMessageAttachment[] = attachmentSlots
+            .filter((s): s is AttachmentSlot & { url: string } =>
+                s.status === 'uploaded' && !!s.url
+            )
+            .map((s) => ({
+                url: s.url,
+                contentType: s.contentType,
+                name: s.name,
+                size: s.size ?? 0,
+            }));
+
         let convId = selectedId;
         if (!convId) {
             const created = await createMutation.mutateAsync({
@@ -125,6 +158,50 @@ export function Agent() {
             conversationId: convId,
             modelId: activeModelId,
             text,
+            attachments: ready.length > 0 ? ready : undefined,
+        });
+        // Slots have been claimed by the message — clear composer state.
+        for (const s of attachmentSlots) {
+            if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+        }
+        setAttachmentSlots([]);
+    };
+
+    const handleAddFiles = (files: File[]) => {
+        const newSlots: AttachmentSlot[] = files.map((file) => ({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: file.name,
+            contentType: file.type || 'application/octet-stream',
+            status: 'uploading',
+            previewUrl: file.type.startsWith('image/')
+                ? URL.createObjectURL(file)
+                : undefined,
+        }));
+        setAttachmentSlots((cur) => [...cur, ...newSlots]);
+
+        files.forEach((file, idx) => {
+            const slotId = newSlots[idx].id;
+            uploadMutation.mutate(file, {
+                onSuccess: (att) =>
+                    patchSlot(slotId, {
+                        status: 'uploaded',
+                        url: att.url,
+                        size: att.size,
+                    }),
+                onError: (err) =>
+                    patchSlot(slotId, {
+                        status: 'failed',
+                        error: err instanceof Error ? err.message : String(err),
+                    }),
+            });
+        });
+    };
+
+    const handleRemoveAttachment = (id: string) => {
+        setAttachmentSlots((cur) => {
+            const slot = cur.find((s) => s.id === id);
+            if (slot?.previewUrl) URL.revokeObjectURL(slot.previewUrl);
+            return cur.filter((s) => s.id !== id);
         });
     };
 
@@ -230,6 +307,9 @@ export function Agent() {
                         <MessageInput
                             ref={inputRef}
                             onSubmit={handleSend}
+                            attachments={attachmentSlots}
+                            onAddFiles={handleAddFiles}
+                            onRemoveAttachment={handleRemoveAttachment}
                             disabled={createMutation.isPending}
                             isSending={sendMutation.isPending}
                             isAgentRunning={hasLivePending}

@@ -17,9 +17,11 @@ import {
     getTraces,
     listConversations,
     sendMessage,
+    uploadAttachment,
 } from '@/apis/project/agent/client';
 import type {
     AgentConversationClient,
+    AgentMessageAttachment,
     AgentMessageClient,
     AgentTraceClient,
     GetConversationResponse,
@@ -28,6 +30,7 @@ import type {
 import { useQueryDefaults } from '@/client/query';
 import { errorToast } from '@/client/features/template/error-tracking';
 import { toast } from '@/client/components/template/ui/toast';
+import { fileToBase64 } from '@/client/utils/fileToBase64';
 import { useAgentUIStore } from './store';
 
 const conversationsKey = ['agent', 'conversations'] as const;
@@ -170,6 +173,37 @@ export function useDeleteAgentConversation() {
         retry: false,
     });
 }
+
+/**
+ * Upload a single file as an agent-conversation attachment. Returns
+ * the persisted attachment metadata (URL + content type + size +
+ * name) that can be attached to a subsequent `sendMessage` call.
+ *
+ * Reads the file as base64 via FileReader, posts to the upload API
+ * (which proxies into Vercel Blob via the project's fileStorageAPI).
+ */
+export function useUploadAttachment() {
+    return useMutation({
+        mutationFn: async (file: File): Promise<AgentMessageAttachment> => {
+            const base64 = await fileToBase64(file);
+            const result = await uploadAttachment({
+                name: file.name,
+                contentType: file.type || 'application/octet-stream',
+                base64,
+            });
+            if (result.data?.error) throw new Error(result.data.error);
+            if (!result.data?.attachment) {
+                throw new Error('No attachment returned');
+            }
+            return result.data.attachment;
+        },
+        onError: (err) => {
+            errorToast('Failed to upload attachment', err);
+        },
+        retry: false,
+    });
+}
+
 
 /**
  * Cancel a pending assistant message. Optimistically flips it to

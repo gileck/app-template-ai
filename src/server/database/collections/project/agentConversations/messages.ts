@@ -11,6 +11,7 @@ import {
     touchConversation,
 } from './conversations';
 import type {
+    AgentMessageAttachment,
     AgentMessageClient,
     AgentMessageDocument,
     AgentMessageRole,
@@ -38,6 +39,7 @@ export async function createUserMessage(input: {
     conversationId: ObjectId;
     userId: ObjectId;
     content: string;
+    attachments?: AgentMessageAttachment[];
 }): Promise<AgentMessageDocument> {
     const col = await getCollection();
     const doc: AgentMessageDocument = {
@@ -51,6 +53,9 @@ export async function createUserMessage(input: {
         status: 'completed',
         createdAt: new Date(),
         finalizedAt: new Date(),
+        ...(input.attachments && input.attachments.length > 0
+            ? { attachments: input.attachments }
+            : {}),
     };
     await col.insertOne(doc);
     return doc;
@@ -142,6 +147,7 @@ export function toMessageClient(doc: AgentMessageDocument): AgentMessageClient {
         events: doc.events,
         cost: doc.cost,
         tokens: doc.tokens ?? null,
+        attachments: doc.attachments ?? [],
         status: doc.status,
         createdAt: doc.createdAt.toISOString(),
         finalizedAt: doc.finalizedAt ? doc.finalizedAt.toISOString() : null,

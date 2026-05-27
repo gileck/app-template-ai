@@ -59,6 +59,7 @@ interface HandlerArgs {
     modelId: string;
     systemPrompt: string;
     userText: string;
+    userImageUrls?: string[];
     history: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
     maxIterations?: number;
     resumeSessionId?: string;
@@ -103,6 +104,11 @@ function parseArgs(agentName: string, raw: Record<string, unknown>): HandlerArgs
         modelId: raw.modelId as string,
         systemPrompt: raw.systemPrompt as string,
         userText: raw.userText as string,
+        userImageUrls:
+            Array.isArray(raw.userImageUrls) &&
+            raw.userImageUrls.every((u): u is string => typeof u === 'string')
+                ? (raw.userImageUrls as string[])
+                : undefined,
         history: raw.history as ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>,
         maxIterations:
             typeof raw.maxIterations === 'number' && Number.isFinite(raw.maxIterations)
@@ -195,6 +201,7 @@ export function createAgentHandler<TData>(
             systemPrompt: args.systemPrompt,
             history: args.history,
             userText: args.userText,
+            userImageUrls: args.userImageUrls,
             tools: [...config.tools],
             toolContext,
             maxIterations: args.maxIterations,
