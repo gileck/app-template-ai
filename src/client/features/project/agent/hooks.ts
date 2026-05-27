@@ -293,6 +293,53 @@ export function useAgentTraces(input: {
     });
 }
 
+/**
+ * Sentinel prefix on a temporary message id. The optimistic pair
+ * inserted in `onMutate` carries this prefix; `onSuccess` filters them
+ * out before splicing in the real server-issued rows. Keeping it
+ * stable + searchable in case something needs to clean up stragglers
+ * (e.g. a future bulk-clear or test fixture).
+ */
+const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+
+function buildOptimisticMessages(input: SendMessageRequest): {
+    tempBatchId: string;
+    userMessage: AgentMessageClient;
+    assistantMessage: AgentMessageClient;
+} {
+    const tempBatchId =
+        OPTIMISTIC_ID_PREFIX +
+        `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = new Date().toISOString();
+    const userMessage: AgentMessageClient = {
+        id: `${tempBatchId}-user`,
+        conversationId: input.conversationId,
+        role: 'user',
+        content: input.text,
+        events: [],
+        cost: 0,
+        tokens: null,
+        attachments: input.attachments ?? [],
+        status: 'completed',
+        createdAt: now,
+        finalizedAt: now,
+    };
+    const assistantMessage: AgentMessageClient = {
+        id: `${tempBatchId}-assistant`,
+        conversationId: input.conversationId,
+        role: 'assistant',
+        content: '',
+        events: [],
+        cost: 0,
+        tokens: null,
+        attachments: [],
+        status: 'pending',
+        createdAt: now,
+        finalizedAt: null,
+    };
+    return { tempBatchId, userMessage, assistantMessage };
+}
+
 export function useSendAgentMessage() {
     const queryClient = useQueryClient();
 
@@ -310,22 +357,45 @@ export function useSendAgentMessage() {
             }
             return { input, data };
         },
-        onSuccess: ({ input, data }) => {
-            // Seed the cache so the UI shows both rows instantly. The
-            // polling loop in useAgentConversation kicks in only when
-            // the assistant row's status is 'pending' — if the server
-            // already finalized it as 'errored' (e.g. RPC gate
-            // rejected), the bubble renders the error directly with no
-            // polling.
+        // Optimistic insert: render the user bubble + a pending
+        // assistant placeholder immediately, while the sendMessage
+        // POST round-trips. The UI feels instant; the real ids come
+        // back in onSuccess and we swap the rows in-place.
+        onMutate: async (input) => {
+            const key = conversationKey(input.conversationId);
+            await queryClient.cancelQueries({ queryKey: key });
+            const previous = queryClient.getQueryData<GetConversationResponse>(key);
+            const optimistic = buildOptimisticMessages(input);
+            queryClient.setQueryData<GetConversationResponse>(key, (old) => {
+                if (!old?.conversation) return old;
+                return {
+                    ...old,
+                    messages: [
+                        ...(old.messages ?? []),
+                        optimistic.userMessage,
+                        optimistic.assistantMessage,
+                    ],
+                };
+            });
+            return { previous, tempBatchId: optimistic.tempBatchId };
+        },
+        onSuccess: ({ input, data }, _vars, context) => {
+            // Replace the optimistic pair with the server-issued rows.
+            // If the assistant came back already 'errored' (e.g. the
+            // RPC gate rejected the enqueue) the bubble renders the
+            // error directly — no polling needed.
             queryClient.setQueryData<GetConversationResponse>(
                 conversationKey(input.conversationId),
                 (old) => {
                     if (!old?.conversation) return old;
-                    const messages = old.messages ?? [];
+                    const tempBatchId = context?.tempBatchId;
+                    const cleaned = (old.messages ?? []).filter(
+                        (m) => !tempBatchId || !m.id.startsWith(tempBatchId)
+                    );
                     return {
                         ...old,
                         messages: [
-                            ...messages,
+                            ...cleaned,
                             data.userMessage!,
                             data.assistantMessage!,
                         ],
@@ -333,13 +403,21 @@ export function useSendAgentMessage() {
                 }
             );
             queryClient.invalidateQueries({ queryKey: conversationsKey });
-            // If the assistant message came back already errored, also
-            // toast so the failure is impossible to miss.
             if (data.assistantMessage!.status === 'errored') {
-                errorToast(data.assistantMessage!.content, new Error(data.error ?? data.assistantMessage!.content));
+                errorToast(
+                    data.assistantMessage!.content,
+                    new Error(data.error ?? data.assistantMessage!.content)
+                );
             }
         },
-        onError: (err) => {
+        onError: (err, input, context) => {
+            // Roll the optimistic insert back to the pre-mutate state.
+            if (context?.previous) {
+                queryClient.setQueryData(
+                    conversationKey(input.conversationId),
+                    context.previous
+                );
+            }
             errorToast('Failed to send message', err);
         },
         retry: false,

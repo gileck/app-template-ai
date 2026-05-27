@@ -1,10 +1,15 @@
 /**
  * AttachmentChip + AttachmentSlot
  *
- * Composer-state chip for in-flight upload UI. Shows a tiny image
- * preview (for images) or a file icon (for everything else), the
- * filename, an inline upload spinner, and an optional remove button.
- * Failed uploads render in destructive styling.
+ * Composer-state chip for in-flight upload UI. Two visual variants:
+ *
+ *   - `'pill'` (default) — compact horizontal row: thumbnail (32×32),
+ *     filename, upload spinner, optional × button. Good for dense
+ *     lists and forms.
+ *   - `'card'` — large square thumbnail (64×64) with × in the top-
+ *     right corner. Filename is in a tooltip only (or rendered as a
+ *     small caption for non-image files). Optimized for modern chat
+ *     composers where image-first feels right.
  *
  * For display-only persisted attachments (no remove, no spinner), use
  * `FilePreview` instead.
@@ -41,9 +46,28 @@ export interface AttachmentChipProps {
     /** When provided, renders the × button that calls back. Pass
      *  `undefined` for read-only chips. */
     onRemove?: () => void;
+    /** Visual variant. Defaults to `'pill'`. */
+    variant?: 'pill' | 'card';
 }
 
-export function AttachmentChip({ attachment, onRemove }: AttachmentChipProps) {
+export function AttachmentChip({
+    attachment,
+    onRemove,
+    variant = 'pill',
+}: AttachmentChipProps) {
+    if (variant === 'card') {
+        return <CardChip attachment={attachment} onRemove={onRemove} />;
+    }
+    return <PillChip attachment={attachment} onRemove={onRemove} />;
+}
+
+function PillChip({
+    attachment,
+    onRemove,
+}: {
+    attachment: AttachmentSlot;
+    onRemove?: () => void;
+}) {
     const isImage = attachment.contentType.startsWith('image/');
     const isFailed = attachment.status === 'failed';
     const isUploading = attachment.status === 'uploading';
@@ -90,3 +114,64 @@ export function AttachmentChip({ attachment, onRemove }: AttachmentChipProps) {
     );
 }
 
+function CardChip({
+    attachment,
+    onRemove,
+}: {
+    attachment: AttachmentSlot;
+    onRemove?: () => void;
+}) {
+    const isImage = attachment.contentType.startsWith('image/');
+    const isFailed = attachment.status === 'failed';
+    const isUploading = attachment.status === 'uploading';
+    const displayUrl = attachment.previewUrl || attachment.url;
+
+    return (
+        <div
+            className={cn(
+                'group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted shadow-sm',
+                isFailed && 'border-destructive/40 bg-destructive/10'
+            )}
+            title={attachment.error || attachment.name}
+        >
+            {isImage && displayUrl ? (
+                <img
+                    src={displayUrl}
+                    alt={attachment.name}
+                    className={cn(
+                        'h-full w-full object-cover',
+                        isUploading && 'opacity-60'
+                    )}
+                />
+            ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-center">
+                    {isFailed ? (
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                    ) : (
+                        <FileIcon className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className="line-clamp-2 break-all text-[10px] leading-tight text-muted-foreground">
+                        {attachment.name}
+                    </span>
+                </div>
+            )}
+
+            {isUploading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px]">
+                    <Loader2 className="h-5 w-5 animate-spin text-foreground" />
+                </div>
+            )}
+
+            {onRemove && (
+                <button
+                    type="button"
+                    onClick={onRemove}
+                    className="absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-foreground/80 text-background opacity-0 shadow-md transition-opacity hover:bg-foreground group-hover:opacity-100 focus:opacity-100"
+                    aria-label="Remove attachment"
+                >
+                    <X className="h-3 w-3" />
+                </button>
+            )}
+        </div>
+    );
+}

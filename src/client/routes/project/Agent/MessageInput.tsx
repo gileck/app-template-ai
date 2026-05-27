@@ -8,8 +8,9 @@ import {
     KeyboardEvent,
     ChangeEvent,
     ClipboardEvent,
+    ReactNode,
 } from 'react';
-import { Send, Loader2, Square, Paperclip } from 'lucide-react';
+import { ArrowUp, Loader2, Square, Paperclip } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
 import { Textarea } from '@/client/components/template/ui/textarea';
 import {
@@ -30,6 +31,9 @@ interface MessageInputProps {
     attachments?: AttachmentSlot[];
     onAddFiles?: (files: File[]) => void;
     onRemoveAttachment?: (id: string) => void;
+    /** Slot rendered in the bottom toolbar to the right of the
+     *  paperclip — typically a model picker or other context control. */
+    toolbarLeftSlot?: ReactNode;
     /** True while the user's own send request is still in flight (the
      *  initial POST). Disables the input and shows a spinner. */
     isSending?: boolean;
@@ -59,6 +63,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             attachments = [],
             onAddFiles,
             onRemoveAttachment,
+            toolbarLeftSlot,
             disabled,
             isSending,
             isAgentRunning,
@@ -132,8 +137,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             const items = e.clipboardData?.items;
             if (!items || items.length === 0) return;
 
-            // Pull every file-kind item (mainly images from screenshot
-            // paste, but PDFs from some apps land here too).
             const files: File[] = [];
             let hasTextItem = false;
             for (let i = 0; i < items.length; i++) {
@@ -151,9 +154,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             onAddFiles(files);
             // If the clipboard had ONLY file items (e.g. a screenshot),
             // suppress the default — otherwise some browsers paste a
-            // placeholder string. If text is also present (mixed
-            // clipboard from a webpage etc.), let the text paste through
-            // normally.
+            // placeholder string. Mixed clipboards keep their text part.
             if (!hasTextItem) e.preventDefault();
         };
 
@@ -168,15 +169,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         return (
             <form
                 onSubmit={submit}
-                className="mx-auto flex w-full max-w-3xl items-end gap-2 px-4 pb-4 pt-2"
+                className="mx-auto w-full max-w-3xl px-3 pb-4 pt-2 sm:px-4"
             >
-                <div className="relative flex flex-1 flex-col rounded-2xl border border-border bg-card focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
+                {/* Composer card — single rounded container holding
+                    attachments + textarea + bottom toolbar. */}
+                <div className="group relative flex flex-col rounded-[28px] border border-border bg-card shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-md">
+                    {/* Attachment thumbnail strip */}
                     {attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 px-2 pt-2">
+                        <div className="flex flex-wrap gap-2 px-4 pt-3">
                             {attachments.map((att) => (
                                 <AttachmentChip
                                     key={att.id}
                                     attachment={att}
+                                    variant="card"
                                     onRemove={
                                         onRemoveAttachment
                                             ? () => onRemoveAttachment(att.id)
@@ -187,18 +192,32 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                         </div>
                     )}
 
-                    <div className="flex items-end">
+                    {/* Textarea */}
+                    <Textarea
+                        ref={textareaRef}
+                        placeholder="Message the agent…"
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        disabled={disabled}
+                        rows={1}
+                        className="min-h-12 resize-none border-0 bg-transparent px-5 pt-4 pb-1 text-[15px] leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
+                    />
+
+                    {/* Bottom toolbar */}
+                    <div className="flex items-center gap-1 px-2.5 pb-2.5 pt-1">
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={disabled || !onAddFiles}
-                            className="h-11 w-11 shrink-0 self-end text-muted-foreground hover:text-foreground"
+                            className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
                             aria-label="Attach file"
-                            title="Attach file"
+                            title="Attach file or paste an image"
                         >
-                            <Paperclip className="h-4 w-4" />
+                            <Paperclip className="h-[18px] w-[18px]" />
                         </Button>
                         <input
                             ref={fileInputRef}
@@ -208,48 +227,45 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                             className="hidden"
                             onChange={handleFilesPicked}
                         />
-                        <Textarea
-                            ref={textareaRef}
-                            placeholder="Message the agent…  (you can paste images)"
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onPaste={handlePaste}
-                            disabled={disabled}
-                            rows={1}
-                            className="min-h-11 flex-1 resize-none border-0 bg-transparent px-1 py-3 text-sm shadow-none focus-visible:ring-0"
-                        />
+
+                        {toolbarLeftSlot && (
+                            <div className="flex min-w-0 flex-1 items-center">
+                                {toolbarLeftSlot}
+                            </div>
+                        )}
+                        {!toolbarLeftSlot && <div className="flex-1" />}
+
+                        {showStop ? (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="destructive"
+                                onClick={onCancel}
+                                className="h-9 w-9 shrink-0 rounded-full"
+                                aria-label="Stop agent"
+                                title="Stop agent"
+                            >
+                                <Square className="h-3.5 w-3.5 fill-current" />
+                            </Button>
+                        ) : (
+                            <Button
+                                type="submit"
+                                size="icon"
+                                disabled={sendDisabled}
+                                className="h-9 w-9 shrink-0 rounded-full"
+                                aria-label="Send message"
+                                title="Send message  (Enter)"
+                            >
+                                {isSending || anyUploading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
-                {showStop ? (
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        onClick={onCancel}
-                        className="h-11 w-11 shrink-0 rounded-2xl"
-                        aria-label="Stop agent"
-                        title="Stop agent"
-                    >
-                        <Square className="h-3.5 w-3.5 fill-current" />
-                    </Button>
-                ) : (
-                    <Button
-                        type="submit"
-                        size="icon"
-                        disabled={sendDisabled}
-                        className="h-11 w-11 shrink-0 rounded-2xl"
-                        aria-label="Send message"
-                    >
-                        {isSending || anyUploading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Send className="h-4 w-4" />
-                        )}
-                    </Button>
-                )}
             </form>
         );
     }
 );
-

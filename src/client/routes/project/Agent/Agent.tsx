@@ -119,9 +119,25 @@ export function Agent() {
     const messages = conversationQuery.data?.messages ?? [];
     const conversation = conversationQuery.data?.conversation;
 
-    // If the conversation already has a model, prefer it (per-thread
-    // memory). Falls back to the picker value for new chats.
-    const activeModelId = conversation?.modelId ?? modelId;
+    // Per-thread model memory: when a conversation loads with a model
+    // different from what the picker currently shows, sync the store
+    // TO the conversation's value. After that the picker is the
+    // source of truth — the user can change it freely and the next
+    // `sendMessage` updates the conversation server-side to match.
+    useEffect(() => {
+        const convModelId = conversation?.modelId;
+        if (convModelId && convModelId !== modelId) {
+            setModelId(convModelId);
+        }
+        // We deliberately only react to the conversation's modelId
+        // changing (i.e. a different conversation loaded). Reacting
+        // to `modelId` here would create an infinite sync loop.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [conversation?.modelId]);
+
+    // The picker is bound directly to the store. Conversation memory
+    // is restored via the effect above.
+    const activeModelId = modelId;
 
     const groupedModels = useMemo(() => AGENT_MODELS, []);
 
@@ -302,8 +318,8 @@ export function Agent() {
                         )}
                     </div>
 
-                    {/* Input + model picker */}
-                    <div className="border-t border-border bg-background">
+                    {/* Composer — model picker lives in the bottom toolbar */}
+                    <div className="bg-background">
                         <MessageInput
                             ref={inputRef}
                             onSubmit={handleSend}
@@ -321,35 +337,32 @@ export function Agent() {
                                           )
                                     : undefined
                             }
+                            toolbarLeftSlot={
+                                <Select
+                                    value={activeModelId}
+                                    onValueChange={(v) => setModelId(v)}
+                                >
+                                    <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus:ring-0">
+                                        <SelectValue placeholder="Select model" />
+                                    </SelectTrigger>
+                                    <SelectContent align="start">
+                                        {groupedModels.map(({ tier, models }) => (
+                                            <SelectGroup key={tier}>
+                                                <SelectLabel>{tier}</SelectLabel>
+                                                {models.map((m) => (
+                                                    <SelectItem
+                                                        key={m.id}
+                                                        value={m.id}
+                                                    >
+                                                        {m.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            }
                         />
-                        <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-3 -mt-1">
-                            <span className="text-[11px] text-muted-foreground">
-                                Model
-                            </span>
-                            <Select
-                                value={activeModelId}
-                                onValueChange={(v) => setModelId(v)}
-                            >
-                                <SelectTrigger className="h-7 w-auto gap-2 border-0 bg-transparent px-2 text-xs text-foreground/80 hover:text-foreground focus:ring-0">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent align="start">
-                                    {groupedModels.map(({ tier, models }) => (
-                                        <SelectGroup key={tier}>
-                                            <SelectLabel>{tier}</SelectLabel>
-                                            {models.map((m) => (
-                                                <SelectItem
-                                                    key={m.id}
-                                                    value={m.id}
-                                                >
-                                                    {m.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
                     </div>
                 </main>
             </div>
