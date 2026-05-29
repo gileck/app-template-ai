@@ -16,10 +16,12 @@ import type { UndoResult, UndoOptions } from './types';
  * Undo a status/review change within the undo time window.
  *
  * 1. Validates undo window
- * 2. Checks idempotency
- * 3. Restores status and/or review status
- * 4. Syncs to DB
- * 5. Logs
+ * 2. Restores status and/or review status
+ * 3. Syncs to DB
+ * 4. Logs
+ *
+ * Note: Idempotency checks are handled at the handler level (webhook/API),
+ * not in this service function.
  *
  * @param issueNumber - GitHub issue number
  * @param restoreStatus - Status to restore (or null to keep current)
