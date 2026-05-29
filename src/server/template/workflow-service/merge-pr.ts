@@ -234,21 +234,25 @@ export async function mergeImplementationPR(
             const phaseCompleteComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🔄 Starting Phase ${nextPhase}/${parsedPhase.total}...`;
             await adapter.addIssueComment(issueNumber, phaseCompleteComment);
 
-            await advanceImplementationPhase(
-                issueNumber,
-                `${nextPhase}/${parsedPhase.total}`,
-                STATUSES.implementation,
-                {
-                    logAction: 'phase_complete',
-                    logDescription: `Phase ${parsedPhase.current}/${parsedPhase.total} complete`,
-                    logMetadata: {
-                        currentPhase: parsedPhase.current,
-                        totalPhases: parsedPhase.total,
-                        nextPhase,
-                        prNumber,
-                    },
-                }
-            );
+            try {
+                await advanceImplementationPhase(
+                    issueNumber,
+                    `${nextPhase}/${parsedPhase.total}`,
+                    STATUSES.implementation,
+                    {
+                        logAction: 'phase_complete',
+                        logDescription: `Phase ${parsedPhase.current}/${parsedPhase.total} complete`,
+                        logMetadata: {
+                            currentPhase: parsedPhase.current,
+                            totalPhases: parsedPhase.total,
+                            nextPhase,
+                            prNumber,
+                        },
+                    }
+                );
+            } catch (error) {
+                console.error(`[workflow-service] Failed to advance implementation phase for issue #${issueNumber}:`, error);
+            }
 
             statusMessage = `Phase ${parsedPhase.current}/${parsedPhase.total} complete, starting Phase ${nextPhase}/${parsedPhase.total}`;
         } else {
@@ -270,15 +274,19 @@ export async function mergeImplementationPR(
                     const finalPRComment = `✅ **Phase ${parsedPhase.current}/${parsedPhase.total}** complete - Merged PR #${prNumber}\n\n🚀 **All phases merged to feature branch!**\n📋 Final PR created: #${finalPR.prNumber}\n\nAwaiting admin verification via Vercel preview before merge to main.`;
                     await adapter.addIssueComment(issueNumber, finalPRComment);
 
-                    await advanceStatus(issueNumber, STATUSES.finalReview, {
-                        logAction: 'final_review',
-                        logDescription: `All phases complete, final PR #${finalPR.prNumber} created`,
-                        logMetadata: {
-                            totalPhases: parsedPhase.total,
-                            finalPrNumber: finalPR.prNumber,
-                            taskBranch,
-                        },
-                    });
+                    try {
+                        await advanceStatus(issueNumber, STATUSES.finalReview, {
+                            logAction: 'final_review',
+                            logDescription: `All phases complete, final PR #${finalPR.prNumber} created`,
+                            logMetadata: {
+                                totalPhases: parsedPhase.total,
+                                finalPrNumber: finalPR.prNumber,
+                                taskBranch,
+                            },
+                        });
+                    } catch (error) {
+                        console.error(`[workflow-service] Failed to advance status to Final Review for issue #${issueNumber}:`, error);
+                    }
 
                     isMultiPhaseMiddle = true;
                     statusMessage = `All ${parsedPhase.total} phases complete, final PR #${finalPR.prNumber} created`;
