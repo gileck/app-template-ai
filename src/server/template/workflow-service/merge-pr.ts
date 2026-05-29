@@ -195,7 +195,11 @@ export async function mergeImplementationPR(
     }
 
     // Persist last merged PR info for UI revert capability
-    await setLastMergedPr(issueNumber, prNumber, parsedPhase ? `${parsedPhase.current}/${parsedPhase.total}` : undefined);
+    try {
+        await setLastMergedPr(issueNumber, prNumber, parsedPhase ? `${parsedPhase.current}/${parsedPhase.total}` : undefined);
+    } catch (error) {
+        console.error(`[MERGE:CRITICAL] Failed to persist last merged PR info for issue #${issueNumber}:`, error);
+    }
 
     const currentPhaseArtifact = artifact?.implementation?.phases?.find(
         p => parsedPhase && p.phase === parsedPhase.current
