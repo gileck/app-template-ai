@@ -311,16 +311,20 @@ export function Agent() {
             clientTimings,
             exportedAt: new Date().toISOString(),
         });
-        if (copyTextToClipboard(report)) {
-            toast.success('Thread trace copied to clipboard');
-        } else {
-            // Clipboard genuinely unavailable — make sure the user can
-            // still grab the trace.
-            console.log('[agent thread trace]\n' + report);
-            toast.error(
-                'Clipboard blocked — trace logged to the browser console'
-            );
-        }
+        // Kick the copy synchronously (in-gesture) so clipboard
+        // permission holds; toast only on the REAL result.
+        void copyTextToClipboard(report).then((ok) => {
+            if (ok) {
+                toast.success('Thread trace copied to clipboard');
+            } else {
+                // Clipboard genuinely unavailable — make sure the user
+                // can still grab the trace.
+                console.log('[agent thread trace]\n' + report);
+                toast.error(
+                    'Clipboard blocked — trace logged to the browser console'
+                );
+            }
+        });
     };
 
     return (
