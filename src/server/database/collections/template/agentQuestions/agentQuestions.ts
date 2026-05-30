@@ -212,16 +212,98 @@ export async function expireQuestion(id: ObjectId): Promise<void> {
     );
 }
 
+/**
+ * Coerce a possibly-legacy stored answer into the current shape. Rows
+ * created before the schema evolved may have `answers` as `string[][]`
+ * (selected labels only) instead of `{ selected, other }[]`. TTL clears
+ * them within a day, but until then the client must not choke.
+ */
+function normalizeStoredAnswer(raw: unknown): AgentQuestionAnswer {
+    if (Array.isArray(raw)) {
+        return {
+            selected: raw.filter((s): s is string => typeof s === 'string'),
+        };
+    }
+    if (raw && typeof raw === 'object') {
+        const o = raw as { selected?: unknown; other?: unknown };
+        return {
+            selected: Array.isArray(o.selected)
+                ? o.selected.filter((s): s is string => typeof s === 'string')
+                : [],
+            ...(typeof o.other === 'string' && o.other ? { other: o.other } : {}),
+        };
+    }
+    return { selected: [] };
+}
+
+/** Coerce a possibly-legacy stored sub-question into the current shape. */
+function normalizeStoredSubQuestion(raw: unknown): AgentSubQuestion {
+    const o = (raw ?? {}) as Record<string, unknown>;
+    const options = Array.isArray(o.options)
+        ? o.options.map((opt) =>
+              typeof opt === 'string'
+                  ? { label: opt }
+                  : {
+                        label: String((opt as { label?: unknown })?.label ?? ''),
+                        ...((opt as { description?: unknown })?.description
+                            ? {
+                                  description: String(
+                                      (opt as { description?: unknown }).description
+                                  ),
+                              }
+                            : {}),
+                    }
+          )
+        : [];
+    const multiSelect =
+        typeof o.multiSelect === 'boolean'
+            ? o.multiSelect
+            : o.allowMultiple === true;
+    return {
+        question: String(o.question ?? ''),
+        ...(typeof o.header === 'string' ? { header: o.header } : {}),
+        options,
+        multiSelect,
+        minSelections:
+            typeof o.minSelections === 'number' ? o.minSelections : 1,
+        maxSelections:
+            typeof o.maxSelections === 'number'
+                ? o.maxSelections
+                : multiSelect
+                  ? options.length
+                  : 1,
+        allowOther: o.allowOther === true,
+    };
+}
+
 export function toQuestionClient(
     doc: AgentQuestionDocument
 ): AgentQuestionClient {
+    // Legacy rows (pre multi-question / pre-Other) may be missing
+    // `questions` or carry an old `answers` shape — normalize both.
+    const legacy = doc as unknown as {
+        questions?: unknown;
+        answers?: unknown;
+        question?: unknown;
+    };
+    const rawQuestions = Array.isArray(legacy.questions)
+        ? legacy.questions
+        : legacy.question !== undefined
+          ? [legacy]
+          : [];
+    const questions = rawQuestions.map(normalizeStoredSubQuestion);
+    const rawAnswers = Array.isArray(legacy.answers) ? legacy.answers : [];
+    const answers = questions.map((_, i) =>
+        normalizeStoredAnswer(rawAnswers[i])
+    );
+
     return {
         id: toStringId(doc._id),
         conversationId: toStringId(doc.conversationId),
         messageId: toStringId(doc.messageId),
-        questions: doc.questions,
+        questions,
         status: doc.status,
-        answers: doc.answers,
+        answers,
         createdAt: doc.createdAt.toISOString(),
         answeredAt: doc.answeredAt ? doc.answeredAt.toISOString() : null,
     };
