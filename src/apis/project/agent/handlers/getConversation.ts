@@ -1,6 +1,10 @@
 import type { ObjectId } from 'mongodb';
 import { agentConversations } from '@/server/database';
 import {
+    findQuestionsByConversationId,
+    toQuestionClient,
+} from '@/server/database/collections/template/agentQuestions/agentQuestions';
+import {
     appendTrace,
     finishTrace,
 } from '@/server/database/collections/template/agentTraces/agentTraces';
@@ -112,9 +116,15 @@ export const getConversation = async (
                 );
         }
 
+        const questions = await findQuestionsByConversationId(
+            conversationId,
+            userId
+        );
+
         return {
             conversation: agentConversations.toConversationClient(conversation),
             messages: messages.map(agentConversations.toMessageClient),
+            questions: questions.map(toQuestionClient),
         };
     } catch (error) {
         console.error('getConversation error:', error);

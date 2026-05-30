@@ -16,13 +16,15 @@ import { Avatar, AvatarFallback } from '@/client/components/template/ui/avatar';
 import { toast } from '@/client/components/template/ui/toast';
 import { MarkdownText } from '@/client/components/template/MarkdownText';
 import { FilePreview } from '@/client/components/template/chat/FilePreview';
+import { MultipleChoiceQuestion } from '@/client/components/template/chat/MultipleChoiceQuestion';
 import type {
     AgentMessageAttachment,
     AgentMessageClient,
+    AgentQuestionClient,
     AgentTraceClient,
 } from '@/apis/project/agent/types';
 import type { TraceEntry } from '@/server/database/collections/template/agentTraces/types';
-import { isPendingMessageStale } from '@/client/features/project/agent';
+import { isMessageLivePending } from '@/client/features/project/agent';
 import { EventTimeline } from './EventTimeline';
 import { TraceLogEntry } from './TraceLogEntry';
 
@@ -30,6 +32,13 @@ interface MessageListProps {
     messages: AgentMessageClient[];
     traces?: AgentTraceClient[];
     verbose?: boolean;
+    /** Multiple-choice questions the agent asked, keyed to their
+     *  assistant message via `messageId`. */
+    questions?: AgentQuestionClient[];
+    /** Submit the user's answer to a pending question. */
+    onAnswerQuestion?: (questionId: string, selected: string[]) => void;
+    /** Id of the question whose answer is currently being submitted. */
+    answeringQuestionId?: string | null;
     /** Prefill the input with this text for editing. */
     onEditUserMessage?: (text: string) => void;
     /** Re-send the same text as a fresh turn. */
@@ -133,10 +142,26 @@ export function MessageList({
     messages,
     traces,
     verbose,
+    questions,
+    onAnswerQuestion,
+    answeringQuestionId,
     onEditUserMessage,
     onResendUserMessage,
 }: MessageListProps) {
     const endRef = useRef<HTMLDivElement>(null);
+
+    // Group questions under their assistant message so each bubble can
+    // render its own widget(s). Memoized so the map identity is stable
+    // across renders that don't change the questions.
+    const questionsByMessageId = useMemo(() => {
+        const map = new Map<string, AgentQuestionClient[]>();
+        for (const q of questions ?? []) {
+            const list = map.get(q.messageId);
+            if (list) list.push(q);
+            else map.set(q.messageId, [q]);
+        }
+        return map;
+    }, [questions]);
 
     const items: Item[] = useMemo(() => {
         const out: Item[] = messages.map((m) => {
@@ -208,8 +233,9 @@ export function MessageList({
                     </div>
                     <h2 className="text-lg font-medium">How can I help?</h2>
                     <p className="text-sm text-muted-foreground">
-                        Ask me anything. I can tell the time or do basic math
-                        with the tools wired into this demo.
+                        Ask me anything. I can tell the time, do basic math, or
+                        ask you a multiple-choice question when I need you to
+                        pick from options.
                     </p>
                 </div>
             </div>
@@ -229,6 +255,13 @@ export function MessageList({
                             previousUserText={previousUserTextByMessageId.get(
                                 item.message.id
                             )}
+                            questions={questionsByMessageId.get(item.message.id)}
+                            isLivePending={isMessageLivePending(
+                                item.message,
+                                questionsByMessageId.get(item.message.id) ?? []
+                            )}
+                            onAnswerQuestion={onAnswerQuestion}
+                            answeringQuestionId={answeringQuestionId}
                             onEdit={onEditUserMessage}
                             onResend={onResendUserMessage}
                         />
@@ -243,17 +276,28 @@ export function MessageList({
 function MessageBubble({
     message,
     previousUserText,
+    questions,
+    isLivePending,
+    onAnswerQuestion,
+    answeringQuestionId,
     onEdit,
     onResend,
 }: {
     message: AgentMessageClient;
     previousUserText?: string;
+    questions?: AgentQuestionClient[];
+    isLivePending?: boolean;
+    onAnswerQuestion?: (questionId: string, selected: string[]) => void;
+    answeringQuestionId?: string | null;
     onEdit?: (text: string) => void;
     onResend?: (text: string) => void;
 }) {
     const isUser = message.role === 'user';
     const isPending = message.status === 'pending';
-    const isStuck = isPending && isPendingMessageStale(message.createdAt);
+    // "Stuck" = pending but no longer live (daemon went away). A message
+    // blocked on a question or actively streaming stays live, so it's
+    // never shown as stuck.
+    const isStuck = isPending && !isLivePending;
     const isErrored = message.status === 'errored' || isStuck;
     const isAssistantError = !isUser && isErrored && !isStuck;
     const canCopy = !isUser && !!message.content && !isPending && !isAssistantError;
@@ -285,6 +329,21 @@ function MessageBubble({
                         events={message.events}
                         isStreaming={isPending && !isStuck}
                     />
+                )}
+
+                {!isUser && questions && questions.length > 0 && (
+                    <div className="flex w-full flex-col gap-2">
+                        {questions.map((q) => (
+                            <MultipleChoiceQuestion
+                                key={q.id}
+                                question={q}
+                                isSubmitting={answeringQuestionId === q.id}
+                                onSubmit={(selected) =>
+                                    onAnswerQuestion?.(q.id, selected)
+                                }
+                            />
+                        ))}
+                    </div>
                 )}
 
                 {isUser && message.attachments.length > 0 && (

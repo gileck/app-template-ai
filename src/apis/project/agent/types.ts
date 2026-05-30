@@ -4,6 +4,7 @@ import type {
     AgentMessageClient,
 } from '@/server/database/collections/project/agentConversations';
 import type { AgentTraceClient } from '@/server/database/collections/template/agentTraces/types';
+import type { AgentQuestionClient } from '@/server/database/collections/template/agentQuestions/types';
 
 // Re-export the client shapes so all agent types live under one import.
 export type {
@@ -11,6 +12,7 @@ export type {
     AgentMessageAttachment,
     AgentMessageClient,
     AgentTraceClient,
+    AgentQuestionClient,
 };
 
 // ─── list conversations ──────────────────────────────────────────────────
@@ -32,6 +34,11 @@ export interface GetConversationRequest {
 export interface GetConversationResponse {
     conversation?: AgentConversationClient;
     messages?: AgentMessageClient[];
+    /** Multiple-choice questions the agent asked in this conversation.
+     *  Each is keyed to its assistant message via `messageId`. A
+     *  'pending' question renders as an interactive widget the user can
+     *  answer; answered/cancelled/expired ones render locked. */
+    questions?: AgentQuestionClient[];
     error?: string;
 }
 
@@ -66,6 +73,20 @@ export interface CancelMessageRequest {
 
 export interface CancelMessageResponse {
     cancelled?: boolean;
+    error?: string;
+}
+
+// ─── answer question (multiple-choice) ───────────────────────────────────
+
+export interface AnswerQuestionRequest {
+    questionId: string;
+    /** The option strings the user selected. Must be a subset of the
+     *  question's options and satisfy its min/max-selection bounds. */
+    selected: string[];
+}
+
+export interface AnswerQuestionResponse {
+    question?: AgentQuestionClient;
     error?: string;
 }
 

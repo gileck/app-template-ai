@@ -33,7 +33,13 @@ import type { SendMessageRequest, SendMessageResponse } from '../types';
 const HANDLER_PATH = 'src/server/project/demo-agent/handler';
 const RPC_TTL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_SYSTEM_PROMPT =
-    'You are a helpful assistant. You have two tools available: get_time (returns the current server time, optionally in a given timezone) and calculate (one arithmetic operation on two numbers). Use them when relevant. Be concise.';
+    'You are a helpful assistant. You have these tools available: ' +
+    'get_time (returns the current server time, optionally in a given timezone), ' +
+    'calculate (one arithmetic operation on two numbers), and ' +
+    'ask_user (ask the user a multiple-choice question and wait for their selection — ' +
+    'use it whenever the next step depends on a choice among concrete options, and set ' +
+    'allowMultiple=true when more than one option can apply). ' +
+    'Use them when relevant. Be concise.';
 
 function getModelProvider(modelId: string): string | null {
     try {

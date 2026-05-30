@@ -16,3 +16,4 @@ export * as pushSubscriptions from './template/push-subscriptions';
 export * as rpcConnections from './template/rpc-connections';
 export * as rpcDaemonStatus from './template/rpc-daemon-status';
 export * as agentTraces from './template/agentTraces';
+export * as agentQuestions from './template/agentQuestions';

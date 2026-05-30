@@ -7,6 +7,7 @@ import {
     API_DELETE_CONVERSATION,
     API_SEND_MESSAGE,
     API_CANCEL_MESSAGE,
+    API_ANSWER_QUESTION,
     API_GET_TRACES,
     API_UPLOAD_ATTACHMENT,
 } from './index';
@@ -23,6 +24,8 @@ import type {
     SendMessageResponse,
     CancelMessageRequest,
     CancelMessageResponse,
+    AnswerQuestionRequest,
+    AnswerQuestionResponse,
     GetTracesRequest,
     GetTracesResponse,
     UploadAttachmentRequest,
@@ -58,6 +61,11 @@ export const cancelMessage = (
     params: CancelMessageRequest
 ): Promise<CacheResult<CancelMessageResponse>> =>
     apiClient.post(API_CANCEL_MESSAGE, params);
+
+export const answerQuestion = (
+    params: AnswerQuestionRequest
+): Promise<CacheResult<AnswerQuestionResponse>> =>
+    apiClient.post(API_ANSWER_QUESTION, params);
 
 export const getTraces = (
     params: GetTracesRequest

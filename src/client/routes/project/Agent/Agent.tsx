@@ -49,8 +49,10 @@ import {
     useCreateAgentConversation,
     useSendAgentMessage,
     useCancelAgentMessage,
+    useAnswerAgentQuestion,
     useUploadAttachment,
-    isPendingMessageStale,
+    isMessageLivePending,
+    groupQuestionsByMessageId,
 } from '@/client/features/project/agent';
 import { getTraces } from '@/apis/project/agent/client';
 import type {
@@ -105,16 +107,22 @@ export function Agent() {
     const createMutation = useCreateAgentConversation();
     const sendMutation = useSendAgentMessage();
     const cancelMutation = useCancelAgentMessage(selectedId);
+    const answerMutation = useAnswerAgentQuestion(selectedId);
+
+    const questions = conversationQuery.data?.questions ?? [];
 
     // Mirror the conversation hook's live-pending check so the trace
     // poll runs at the same cadence — both stop when the message goes
-    // stale or finalizes.
-    const livePendingMessage =
-        conversationQuery.data?.messages.find(
-            (m) =>
-                m.status === 'pending' &&
-                !isPendingMessageStale(m.createdAt)
-        );
+    // stale or finalizes. A message blocked on an open question (or with
+    // recent activity) stays "live": the agent is working / waiting on
+    // the user, not dead.
+    const questionsByMessageId = useMemo(
+        () => groupQuestionsByMessageId(questions),
+        [questions]
+    );
+    const livePendingMessage = conversationQuery.data?.messages.find((m) =>
+        isMessageLivePending(m, questionsByMessageId.get(m.id) ?? [])
+    );
     const hasLivePending = Boolean(livePendingMessage);
 
     const tracesQuery = useAgentTraces({
@@ -438,6 +446,19 @@ export function Agent() {
                                     messages={messages}
                                     traces={tracesQuery.data}
                                     verbose={verbose}
+                                    questions={questions}
+                                    onAnswerQuestion={(questionId, selected) =>
+                                        answerMutation.mutate({
+                                            questionId,
+                                            selected,
+                                        })
+                                    }
+                                    answeringQuestionId={
+                                        answerMutation.isPending
+                                            ? answerMutation.variables
+                                                  ?.questionId ?? null
+                                            : null
+                                    }
                                     onEditUserMessage={handleEditUserMessage}
                                     onResendUserMessage={handleResendUserMessage}
                                 />
@@ -493,6 +514,8 @@ function EmptyWelcome() {
                     Tools available: <code className="rounded bg-muted px-1.5 py-0.5">get_time</code>
                     {' · '}
                     <code className="rounded bg-muted px-1.5 py-0.5">calculate</code>
+                    {' · '}
+                    <code className="rounded bg-muted px-1.5 py-0.5">ask_user</code>
                 </p>
             </div>
         </div>

@@ -283,7 +283,12 @@ export class CodexAgenticAdapter implements AgenticAdapter {
                     enabled_tools: opts.tools.map((tool) => tool.name),
                     default_tools_approval_mode: 'approve',
                     startup_timeout_sec: 20,
-                    tool_timeout_sec: 120,
+                    // Generous so human-in-the-loop tools (e.g. ask_user,
+                    // which blocks the turn until the user answers) aren't
+                    // force-killed mid-wait. Such tools enforce their own
+                    // shorter, graceful timeout and return a normal result
+                    // well before this hard ceiling.
+                    tool_timeout_sec: 360,
                     enabled: true,
                     required: true,
                 },

@@ -17,6 +17,15 @@ export function summarizeToolResult(name: string, result: ToolResult): string {
     if (Array.isArray(result.data)) return `Returned ${result.data.length} item(s)`;
     if (result.data && typeof result.data === 'object') {
         const d = result.data as Record<string, unknown>;
+        // ask_user returns the chosen option strings.
+        if (Array.isArray(d.selected)) {
+            const picked = (d.selected as unknown[]).filter(
+                (s): s is string => typeof s === 'string'
+            );
+            return picked.length > 0
+                ? `User chose: ${picked.join(', ')}`
+                : 'User made no selection';
+        }
         if (d.requiresApproval === true) return 'Requires user approval';
         if (d.saved === true) return 'Saved';
         if (d.updated === true) return 'Updated';

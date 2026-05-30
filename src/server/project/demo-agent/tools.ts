@@ -10,7 +10,11 @@
  */
 
 import { z } from 'zod';
-import { createToolBuilder, type AgenticTool } from '@/server/template/agentic';
+import {
+    createAskUserTool,
+    createToolBuilder,
+    type AgenticTool,
+} from '@/server/template/agentic';
 
 /** No per-turn data context for the demo. Real agents bind their
  *  `DataContext` here. */
@@ -90,10 +94,15 @@ const calculate = tool({
     },
 });
 
+/** Human-in-the-loop multiple-choice tool. Lets the agent pause the
+ *  turn, ask the user to pick option(s), and continue with the answer.
+ *  Generic in the template; bound to this agent's data context here. */
+const askUser = createAskUserTool<DemoAgentDataContext>();
+
 export const DEMO_AGENT_TOOLS: ReadonlyArray<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tool shapes
     AgenticTool<any, DemoAgentDataContext>
-> = [getTime, calculate];
+> = [getTime, calculate, askUser];
 
 export function createDemoDataContext(_userId: string): DemoAgentDataContext {
     return {};

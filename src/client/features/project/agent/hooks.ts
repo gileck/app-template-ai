@@ -10,6 +10,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+    answerQuestion,
     cancelMessage,
     createConversation,
     deleteConversation,
@@ -23,6 +24,7 @@ import type {
     AgentConversationClient,
     AgentMessageAttachment,
     AgentMessageClient,
+    AgentQuestionClient,
     AgentTraceClient,
     GetConversationResponse,
     SendMessageRequest,
@@ -46,6 +48,59 @@ const PENDING_STALE_MS = 2 * 60 * 1000;
 
 export function isPendingMessageStale(createdAt: string): boolean {
     return Date.now() - new Date(createdAt).getTime() > PENDING_STALE_MS;
+}
+
+/** Group a flat question list by the assistant message it belongs to. */
+export function groupQuestionsByMessageId(
+    questions: AgentQuestionClient[] | undefined
+): Map<string, AgentQuestionClient[]> {
+    const map = new Map<string, AgentQuestionClient[]>();
+    for (const q of questions ?? []) {
+        const list = map.get(q.messageId);
+        if (list) list.push(q);
+        else map.set(q.messageId, [q]);
+    }
+    return map;
+}
+
+/**
+ * Whether a pending assistant message is still "live" — i.e. the daemon
+ * is actively working it (or legitimately waiting on the user), so we
+ * should keep rendering it as in-flight and keep polling. The opposite
+ * is "stuck": the daemon went away (offline / lost job) and the row
+ * will never finalize, so we surface a failure and stop polling.
+ *
+ * Liveness is activity-based, NOT turn-start-based:
+ *   - an OPEN question means the agent is blocked on the user → live
+ *     no matter how long they take to answer;
+ *   - otherwise we look at the most recent activity (turn start, the
+ *     latest streamed event, or a just-submitted answer the agent is
+ *     about to act on) and consider it live while that's recent.
+ *
+ * This both supports `ask_user` (long human think-time, then a
+ * follow-up turn) and fixes plain long-running turns being wrongly
+ * marked stuck after 2 minutes of legitimate work.
+ */
+export function isMessageLivePending(
+    message: AgentMessageClient,
+    questions: AgentQuestionClient[]
+): boolean {
+    if (message.status !== 'pending') return false;
+    if (questions.some((q) => q.status === 'pending')) return true;
+
+    let lastActivity = new Date(message.createdAt).getTime();
+    for (const event of message.events) {
+        lastActivity = Math.max(lastActivity, new Date(event.at).getTime());
+    }
+    for (const q of questions) {
+        if (q.answeredAt) {
+            lastActivity = Math.max(
+                lastActivity,
+                new Date(q.answeredAt).getTime()
+            );
+        }
+    }
+    return Date.now() - lastActivity <= PENDING_STALE_MS;
 }
 
 export function useAgentConversations() {
@@ -72,6 +127,7 @@ export function useAgentConversation(conversationId: string | null) {
         queryFn: async (): Promise<{
             conversation: AgentConversationClient;
             messages: AgentMessageClient[];
+            questions: AgentQuestionClient[];
         }> => {
             const result = await getConversation({
                 conversationId: conversationId as string,
@@ -81,17 +137,24 @@ export function useAgentConversation(conversationId: string | null) {
             return {
                 conversation: result.data.conversation,
                 messages: result.data.messages ?? [],
+                questions: result.data.questions ?? [],
             };
         },
         refetchInterval: (query) => {
             const data = query.state.data as
-                | { messages: AgentMessageClient[] }
+                | {
+                      messages: AgentMessageClient[];
+                      questions: AgentQuestionClient[];
+                  }
                 | undefined;
-            // Only poll for live pending messages — once they go stale
-            // the daemon isn't coming back to that row, so polling
-            // forever would just waste cycles.
-            const hasLivePending = data?.messages.some(
-                (m) => m.status === 'pending' && !isPendingMessageStale(m.createdAt)
+            // Poll while any message is live-pending. Liveness accounts
+            // for open questions (waiting on the user) and recent
+            // activity, so polling keeps running across human think-time
+            // and resumes the agent's follow-up after an answer. Once
+            // everything finalizes, polling stops.
+            const byMsg = groupQuestionsByMessageId(data?.questions);
+            const hasLivePending = data?.messages.some((m) =>
+                isMessageLivePending(m, byMsg.get(m.id) ?? [])
             );
             return hasLivePending ? POLL_INTERVAL_MS : false;
         },
@@ -258,6 +321,77 @@ export function useCancelAgentMessage(conversationId: string | null) {
                 );
             }
             errorToast('Failed to cancel', err);
+        },
+        retry: false,
+    });
+}
+
+/**
+ * Submit the user's answer to an `ask_user` multiple-choice question.
+ *
+ * Optimistically flips the question to 'answered' in the cache so the
+ * widget locks instantly; the daemon-side `ask_user` tool (blocked
+ * polling that question row) picks up the answer and the agent's turn
+ * continues — its follow-up events stream in via the normal poll.
+ */
+export function useAnswerAgentQuestion(conversationId: string | null) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (input: { questionId: string; selected: string[] }) => {
+            const result = await answerQuestion(input);
+            if (result.data?.error) throw new Error(result.data.error);
+            if (!result.data?.question) throw new Error('No question returned');
+            return result.data.question;
+        },
+        onMutate: async (input) => {
+            if (!conversationId) return { previous: undefined };
+            const key = conversationKey(conversationId);
+            await queryClient.cancelQueries({ queryKey: key });
+            const previous = queryClient.getQueryData<GetConversationResponse>(key);
+            queryClient.setQueryData<GetConversationResponse>(key, (old) => {
+                if (!old?.questions) return old;
+                return {
+                    ...old,
+                    questions: old.questions.map((q) =>
+                        q.id === input.questionId
+                            ? {
+                                  ...q,
+                                  status: 'answered',
+                                  selected: input.selected,
+                                  answeredAt: new Date().toISOString(),
+                              }
+                            : q
+                    ),
+                };
+            });
+            return { previous };
+        },
+        onSuccess: (question) => {
+            // Replace the optimistic question with the authoritative
+            // server row (normalized selection ordering, etc.).
+            if (!conversationId) return;
+            queryClient.setQueryData<GetConversationResponse>(
+                conversationKey(conversationId),
+                (old) => {
+                    if (!old?.questions) return old;
+                    return {
+                        ...old,
+                        questions: old.questions.map((q) =>
+                            q.id === question.id ? question : q
+                        ),
+                    };
+                }
+            );
+        },
+        onError: (err, _input, context) => {
+            if (context?.previous && conversationId) {
+                queryClient.setQueryData(
+                    conversationKey(conversationId),
+                    context.previous
+                );
+            }
+            errorToast('Failed to submit answer', err);
         },
         retry: false,
     });

@@ -14,6 +14,7 @@ import {
     cancelPendingMessage,
     findMessageById,
 } from '@/server/database/collections/project/agentConversations';
+import { cancelQuestionsForMessage } from '@/server/database/collections/template/agentQuestions/agentQuestions';
 import {
     appendTrace,
     finishTrace,
@@ -44,6 +45,11 @@ export const cancelMessage = async (
         }
 
         const cancelled = await cancelPendingMessage(messageId, userId);
+
+        // Unblock any `ask_user` tool still waiting on an answer for
+        // this turn — otherwise it would keep polling until its own
+        // timeout (and its eventual finalize is a no-op anyway).
+        await cancelQuestionsForMessage(messageId);
 
         if (cancelled) {
             await appendTrace(
