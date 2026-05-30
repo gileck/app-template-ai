@@ -385,14 +385,21 @@ async function translateStartedItem(
         return;
     }
     if (item.type === 'web_search') {
-        toolCallIds.set(item.id, item.id);
-        await emit({
-            type: 'tool_call',
-            callId: item.id,
-            name: 'web_search',
-            args: { query: item.query },
-            at: now(),
-        });
+        // The query is only populated once the search runs, so the "started"
+        // item usually has an empty query. Emit the tool_call here only when we
+        // already know the query; otherwise defer to the completed item (which
+        // carries the real query), so the trace records what was actually
+        // searched instead of an empty string.
+        if (item.query) {
+            toolCallIds.set(item.id, item.id);
+            await emit({
+                type: 'tool_call',
+                callId: item.id,
+                name: 'web_search',
+                args: { query: item.query },
+                at: now(),
+            });
+        }
         return;
     }
     if (item.type !== 'mcp_tool_call' || item.server !== mcpKey) return;
