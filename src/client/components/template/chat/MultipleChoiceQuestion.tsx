@@ -66,6 +66,30 @@ function isSatisfied(q: AgentSubQuestion, answer: AgentQuestionAnswer): boolean 
     return answer.selected.length >= q.minSelections;
 }
 
+/**
+ * Coerce a possibly-legacy answer into the current shape. Persisted
+ * client cache (and rows answered before the schema evolved) may carry
+ * `string[]` instead of `{ selected, other }` — never let that crash a
+ * render.
+ */
+function asAnswer(raw: unknown): AgentQuestionAnswer {
+    if (Array.isArray(raw)) {
+        return {
+            selected: raw.filter((s): s is string => typeof s === 'string'),
+        };
+    }
+    if (raw && typeof raw === 'object') {
+        const o = raw as { selected?: unknown; other?: unknown };
+        return {
+            selected: Array.isArray(o.selected)
+                ? o.selected.filter((s): s is string => typeof s === 'string')
+                : [],
+            ...(typeof o.other === 'string' && o.other ? { other: o.other } : {}),
+        };
+    }
+    return { selected: [] };
+}
+
 /** Human-readable recap of one answered sub-question. */
 function answerSummary(answer: AgentQuestionAnswer): string {
     const parts = [...answer.selected];
@@ -89,13 +113,13 @@ function AnsweredRecap({ question }: { question: AgentQuestionClient }) {
                 Your answer{question.questions.length > 1 ? 's' : ''}
             </div>
             <dl className="space-y-1 text-sm">
-                {question.questions.map((sub, i) => (
+                {(question.questions ?? []).map((sub, i) => (
                     <div key={i} className="flex flex-wrap gap-x-1.5">
                         <dt className="text-muted-foreground">
                             {sub.header ?? sub.question}:
                         </dt>
                         <dd className="font-medium text-foreground">
-                            {answerSummary(question.answers[i] ?? { selected: [] })}
+                            {answerSummary(asAnswer(question.answers?.[i]))}
                         </dd>
                     </div>
                 ))}
@@ -110,7 +134,7 @@ export function MultipleChoiceQuestion({
     isSubmitting,
 }: MultipleChoiceQuestionProps) {
     const isPending = question.status === 'pending';
-    const subs = question.questions;
+    const subs = Array.isArray(question.questions) ? question.questions : [];
 
     // Local pre-submit answers, one per sub-question.
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral pre-submit form state, like a text input
