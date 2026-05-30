@@ -4,6 +4,7 @@ import { toStringId } from '@/server/template/utils';
 import type {
     AgentQuestionClient,
     AgentQuestionDocument,
+    AgentSubQuestion,
 } from './types';
 
 const COLLECTION = 'agentQuestions';
@@ -35,14 +36,11 @@ export interface CreateQuestionInput {
     userId: ObjectId;
     conversationId: ObjectId;
     messageId: ObjectId;
-    question: string;
-    options: string[];
-    allowMultiple: boolean;
-    minSelections: number;
-    maxSelections: number;
+    /** The normalized question batch (defaults already applied). */
+    questions: AgentSubQuestion[];
 }
 
-/** Insert a pending question. Returns the new question's id. */
+/** Insert a pending question batch. Returns the new row's id. */
 export async function createQuestion(
     input: CreateQuestionInput
 ): Promise<ObjectId> {
@@ -52,13 +50,9 @@ export async function createQuestion(
         userId: input.userId,
         conversationId: input.conversationId,
         messageId: input.messageId,
-        question: input.question,
-        options: input.options,
-        allowMultiple: input.allowMultiple,
-        minSelections: input.minSelections,
-        maxSelections: input.maxSelections,
+        questions: input.questions,
         status: 'pending',
-        selected: [],
+        answers: input.questions.map(() => []),
         createdAt: new Date(),
     };
     await col.insertOne(doc);
@@ -88,15 +82,54 @@ export type AnswerQuestionResult =
     | { ok: false; error: string };
 
 /**
- * Record the user's selection. Validates the choice against the stored
- * options + min/max bounds, and only succeeds while the question is
- * still 'pending' (so a late answer after timeout/cancel can't revive
- * a dead question). Atomic: the find-and-update is guarded on status.
+ * Validate a single sub-question's selection against its options +
+ * min/max bounds. Returns the normalized selection (known labels, in
+ * the question's option order) or an error string.
+ */
+function validateSelection(
+    sub: AgentSubQuestion,
+    index: number,
+    selected: string[]
+): { ok: true; selected: string[] } | { ok: false; error: string } {
+    const allowed = new Set(sub.options.map((o) => o.label));
+    const unknown = selected.filter((s) => !allowed.has(s));
+    if (unknown.length > 0) {
+        return {
+            ok: false,
+            error: `Question ${index + 1}: unknown option(s): ${unknown.join(', ')}`,
+        };
+    }
+    // De-dupe + preserve option order.
+    const normalized = sub.options
+        .map((o) => o.label)
+        .filter((label) => selected.includes(label));
+    if (normalized.length < sub.minSelections) {
+        return {
+            ok: false,
+            error: `Question ${index + 1}: select at least ${sub.minSelections} option(s).`,
+        };
+    }
+    if (normalized.length > sub.maxSelections) {
+        return {
+            ok: false,
+            error: `Question ${index + 1}: select at most ${sub.maxSelections} option(s).`,
+        };
+    }
+    return { ok: true, selected: normalized };
+}
+
+/**
+ * Record the user's answers to the whole batch. Validates each sub-
+ * question against its options + bounds, and only succeeds while the
+ * row is still 'pending' (so a late answer after timeout/cancel can't
+ * revive a dead question). Atomic: the find-and-update is guarded on
+ * status.
  */
 export async function answerQuestion(input: {
     id: ObjectId;
     userId: ObjectId;
-    selected: string[];
+    /** Per sub-question selected labels, index-aligned to `questions`. */
+    answers: string[][];
 }): Promise<AnswerQuestionResult> {
     const col = await getCollection();
     const question = await col.findOne({ _id: input.id, userId: input.userId });
@@ -107,46 +140,38 @@ export async function answerQuestion(input: {
             error: 'This question is no longer awaiting an answer.',
         };
     }
+    if (input.answers.length !== question.questions.length) {
+        return {
+            ok: false,
+            error: `Expected answers for ${question.questions.length} question(s), got ${input.answers.length}.`,
+        };
+    }
 
-    // Normalize: de-dupe, keep only known options, preserve option order.
-    const allowed = new Set(question.options);
-    const selected = question.options.filter(
-        (opt) => input.selected.includes(opt)
-    );
-    const unknown = input.selected.filter((s) => !allowed.has(s));
-    if (unknown.length > 0) {
-        return {
-            ok: false,
-            error: `Unknown option(s): ${unknown.join(', ')}`,
-        };
-    }
-    if (selected.length < question.minSelections) {
-        return {
-            ok: false,
-            error: `Select at least ${question.minSelections} option(s).`,
-        };
-    }
-    if (selected.length > question.maxSelections) {
-        return {
-            ok: false,
-            error: `Select at most ${question.maxSelections} option(s).`,
-        };
+    const normalizedAnswers: string[][] = [];
+    for (let i = 0; i < question.questions.length; i++) {
+        const result = validateSelection(
+            question.questions[i],
+            i,
+            input.answers[i] ?? []
+        );
+        if (!result.ok) return result;
+        normalizedAnswers.push(result.selected);
     }
 
     const answeredAt = new Date();
-    const result = await col.findOneAndUpdate(
+    const updated = await col.findOneAndUpdate(
         { _id: input.id, userId: input.userId, status: 'pending' },
-        { $set: { status: 'answered', selected, answeredAt } },
+        { $set: { status: 'answered', answers: normalizedAnswers, answeredAt } },
         { returnDocument: 'after' }
     );
-    if (!result) {
+    if (!updated) {
         // Lost a race — something else flipped it out of 'pending'.
         return {
             ok: false,
             error: 'This question is no longer awaiting an answer.',
         };
     }
-    return { ok: true, question: result };
+    return { ok: true, question: updated };
 }
 
 /**
@@ -180,13 +205,9 @@ export function toQuestionClient(
         id: toStringId(doc._id),
         conversationId: toStringId(doc.conversationId),
         messageId: toStringId(doc.messageId),
-        question: doc.question,
-        options: doc.options,
-        allowMultiple: doc.allowMultiple,
-        minSelections: doc.minSelections,
-        maxSelections: doc.maxSelections,
+        questions: doc.questions,
         status: doc.status,
-        selected: doc.selected,
+        answers: doc.answers,
         createdAt: doc.createdAt.toISOString(),
         answeredAt: doc.answeredAt ? doc.answeredAt.toISOString() : null,
     };

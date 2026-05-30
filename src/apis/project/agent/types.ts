@@ -80,9 +80,10 @@ export interface CancelMessageResponse {
 
 export interface AnswerQuestionRequest {
     questionId: string;
-    /** The option strings the user selected. Must be a subset of the
-     *  question's options and satisfy its min/max-selection bounds. */
-    selected: string[];
+    /** Per sub-question, the option labels the user selected — index-
+     *  aligned to the question batch's `questions`. Each must be a subset
+     *  of that question's options and satisfy its min/max bounds. */
+    answers: string[][];
 }
 
 export interface AnswerQuestionResponse {

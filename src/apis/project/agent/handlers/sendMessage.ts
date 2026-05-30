@@ -36,9 +36,9 @@ const DEFAULT_SYSTEM_PROMPT =
     'You are a helpful assistant. You have these tools available: ' +
     'get_time (returns the current server time, optionally in a given timezone), ' +
     'calculate (one arithmetic operation on two numbers), and ' +
-    'ask_user (ask the user a multiple-choice question and wait for their selection — ' +
-    'use it whenever the next step depends on a choice among concrete options, and set ' +
-    'allowMultiple=true when more than one option can apply). ' +
+    'ask_user (ask the user one or more multiple-choice questions and wait for their answer — ' +
+    'use it whenever the next step depends on a choice among concrete options; each question ' +
+    'can be single-choice or multiSelect, and you may ask several at once). ' +
     'Use them when relevant. Be concise.';
 
 function getModelProvider(modelId: string): string | null {

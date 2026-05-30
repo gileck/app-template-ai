@@ -26,8 +26,13 @@ export const answerQuestion = async (
 ): Promise<AnswerQuestionResponse> => {
     if (!context.userId) return { error: 'Not authenticated' };
     if (!request.questionId) return { error: 'questionId is required' };
-    if (!Array.isArray(request.selected)) {
-        return { error: 'selected must be an array of option strings' };
+    if (
+        !Array.isArray(request.answers) ||
+        !request.answers.every(
+            (a) => Array.isArray(a) && a.every((s) => typeof s === 'string')
+        )
+    ) {
+        return { error: 'answers must be an array of string arrays' };
     }
 
     try {
@@ -37,7 +42,7 @@ export const answerQuestion = async (
         const result = await answerQuestionRow({
             id: questionId,
             userId,
-            selected: request.selected,
+            answers: request.answers,
         });
         if (!result.ok) return { error: result.error };
 

@@ -36,7 +36,7 @@ interface MessageListProps {
      *  assistant message via `messageId`. */
     questions?: AgentQuestionClient[];
     /** Submit the user's answer to a pending question. */
-    onAnswerQuestion?: (questionId: string, selected: string[]) => void;
+    onAnswerQuestion?: (questionId: string, answers: string[][]) => void;
     /** Id of the question whose answer is currently being submitted. */
     answeringQuestionId?: string | null;
     /** Prefill the input with this text for editing. */
@@ -287,7 +287,7 @@ function MessageBubble({
     previousUserText?: string;
     questions?: AgentQuestionClient[];
     isLivePending?: boolean;
-    onAnswerQuestion?: (questionId: string, selected: string[]) => void;
+    onAnswerQuestion?: (questionId: string, answers: string[][]) => void;
     answeringQuestionId?: string | null;
     onEdit?: (text: string) => void;
     onResend?: (text: string) => void;
@@ -338,8 +338,8 @@ function MessageBubble({
                                 key={q.id}
                                 question={q}
                                 isSubmitting={answeringQuestionId === q.id}
-                                onSubmit={(selected) =>
-                                    onAnswerQuestion?.(q.id, selected)
+                                onSubmit={(answers) =>
+                                    onAnswerQuestion?.(q.id, answers)
                                 }
                             />
                         ))}

@@ -447,10 +447,10 @@ export function Agent() {
                                     traces={tracesQuery.data}
                                     verbose={verbose}
                                     questions={questions}
-                                    onAnswerQuestion={(questionId, selected) =>
+                                    onAnswerQuestion={(questionId, answers) =>
                                         answerMutation.mutate({
                                             questionId,
-                                            selected,
+                                            answers,
                                         })
                                     }
                                     answeringQuestionId={

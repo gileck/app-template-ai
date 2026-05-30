@@ -338,7 +338,10 @@ export function useAnswerAgentQuestion(conversationId: string | null) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (input: { questionId: string; selected: string[] }) => {
+        mutationFn: async (input: {
+            questionId: string;
+            answers: string[][];
+        }) => {
             const result = await answerQuestion(input);
             if (result.data?.error) throw new Error(result.data.error);
             if (!result.data?.question) throw new Error('No question returned');
@@ -358,7 +361,7 @@ export function useAnswerAgentQuestion(conversationId: string | null) {
                             ? {
                                   ...q,
                                   status: 'answered',
-                                  selected: input.selected,
+                                  answers: input.answers,
                                   answeredAt: new Date().toISOString(),
                               }
                             : q
