@@ -202,7 +202,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                         onPaste={handlePaste}
                         disabled={disabled}
                         rows={1}
-                        className="min-h-12 resize-none border-0 bg-transparent px-5 pt-4 pb-1 text-[15px] leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
+                        className="min-h-12 resize-none border-0 bg-transparent px-5 pt-4 pb-1 text-[15px] leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
 
                     {/* Bottom toolbar */}
