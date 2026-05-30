@@ -11,8 +11,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, Bot, Terminal, MoreVertical } from 'lucide-react';
+import { Menu, Bot, Terminal, MoreVertical, ClipboardCopy } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
+import { toast } from '@/client/components/template/ui/toast';
 import {
     Sheet,
     SheetContent,
@@ -31,6 +32,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuCheckboxItem,
+    DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
@@ -51,9 +53,11 @@ import {
     useUploadAttachment,
     isPendingMessageStale,
 } from '@/client/features/project/agent';
+import { getTraces } from '@/apis/project/agent/client';
 import type { AgentMessageAttachment } from '@/apis/project/agent/types';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
+import { buildThreadTraceReport } from './threadTrace';
 import {
     MessageInput,
     type AttachmentSlot,
@@ -72,6 +76,12 @@ export function Agent() {
     const setModelId = useAgentUIStore((s) => s.setSelectedModelId);
     const verbose = useAgentUIStore((s) => s.verboseMode);
     const setVerbose = useAgentUIStore((s) => s.setVerboseMode);
+    const clientTimings = useAgentUIStore((s) => s.clientTimings);
+    const recordClientSend = useAgentUIStore((s) => s.recordClientSend);
+    const bindClientSentToMessage = useAgentUIStore(
+        (s) => s.bindClientSentToMessage
+    );
+    const recordClientReceived = useAgentUIStore((s) => s.recordClientReceived);
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- transient sheet open/close
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -141,6 +151,33 @@ export function Agent() {
 
     const groupedModels = useMemo(() => AGENT_MODELS, []);
 
+    // Observe assistant turns to capture the client-clock bookends:
+    //   - bind the pending "user clicked send" stamp to the live turn
+    //     it started (first time we see a real, pending assistant row);
+    //   - stamp "client saw the finalized answer" when a turn we
+    //     witnessed go pending later flips to a terminal status.
+    // Skipping optimistic ids (they get replaced) and turns that were
+    // already terminal on first sight (a historical thread we just
+    // opened — we never witnessed those happen, so we don't fake times).
+    const seenAssistantRef = useRef<Set<string>>(new Set());
+    const sawPendingRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        for (const m of messages) {
+            if (m.role !== 'assistant') continue;
+            if (m.id.startsWith('optimistic:')) continue;
+            if (!seenAssistantRef.current.has(m.id)) {
+                seenAssistantRef.current.add(m.id);
+                if (m.status === 'pending') {
+                    sawPendingRef.current.add(m.id);
+                    bindClientSentToMessage(m.id);
+                }
+            }
+            if (m.status !== 'pending' && sawPendingRef.current.has(m.id)) {
+                recordClientReceived(m.id);
+            }
+        }
+    }, [messages, bindClientSentToMessage, recordClientReceived]);
+
     const patchSlot = (id: string, patch: Partial<AttachmentSlot>) => {
         setAttachmentSlots((cur) =>
             cur.map((s) => (s.id === id ? { ...s, ...patch } : s))
@@ -148,6 +185,10 @@ export function Agent() {
     };
 
     const handleSend = async (text: string) => {
+        // Client-clock bookend: the instant the user committed the send,
+        // before any network/conversation-creation work. Bound to the
+        // resulting assistant turn by the observer effect below.
+        recordClientSend();
         // 'uploading' was blocked by MessageInput's submit guard;
         // 'failed' slots are silently dropped (user already saw the
         // toast from the upload mutation).
@@ -229,6 +270,34 @@ export function Agent() {
         handleSend(text);
     };
 
+    // Copy the whole thread's end-to-end trace (client → server → agent
+    // → server → client) to the clipboard for debugging. Fetches traces
+    // on demand so it works even when verbose mode is off; falls back to
+    // already-loaded traces if the fetch fails.
+    const handleCopyTrace = async () => {
+        if (!selectedId) return;
+        try {
+            const res = await getTraces({ conversationId: selectedId });
+            const traces =
+                res.data?.traces ?? tracesQuery.data ?? [];
+            const report = buildThreadTraceReport({
+                conversation,
+                messages,
+                traces,
+                clientTimings,
+                exportedAt: new Date().toISOString(),
+            });
+            await navigator.clipboard.writeText(report);
+            toast.success('Thread trace copied to clipboard');
+        } catch (err) {
+            toast.error(
+                err instanceof Error
+                    ? `Couldn't copy trace: ${err.message}`
+                    : "Couldn't copy trace"
+            );
+        }
+    };
+
     return (
         <div className="flex h-[calc(100dvh-3.5rem)] flex-col bg-background sm:h-[100dvh]">
             <div className="flex flex-1 overflow-hidden">
@@ -289,6 +358,18 @@ export function Agent() {
                                     <Terminal className="mr-2 h-3.5 w-3.5" />
                                     Verbose trace log
                                 </DropdownMenuCheckboxItem>
+                                <DropdownMenuItem
+                                    disabled={!selectedId || messages.length === 0}
+                                    onSelect={(e) => {
+                                        // Keep the menu's focus handling
+                                        // happy while we run an async copy.
+                                        e.preventDefault();
+                                        void handleCopyTrace();
+                                    }}
+                                >
+                                    <ClipboardCopy className="mr-2 h-3.5 w-3.5" />
+                                    Copy debug trace
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel className="text-[10px] font-normal text-muted-foreground">
                                     Model is set below the message input.
