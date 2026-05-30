@@ -20,6 +20,7 @@ import { MultipleChoiceQuestion } from '@/client/components/template/chat/Multip
 import type {
     AgentMessageAttachment,
     AgentMessageClient,
+    AgentQuestionAnswer,
     AgentQuestionClient,
     AgentTraceClient,
 } from '@/apis/project/agent/types';
@@ -36,7 +37,10 @@ interface MessageListProps {
      *  assistant message via `messageId`. */
     questions?: AgentQuestionClient[];
     /** Submit the user's answer to a pending question. */
-    onAnswerQuestion?: (questionId: string, answers: string[][]) => void;
+    onAnswerQuestion?: (
+        questionId: string,
+        answers: AgentQuestionAnswer[]
+    ) => void;
     /** Id of the question whose answer is currently being submitted. */
     answeringQuestionId?: string | null;
     /** Prefill the input with this text for editing. */
@@ -287,7 +291,10 @@ function MessageBubble({
     previousUserText?: string;
     questions?: AgentQuestionClient[];
     isLivePending?: boolean;
-    onAnswerQuestion?: (questionId: string, answers: string[][]) => void;
+    onAnswerQuestion?: (
+        questionId: string,
+        answers: AgentQuestionAnswer[]
+    ) => void;
     answeringQuestionId?: string | null;
     onEdit?: (text: string) => void;
     onResend?: (text: string) => void;

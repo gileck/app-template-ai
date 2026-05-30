@@ -24,6 +24,7 @@ import type {
     AgentConversationClient,
     AgentMessageAttachment,
     AgentMessageClient,
+    AgentQuestionAnswer,
     AgentQuestionClient,
     AgentTraceClient,
     GetConversationResponse,
@@ -340,7 +341,7 @@ export function useAnswerAgentQuestion(conversationId: string | null) {
     return useMutation({
         mutationFn: async (input: {
             questionId: string;
-            answers: string[][];
+            answers: AgentQuestionAnswer[];
         }) => {
             const result = await answerQuestion(input);
             if (result.data?.error) throw new Error(result.data.error);

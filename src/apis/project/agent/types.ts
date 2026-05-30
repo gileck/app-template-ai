@@ -4,7 +4,10 @@ import type {
     AgentMessageClient,
 } from '@/server/database/collections/project/agentConversations';
 import type { AgentTraceClient } from '@/server/database/collections/template/agentTraces/types';
-import type { AgentQuestionClient } from '@/server/database/collections/template/agentQuestions/types';
+import type {
+    AgentQuestionAnswer,
+    AgentQuestionClient,
+} from '@/server/database/collections/template/agentQuestions/types';
 
 // Re-export the client shapes so all agent types live under one import.
 export type {
@@ -13,6 +16,7 @@ export type {
     AgentMessageClient,
     AgentTraceClient,
     AgentQuestionClient,
+    AgentQuestionAnswer,
 };
 
 // ─── list conversations ──────────────────────────────────────────────────
@@ -80,10 +84,9 @@ export interface CancelMessageResponse {
 
 export interface AnswerQuestionRequest {
     questionId: string;
-    /** Per sub-question, the option labels the user selected — index-
-     *  aligned to the question batch's `questions`. Each must be a subset
-     *  of that question's options and satisfy its min/max bounds. */
-    answers: string[][];
+    /** Per sub-question answer (selected labels + optional `other` free
+     *  text) — index-aligned to the question batch's `questions`. */
+    answers: AgentQuestionAnswer[];
 }
 
 export interface AnswerQuestionResponse {

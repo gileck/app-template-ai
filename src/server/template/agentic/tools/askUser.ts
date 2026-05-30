@@ -83,6 +83,12 @@ const askUserInputSchema = {
                     .describe(
                         'If true, the user may pick more than one option for THIS question. Defaults to false (single choice).'
                     ),
+                allowOther: z
+                    .boolean()
+                    .optional()
+                    .describe(
+                        'If true (the default), the user can also type a free-text answer in an "Other…" field — returned as `other`, and combinable with a selected option. Set false to force a closed choice.'
+                    ),
                 minSelections: z
                     .number()
                     .int()
@@ -166,6 +172,7 @@ function normalizeQuestions(
             multiSelect,
             minSelections,
             maxSelections,
+            allowOther: q.allowOther ?? true,
         });
     }
     return { ok: true, questions };
@@ -190,7 +197,9 @@ export function createAskUserTool<TData = unknown>(
             'disambiguating intent, picking from candidates, or confirming a subset. ' +
             'Each question can be single-choice or multi-select (set multiSelect per question), ' +
             'and you may ask several questions at once. ' +
-            'Returns the exact option labels the user selected, per question. ' +
+            'By default each question also accepts a free-text "Other" answer (returned as `other`, ' +
+            'and combinable with a chosen option) — set allowOther:false to force a closed choice. ' +
+            'Returns the option labels the user selected (and any `other` text), per question. ' +
             'Prefer this over asking in plain text when the answer is a choice among known options.',
         inputSchema: askUserInputSchema,
         handler: async (args, ctx) => {
@@ -222,10 +231,17 @@ export function createAskUserTool<TData = unknown>(
                     return {
                         ok: true,
                         data: {
-                            responses: row.questions.map((q, i) => ({
-                                question: q.question,
-                                selected: row.answers[i] ?? [],
-                            })),
+                            responses: row.questions.map((q, i) => {
+                                const a = row.answers[i] ?? { selected: [] };
+                                return {
+                                    question: q.question,
+                                    selected: a.selected,
+                                    // The user's free-text "Other" answer,
+                                    // when provided (may accompany a chosen
+                                    // option).
+                                    ...(a.other ? { other: a.other } : {}),
+                                };
+                            }),
                         },
                     };
                 }

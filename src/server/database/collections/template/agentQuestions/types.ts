@@ -38,6 +38,16 @@ export interface AgentSubQuestion {
     /** Min/max options the user must/may select for THIS question. */
     minSelections: number;
     maxSelections: number;
+    /** When true, the user can also (or instead) type a free-text
+     *  answer in an "Other…" field, returned to the agent as `other`. */
+    allowOther: boolean;
+}
+
+/** A user's answer to one sub-question: the selected option labels and
+ *  an optional free-text "Other" value (present only when allowOther). */
+export interface AgentQuestionAnswer {
+    selected: string[];
+    other?: string;
 }
 
 export interface AgentQuestionDocument {
@@ -50,9 +60,9 @@ export interface AgentQuestionDocument {
     /** One or more questions, asked together. */
     questions: AgentSubQuestion[];
     status: AgentQuestionStatus;
-    /** Per sub-question, the option LABELS the user selected. Index-
-     *  aligned to `questions`. All empty until answered. */
-    answers: string[][];
+    /** Per sub-question answer, index-aligned to `questions`. Empty
+     *  selections + no `other` until answered. */
+    answers: AgentQuestionAnswer[];
     createdAt: Date;
     answeredAt?: Date;
 }
@@ -65,7 +75,7 @@ export interface AgentQuestionClient {
     messageId: string;
     questions: AgentSubQuestion[];
     status: AgentQuestionStatus;
-    answers: string[][];
+    answers: AgentQuestionAnswer[];
     createdAt: string;
     answeredAt: string | null;
 }

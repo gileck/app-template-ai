@@ -2,6 +2,7 @@ import { Collection, ObjectId } from 'mongodb';
 import { getDb } from '../../../connection';
 import { toStringId } from '@/server/template/utils';
 import type {
+    AgentQuestionAnswer,
     AgentQuestionClient,
     AgentQuestionDocument,
     AgentSubQuestion,
@@ -52,7 +53,7 @@ export async function createQuestion(
         messageId: input.messageId,
         questions: input.questions,
         status: 'pending',
-        answers: input.questions.map(() => []),
+        answers: input.questions.map(() => ({ selected: [] })),
         createdAt: new Date(),
     };
     await col.insertOne(doc);
@@ -82,17 +83,21 @@ export type AnswerQuestionResult =
     | { ok: false; error: string };
 
 /**
- * Validate a single sub-question's selection against its options +
- * min/max bounds. Returns the normalized selection (known labels, in
- * the question's option order) or an error string.
+ * Validate a single sub-question's answer against its options +
+ * min/max bounds + Other policy. Returns the normalized answer (known
+ * labels in option order, plus a trimmed `other` when allowed) or an
+ * error string.
+ *
+ * A non-empty `other` counts as an answer on its own — so the minimum-
+ * selection requirement is waived when the user typed something there.
  */
-function validateSelection(
+function validateAnswer(
     sub: AgentSubQuestion,
     index: number,
-    selected: string[]
-): { ok: true; selected: string[] } | { ok: false; error: string } {
+    answer: AgentQuestionAnswer
+): { ok: true; answer: AgentQuestionAnswer } | { ok: false; error: string } {
     const allowed = new Set(sub.options.map((o) => o.label));
-    const unknown = selected.filter((s) => !allowed.has(s));
+    const unknown = answer.selected.filter((s) => !allowed.has(s));
     if (unknown.length > 0) {
         return {
             ok: false,
@@ -100,22 +105,31 @@ function validateSelection(
         };
     }
     // De-dupe + preserve option order.
-    const normalized = sub.options
+    const selected = sub.options
         .map((o) => o.label)
-        .filter((label) => selected.includes(label));
-    if (normalized.length < sub.minSelections) {
-        return {
-            ok: false,
-            error: `Question ${index + 1}: select at least ${sub.minSelections} option(s).`,
-        };
-    }
-    if (normalized.length > sub.maxSelections) {
+        .filter((label) => answer.selected.includes(label));
+
+    const other =
+        sub.allowOther && answer.other && answer.other.trim()
+            ? answer.other.trim()
+            : undefined;
+
+    if (selected.length > sub.maxSelections) {
         return {
             ok: false,
             error: `Question ${index + 1}: select at most ${sub.maxSelections} option(s).`,
         };
     }
-    return { ok: true, selected: normalized };
+    // The min is waived when the user provided free-text "Other".
+    if (!other && selected.length < sub.minSelections) {
+        return {
+            ok: false,
+            error: `Question ${index + 1}: select at least ${sub.minSelections} option(s)${
+                sub.allowOther ? ' or fill in "Other"' : ''
+            }.`,
+        };
+    }
+    return { ok: true, answer: { selected, ...(other ? { other } : {}) } };
 }
 
 /**
@@ -128,8 +142,8 @@ function validateSelection(
 export async function answerQuestion(input: {
     id: ObjectId;
     userId: ObjectId;
-    /** Per sub-question selected labels, index-aligned to `questions`. */
-    answers: string[][];
+    /** Per sub-question answer, index-aligned to `questions`. */
+    answers: AgentQuestionAnswer[];
 }): Promise<AnswerQuestionResult> {
     const col = await getCollection();
     const question = await col.findOne({ _id: input.id, userId: input.userId });
@@ -147,15 +161,15 @@ export async function answerQuestion(input: {
         };
     }
 
-    const normalizedAnswers: string[][] = [];
+    const normalizedAnswers: AgentQuestionAnswer[] = [];
     for (let i = 0; i < question.questions.length; i++) {
-        const result = validateSelection(
+        const result = validateAnswer(
             question.questions[i],
             i,
-            input.answers[i] ?? []
+            input.answers[i] ?? { selected: [] }
         );
         if (!result.ok) return result;
-        normalizedAnswers.push(result.selected);
+        normalizedAnswers.push(result.answer);
     }
 
     const answeredAt = new Date();

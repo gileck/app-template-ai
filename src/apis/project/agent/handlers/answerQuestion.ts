@@ -29,10 +29,17 @@ export const answerQuestion = async (
     if (
         !Array.isArray(request.answers) ||
         !request.answers.every(
-            (a) => Array.isArray(a) && a.every((s) => typeof s === 'string')
+            (a) =>
+                a &&
+                typeof a === 'object' &&
+                Array.isArray(a.selected) &&
+                a.selected.every((s) => typeof s === 'string') &&
+                (a.other === undefined || typeof a.other === 'string')
         )
     ) {
-        return { error: 'answers must be an array of string arrays' };
+        return {
+            error: 'answers must be an array of { selected: string[]; other?: string }',
+        };
     }
 
     try {

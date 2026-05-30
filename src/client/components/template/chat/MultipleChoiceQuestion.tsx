@@ -2,17 +2,20 @@
  * MultipleChoiceQuestion
  *
  * Renders a batch of questions the agent asked mid-turn (one or more,
- * each single- or multi-select).
+ * each single- or multi-select, each optionally accepting a free-text
+ * "Other" answer).
  *
- *   - 'pending'  → an interactive widget: pick option(s) per question,
- *                  one Submit for the whole batch.
+ *   - 'pending'  → an interactive widget: pick option(s) and/or type an
+ *                  "Other…" answer per question, one Submit for the batch.
  *   - answered   → a compact recap "message" of what the user chose.
  *   - cancelled/
  *     expired    → a short muted caption.
  *
+ * "Other" is a separate channel: the user can fill it INSTEAD of (it
+ * waives the minimum-selection requirement) or ALONGSIDE a chosen option.
+ *
  * Presentational only — the caller owns the answer mutation and passes
- * `onSubmit` (per-question selected labels, index-aligned) + `isSubmitting`.
- * Generic enough for any chat surface that uses the `ask_user` tool.
+ * `onSubmit` (per-question answers, index-aligned) + `isSubmitting`.
  */
 
 import { useState } from 'react';
@@ -20,26 +23,27 @@ import { Check, HelpCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/client/components/template/ui/button';
 import { cn } from '@/client/lib/utils';
 import type {
+    AgentQuestionAnswer,
     AgentQuestionClient,
     AgentSubQuestion,
 } from '@/server/database/collections/template/agentQuestions/types';
 
 export interface MultipleChoiceQuestionProps {
     question: AgentQuestionClient;
-    /** Per-question selected labels, index-aligned to `question.questions`. */
-    onSubmit: (answers: string[][]) => void;
+    /** Per-question answers, index-aligned to `question.questions`. */
+    onSubmit: (answers: AgentQuestionAnswer[]) => void;
     isSubmitting?: boolean;
 }
 
 function selectionHint(q: AgentSubQuestion): string {
-    if (!q.multiSelect) return 'Pick one';
-    if (q.minSelections === q.maxSelections) {
-        return `Pick exactly ${q.minSelections}`;
-    }
-    if (q.maxSelections >= q.options.length && q.minSelections <= 1) {
-        return 'Pick one or more';
-    }
-    return `Pick ${q.minSelections}–${q.maxSelections}`;
+    const base = !q.multiSelect
+        ? 'Pick one'
+        : q.minSelections === q.maxSelections
+          ? `Pick exactly ${q.minSelections}`
+          : q.maxSelections >= q.options.length && q.minSelections <= 1
+            ? 'Pick one or more'
+            : `Pick ${q.minSelections}–${q.maxSelections}`;
+    return q.allowOther ? `${base} · or write your own` : base;
 }
 
 function lockedCaption(status: AgentQuestionClient['status']): string | null {
@@ -53,15 +57,22 @@ function lockedCaption(status: AgentQuestionClient['status']): string | null {
     }
 }
 
-function withinBounds(q: AgentSubQuestion, selected: string[]): boolean {
-    return (
-        selected.length >= q.minSelections && selected.length <= q.maxSelections
-    );
+/** Whether an answer satisfies its question's bounds. A non-empty
+ *  "Other" waives the minimum-selection requirement. */
+function isSatisfied(q: AgentSubQuestion, answer: AgentQuestionAnswer): boolean {
+    if (answer.selected.length > q.maxSelections) return false;
+    const hasOther = q.allowOther && !!answer.other?.trim();
+    if (hasOther) return true;
+    return answer.selected.length >= q.minSelections;
 }
 
-/** Compact recap shown once the batch is answered (or a caption when it
- *  was cancelled / timed out) — reads like a "here's what you chose"
- *  system message in the thread. */
+/** Human-readable recap of one answered sub-question. */
+function answerSummary(answer: AgentQuestionAnswer): string {
+    const parts = [...answer.selected];
+    if (answer.other?.trim()) parts.push(`Other: “${answer.other.trim()}”`);
+    return parts.length > 0 ? parts.join(', ') : '—';
+}
+
 function AnsweredRecap({ question }: { question: AgentQuestionClient }) {
     const caption = lockedCaption(question.status);
     if (caption) {
@@ -78,19 +89,16 @@ function AnsweredRecap({ question }: { question: AgentQuestionClient }) {
                 Your answer{question.questions.length > 1 ? 's' : ''}
             </div>
             <dl className="space-y-1 text-sm">
-                {question.questions.map((sub, i) => {
-                    const selected = question.answers[i] ?? [];
-                    return (
-                        <div key={i} className="flex flex-wrap gap-x-1.5">
-                            <dt className="text-muted-foreground">
-                                {sub.header ?? sub.question}:
-                            </dt>
-                            <dd className="font-medium text-foreground">
-                                {selected.length > 0 ? selected.join(', ') : '—'}
-                            </dd>
-                        </div>
-                    );
-                })}
+                {question.questions.map((sub, i) => (
+                    <div key={i} className="flex flex-wrap gap-x-1.5">
+                        <dt className="text-muted-foreground">
+                            {sub.header ?? sub.question}:
+                        </dt>
+                        <dd className="font-medium text-foreground">
+                            {answerSummary(question.answers[i] ?? { selected: [] })}
+                        </dd>
+                    </div>
+                ))}
             </dl>
         </div>
     );
@@ -104,41 +112,58 @@ export function MultipleChoiceQuestion({
     const isPending = question.status === 'pending';
     const subs = question.questions;
 
-    // Local pre-submit selections, one array per sub-question.
-    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral pre-submit form selection, like a text input
-    const [draft, setDraft] = useState<string[][]>(() => subs.map(() => []));
+    // Local pre-submit answers, one per sub-question.
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral pre-submit form state, like a text input
+    const [draft, setDraft] = useState<AgentQuestionAnswer[]>(() =>
+        subs.map(() => ({ selected: [] }))
+    );
 
     if (!isPending) {
         return <AnsweredRecap question={question} />;
     }
 
+    const patch = (qIndex: number, next: AgentQuestionAnswer) =>
+        setDraft((cur) => cur.map((a, i) => (i === qIndex ? next : a)));
+
     const toggle = (qIndex: number, label: string) => {
         if (isSubmitting) return;
         const sub = subs[qIndex];
-        setDraft((cur) => {
-            const next = cur.map((a) => [...a]);
-            const sel = next[qIndex] ?? [];
-            if (!sub.multiSelect) {
-                next[qIndex] = [label];
-                return next;
-            }
-            if (sel.includes(label)) {
-                next[qIndex] = sel.filter((l) => l !== label);
-            } else if (sel.length < sub.maxSelections) {
-                next[qIndex] = [...sel, label];
-            }
-            return next;
-        });
+        const cur = draft[qIndex];
+        if (!sub.multiSelect) {
+            patch(qIndex, { ...cur, selected: [label] });
+            return;
+        }
+        if (cur.selected.includes(label)) {
+            patch(qIndex, {
+                ...cur,
+                selected: cur.selected.filter((l) => l !== label),
+            });
+        } else if (cur.selected.length < sub.maxSelections) {
+            patch(qIndex, { ...cur, selected: [...cur.selected, label] });
+        }
+    };
+
+    const setOther = (qIndex: number, other: string) => {
+        if (isSubmitting) return;
+        patch(qIndex, { ...draft[qIndex], other });
     };
 
     const canSubmit =
-        !isSubmitting &&
-        subs.every((sub, i) => withinBounds(sub, draft[i] ?? []));
+        !isSubmitting && subs.every((sub, i) => isSatisfied(sub, draft[i]));
+
+    const submit = () => {
+        onSubmit(
+            draft.map((a) => ({
+                selected: a.selected,
+                ...(a.other?.trim() ? { other: a.other.trim() } : {}),
+            }))
+        );
+    };
 
     return (
         <div className="w-full space-y-3 rounded-2xl border border-border bg-card/60 p-3">
             {subs.map((sub, qIndex) => {
-                const selected = draft[qIndex] ?? [];
+                const answer = draft[qIndex];
                 return (
                     <div key={qIndex} className="space-y-2">
                         <div className="flex items-start gap-2">
@@ -160,7 +185,9 @@ export function MultipleChoiceQuestion({
 
                         <div className="flex flex-col gap-1.5">
                             {sub.options.map((option) => {
-                                const isChosen = selected.includes(option.label);
+                                const isChosen = answer.selected.includes(
+                                    option.label
+                                );
                                 return (
                                     <button
                                         key={option.label}
@@ -211,6 +238,31 @@ export function MultipleChoiceQuestion({
                                     </button>
                                 );
                             })}
+
+                            {sub.allowOther && (
+                                <div
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors',
+                                        answer.other?.trim()
+                                            ? 'border-primary/50 bg-primary/10'
+                                            : 'border-dashed border-muted-foreground/40 bg-background'
+                                    )}
+                                >
+                                    <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                                        Other
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={answer.other ?? ''}
+                                        onChange={(e) =>
+                                            setOther(qIndex, e.target.value)
+                                        }
+                                        disabled={isSubmitting}
+                                        placeholder="Type your own answer…"
+                                        className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/60"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -220,7 +272,7 @@ export function MultipleChoiceQuestion({
                 <Button
                     type="button"
                     size="sm"
-                    onClick={() => onSubmit(draft)}
+                    onClick={submit}
                     disabled={!canSubmit}
                     className="h-8 rounded-full px-4"
                 >
