@@ -8,9 +8,19 @@ interface EventTimelineProps {
     messageId: string;
     events: AgentEvent[];
     isStreaming: boolean;
+    /** True when the turn is paused waiting for the user to answer an
+     *  ask_user question. The actionable widget renders below, so the
+     *  timeline should step back: collapse and say it's waiting, not
+     *  "Working…" with the tool JSON dumped open. */
+    awaitingInput?: boolean;
 }
 
-export function EventTimeline({ messageId, events, isStreaming }: EventTimelineProps) {
+export function EventTimeline({
+    messageId,
+    events,
+    isStreaming,
+    awaitingInput,
+}: EventTimelineProps) {
     const userExpanded = useAgentUIStore((s) =>
         s.expandedTimelineMessageIds.includes(messageId)
     );
@@ -22,7 +32,14 @@ export function EventTimeline({ messageId, events, isStreaming }: EventTimelineP
     // turn finishes, the timeline collapses back to a "Reasoning"
     // pill the user can re-open at will.
     if (events.length === 0 && !isStreaming) return null;
-    const expanded = isStreaming || userExpanded;
+    // Don't auto-expand while waiting on the user — the question widget
+    // below is the focus; the user can still expand to inspect.
+    const expanded = (isStreaming && !awaitingInput) || userExpanded;
+    const label = awaitingInput
+        ? 'Waiting for your answer'
+        : isStreaming
+          ? 'Working…'
+          : 'Reasoning';
 
     const toolCount = events.filter((e) => e.type === 'tool_call').length;
     const thinkingCount = events.filter((e) => e.type === 'thinking').length;
@@ -39,9 +56,7 @@ export function EventTimeline({ messageId, events, isStreaming }: EventTimelineP
                 ) : (
                     <ChevronRight className="h-3.5 w-3.5" />
                 )}
-                <span className="font-medium">
-                    {isStreaming ? 'Working…' : 'Reasoning'}
-                </span>
+                <span className="font-medium">{label}</span>
                 {toolCount > 0 && (
                     <span className="flex items-center gap-1">
                         <Wrench className="h-3 w-3" /> {toolCount}
@@ -52,7 +67,7 @@ export function EventTimeline({ messageId, events, isStreaming }: EventTimelineP
                         <Brain className="h-3 w-3" /> {thinkingCount}
                     </span>
                 )}
-                {isStreaming && (
+                {isStreaming && !awaitingInput && (
                     <span className="ml-auto inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
                 )}
             </button>

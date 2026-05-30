@@ -2,14 +2,17 @@
  * MultipleChoiceQuestion
  *
  * Renders a batch of questions the agent asked mid-turn (one or more,
- * each single- or multi-select) as one interactive widget with a single
- * Submit. While 'pending' the user picks option(s) per question; once
- * answered/cancelled/expired it renders locked, highlighting choices.
+ * each single- or multi-select).
+ *
+ *   - 'pending'  → an interactive widget: pick option(s) per question,
+ *                  one Submit for the whole batch.
+ *   - answered   → a compact recap "message" of what the user chose.
+ *   - cancelled/
+ *     expired    → a short muted caption.
  *
  * Presentational only — the caller owns the answer mutation and passes
  * `onSubmit` (per-question selected labels, index-aligned) + `isSubmitting`.
- * Generic enough for any chat surface that uses the agentic engine's
- * `ask_user` tool.
+ * Generic enough for any chat surface that uses the `ask_user` tool.
  */
 
 import { useState } from 'react';
@@ -56,6 +59,43 @@ function withinBounds(q: AgentSubQuestion, selected: string[]): boolean {
     );
 }
 
+/** Compact recap shown once the batch is answered (or a caption when it
+ *  was cancelled / timed out) — reads like a "here's what you chose"
+ *  system message in the thread. */
+function AnsweredRecap({ question }: { question: AgentQuestionClient }) {
+    const caption = lockedCaption(question.status);
+    if (caption) {
+        return (
+            <div className="w-full rounded-2xl border border-border bg-muted/40 px-3 py-2 text-[11px] italic text-muted-foreground">
+                {caption}
+            </div>
+        );
+    }
+    return (
+        <div className="w-full rounded-2xl border border-border bg-muted/40 p-3">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                <Check className="h-3.5 w-3.5 text-success" />
+                Your answer{question.questions.length > 1 ? 's' : ''}
+            </div>
+            <dl className="space-y-1 text-sm">
+                {question.questions.map((sub, i) => {
+                    const selected = question.answers[i] ?? [];
+                    return (
+                        <div key={i} className="flex flex-wrap gap-x-1.5">
+                            <dt className="text-muted-foreground">
+                                {sub.header ?? sub.question}:
+                            </dt>
+                            <dd className="font-medium text-foreground">
+                                {selected.length > 0 ? selected.join(', ') : '—'}
+                            </dd>
+                        </div>
+                    );
+                })}
+            </dl>
+        </div>
+    );
+}
+
 export function MultipleChoiceQuestion({
     question,
     onSubmit,
@@ -64,15 +104,16 @@ export function MultipleChoiceQuestion({
     const isPending = question.status === 'pending';
     const subs = question.questions;
 
-    // Local pre-submit selections, one array per sub-question. For a
-    // locked batch we show the recorded answers instead.
+    // Local pre-submit selections, one array per sub-question.
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral pre-submit form selection, like a text input
     const [draft, setDraft] = useState<string[][]>(() => subs.map(() => []));
 
-    const active = isPending ? draft : question.answers;
+    if (!isPending) {
+        return <AnsweredRecap question={question} />;
+    }
 
     const toggle = (qIndex: number, label: string) => {
-        if (!isPending || isSubmitting) return;
+        if (isSubmitting) return;
         const sub = subs[qIndex];
         setDraft((cur) => {
             const next = cur.map((a) => [...a]);
@@ -91,16 +132,13 @@ export function MultipleChoiceQuestion({
     };
 
     const canSubmit =
-        isPending &&
         !isSubmitting &&
         subs.every((sub, i) => withinBounds(sub, draft[i] ?? []));
-
-    const caption = lockedCaption(question.status);
 
     return (
         <div className="w-full space-y-3 rounded-2xl border border-border bg-card/60 p-3">
             {subs.map((sub, qIndex) => {
-                const selected = active[qIndex] ?? [];
+                const selected = draft[qIndex] ?? [];
                 return (
                     <div key={qIndex} className="space-y-2">
                         <div className="flex items-start gap-2">
@@ -114,11 +152,9 @@ export function MultipleChoiceQuestion({
                                 <p className="text-sm font-medium text-foreground">
                                     {sub.question}
                                 </p>
-                                {isPending && (
-                                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                        {selectionHint(sub)}
-                                    </p>
-                                )}
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                    {selectionHint(sub)}
+                                </p>
                             </div>
                         </div>
 
@@ -132,18 +168,16 @@ export function MultipleChoiceQuestion({
                                         onClick={() =>
                                             toggle(qIndex, option.label)
                                         }
-                                        disabled={!isPending || isSubmitting}
+                                        disabled={isSubmitting}
                                         aria-pressed={isChosen}
                                         className={cn(
                                             'flex items-start gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
                                             isChosen
                                                 ? 'border-primary/50 bg-primary/10 text-foreground'
                                                 : 'border-border bg-background text-foreground',
-                                            isPending &&
-                                                !isSubmitting &&
+                                            !isSubmitting &&
                                                 'hover:border-primary/40 hover:bg-muted',
-                                            (!isPending || isSubmitting) &&
-                                                'cursor-default'
+                                            isSubmitting && 'cursor-default'
                                         )}
                                     >
                                         <span
@@ -182,32 +216,24 @@ export function MultipleChoiceQuestion({
                 );
             })}
 
-            {isPending ? (
-                <div className="flex items-center justify-end">
-                    <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => onSubmit(draft)}
-                        disabled={!canSubmit}
-                        className="h-8 rounded-full px-4"
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                                Sending…
-                            </>
-                        ) : (
-                            'Submit'
-                        )}
-                    </Button>
-                </div>
-            ) : (
-                caption && (
-                    <p className="text-[11px] italic text-muted-foreground">
-                        {caption}
-                    </p>
-                )
-            )}
+            <div className="flex items-center justify-end">
+                <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => onSubmit(draft)}
+                    disabled={!canSubmit}
+                    className="h-8 rounded-full px-4"
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            Sending…
+                        </>
+                    ) : (
+                        'Submit'
+                    )}
+                </Button>
+            </div>
         </div>
     );
 }

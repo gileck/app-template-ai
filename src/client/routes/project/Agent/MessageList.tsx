@@ -301,6 +301,9 @@ function MessageBubble({
     const isErrored = message.status === 'errored' || isStuck;
     const isAssistantError = !isUser && isErrored && !isStuck;
     const canCopy = !isUser && !!message.content && !isPending && !isAssistantError;
+    // The turn is paused on an open question → the widget below is the
+    // focus, so the timeline collapses to a "Waiting for your answer" pill.
+    const awaitingInput = !!questions?.some((q) => q.status === 'pending');
 
     return (
         <div
@@ -328,6 +331,7 @@ function MessageBubble({
                         messageId={message.id}
                         events={message.events}
                         isStreaming={isPending && !isStuck}
+                        awaitingInput={awaitingInput}
                     />
                 )}
 
