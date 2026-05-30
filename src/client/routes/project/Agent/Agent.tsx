@@ -54,7 +54,11 @@ import {
     isPendingMessageStale,
 } from '@/client/features/project/agent';
 import { getTraces } from '@/apis/project/agent/client';
-import type { AgentMessageAttachment } from '@/apis/project/agent/types';
+import type {
+    AgentMessageAttachment,
+    AgentTraceClient,
+} from '@/apis/project/agent/types';
+import { copyTextToClipboard } from '@/client/utils/clipboard';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
 import { buildThreadTraceReport } from './threadTrace';
@@ -271,29 +275,50 @@ export function Agent() {
     };
 
     // Copy the whole thread's end-to-end trace (client → server → agent
-    // → server → client) to the clipboard for debugging. Fetches traces
-    // on demand so it works even when verbose mode is off; falls back to
-    // already-loaded traces if the fetch fails.
-    const handleCopyTrace = async () => {
+    // → server → client) to the clipboard for debugging.
+    //
+    // Traces are PREFETCHED when the menu opens (below) so the actual
+    // copy runs synchronously inside the click gesture — clipboard
+    // writes fail with NotAllowedError if they happen after an `await`
+    // (the network fetch) because the browser's transient activation /
+    // focus is gone by then.
+    const prefetchedTracesRef = useRef<AgentTraceClient[]>([]);
+
+    const prefetchTraces = () => {
         if (!selectedId) return;
-        try {
-            const res = await getTraces({ conversationId: selectedId });
-            const traces =
-                res.data?.traces ?? tracesQuery.data ?? [];
-            const report = buildThreadTraceReport({
-                conversation,
-                messages,
-                traces,
-                clientTimings,
-                exportedAt: new Date().toISOString(),
+        getTraces({ conversationId: selectedId })
+            .then((res) => {
+                if (res.data?.traces) {
+                    prefetchedTracesRef.current = res.data.traces;
+                }
+            })
+            .catch(() => {
+                // Best-effort — handleCopyTrace falls back to whatever
+                // traces are already loaded (verbose mode) or none.
             });
-            await navigator.clipboard.writeText(report);
+    };
+
+    const handleCopyTrace = () => {
+        if (!selectedId) return;
+        const traces =
+            prefetchedTracesRef.current.length > 0
+                ? prefetchedTracesRef.current
+                : tracesQuery.data ?? [];
+        const report = buildThreadTraceReport({
+            conversation,
+            messages,
+            traces,
+            clientTimings,
+            exportedAt: new Date().toISOString(),
+        });
+        if (copyTextToClipboard(report)) {
             toast.success('Thread trace copied to clipboard');
-        } catch (err) {
+        } else {
+            // Clipboard genuinely unavailable — make sure the user can
+            // still grab the trace.
+            console.log('[agent thread trace]\n' + report);
             toast.error(
-                err instanceof Error
-                    ? `Couldn't copy trace: ${err.message}`
-                    : "Couldn't copy trace"
+                'Clipboard blocked — trace logged to the browser console'
             );
         }
     };
@@ -338,7 +363,14 @@ export function Agent() {
 
                         <RpcConnectionIndicator />
 
-                        <DropdownMenu>
+                        <DropdownMenu
+                            onOpenChange={(open) => {
+                                // Prefetch traces while the menu is open so
+                                // "Copy debug trace" can copy synchronously
+                                // (no await) and keep clipboard permission.
+                                if (open) prefetchTraces();
+                            }}
+                        >
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant="ghost"
@@ -360,12 +392,7 @@ export function Agent() {
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuItem
                                     disabled={!selectedId || messages.length === 0}
-                                    onSelect={(e) => {
-                                        // Keep the menu's focus handling
-                                        // happy while we run an async copy.
-                                        e.preventDefault();
-                                        void handleCopyTrace();
-                                    }}
+                                    onSelect={() => handleCopyTrace()}
                                 >
                                     <ClipboardCopy className="mr-2 h-3.5 w-3.5" />
                                     Copy debug trace
