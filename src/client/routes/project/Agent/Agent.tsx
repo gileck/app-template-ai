@@ -11,7 +11,15 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Menu, Bot, Terminal, MoreVertical, ClipboardCopy } from 'lucide-react';
+import {
+    Menu,
+    Bot,
+    Terminal,
+    MoreVertical,
+    ClipboardCopy,
+    Home as HomeIcon,
+} from 'lucide-react';
+import { useRouter } from '@/client/features';
 import { Button } from '@/client/components/template/ui/button';
 import { toast } from '@/client/components/template/ui/toast';
 import {
@@ -66,6 +74,7 @@ const AGENT_MODELS: ChatComposerModelGroup[] = [
 ];
 
 export function Agent() {
+    const { navigate } = useRouter();
     const selectedId = useAgentUIStore((s) => s.selectedConversationId);
     const setSelected = useAgentUIStore((s) => s.setSelectedConversationId);
     const modelId = useAgentUIStore((s) => s.selectedModelId);
@@ -337,8 +346,22 @@ export function Agent() {
 
                 {/* Main chat column */}
                 <main className="flex min-w-0 flex-1 flex-col">
-                    {/* Top bar — [Threads] [Title] [RPC] [⋮ menu] */}
+                    {/* Top bar — [Home] [Threads] [Title] [RPC] [⋮ menu] */}
                     <header className="flex items-center gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                        {/* Leave the agent — this is a fullScreen route, so
+                            the app's normal nav chrome is hidden and this
+                            is the only way back out. */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => navigate('/')}
+                            aria-label="Back to home"
+                            title="Back to home"
+                        >
+                            <HomeIcon className="h-4 w-4" />
+                        </Button>
+
                         <Button
                             variant="ghost"
                             size="icon"
