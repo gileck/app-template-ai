@@ -20,15 +20,6 @@ import {
     SheetTitle,
 } from '@/client/components/template/ui/sheet';
 import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from '@/client/components/template/ui/select';
-import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuCheckboxItem,
@@ -59,18 +50,19 @@ import type {
     AgentTraceClient,
 } from '@/apis/project/agent/types';
 import { copyTextToClipboard } from '@/client/utils/clipboard';
+import {
+    ChatComposer,
+    type AttachmentSlot,
+    type ChatComposerHandle,
+    type ChatComposerModelGroup,
+} from '@/client/components/template/chat/ChatComposer';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
 import { buildThreadTraceReport } from './threadTrace';
-import {
-    MessageInput,
-    type AttachmentSlot,
-    type MessageInputHandle,
-} from './MessageInput';
 
-const AGENT_MODELS = [
-    { tier: 'Claude Code', models: CLAUDE_CODE_MODELS },
-    { tier: 'Codex', models: CODEX_MODELS },
+const AGENT_MODELS: ChatComposerModelGroup[] = [
+    { label: 'Claude Code', models: CLAUDE_CODE_MODELS },
+    { label: 'Codex', models: CODEX_MODELS },
 ];
 
 export function Agent() {
@@ -90,7 +82,7 @@ export function Agent() {
     // eslint-disable-next-line state-management/prefer-state-architecture -- transient sheet open/close
     const [sheetOpen, setSheetOpen] = useState(false);
 
-    const inputRef = useRef<MessageInputHandle | null>(null);
+    const inputRef = useRef<ChatComposerHandle | null>(null);
 
     // Attachment slots — each picked file becomes a slot that flips
     // through 'uploading' → 'uploaded' (or 'failed'). On send we
@@ -430,14 +422,18 @@ export function Agent() {
                         )}
                     </div>
 
-                    {/* Composer — model picker lives in the bottom toolbar */}
+                    {/* Composer — shared template component; the model
+                        picker is built in via the `models` prop. */}
                     <div className="bg-background">
-                        <MessageInput
+                        <ChatComposer
                             ref={inputRef}
                             onSubmit={handleSend}
                             attachments={attachmentSlots}
                             onAddFiles={handleAddFiles}
                             onRemoveAttachment={handleRemoveAttachment}
+                            models={groupedModels}
+                            selectedModelId={activeModelId}
+                            onSelectModel={setModelId}
                             disabled={createMutation.isPending}
                             isSending={sendMutation.isPending}
                             isAgentRunning={hasLivePending}
@@ -448,31 +444,6 @@ export function Agent() {
                                               livePendingMessage.id
                                           )
                                     : undefined
-                            }
-                            toolbarLeftSlot={
-                                <Select
-                                    value={activeModelId}
-                                    onValueChange={(v) => setModelId(v)}
-                                >
-                                    <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1.5 rounded-full border-0 bg-transparent px-2.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus:ring-0">
-                                        <SelectValue placeholder="Select model" />
-                                    </SelectTrigger>
-                                    <SelectContent align="start">
-                                        {groupedModels.map(({ tier, models }) => (
-                                            <SelectGroup key={tier}>
-                                                <SelectLabel>{tier}</SelectLabel>
-                                                {models.map((m) => (
-                                                    <SelectItem
-                                                        key={m.id}
-                                                        value={m.id}
-                                                    >
-                                                        {m.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
                             }
                         />
                     </div>
