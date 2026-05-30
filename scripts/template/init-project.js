@@ -206,6 +206,33 @@ async function writeEnvLocalUserId(id) {
     fs.writeFileSync(envPath, envContent, 'utf8');
 }
 
+// Per-developer identity vars that must NEVER carry over from the template's
+// local env files into a freshly created project. Copying .env/.env.local from
+// ../app-template-ai bootstraps shared values (e.g. MONGO_URI), but it would
+// otherwise leak the template developer's own ids: LOCAL_USER_ID points at a
+// user in the template's database (not the new project's), and ADMIN_USER_ID
+// would make the template dev the new project's admin. init-project regenerates
+// LOCAL_USER_ID for the new project's own database in createLocalUserAndWriteEnv().
+const LEAKY_IDENTITY_KEYS = ['LOCAL_USER_ID', 'ADMIN_USER_ID'];
+
+function stripLeakyIdentityKeys(filePath, fileName) {
+    let content = fs.readFileSync(filePath, 'utf8');
+    let changed = false;
+    for (const key of LEAKY_IDENTITY_KEYS) {
+        // Match active OR commented assignments (whole line), with optional
+        // leading "#"/whitespace and optional "export ".
+        const re = new RegExp(`^[ \\t]*#?[ \\t]*(?:export[ \\t]+)?${key}=.*$\\n?`, 'gm');
+        if (re.test(content)) {
+            content = content.replace(re, '');
+            changed = true;
+        }
+    }
+    if (changed) {
+        fs.writeFileSync(filePath, content, 'utf8');
+        console.log(`[${fileName}] Stripped template identity keys (${LEAKY_IDENTITY_KEYS.join(', ')}).`);
+    }
+}
+
 function copyEnvFileIfMissing(fileName) {
     const cwdPath = path.resolve(process.cwd(), fileName);
     if (fs.existsSync(cwdPath)) {
@@ -218,6 +245,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(templatePath)) {
         fs.copyFileSync(templatePath, cwdPath);
         console.log(`[${fileName}] Copied from ../app-template-ai/`);
+        stripLeakyIdentityKeys(cwdPath, fileName);
         return;
     }
 
@@ -226,6 +254,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(parentPath)) {
         fs.copyFileSync(parentPath, cwdPath);
         console.log(`[${fileName}] Copied from parent directory.`);
+        stripLeakyIdentityKeys(cwdPath, fileName);
         return;
     }
 
