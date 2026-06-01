@@ -1,7 +1,9 @@
 import type { AuthMode } from './authMode';
 import type {
     PublicKeyCredentialCreationOptionsJSON,
+    PublicKeyCredentialRequestOptionsJSON,
     RegistrationResponseJSON,
+    AuthenticationResponseJSON,
 } from '@simplewebauthn/browser';
 
 export type TwoFactorMethod = 'telegram' | 'email';
@@ -201,6 +203,25 @@ export interface PasskeyDeleteRequest {
 
 export interface PasskeyDeleteResponse {
     success: boolean;
+    error?: string;
+}
+
+/** `passkey/login-options` — start discoverable ("just tap") login. */
+export interface PasskeyLoginOptionsResponse {
+    options?: PublicKeyCredentialRequestOptionsJSON;
+    /** Correlates this ceremony's two round-trips; echo back on verify. */
+    challengeId?: string;
+    error?: string;
+}
+
+/** `passkey/login-verify` — verify the assertion and issue the session. */
+export interface PasskeyLoginVerifyRequest {
+    challengeId: string;
+    response: AuthenticationResponseJSON;
+}
+
+export interface PasskeyLoginVerifyResponse {
+    user?: UserResponse;
     error?: string;
 }
 

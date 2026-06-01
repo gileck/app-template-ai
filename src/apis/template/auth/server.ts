@@ -11,6 +11,8 @@ import {
     passkeyRegisterVerify,
     passkeyList,
     passkeyDelete,
+    passkeyLoginOptions,
+    passkeyLoginVerify,
 } from "./index";
 import { getCurrentUser } from "./handlers/getCurrentUser";
 import { loginUser } from "./handlers/loginUser";
@@ -24,6 +26,8 @@ import { passkeyRegisterOptionsHandler } from "./handlers/passkey/registerOption
 import { passkeyRegisterVerifyHandler } from "./handlers/passkey/registerVerify";
 import { passkeyListHandler } from "./handlers/passkey/listPasskeys";
 import { passkeyDeleteHandler } from "./handlers/passkey/deletePasskey";
+import { passkeyLoginOptionsHandler } from "./handlers/passkey/loginOptions";
+import { passkeyLoginVerifyHandler } from "./handlers/passkey/loginVerify";
 export * from "./shared";
 
 // Export API endpoint names and types from index.ts as per guidelines
@@ -42,5 +46,7 @@ export const authApiHandlers = {
     [passkeyRegisterVerify]: { process: passkeyRegisterVerifyHandler },
     [passkeyList]: { process: passkeyListHandler },
     [passkeyDelete]: { process: passkeyDeleteHandler },
+    [passkeyLoginOptions]: { process: passkeyLoginOptionsHandler },
+    [passkeyLoginVerify]: { process: passkeyLoginVerifyHandler },
 };
 

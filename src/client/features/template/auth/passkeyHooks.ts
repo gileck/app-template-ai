@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     startRegistration,
+    startAuthentication,
     browserSupportsWebAuthn,
     WebAuthnError,
 } from '@simplewebauthn/browser';
@@ -18,9 +19,13 @@ import {
     apiPasskeyRegisterVerify,
     apiPasskeyList,
     apiPasskeyDelete,
+    apiPasskeyLoginOptions,
+    apiPasskeyLoginVerify,
 } from '@/apis/template/auth/client';
-import type { PasskeyInfo } from '@/apis/template/auth/types';
+import type { PasskeyInfo, UserResponse } from '@/apis/template/auth/types';
 import { useQueryDefaults } from '@/client/query';
+import { useAuthStore } from './store';
+import { userToHint } from './types';
 
 export const passkeysQueryKey = ['passkeys'] as const;
 
@@ -100,6 +105,61 @@ export function useAddPasskey() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: passkeysQueryKey });
+        },
+    });
+}
+
+/**
+ * Discoverable "just tap" login: ask the browser to offer whatever passkeys
+ * it holds for this site, verify the chosen one, and — on success — adopt the
+ * issued session exactly like password login (validated user + instant-boot
+ * hint).
+ */
+export function usePasskeyLogin() {
+    const { setValidatedUser, setUserHint, setError } = useAuthStore();
+    return useMutation<UserResponse, Error, void>({
+        mutationFn: async (): Promise<UserResponse> => {
+            if (!browserSupportsPasskeys()) {
+                throw new Error('This browser does not support passkeys');
+            }
+
+            const optionsResponse = await apiPasskeyLoginOptions();
+            if (!optionsResponse.data || Object.keys(optionsResponse.data).length === 0) {
+                throw new Error('You must be online to sign in with a passkey');
+            }
+            if (optionsResponse.data.error) {
+                throw new Error(optionsResponse.data.error);
+            }
+            const { options, challengeId } = optionsResponse.data;
+            if (!options || !challengeId) {
+                throw new Error('Failed to start passkey login');
+            }
+
+            let assertion;
+            try {
+                assertion = await startAuthentication({ optionsJSON: options });
+            } catch (err) {
+                if (err instanceof WebAuthnError && err.code === 'ERROR_CEREMONY_ABORTED') {
+                    throw new Error('Passkey sign-in was cancelled');
+                }
+                throw err instanceof Error ? err : new Error('Passkey sign-in failed');
+            }
+
+            const verifyResponse = await apiPasskeyLoginVerify({ challengeId, response: assertion });
+            if (verifyResponse.data?.error) {
+                throw new Error(verifyResponse.data.error);
+            }
+            if (!verifyResponse.data?.user) {
+                throw new Error('Could not sign in with this passkey');
+            }
+            return verifyResponse.data.user;
+        },
+        onSuccess: (user) => {
+            setValidatedUser(user);
+            setUserHint(userToHint(user));
+        },
+        onError: (error) => {
+            setError(error instanceof Error ? error.message : 'Passkey sign-in failed');
         },
     });
 }

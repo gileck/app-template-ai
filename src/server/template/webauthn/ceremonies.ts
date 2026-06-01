@@ -1,20 +1,24 @@
 /**
- * Thin server-side wrappers around SimpleWebAuthn's registration ceremony,
- * with this deployment's RP config (rpID / rpName / origin) applied centrally
- * so handlers never repeat it.
+ * Thin server-side wrappers around SimpleWebAuthn's ceremonies, with this
+ * deployment's RP config (rpID / rpName / origin) applied centrally so
+ * handlers never repeat it.
  *
- * Phase 1 covers registration only (enroll a passkey for a logged-in user).
- * The authentication ceremony (discoverable login) lands in Phase 2.
+ * - Registration (Phase 1): enroll a passkey for a logged-in user.
+ * - Authentication (Phase 2): discoverable "just tap" login.
  */
 
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
+    generateAuthenticationOptions,
+    verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import type {
     PublicKeyCredentialCreationOptionsJSON,
+    PublicKeyCredentialRequestOptionsJSON,
     RegistrationResponseJSON,
+    AuthenticationResponseJSON,
     AuthenticatorTransportFuture,
 } from '@simplewebauthn/server';
 import { getWebAuthnConfig } from './config';
@@ -100,4 +104,62 @@ export async function verifyRegistration(input: {
             backedUp: credentialBackedUp,
         },
     };
+}
+
+// ============================================================
+// Authentication ceremony (Phase 2 — discoverable login)
+// ============================================================
+
+export interface AuthenticationOptionsResult {
+    options: PublicKeyCredentialRequestOptionsJSON;
+    /** The challenge embedded in the options — persist it to verify later. */
+    challenge: string;
+}
+
+/**
+ * Build authentication options for **discoverable** login: we send an empty
+ * `allowCredentials`, so the browser offers whatever passkeys it holds for
+ * this rpID and the user just taps one. No username needed up front — the
+ * credential carries the user handle.
+ */
+export async function buildAuthenticationOptions(): Promise<AuthenticationOptionsResult> {
+    const { rpID } = getWebAuthnConfig();
+    const options = await generateAuthenticationOptions({
+        rpID,
+        allowCredentials: [],
+        userVerification: 'preferred',
+    });
+    return { options, challenge: options.challenge };
+}
+
+export interface VerifiedAuthentication {
+    verified: boolean;
+    /** Post-assertion signature counter to persist back to the credential. */
+    newCounter?: number;
+}
+
+export async function verifyAuthentication(input: {
+    response: AuthenticationResponseJSON;
+    expectedChallenge: string;
+    /** The stored credential this assertion claims to be from. */
+    credential: { credentialId: string; publicKey: string; counter: number };
+}): Promise<VerifiedAuthentication> {
+    const { rpID, expectedOrigin } = getWebAuthnConfig();
+    const verification = await verifyAuthenticationResponse({
+        response: input.response,
+        expectedChallenge: input.expectedChallenge,
+        expectedOrigin,
+        expectedRPID: rpID,
+        credential: {
+            id: input.credential.credentialId,
+            publicKey: isoBase64URL.toBuffer(input.credential.publicKey),
+            counter: input.credential.counter,
+        },
+        requireUserVerification: false,
+    });
+
+    if (!verification.verified) {
+        return { verified: false };
+    }
+    return { verified: true, newCounter: verification.authenticationInfo.newCounter };
 }

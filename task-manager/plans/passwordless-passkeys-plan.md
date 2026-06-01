@@ -1,6 +1,6 @@
 # Plan: Passwordless Auth with Passkeys (WebAuthn)
 
-Status: **Phase 1 complete — logged-in users can enroll/manage passkeys; login still password-only**
+Status: **Phase 2 complete — discoverable passkey login works (behind AUTH_MODE=passkey)**
 Owner: gileck
 Last updated: 2026-06-01
 
@@ -235,8 +235,35 @@ pulls `@simplewebauthn/browser`.
 → the passkey appears in the list; remove it via the trash icon. (rpID is
 `localhost` in dev; on a real domain it uses `WEBAUTHN_RP_ID`/appUrl host.)
 
-**Next — Phase 2:** discoverable login (`login-options`/`verify` + the "Sign
-in with a passkey" button), gated behind `AUTH_MODE=passkey`.
+## Phase 2 — what shipped (discoverable "just tap" login)
+
+Tapping a passkey now logs you in — and crucially issues the **same JWT
+cookie** as password login, so session / instant-boot / MCP-SDK /
+LOCAL_USER_ID are all untouched. The login button is gated behind
+`AUTH_MODE=passkey`; password mode is unchanged. `yarn checks` green.
+
+- **Ceremony:** `buildAuthenticationOptions()` (empty `allowCredentials` ⇒
+  discoverable) + `verifyAuthentication()` (decodes the stored base64url
+  public key, returns the advanced counter) in `ceremonies.ts`.
+- **Endpoints** (public — this IS the login):
+  - `auth/passkey/login-options` → issues + stores a single-use auth challenge.
+  - `auth/passkey/login-verify` → looks up the credential by the assertion's
+    id → its user → **same admin-approval gate as password login** → verifies
+    the assertion → persists the new counter → issues the JWT cookie +
+    `recordSession`. Generic error on any failure (no passkey enumeration).
+    2FA is intentionally skipped (passkeys are already possession+biometric).
+- **Client:** `usePasskeyLogin()` runs `startAuthentication` (discoverable) →
+  verify → `setValidatedUser`/`setUserHint` exactly like password login.
+- **UI:** a "Sign in with a passkey" button on `LoginForm`, shown only when
+  `authMode === 'passkey'` + browser supports WebAuthn + on the sign-in tab.
+
+**Test it (localhost):** set `AUTH_MODE=passkey` in `.env.local`, restart
+`yarn dev`, enroll a passkey (Phase 1) while logged in, log out → the login
+screen shows "Sign in with a passkey" → tap → Touch ID → you're in.
+
+**Next — Phase 3:** universal email-link enroll (`enroll/request` → email →
+`enroll/options`/`verify`) covering signup + new device + recovery +
+migration; mandatory email at signup; admin-approval honored.
 
 ## Open items (carried — developer action / later phases)
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, EyeOff, User, Mail, Lock, ArrowRight, UserPlus, AlertCircle, Clock } from 'lucide-react';
-import { useAuthStore } from './store';
+import { Eye, EyeOff, User, Mail, Lock, ArrowRight, UserPlus, AlertCircle, Clock, Fingerprint } from 'lucide-react';
+import { useAuthStore, useAuthMode } from './store';
 import { useLogin, useRegister } from './hooks';
+import { usePasskeyLogin, browserSupportsPasskeys } from './passkeyHooks';
 import { useLoginFormValidator } from './useLoginFormValidator';
 import { isNetworkError, cleanErrorMessage as cleanApiErrorMessage } from '../error-tracking/errorUtils';
 import type { LoginFormState } from './types';
@@ -18,8 +19,11 @@ export const LoginForm = () => {
 
     const loginMutation = useLogin();
     const registerMutation = useRegister();
+    const passkeyLoginMutation = usePasskeyLogin();
+    const authMode = useAuthMode();
 
-    const isLoading = loginMutation.isPending || registerMutation.isPending;
+    const isLoading =
+        loginMutation.isPending || registerMutation.isPending || passkeyLoginMutation.isPending;
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral form mode toggle
     const [isRegistering, setIsRegistering] = useState(false);
@@ -37,6 +41,19 @@ export const LoginForm = () => {
     const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
     const { formErrors, validateForm, clearFieldError, resetFormErrors } = useLoginFormValidator(isRegistering, formData);
+
+    // Offer passkey sign-in only when this deployment runs in passkey mode,
+    // the browser supports WebAuthn, and we're on the sign-in (not signup) tab.
+    const showPasskeySignIn =
+        authMode === 'passkey' && !isRegistering && browserSupportsPasskeys();
+
+    const handlePasskeyLogin = () => {
+        if (error || loginMutation.error) {
+            setError(null);
+            loginMutation.reset();
+        }
+        passkeyLoginMutation.mutate();
+    };
 
     useEffect(() => {
         if (loginMutation.data?.kind !== 'pending-login-approval') {
@@ -216,6 +233,37 @@ export const LoginForm = () => {
                         </>
                     )}
                 </button>
+
+                {showPasskeySignIn && (
+                    <>
+                        <div className="flex items-center gap-3" aria-hidden="true">
+                            <span className="h-px flex-1 bg-border" />
+                            <span className="text-xs text-muted-foreground">or</span>
+                            <span className="h-px flex-1 bg-border" />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handlePasskeyLogin}
+                            disabled={isLoading}
+                            className={cn(
+                                'w-full h-12 rounded-xl font-semibold text-foreground',
+                                'bg-card border border-input hover:bg-accent active:scale-[0.98]',
+                                'flex items-center justify-center gap-2',
+                                'transition-all duration-150',
+                                'disabled:opacity-50 disabled:cursor-not-allowed'
+                            )}
+                        >
+                            {passkeyLoginMutation.isPending ? (
+                                <div className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Fingerprint className="w-5 h-5" />
+                                    Sign in with a passkey
+                                </>
+                            )}
+                        </button>
+                    </>
+                )}
 
                 {!isRegistering && (
                     <p className="text-center">

@@ -33,6 +33,7 @@ export {
     usePasskeys,
     useAddPasskey,
     useDeletePasskey,
+    usePasskeyLogin,
     browserSupportsPasskeys,
     passkeysQueryKey,
 } from './passkeyHooks';
