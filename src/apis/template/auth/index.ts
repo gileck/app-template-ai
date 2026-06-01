@@ -8,3 +8,9 @@ export const updateProfile = 'auth/update-profile';
 export const changePassword = 'auth/change-password';
 export const requestPasswordReset = 'auth/request-password-reset';
 export const resetPassword = 'auth/reset-password';
+
+// Passkeys / WebAuthn
+export const passkeyRegisterOptions = 'auth/passkey/register-options';
+export const passkeyRegisterVerify = 'auth/passkey/register-verify';
+export const passkeyList = 'auth/passkey/list';
+export const passkeyDelete = 'auth/passkey/delete';

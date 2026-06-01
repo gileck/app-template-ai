@@ -28,6 +28,15 @@ export {
     currentUserQueryKey,
 } from './hooks';
 
+// Passkey hooks
+export {
+    usePasskeys,
+    useAddPasskey,
+    useDeletePasskey,
+    browserSupportsPasskeys,
+    passkeysQueryKey,
+} from './passkeyHooks';
+
 // Preflight
 export {
     startAuthPreflight,

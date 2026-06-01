@@ -1,3 +1,9 @@
+import type { AuthMode } from './authMode';
+import type {
+    PublicKeyCredentialCreationOptionsJSON,
+    RegistrationResponseJSON,
+} from '@simplewebauthn/browser';
+
 export type TwoFactorMethod = 'telegram' | 'email';
 
 export interface LoginRequest {
@@ -52,6 +58,12 @@ export type CurrentUserResponse = {
     connectionError?: boolean;
     /** Debug info about auth status - helps diagnose auth failures */
     authDebug?: AuthDebugInfo;
+    /**
+     * Active auth mode for this deployment ('password' | 'passkey'), surfaced
+     * on the public preflight so the unauthenticated login UI knows which flow
+     * to render without an extra round-trip. Always present.
+     */
+    authMode?: AuthMode;
 };
 export type LogoutResponse = {
     success: boolean;
@@ -139,6 +151,57 @@ export interface AuthDebugInfo {
     tokenErrorCode?: string;
     /** True when request was authenticated via ADMIN_API_TOKEN bearer + X-On-Behalf-Of */
     tokenAuth?: boolean;
+}
+
+// ============================================================
+// Passkeys / WebAuthn (Phase 1: enroll a passkey for a logged-in user)
+// ============================================================
+
+/** A registered passkey as shown in the device-management UI. */
+export interface PasskeyInfo {
+    credentialId: string;
+    deviceName?: string;
+    backedUp?: boolean;
+    createdAt: string;
+    lastUsedAt?: string;
+}
+
+/** `passkey/register-options` — start the registration ceremony. */
+export interface PasskeyRegisterOptionsResponse {
+    options?: PublicKeyCredentialCreationOptionsJSON;
+    /** Correlates this ceremony's two round-trips; echo back on verify. */
+    challengeId?: string;
+    error?: string;
+}
+
+/** `passkey/register-verify` — finish registration and store the credential. */
+export interface PasskeyRegisterVerifyRequest {
+    challengeId: string;
+    response: RegistrationResponseJSON;
+    /** Optional user-facing label for this device. */
+    deviceName?: string;
+}
+
+export interface PasskeyRegisterVerifyResponse {
+    verified: boolean;
+    passkey?: PasskeyInfo;
+    error?: string;
+}
+
+/** `passkey/list` — the current user's registered passkeys. */
+export interface PasskeyListResponse {
+    passkeys?: PasskeyInfo[];
+    error?: string;
+}
+
+/** `passkey/delete` — remove one of the current user's passkeys. */
+export interface PasskeyDeleteRequest {
+    credentialId: string;
+}
+
+export interface PasskeyDeleteResponse {
+    success: boolean;
+    error?: string;
 }
 
 export interface ApiHandlerContext {

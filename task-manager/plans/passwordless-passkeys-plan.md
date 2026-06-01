@@ -1,6 +1,6 @@
 # Plan: Passwordless Auth with Passkeys (WebAuthn)
 
-Status: **planning / approved design — not yet started**
+Status: **Phase 1 complete — logged-in users can enroll/manage passkeys; login still password-only**
 Owner: gileck
 Last updated: 2026-06-01
 
@@ -181,12 +181,73 @@ wide only far later, if ever).
 
 ---
 
-## Open items before Phase 0
+## Phase 0 — what shipped (foundation, dormant behind the flag)
 
-- [ ] Verify production email actually sends (provider/env behind
-      `src/server/template/email`); the whole recovery + cutover hinges on it.
-- [ ] Confirm the `WEBAUTHN_RP_ID` domain story for the template's own deploy.
-- [ ] Decide the device-management UX surface (settings panel scope).
+Everything below is additive and inert until `AUTH_MODE=passkey`. Passwords
+remain the only live flow; `yarn checks` green.
+
+- **Deps:** `@simplewebauthn/server` + `@simplewebauthn/browser` (13.3.0).
+- **`AUTH_MODE` flag:** `src/apis/template/auth/authMode.ts` — `getAuthMode()`
+  / `isPasskeyMode()`, default `'password'` (anything but the exact string
+  `'passkey'` → password mode).
+- **RP config:** `src/server/template/webauthn/config.ts` — `getRpID()` /
+  `getWebAuthnConfig()`. Dev → `localhost`; prod → `WEBAUTHN_RP_ID` env (or
+  `appConfig.appUrl` host). `expectedOrigin` allows localhost ports in dev.
+- **Collections** (template-owned, lazy-index + single-use/TTL patterns,
+  registered in `index.template.ts`):
+  - `credentials` — unique index on `credentialId`; CRUD incl. counter update,
+    rename, delete.
+  - `webauthn_challenges` — 5-min TTL, single-use, `_id` = `challengeId` for
+    discoverable-login correlation.
+  - `enrollment_tokens` — clone of password-reset-tokens (SHA-256, single-use,
+    1-hour TTL).
+- **`/me` exposes `authMode`:** added to `CurrentUserResponse`, set in
+  `getCurrentUser` on every branch; client auth store gained `authMode`
+  (default `'password'`) + `useAuthMode()`, populated from the preflight.
+- **Env docs:** `.env.example` gained an `AUTH_MODE` / `WEBAUTHN_RP_ID` /
+  `WEBAUTHN_ORIGIN` section.
+
+## Phase 1 — what shipped (enroll a passkey for logged-in users)
+
+Registration ceremony only — no email link, no passkey *login* yet. Works in
+both auth modes (a user can set up passkeys before a deployment cuts over).
+`yarn checks` green. Server crypto stays server-side; the client bundle only
+pulls `@simplewebauthn/browser`.
+
+- **Ceremony wrapper:** `src/server/template/webauthn/ceremonies.ts` —
+  `buildRegistrationOptions()` (residentKey `required` ⇒ discoverable, the
+  prerequisite for Phase 2 "just tap") + `verifyRegistration()` (returns the
+  stored-credential shape; base64url public key via `isoBase64URL`).
+- **Endpoints** (auth domain, per-handler `context.userId` auth — not under
+  `admin/`): `auth/passkey/register-options`, `auth/passkey/register-verify`,
+  `auth/passkey/list`, `auth/passkey/delete`. Challenge is single-use +
+  user-bound; `register-verify` rejects mismatched/duplicate credentials.
+- **Collection ergonomics:** `insertCredential` now takes a string userId.
+- **Shared API types:** `PasskeyInfo`, register-options/verify, list, delete.
+- **Client hooks:** `usePasskeys` (query), `useAddPasskey` (full ceremony:
+  options → `startRegistration` → verify, friendly WebAuthnError mapping),
+  `useDeletePasskey`, `browserSupportsPasskeys` — exported from the auth
+  feature + `@/client/features`.
+- **UI:** `PasskeysSection` on the Profile page (under "Security") — add,
+  list (name/synced/last-used), remove-with-confirm; gated on browser support.
+
+**Test it (localhost):** sign in → Profile → Passkeys → Add → Touch ID/Face ID
+→ the passkey appears in the list; remove it via the trash icon. (rpID is
+`localhost` in dev; on a real domain it uses `WEBAUTHN_RP_ID`/appUrl host.)
+
+**Next — Phase 2:** discoverable login (`login-options`/`verify` + the "Sign
+in with a passkey" button), gated behind `AUTH_MODE=passkey`.
+
+## Open items (carried — developer action / later phases)
+
+- [ ] **Verify production email actually sends** (AWS SES via
+      `TWO_FACTOR_EMAIL_FROM` + AWS creds in `src/server/template/email`). The
+      agent can't test this without secrets — **developer must confirm
+      deliverability before Phase 4+ / before flipping `AUTH_MODE=passkey`.**
+      This is the single hard dependency for recovery + cutover.
+- [ ] Confirm the `WEBAUTHN_RP_ID` domain for the template's own deploy
+      (current `appConfig.appUrl` host = `app-template-ai.vercel.app`).
+- [ ] Decide the device-management UX surface (settings panel scope) — Phase 4.
 
 ---
 

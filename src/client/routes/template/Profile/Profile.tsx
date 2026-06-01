@@ -14,6 +14,7 @@ import { ProfileSection } from './components/ProfileSection';
 import { EditableField } from './components/EditableField';
 import { ImageUploadDialog } from './components/ImageUploadDialog';
 import { ChangePasswordDialog } from './components/ChangePasswordDialog';
+import { PasskeysSection } from './components/PasskeysSection';
 import { ProfileLoadingSkeleton } from './components/ProfileLoadingSkeleton';
 import { useProfileImage } from './useProfileImage';
 import { Bell, Calendar, Info, KeyRound, Lock, Mail, MessageSquare, User } from 'lucide-react';
@@ -185,6 +186,8 @@ export const Profile = () => {
                         </Button>
                     </div>
                 </ProfileSection>
+
+                <PasskeysSection />
 
                 <ProfileSection title="Notifications" icon={<Bell className="h-5 w-5" />}>
                     <div className="flex items-center justify-between px-4 py-3.5">
