@@ -13,6 +13,8 @@
     "check:unused": "knip",
     "check:unused:ci": "knip --include unresolved",
     "init-project": "node scripts/template/init-project.js",
+    "create-user": "tsx scripts/template/create-user.ts",
+    "create-local-user": "tsx scripts/template/create-user.ts --local",
     "create-project": "bash scripts/template/create-project-from-template.sh",
     "push": "git pull --no-edit && git push",
     "ts": "tsc --noEmit",

@@ -165,63 +165,19 @@ async function createLocalUserAndWriteEnv() {
         return process.env.LOCAL_USER_ID;
     }
 
-    // Dynamically import ESM TypeScript via ts-node/register is overkill; use direct JS requires from compiled runtime.
-    // The server DB utilities are TypeScript with path alias. We'll reimplement a minimal insert using mongodb driver here to avoid TS runtime.
-    const mongodb = require('mongodb');
-
-    const mongoUri = process.env.MONGO_URI;
-    if (!mongoUri) {
+    if (!process.env.MONGO_URI) {
         throw new Error(
             'MONGO_URI is not set. Add it to .env or .env.local in the project root, then re-run `yarn init-project`.'
         );
     }
 
-    const bcrypt = require('bcryptjs');
-
-    // SALT_ROUNDS from src/apis/auth/server.ts is 10; duplicate here to avoid TS import complexity
-    const SALT_ROUNDS = 10;
-
-    const client = new mongodb.MongoClient(mongoUri);
-    try {
-        await client.connect();
-
-        // Read dbName from app.config.js without executing arbitrary code: parse by regexp
-        const configPath = path.resolve(__dirname, '..', '..', 'src', 'app.config.js');
-        const cfg = fs.readFileSync(configPath, 'utf8');
-        const dbMatch = cfg.match(/dbName:\s*['\"]([^'\"]+)['\"]/);
-        if (!dbMatch) throw new Error('Failed to read dbName from app.config.js');
-        const dbName = dbMatch[1];
-
-        const db = client.db(dbName);
-        const users = db.collection('users');
-
-        const passwordHash = await bcrypt.hash('1234', SALT_ROUNDS);
-        const now = new Date();
-
-        // Ensure username unique; if exists, reuse its _id.
-        const existing = await users.findOne({ username: 'local_user_id' });
-        let userId;
-        let isNew = false;
-        if (existing) {
-            userId = existing._id;
-        } else {
-            const result = await users.insertOne({
-                username: 'local_user_id',
-                password_hash: passwordHash,
-                createdAt: now,
-                updatedAt: now,
-            });
-            if (!result.insertedId) throw new Error('Failed to insert local user');
-            userId = result.insertedId;
-            isNew = true;
-        }
-
-        await writeEnvLocalUserId(userId.toString());
-        console.log(`[Local User] ${isNew ? 'Created new user' : 'Found existing user'}, LOCAL_USER_ID=${userId}`);
-        return userId.toString();
-    } finally {
-        await client.close().catch(() => { });
-    }
+    // Delegate to the canonical `create-user` script — it reuses the
+    // app's real `users.insertUser` + `SALT_ROUNDS` + approval logic
+    // (so the seeded user always matches the current schema), is
+    // idempotent, and writes LOCAL_USER_ID to .env. This replaces the
+    // old hand-rolled raw insert that drifted from the user schema.
+    execSync('yarn create-local-user', { stdio: 'inherit', cwd: process.cwd() });
+    return process.env.LOCAL_USER_ID;
 }
 
 async function writeEnvLocalUserId(id) {

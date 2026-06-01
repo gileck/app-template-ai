@@ -21,7 +21,7 @@ It does everything `yarn init-project` does — but **AI-driven and verified at 
 | 1 | Ensure `.env` + `.env.local` | Copies from a sibling `../app-template-ai/` if present (or creates empty), and **strips template identity keys** (`LOCAL_USER_ID`, `ADMIN_USER_ID`) so you don't inherit the template author's ids |
 | 2 | Init template tracking | Runs `init-template` → creates `.template-sync.json` (holds `init.*` idempotency flags + path-ownership config) |
 | 3–5 | Project identity | Prompts name / description / theme color → updates `src/app.config.js` (`appName` + `dbName`), `package.json` name, `src/config/pwa.config.ts`, `public/manifest.json`. Sets the `init.appConfig` flag |
-| 6–7 | Local user | Creates a dev user in MongoDB (`local_user_id` / `1234`) and writes `LOCAL_USER_ID` to `.env` |
+| 6–7 | Local user | Via **`yarn create-local-user`** — reuses the app's real `users.insertUser` + `SALT_ROUNDS` + approval logic (so the seeded user matches the current schema and is created **approved**), then writes `LOCAL_USER_ID` to `.env`. `LOCAL_USER_ID` is a dev-only auth shortcut that also grants admin locally |
 | 8 | Demo cleanup | Deletes the example features (Todos, Chat, AIChat, demo Home) |
 | 9 | Git hooks | `yarn setup-hooks` (installs hooks + marks `yarn.lock` skip-worktree) |
 | 10 | Vercel | Prompts `vercel link`, then optionally pushes env vars (excludes `LOCAL_*`) |
@@ -72,6 +72,8 @@ Gate: `MONGO_URI` + `RPC_SECRET` present in `.env.local`. Continue.
    Tell them exactly what to type at each prompt, and to **decline the `vercel link` step here** (answer `n`) — this skill links Vercel in Phase 5.
    - If `MONGO_URI` is missing/wrong, the local-user step fails — fix Phase 1 and re-run (it's idempotent).
 3. After it completes, you take over for verification.
+
+> The local user is created by **`yarn create-local-user`** (which `init-project` calls) — a non-interactive, idempotent script that reuses the app's real user code. If you ever need just that step (e.g. the DB was reset), you can run `yarn create-local-user` directly yourself — no interactive prompts.
 
 > Already-configured projects: if the identity prompts are skipped (the `init.appConfig` flag is set) or `LOCAL_USER_ID` already exists, that's the idempotency guard working — not an error.
 
@@ -127,7 +129,29 @@ Gate: a Vercel deployment is **Ready**. Continue.
 
 ---
 
-## Phase 6 — Set up the Telegram bot
+## Phase 6 — Create the production owner account
+
+The `local_user_id` from Phase 2 is a **dev-only** shortcut (it auto-authenticates on localhost). Production has no such shortcut — sign-ups go through the real auth flow, which is **gated by admin approval** (`requireAdminApproval`, on by default). So you need a real, approved owner account, and an admin to approve any future sign-ups.
+
+**Key facts (explain these to the developer, then pick a path):**
+- **First-user-wins:** on a *fresh* production database with no users yet, the **first** sign-up is auto-approved, and the server logs `Set ADMIN_USER_ID=<id>`. That first user becomes your admin.
+- **`ADMIN_USER_ID`** designates the admin — it bypasses the approval gate and can approve others via `/admin/approvals`.
+- **Shared vs separate DB matters:** if local and production use the **same** `MONGO_URI` + `dbName`, the `local_user_id` you created in Phase 2 already consumed the first-user slot — so a production sign-up will land **pending**. Prefer a **separate production database** so prod gets its own clean first-user bootstrap.
+
+**Pick the path that fits:**
+- **A — Fresh prod DB (recommended):** deploy, then **sign up your real account first** on the production URL → auto-approved. Grab the `_id` from the build/runtime logs and set **`ADMIN_USER_ID=<id>`** in `.env.local` and on Vercel (`yarn vercel-cli env:push`), then redeploy.
+- **B — Bootstrap directly (no sign-up UI):** run the canonical script against the production database — it creates the user **already approved**, so no approval dance:
+  ```
+  yarn create-user --username <you> --password <pw> --admin
+  ```
+  (the developer runs this with their own password — you must not enter it). Then set `ADMIN_USER_ID=<printed id>` on Vercel.
+- **C — Approve a pending sign-up:** if someone already signed up and is pending (e.g. shared DB), an existing **admin** approves them via **`/admin/approvals`**. So you only need the create-then-approve flow for *organic third-party* sign-ups — not for your own owner account (use A or B).
+
+Gate: a real, **approved** owner account exists and `ADMIN_USER_ID` is set (locally + Vercel). Continue.
+
+---
+
+## Phase 7 — Set up the Telegram bot
 
 The template uses Telegram for owner alerts, deploy notifications, and approval flows (RPC sessions, agent workflows). Set it up now so those work later.
 
@@ -138,13 +162,14 @@ Gate: `/setup-telegram-bot` reports success (bot reachable, owner chat id set). 
 
 ---
 
-## Phase 7 — Done: the project is ready
+## Phase 8 — Done: the project is ready
 
 Confirm and summarize:
 - ✅ Identity configured (name / description / theme) and verified
 - ✅ `.env.local` has the required secrets; `LOCAL_USER_ID` seeded (fresh, not the template author's)
 - ✅ `yarn checks` green; app boots and the local user logs in
 - ✅ Vercel linked, env pushed, a deployment is **Ready**
+- ✅ Production owner account exists + approved; `ADMIN_USER_ID` set (locally + Vercel)
 - ✅ Telegram bot set up
 
 Then point the developer at sensible next steps for THIS project:
@@ -162,6 +187,8 @@ Offer to commit the initialization changes (don't commit unprompted). Suggested 
 | Need | Command / skill |
 |---|---|
 | Core init (env, template tracking, identity, local user, hooks, demo cleanup) | `yarn init-project` |
+| Seed the local dev user (idempotent, approved) | `yarn create-local-user` |
+| Create an approved owner/admin user (any DB) | `yarn create-user --username <u> --password <pw> --admin` |
 | Validate | `yarn checks`, `yarn dev` |
 | Vercel link / env / deploys | `vercel link`, `yarn vercel-cli env:push`, `npx vercel ls` |
 | Telegram bot | `/setup-telegram-bot` |
