@@ -42,12 +42,25 @@ function toDbName(projectName) {
     return `${slug}_db`;
 }
 
+// npm `name` must be lowercase with no spaces; hyphens are the convention.
+function toPackageName(projectName) {
+    return projectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'app';
+}
+
 // Template default appName as shipped in src/app.config.js. Kept ONLY as a
 // legacy migration signal: projects that completed init before the
 // per-step `init` flag was introduced have customized appName but no flag,
 // so we detect them by inequality with this value and persist the flag.
 // Any new logic should use isProjectConfigured() / setInitFlag('appConfig').
 const TEMPLATE_DEFAULT_APP_NAME = 'App Template AI';
+
+// package.json "name" as shipped by the template. Used as the idempotency
+// signal: we only rewrite the name while it still equals this, so a project
+// that already customized it (or a manual edit) is never clobbered.
+const TEMPLATE_DEFAULT_PACKAGE_NAME = 'app-template-ai';
 
 function getAppConfigValues() {
     const configPath = path.resolve(__dirname, '..', '..', 'src', 'app.config.js');
@@ -122,6 +135,27 @@ function updateAppConfig(projectName, dbName) {
     }
     console.log('[app.config.js] Already up to date.');
     return false;
+}
+
+function updatePackageName(packageName) {
+    const pkgPath = path.resolve(__dirname, '..', '..', 'package.json');
+    let pkg;
+    try {
+        pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    } catch (err) {
+        console.log('[package.json] Could not read/parse, skipping name update:', err.message || err);
+        return false;
+    }
+    // Only rename while still the template default so a manually-set name is
+    // never clobbered (and re-running init is idempotent).
+    if (pkg.name !== TEMPLATE_DEFAULT_PACKAGE_NAME) {
+        console.log(`[package.json] name already set ("${pkg.name}"), skipping.`);
+        return false;
+    }
+    pkg.name = packageName;
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    console.log(`[package.json] Updated name to "${packageName}".`);
+    return true;
 }
 
 async function createLocalUserAndWriteEnv() {
@@ -515,12 +549,14 @@ async function main() {
         // overwrite — they may hold the user's earlier prompt answers.
         createPwaConfig(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
         createManifest(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
+        if (values.appName) updatePackageName(toPackageName(values.appName));
     } else {
         const defaultName = getDefaultProjectName();
         const projectName = await prompt('Project Name', defaultName);
         const dbName = toDbName(projectName);
 
         updateAppConfig(projectName, dbName);
+        updatePackageName(toPackageName(projectName));
 
         // PWA configuration
         const pwaDescription = await prompt('App Description', 'A custom SPA application with PWA capabilities');
