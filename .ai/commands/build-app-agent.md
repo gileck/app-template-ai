@@ -8,6 +8,18 @@ The template ships a **generic agentic chat stack** (engine + storage + chat UI 
 
 The agent's *identity*, *what data it sees*, and *what it can do* are the only things that differ per app. This skill walks you through defining exactly those, reusing everything else as-is.
 
+> ## ⚠️ Prerequisite: RPC must be enabled first — run `/enable-rpc-calls`
+>
+> The agent **cannot answer at all** without it. Every turn is executed by a
+> local **RPC daemon** that polls MongoDB for jobs (the Vercel function only
+> enqueues the job — see the turn flow below). If RPC isn't set up, messages
+> just sit pending forever. `/enable-rpc-calls` registers the daemon, mounts
+> the connection indicator, and verifies it end-to-end.
+>
+> **Before starting this skill**, confirm RPC is enabled: `agent-tasks/rpc-daemon/config.json`
+> exists and `yarn daemon` is running. If not, run `/enable-rpc-calls` first and
+> come back. (Phase 0 re-checks this and will stop you if it's missing.)
+
 **Run this conversationally.** Each phase has a verify gate. Do not advance until it passes. Prefer small, reviewable edits; run `yarn checks` after each phase that touches code.
 
 ---
