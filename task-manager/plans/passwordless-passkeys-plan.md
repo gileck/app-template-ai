@@ -1,8 +1,10 @@
 # Plan: Passwordless Auth with Passkeys (WebAuthn)
 
-Status: **Phase 2 complete — discoverable passkey login works (behind AUTH_MODE=passkey)**
+Status: **Phases 0–2 PROD-VERIFIED; enrollment backbone (admin-assisted link)
+built** — the universal token-enroll flow + landing page work; only EMAIL
+delivery (SES) is still deferred. Admin can mint per-user enroll links now.
 Owner: gileck
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 Replace password auth with passwordless **passkeys (WebAuthn)** across the
 template and (opt-in) all child projects. Authenticate with device
@@ -261,9 +263,41 @@ LOCAL_USER_ID are all untouched. The login button is gated behind
 `yarn dev`, enroll a passkey (Phase 1) while logged in, log out → the login
 screen shows "Sign in with a passkey" → tap → Touch ID → you're in.
 
-**Next — Phase 3:** universal email-link enroll (`enroll/request` → email →
-`enroll/options`/`verify`) covering signup + new device + recovery +
-migration; mandatory email at signup; admin-approval honored.
+## Phase 3/4 — what shipped (token-enroll backbone + admin-assisted delivery)
+
+SES is deferred, so we built the **universal token-authenticated enrollment
+flow** and delivered the link via the **admin** instead of email. When SES
+lands, email just sends the *same* `/enroll-passkey?token=` URL — no flow
+change. `yarn checks` green.
+
+- **Token-enroll endpoints** (public — authorized by the one-time enrollment
+  token, NOT a session): `auth/passkey/enroll/options` (validate token →
+  registration options + username; token NOT consumed, so retries work) and
+  `auth/passkey/enroll/verify` (verify → store credential → **consume token** →
+  issue JWT session if the user is approved; honors the admin-approval gate).
+  Both reuse the existing `enrollment_tokens` collection + ceremony wrappers.
+- **Admin generation:** `admin/users/generate-passkey-link` (admin-gated by
+  the `admin/` prefix) → invalidates any prior link → mints a fresh 1-hour
+  single-use token → returns `${appUrl}/enroll-passkey?token=…`.
+- **Admin Users page** (`/admin/users`, new nav item): lists all users with
+  approval status + passkey count (single aggregate, no N+1), and a "Generate
+  passkey link" button → dialog with copy-to-clipboard + expiry + regenerate.
+  Added `countCredentialsByUser()` aggregate + `approvalStatus`/`passkeyCount`
+  on `AdminUserSummary`.
+- **Enrollment landing page** (`/enroll-passkey`, public + full-screen): reads
+  `?token=`, validates, runs the WebAuthn ceremony, and drops approved users
+  straight into the app signed-in (unapproved: "set up — sign in once
+  approved"). Friendly states for missing/expired token + unsupported browser.
+
+**Security:** the token is bearer (like a password-reset link) — single-use,
+1-hour TTL, one active per user, sent over a channel the admin trusts.
+
+**Test it:** /admin/users → Generate link for a user → open the URL → Register
+→ passkey stored + (if approved) logged in. Works in dev too (admin =
+LOCAL_USER_ID; the enroll URL needs no session).
+
+**Next — Phase 3 (email):** add `enroll/request` (username/email → send the
+SAME link by email; anti-enumeration) once SES deliverability is verified.
 
 ## Open items (carried — developer action / later phases)
 

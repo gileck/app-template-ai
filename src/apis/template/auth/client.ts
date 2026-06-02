@@ -13,7 +13,9 @@ import {
     passkeyList,
     passkeyDelete,
     passkeyLoginOptions,
-    passkeyLoginVerify
+    passkeyLoginVerify,
+    passkeyEnrollOptions,
+    passkeyEnrollVerify
 } from './index';
 import {
     ChangePasswordRequest,
@@ -38,7 +40,11 @@ import {
     PasskeyDeleteResponse,
     PasskeyLoginOptionsResponse,
     PasskeyLoginVerifyRequest,
-    PasskeyLoginVerifyResponse
+    PasskeyLoginVerifyResponse,
+    PasskeyEnrollOptionsRequest,
+    PasskeyEnrollOptionsResponse,
+    PasskeyEnrollVerifyRequest,
+    PasskeyEnrollVerifyResponse
 } from './types';
 
 export const apiLogin = (params: LoginRequest) => {
@@ -95,4 +101,12 @@ export const apiPasskeyLoginOptions = () => {
 
 export const apiPasskeyLoginVerify = (params: PasskeyLoginVerifyRequest) => {
     return apiClient.call<PasskeyLoginVerifyResponse, PasskeyLoginVerifyRequest>(passkeyLoginVerify, params);
+};
+
+export const apiPasskeyEnrollOptions = (params: PasskeyEnrollOptionsRequest) => {
+    return apiClient.call<PasskeyEnrollOptionsResponse, PasskeyEnrollOptionsRequest>(passkeyEnrollOptions, params);
+};
+
+export const apiPasskeyEnrollVerify = (params: PasskeyEnrollVerifyRequest) => {
+    return apiClient.call<PasskeyEnrollVerifyResponse, PasskeyEnrollVerifyRequest>(passkeyEnrollVerify, params);
 };

@@ -75,6 +75,21 @@ export async function countCredentialsForUser(
     return collection.countDocuments({ userId: userObjectId });
 }
 
+/** Map of userId → passkey count, in one aggregate (avoids N+1 in admin list). */
+export async function countCredentialsByUser(): Promise<Record<string, number>> {
+    const collection = await getCollection();
+    const rows = await collection
+        .aggregate<{ _id: ObjectId; count: number }>([
+            { $group: { _id: '$userId', count: { $sum: 1 } } },
+        ])
+        .toArray();
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+        counts[row._id.toString()] = row.count;
+    }
+    return counts;
+}
+
 /** Persist the post-assertion counter + lastUsedAt after a successful login. */
 export async function updateCredentialCounter(
     credentialId: string,

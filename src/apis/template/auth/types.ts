@@ -225,6 +225,39 @@ export interface PasskeyLoginVerifyResponse {
     error?: string;
 }
 
+/**
+ * Token-authenticated enrollment (the universal enroll-link flow). Authorized
+ * by a one-time enrollment token (from an admin-generated link or, later, an
+ * email), NOT by an existing session — this is how a user with no passkey yet
+ * registers their first device.
+ */
+export interface PasskeyEnrollOptionsRequest {
+    token: string;
+}
+
+export interface PasskeyEnrollOptionsResponse {
+    options?: PublicKeyCredentialCreationOptionsJSON;
+    challengeId?: string;
+    /** Who the link enrolls — shown on the landing page. */
+    username?: string;
+    error?: string;
+}
+
+export interface PasskeyEnrollVerifyRequest {
+    token: string;
+    challengeId: string;
+    response: RegistrationResponseJSON;
+    deviceName?: string;
+}
+
+export interface PasskeyEnrollVerifyResponse {
+    verified: boolean;
+    passkey?: PasskeyInfo;
+    /** Present when a session was issued (user is now logged in on this device). */
+    user?: UserResponse;
+    error?: string;
+}
+
 export interface ApiHandlerContext {
     userId?: string;
     isAdmin: boolean;

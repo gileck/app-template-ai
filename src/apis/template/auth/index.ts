@@ -16,3 +16,5 @@ export const passkeyList = 'auth/passkey/list';
 export const passkeyDelete = 'auth/passkey/delete';
 export const passkeyLoginOptions = 'auth/passkey/login-options';
 export const passkeyLoginVerify = 'auth/passkey/login-verify';
+export const passkeyEnrollOptions = 'auth/passkey/enroll/options';
+export const passkeyEnrollVerify = 'auth/passkey/enroll/verify';
