@@ -28,3 +28,11 @@ export function getAuthMode(): AuthMode {
 export function isPasskeyMode(): boolean {
     return getAuthMode() === 'passkey';
 }
+
+/**
+ * Shown when a password-credential endpoint is reached while the deployment is
+ * in passkey mode (Phase 6 retirement). Guarded by the flag, so flipping
+ * `AUTH_MODE=password` restores the password flow with no code change.
+ */
+export const PASSWORD_AUTH_DISABLED_MESSAGE =
+    'Password sign-in is disabled here — use a passkey to sign in.';

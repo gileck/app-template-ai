@@ -41,7 +41,7 @@ The template ships **both** a password flow and a passwordless **passkey
 | `AUTH_MODE` | Login | Notes |
 |---|---|---|
 | unset / `password` (default) | username + password (bcrypt) | today's flow, unchanged |
-| `passkey` | discoverable "just tap" passkey | password login still works as a bridge until you retire it |
+| `passkey` | discoverable "just tap" passkey | password login / sign-up / change / reset are **disabled** (guarded by the flag — set `AUTH_MODE=password` to restore). Enroll users *before* flipping. |
 
 **The key invariant: passkeys replace the _credential_, not the _session_.**
 Both modes end the same way — `→ issue the JWT cookie`. So everything in the

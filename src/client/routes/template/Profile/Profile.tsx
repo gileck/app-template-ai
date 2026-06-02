@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuthStore, useUser, useCurrentUser } from '@/client/features';
+import { useAuthStore, useUser, useCurrentUser, useAuthMode } from '@/client/features';
 import { useRouter } from '@/client/features';
 import { apiUpdateProfile } from '@/apis/template/auth/client';
 import { UpdateProfileRequest, UserResponse } from '@/apis/template/auth/types';
@@ -27,6 +27,7 @@ import { PushNotificationToggle } from '@/client/features/template/push-notifica
 
 export const Profile = () => {
     const user = useUser();
+    const authMode = useAuthMode();
     const isValidated = useAuthStore((state) => state.isValidated);
     const isValidating = useAuthStore((state) => state.isValidating);
     const setValidatedUser = useAuthStore((state) => state.setValidatedUser);
@@ -171,21 +172,24 @@ export const Profile = () => {
                     />
                 </ProfileSection>
 
-                <ProfileSection title="Security" icon={<KeyRound className="h-5 w-5" />}>
-                    <div className="flex items-center justify-between px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                            <KeyRound className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Password</span>
+                {/* Password is retired in passkey mode — hide the row entirely. */}
+                {authMode !== 'passkey' && (
+                    <ProfileSection title="Security" icon={<KeyRound className="h-5 w-5" />}>
+                        <div className="flex items-center justify-between px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                                <KeyRound className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Password</span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setOpenChangePasswordDialog(true)}
+                            >
+                                Change
+                            </Button>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setOpenChangePasswordDialog(true)}
-                        >
-                            Change
-                        </Button>
-                    </div>
-                </ProfileSection>
+                    </ProfileSection>
+                )}
 
                 <PasskeysSection />
 

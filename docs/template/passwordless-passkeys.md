@@ -35,7 +35,10 @@ credential storage, the login/enroll handlers, and a few client surfaces.
 | Env | Effect |
 |---|---|
 | `AUTH_MODE` unset / `password` | **Default.** Today's bcrypt password flow. |
-| `AUTH_MODE=passkey` | Adds discoverable passkey login. Password login still works as a bridge until retired. |
+| `AUTH_MODE=passkey` | Passkey-only login. Password sign-in / sign-up / change / reset are **disabled** (Phase 6, guarded by the flag). The login screen shows only the passkey button. |
+
+Because everything branches on the flag, the cutover is fully reversible:
+`AUTH_MODE=password` + redeploy restores the password flow with no code change.
 
 - Read server-side via `getAuthMode()` / `isPasskeyMode()`
   (`src/apis/template/auth/authMode.ts`).
@@ -169,14 +172,20 @@ Each project opts in by running the **`/migrate-to-passkeys`** skill, which:
 3. Flips `AUTH_MODE=passkey` (`.env.local` + Vercel) and redeploys.
 4. Verifies real enroll + "just tap" login end-to-end on the prod domain.
 
-Passwords keep working as a bridge during enrollment; retiring the password
-handlers is a later, guarded step once the cutover is proven.
+**Passwords work as a bridge only *until* the flip.** Flipping
+`AUTH_MODE=passkey` retires the password handlers (login / sign-up / change /
+reset all refuse) — so enroll users *before* flipping. There is no password
+fallback afterward; the backstop is the admin re-issuing an enroll link, and
+rollback is `AUTH_MODE=password` + redeploy.
 
 ## Status / deferred
 
 - ✅ Built & production-verified: mode flag, discoverable login, self-service
   enroll/rename/delete, the universal token-enroll flow, admin-generated links,
   the `/admin/users` page, the `/enroll-passkey` landing page.
+- ✅ **Phase 6 — password retirement (guarded):** in passkey mode the password
+  login/sign-up/change/reset endpoints refuse, and the login UI is passkey-only
+  (the Profile password row is hidden). Reversible via `AUTH_MODE=password`.
 - ⛔ **Deferred (needs SES):** `enroll/request` — emailing the enroll link so
   signup/recovery self-serves instead of going through an admin. The link and
   ceremony are identical; only the delivery channel is missing. Email lives in

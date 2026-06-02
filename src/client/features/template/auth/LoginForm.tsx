@@ -42,11 +42,6 @@ export const LoginForm = () => {
 
     const { formErrors, validateForm, clearFieldError, resetFormErrors } = useLoginFormValidator(isRegistering, formData);
 
-    // Offer passkey sign-in only when this deployment runs in passkey mode,
-    // the browser supports WebAuthn, and we're on the sign-in (not signup) tab.
-    const showPasskeySignIn =
-        authMode === 'passkey' && !isRegistering && browserSupportsPasskeys();
-
     const handlePasskeyLogin = () => {
         if (error || loginMutation.error) {
             setError(null);
@@ -128,6 +123,61 @@ export const LoginForm = () => {
 
     if (loginMutation.data?.kind === 'pending-login-approval') {
         return <LoginApprovalRedirectScreen />;
+    }
+
+    // Passkey mode (Phase 6): password sign-in is retired — show a passkey-only
+    // screen. New users / new devices come in via an enrollment link.
+    if (authMode === 'passkey') {
+        return (
+            <div className="space-y-6">
+                <div className="text-center">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25 mb-4">
+                        <Fingerprint className="w-7 h-7 text-primary-foreground" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Sign in with your passkey</p>
+                </div>
+
+                {displayError && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+                        <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                        <p className="text-sm text-destructive">{displayError}</p>
+                    </div>
+                )}
+
+                {browserSupportsPasskeys() ? (
+                    <button
+                        type="button"
+                        onClick={handlePasskeyLogin}
+                        disabled={isLoading}
+                        className={cn(
+                            'w-full h-12 rounded-xl font-semibold text-primary-foreground',
+                            'bg-primary hover:bg-primary/90 active:scale-[0.98]',
+                            'flex items-center justify-center gap-2 transition-all duration-150',
+                            'disabled:opacity-50 disabled:cursor-not-allowed'
+                        )}
+                    >
+                        {passkeyLoginMutation.isPending ? (
+                            <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <Fingerprint className="w-5 h-5" />
+                                Sign in with a passkey
+                            </>
+                        )}
+                    </button>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center">
+                        This browser doesn&apos;t support passkeys. Open the app on a device with
+                        Face ID, Touch ID, or a device PIN.
+                    </p>
+                )}
+
+                <p className="text-center text-xs text-muted-foreground">
+                    Don&apos;t have a passkey yet? Ask your admin for an enrollment link.
+                </p>
+            </div>
+        );
     }
 
     return (
@@ -233,37 +283,6 @@ export const LoginForm = () => {
                         </>
                     )}
                 </button>
-
-                {showPasskeySignIn && (
-                    <>
-                        <div className="flex items-center gap-3" aria-hidden="true">
-                            <span className="h-px flex-1 bg-border" />
-                            <span className="text-xs text-muted-foreground">or</span>
-                            <span className="h-px flex-1 bg-border" />
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handlePasskeyLogin}
-                            disabled={isLoading}
-                            className={cn(
-                                'w-full h-12 rounded-xl font-semibold text-foreground',
-                                'bg-card border border-input hover:bg-accent active:scale-[0.98]',
-                                'flex items-center justify-center gap-2',
-                                'transition-all duration-150',
-                                'disabled:opacity-50 disabled:cursor-not-allowed'
-                            )}
-                        >
-                            {passkeyLoginMutation.isPending ? (
-                                <div className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <Fingerprint className="w-5 h-5" />
-                                    Sign in with a passkey
-                                </>
-                            )}
-                        </button>
-                    </>
-                )}
 
                 {!isRegistering && (
                     <p className="text-center">

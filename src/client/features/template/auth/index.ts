@@ -12,6 +12,7 @@ export {
     useIsProbablyLoggedIn,
     useUser,
     useUserHint,
+    useAuthMode,
 } from './store';
 
 // Hooks

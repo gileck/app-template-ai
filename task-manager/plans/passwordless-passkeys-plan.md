@@ -1,8 +1,8 @@
 # Plan: Passwordless Auth with Passkeys (WebAuthn)
 
-Status: **Phases 0–4 done (0–2 prod-verified); Phase 5 skill + docs written.**
-Device mgmt complete (add/rename/delete/list + admin-assisted enroll links).
-`/migrate-to-passkeys` skill + docs shipped. Only EMAIL delivery (SES) deferred.
+Status: **Phases 0–6 done (0–2 prod-verified).** Passkey mode now retires the
+password flow (guarded): passkey-only login + disabled password endpoints,
+reversible via `AUTH_MODE=password`. Only EMAIL self-serve enroll (SES) deferred.
 Owner: gileck
 Last updated: 2026-06-02
 
@@ -313,10 +313,20 @@ LOCAL_USER_ID; the enroll URL needs no session).
   and `docs/template/admin.md` (`/admin/users` + generate-link). CLAUDE.md
   regenerated.
 
+## Phase 6 — password retirement in passkey mode (done, guarded)
+
+- Server: `loginUser` / `registerUser` / `changePassword` /
+  `requestPasswordReset` / `resetPassword` all refuse when `isPasskeyMode()`
+  (shared `PASSWORD_AUTH_DISABLED_MESSAGE`; reset stays no-op success for
+  anti-enumeration). Guarded — `AUTH_MODE=password` restores everything.
+- Client: `LoginForm` renders a passkey-only screen in passkey mode (no
+  password/username fields, no sign-up toggle, no forgot-password); the Profile
+  "Password → Change" row is hidden. Docs updated to reflect that the flip is
+  the cutover point (no password bridge after flipping).
+
 **Next — Phase 3 (email, deferred):** add `enroll/request` (username/email →
 send the SAME link by email; anti-enumeration) once SES deliverability is
-verified. **Phase 6 (guarded):** retire password handlers in passkey mode once
-a project's enrollment coverage is high.
+verified. This is the only remaining piece.
 
 ## Open items (carried — developer action / later phases)
 

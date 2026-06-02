@@ -14,8 +14,10 @@ first. The core idea: **passkeys replace the credential, not the JWT session** �
 so the cutover is mostly env config + getting users enrolled, not a rewrite.
 
 **Run this conversationally. Each step has a verify gate — do not advance until
-it passes.** Passwords keep working the whole time as a bridge, so there is no
-lockout risk during migration.
+it passes.** Passwords keep working as a bridge **only until the flip in Step 3** —
+flipping `AUTH_MODE=passkey` *disables* password login/sign-up/reset (Phase 6).
+So enroll users **before** flipping. Rollback is always `AUTH_MODE=password` +
+redeploy.
 
 > 🔒 **Security:** you (the agent) must NEVER enter secrets. `AUTH_MODE` and
 > `WEBAUTHN_RP_ID` are **non-secret config** — you may set them with
@@ -108,7 +110,9 @@ On `https://<WEBAUTHN_RP_ID>` (NOT a preview URL):
 2. Tap it → pick your passkey → Face ID / Touch ID → you land signed in.
 3. Confirm the issued session behaves exactly like before (instant boot,
    `useUser()`, admin pages, etc. — passkeys only changed the front door).
-4. Password login still works as a bridge for anyone not yet enrolled.
+4. **Password login is now disabled** (the login screen is passkey-only). Anyone
+   not yet enrolled needs an admin-issued enroll link from `/admin/users`. If
+   coverage turns out too low, roll back: `AUTH_MODE=password` + redeploy.
 
 **Verify gate:** a real "just tap" passkey login succeeds on the prod domain
 and `yarn checks` is green.
@@ -117,13 +121,11 @@ and `yarn checks` is green.
 
 ## Step 5 — Wrap up
 
-- Tell the developer the project is now in **passkey mode**, with password
-  login still available as a bridge.
-- Note the **deferred** follow-ups (guarded, NOT part of this skill):
-  - **Email enrollment** (`enroll/request`) — needs SES; lets signup/recovery
-    self-serve instead of admin links.
-  - **Retiring password login** — only after every active user is enrolled;
-    this is the guarded "remove the password handlers in passkey mode" step.
+- Tell the developer the project is now in **passkey mode** — password login is
+  retired (Phase 6); new users/devices come in via enrollment links.
+- Note the one remaining **deferred** follow-up (needs SES, NOT part of this
+  skill): **email enrollment** (`enroll/request`) — lets signup/recovery
+  self-serve via emailed links instead of admin-generated ones.
 
 ---
 

@@ -19,6 +19,7 @@ import {
 } from "../shared";
 import { toStringId } from '@/server/template/utils';
 import { authOverrides } from '@/apis/auth-overrides';
+import { isPasskeyMode } from '../authMode';
 import { sendNotificationToOwner } from '@/server/template/telegram';
 import { appConfig } from '@/app.config';
 import { recordSession } from '@/server/template/sessions/recordSession';
@@ -29,6 +30,12 @@ export const registerUser = async (
     context: ApiHandlerContext
 ): Promise<RegisterResponse> => {
     try {
+        // Phase 6: password sign-up is retired in passkey mode. New users are
+        // onboarded via a passkey enrollment link (admin-generated, or email).
+        if (isPasskeyMode()) {
+            return { error: 'Sign-ups use passkeys here. Ask an admin for an enrollment link.' };
+        }
+
         // Validate input
         if (!request.username || !request.password) {
             return { error: "Username and password are required" };
