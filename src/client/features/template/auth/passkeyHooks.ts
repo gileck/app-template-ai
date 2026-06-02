@@ -18,6 +18,7 @@ import {
     apiPasskeyRegisterOptions,
     apiPasskeyRegisterVerify,
     apiPasskeyList,
+    apiPasskeyRename,
     apiPasskeyDelete,
     apiPasskeyLoginOptions,
     apiPasskeyLoginVerify,
@@ -160,6 +161,27 @@ export function usePasskeyLogin() {
         },
         onError: (error) => {
             setError(error instanceof Error ? error.message : 'Passkey sign-in failed');
+        },
+    });
+}
+
+export function useRenamePasskey() {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, { credentialId: string; deviceName: string }>({
+        mutationFn: async ({ credentialId, deviceName }): Promise<void> => {
+            const response = await apiPasskeyRename({ credentialId, deviceName });
+            if (!response.data || Object.keys(response.data).length === 0) {
+                throw new Error('You must be online to rename a passkey');
+            }
+            if (response.data.error) {
+                throw new Error(response.data.error);
+            }
+            if (!response.data.success) {
+                throw new Error('Failed to rename passkey');
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: passkeysQueryKey });
         },
     });
 }

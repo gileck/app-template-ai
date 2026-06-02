@@ -2,23 +2,33 @@
  * Passkeys management section for the Profile page.
  *
  * Lets a logged-in user enroll a passkey on the current device, see their
- * registered passkeys, and remove them. This is the Phase 1 surface of the
- * passwordless-auth migration — available regardless of AUTH_MODE so users
- * can set up passkeys BEFORE a deployment cuts over to passkey-only login.
+ * registered passkeys, rename them, and remove them. Available regardless of
+ * AUTH_MODE so users can set up passkeys BEFORE a deployment cuts over to
+ * passkey-only login.
  */
 
-import { useState } from 'react';
-import { Fingerprint, Trash2, Plus, ShieldCheck } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { Fingerprint, Trash2, Plus, ShieldCheck, Pencil } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ProfileSection } from './ProfileSection';
 import { Button } from '@/client/components/template/ui/button';
 import { ConfirmDialog } from '@/client/components/template/ui/confirm-dialog';
 import { Skeleton } from '@/client/components/template/ui/skeleton';
 import { toast } from '@/client/components/template/ui/toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/client/components/template/ui/dialog';
+import { Input } from '@/client/components/template/ui/input';
+import { Label } from '@/client/components/template/ui/label';
 import { errorToast } from '@/client/features/template/error-tracking';
 import {
     usePasskeys,
     useAddPasskey,
+    useRenamePasskey,
     useDeletePasskey,
     browserSupportsPasskeys,
 } from '@/client/features';
@@ -39,10 +49,40 @@ export function PasskeysSection() {
     const supported = browserSupportsPasskeys();
     const { data: passkeys, isLoading } = usePasskeys({ enabled: supported });
     const addPasskey = useAddPasskey();
+    const renamePasskey = useRenamePasskey();
     const deletePasskey = useDeletePasskey();
 
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral confirm-dialog target
     const [pendingDelete, setPendingDelete] = useState<PasskeyInfo | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral rename-dialog target
+    const [pendingRename, setPendingRename] = useState<PasskeyInfo | null>(null);
+    // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral text input in the rename dialog
+    const [renameValue, setRenameValue] = useState('');
+
+    const openRename = (passkey: PasskeyInfo) => {
+        setPendingRename(passkey);
+        setRenameValue(passkey.deviceName?.trim() || '');
+    };
+
+    const handleConfirmRename = (e: FormEvent) => {
+        e.preventDefault();
+        if (!pendingRename) return;
+        const deviceName = renameValue.trim();
+        if (!deviceName) {
+            toast.error('Name cannot be empty');
+            return;
+        }
+        renamePasskey.mutate(
+            { credentialId: pendingRename.credentialId, deviceName },
+            {
+                onSuccess: () => {
+                    toast.success('Passkey renamed');
+                    setPendingRename(null);
+                },
+                onError: (error) => errorToast(error.message, error),
+            }
+        );
+    };
 
     const handleAdd = () => {
         addPasskey.mutate(undefined, {
@@ -123,15 +163,26 @@ export function PasskeysSection() {
                                             </p>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                                        onClick={() => setPendingDelete(passkey)}
-                                        aria-label={`Remove ${passkeyLabel(passkey)}`}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex shrink-0 items-center">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-muted-foreground hover:text-foreground"
+                                            onClick={() => openRename(passkey)}
+                                            aria-label={`Rename ${passkeyLabel(passkey)}`}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-muted-foreground hover:text-destructive"
+                                            onClick={() => setPendingDelete(passkey)}
+                                            aria-label={`Remove ${passkeyLabel(passkey)}`}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             );
                         })
@@ -157,6 +208,44 @@ export function PasskeysSection() {
                 onConfirm={handleConfirmDelete}
                 variant="destructive"
             />
+
+            <Dialog
+                open={pendingRename !== null}
+                onOpenChange={(open) => !open && setPendingRename(null)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rename passkey</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleConfirmRename} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="passkey-name">Name</Label>
+                            <Input
+                                id="passkey-name"
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                placeholder="e.g. MacBook, iPhone"
+                                maxLength={60}
+                                autoFocus
+                                disabled={renamePasskey.isPending}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setPendingRename(null)}
+                                disabled={renamePasskey.isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={renamePasskey.isPending}>
+                                {renamePasskey.isPending ? 'Saving…' : 'Save'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </ProfileSection>
     );
 }

@@ -10,6 +10,7 @@ import {
     passkeyRegisterOptions,
     passkeyRegisterVerify,
     passkeyList,
+    passkeyRename,
     passkeyDelete,
     passkeyLoginOptions,
     passkeyLoginVerify,
@@ -27,6 +28,7 @@ import { resetUserPassword } from "./handlers/resetPassword";
 import { passkeyRegisterOptionsHandler } from "./handlers/passkey/registerOptions";
 import { passkeyRegisterVerifyHandler } from "./handlers/passkey/registerVerify";
 import { passkeyListHandler } from "./handlers/passkey/listPasskeys";
+import { passkeyRenameHandler } from "./handlers/passkey/renamePasskey";
 import { passkeyDeleteHandler } from "./handlers/passkey/deletePasskey";
 import { passkeyLoginOptionsHandler } from "./handlers/passkey/loginOptions";
 import { passkeyLoginVerifyHandler } from "./handlers/passkey/loginVerify";
@@ -49,6 +51,7 @@ export const authApiHandlers = {
     [passkeyRegisterOptions]: { process: passkeyRegisterOptionsHandler },
     [passkeyRegisterVerify]: { process: passkeyRegisterVerifyHandler },
     [passkeyList]: { process: passkeyListHandler },
+    [passkeyRename]: { process: passkeyRenameHandler },
     [passkeyDelete]: { process: passkeyDeleteHandler },
     [passkeyLoginOptions]: { process: passkeyLoginOptionsHandler },
     [passkeyLoginVerify]: { process: passkeyLoginVerifyHandler },

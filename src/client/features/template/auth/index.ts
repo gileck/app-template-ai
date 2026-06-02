@@ -32,6 +32,7 @@ export {
 export {
     usePasskeys,
     useAddPasskey,
+    useRenamePasskey,
     useDeletePasskey,
     usePasskeyLogin,
     browserSupportsPasskeys,

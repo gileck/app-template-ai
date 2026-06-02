@@ -13,6 +13,7 @@ export const resetPassword = 'auth/reset-password';
 export const passkeyRegisterOptions = 'auth/passkey/register-options';
 export const passkeyRegisterVerify = 'auth/passkey/register-verify';
 export const passkeyList = 'auth/passkey/list';
+export const passkeyRename = 'auth/passkey/rename';
 export const passkeyDelete = 'auth/passkey/delete';
 export const passkeyLoginOptions = 'auth/passkey/login-options';
 export const passkeyLoginVerify = 'auth/passkey/login-verify';

@@ -196,6 +196,17 @@ export interface PasskeyListResponse {
     error?: string;
 }
 
+/** `passkey/rename` — relabel one of the current user's passkeys. */
+export interface PasskeyRenameRequest {
+    credentialId: string;
+    deviceName: string;
+}
+
+export interface PasskeyRenameResponse {
+    success: boolean;
+    error?: string;
+}
+
 /** `passkey/delete` — remove one of the current user's passkeys. */
 export interface PasskeyDeleteRequest {
     credentialId: string;
