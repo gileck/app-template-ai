@@ -59,17 +59,18 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     const rpName = appConfig.appName;
 
     if (isDev()) {
-        // Any localhost port is a valid dev origin; SimpleWebAuthn matches
-        // the exact origin sent by the browser against this list.
-        return {
-            rpID,
-            rpName,
-            expectedOrigin: [
-                'http://localhost:3000',
-                'http://localhost:3001',
-                'http://127.0.0.1:3000',
-            ],
-        };
+        // SimpleWebAuthn matches the browser's exact origin against this list.
+        // Next dev hops to 3001/3002/... when 3000 is busy, so accept a range
+        // of localhost ports (both localhost and 127.0.0.1). An explicit
+        // WEBAUTHN_ORIGIN overrides if you run dev on something exotic.
+        const explicit = process.env.WEBAUTHN_ORIGIN;
+        const expectedOrigin = explicit
+            ? [explicit]
+            : Array.from({ length: 21 }, (_, i) => 3000 + i).flatMap((port) => [
+                  `http://localhost:${port}`,
+                  `http://127.0.0.1:${port}`,
+              ]);
+        return { rpID, rpName, expectedOrigin };
     }
 
     const explicitOrigin = process.env.WEBAUTHN_ORIGIN;
