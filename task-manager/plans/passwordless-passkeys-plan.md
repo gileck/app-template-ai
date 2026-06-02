@@ -1,8 +1,8 @@
 # Plan: Passwordless Auth with Passkeys (WebAuthn)
 
-Status: **Phases 0–2 PROD-VERIFIED; enrollment backbone (admin-assisted link)
-built** — the universal token-enroll flow + landing page work; only EMAIL
-delivery (SES) is still deferred. Admin can mint per-user enroll links now.
+Status: **Phases 0–4 done (0–2 prod-verified); Phase 5 skill + docs written.**
+Device mgmt complete (add/rename/delete/list + admin-assisted enroll links).
+`/migrate-to-passkeys` skill + docs shipped. Only EMAIL delivery (SES) deferred.
 Owner: gileck
 Last updated: 2026-06-02
 
@@ -296,8 +296,27 @@ change. `yarn checks` green.
 → passkey stored + (if approved) logged in. Works in dev too (admin =
 LOCAL_USER_ID; the enroll URL needs no session).
 
-**Next — Phase 3 (email):** add `enroll/request` (username/email → send the
-SAME link by email; anti-enumeration) once SES deliverability is verified.
+## Phase 4 — device management (done)
+
+- `auth/passkey/rename` endpoint + `useRenamePasskey` + a pencil/rename dialog
+  in the Profile Passkeys section. Add/list/delete/admin-enroll already shipped.
+
+## Phase 5 — migration skill + docs (done)
+
+- **`/migrate-to-passkeys`** skill (`.ai/commands/migrate-to-passkeys.md`,
+  mirrored to `.claude/commands/`): per-project cutover — preflight gating →
+  set `WEBAUTHN_RP_ID` → enrollment window (admin links) → flip
+  `AUTH_MODE=passkey` → verify end-to-end. Conversational, verify-gated,
+  passwords stay as a bridge. Agent never enters secrets.
+- **New doc** `docs/template/passwordless-passkeys.md` (full system + cutover);
+  **updated** `docs/template/authentication.md` (AUTH_MODE / two-mode section)
+  and `docs/template/admin.md` (`/admin/users` + generate-link). CLAUDE.md
+  regenerated.
+
+**Next — Phase 3 (email, deferred):** add `enroll/request` (username/email →
+send the SAME link by email; anti-enumeration) once SES deliverability is
+verified. **Phase 6 (guarded):** retire password handlers in passkey mode once
+a project's enrollment coverage is high.
 
 ## Open items (carried — developer action / later phases)
 
