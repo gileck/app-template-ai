@@ -328,16 +328,20 @@ LOCAL_USER_ID; the enroll URL needs no session).
 send the SAME link by email; anti-enumeration) once SES deliverability is
 verified. This is the only remaining piece.
 
-## Open items (carried — developer action / later phases)
+## Open items
 
-- [ ] **Verify production email actually sends** (AWS SES via
-      `TWO_FACTOR_EMAIL_FROM` + AWS creds in `src/server/template/email`). The
-      agent can't test this without secrets — **developer must confirm
-      deliverability before Phase 4+ / before flipping `AUTH_MODE=passkey`.**
-      This is the single hard dependency for recovery + cutover.
-- [ ] Confirm the `WEBAUTHN_RP_ID` domain for the template's own deploy
-      (current `appConfig.appUrl` host = `app-template-ai.vercel.app`).
-- [ ] Decide the device-management UX surface (settings panel scope) — Phase 4.
+- [x] ~~Confirm `WEBAUTHN_RP_ID` for the template deploy~~ — set to
+      `app-template-ai.vercel.app` on prod; passkey login verified there.
+- [x] ~~Device-management UX (Phase 4)~~ — add/rename/delete/list in Profile +
+      admin-assisted enroll links shipped.
+- [ ] **The ONLY remaining item — Phase 3 (email self-serve enroll):** add
+      `enroll/request` (username/email → email the SAME `/enroll-passkey?token=`
+      link; anti-enumeration). Blocked solely on **SES deliverability** (AWS SES
+      via `TWO_FACTOR_EMAIL_FROM` + AWS creds in `src/server/template/email`);
+      the agent can't test sending without secrets. Everything underneath (token,
+      ceremony, landing page) already exists — this is a small addition once SES
+      is verified. Until then, admin-generated links from `/admin/users` cover
+      enrollment + recovery.
 
 ---
 

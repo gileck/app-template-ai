@@ -196,6 +196,7 @@ Gate: `yarn checks` green. Continue.
 **Objective:** make `/agent` feel like the app's assistant, not a generic demo.
 
 The composer itself (`ChatComposer`) is a shared, synced template component — don't fork it; it already gives every app the same text input, file attach, paste, model picker, and send/stop. Brand the **route around it** (copy only):
+- **🏠 Always keep the Home button as the LEFTMOST item in the top bar** of `src/client/routes/project/Agent/Agent.tsx`. `/agent` is a `fullScreen` route, so the app's normal nav chrome is hidden — this Home icon (a ghost `Button` with `HomeIcon` → `onClick={() => navigate('/')}`) is the user's only way back out. The base `Agent.tsx` already ships it (top bar order: `[Home] [Threads] [Title] [RPC] [⋮ menu]`). **Never remove it**, and if you rename/restructure the header or build a fresh agent route, keep `[Home]` first — mirror the existing agent UI exactly.
 - **Empty welcome** in `src/client/routes/project/Agent/Agent.tsx` (`EmptyWelcome`) — heading, blurb, and the tools hint chips.
 - **Empty-thread hint** in `src/client/routes/project/Agent/MessageList.tsx` (the "How can I help?" block) — describe what this agent does.
 - **Header title** fallback in `Agent.tsx` (`conversation?.title ?? 'AI Agent'`) → your agent's name.
@@ -289,7 +290,8 @@ Gate: `yarn checks` green.
    - the **Working/Reasoning** timeline shows `tool_call <your_tool>` then `tool_result … (saved)`.
    - the answer reflects the tool result.
 3. Confirm the side effect actually happened (the DB row was written, scoped to the user).
-4. If anything is off, open the ⋮ menu → **Copy debug trace** and read the end-to-end timeline (`send.received → rpc-job.claimed → handler.received → adapter.start → tool_call/tool_result → adapter.finished`). Common failures:
+4. **Confirm the 🏠 Home button is present and leftmost** in the top bar and returns to `/` — it's the only way out of the fullScreen route.
+5. If anything is off, open the ⋮ menu → **Copy debug trace** and read the end-to-end timeline (`send.received → rpc-job.claimed → handler.received → adapter.start → tool_call/tool_result → adapter.finished`). Common failures:
    - stuck at `rpc.enqueued` / `rpc-job.pending` → daemon not running or wrong DB.
    - `rpc-job.failed` with an import error → a bad import in your handler/tools (check the daemon console).
    - model never calls the tool → weak tool `description` or the system prompt doesn't mention it.
