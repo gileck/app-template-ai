@@ -117,16 +117,22 @@ export interface AuthenticationOptionsResult {
 }
 
 /**
- * Build authentication options for **discoverable** login: we send an empty
- * `allowCredentials`, so the browser offers whatever passkeys it holds for
- * this rpID and the user just taps one. No username needed up front — the
- * credential carries the user handle.
+ * Build authentication options.
+ *
+ * - **Discoverable login** (default): empty `allowCredentials`, so the browser
+ *   offers whatever passkeys it holds for this rpID and the user just taps one.
+ * - **Restricted** (pass `allowCredentials`): used when the user is already
+ *   known (e.g. device verification for an RPC connection) — the assertion is
+ *   limited to that user's registered credentials, proving the current device
+ *   holds one of them.
  */
-export async function buildAuthenticationOptions(): Promise<AuthenticationOptionsResult> {
+export async function buildAuthenticationOptions(input?: {
+    allowCredentials?: { id: string; transports?: AuthenticatorTransportFuture[] }[];
+}): Promise<AuthenticationOptionsResult> {
     const { rpID } = getWebAuthnConfig();
     const options = await generateAuthenticationOptions({
         rpID,
-        allowCredentials: [],
+        allowCredentials: input?.allowCredentials ?? [],
         userVerification: 'preferred',
     });
     return { options, challenge: options.challenge };

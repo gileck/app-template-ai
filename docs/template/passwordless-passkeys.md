@@ -186,6 +186,10 @@ rollback is `AUTH_MODE=password` + redeploy.
 - ✅ **Phase 6 — password retirement (guarded):** in passkey mode the password
   login/sign-up/change/reset endpoints refuse, and the login UI is passkey-only
   (the Profile password row is hidden). Reversible via `AUTH_MODE=password`.
+- ✅ **RPC connection device-auth:** in passkey mode, opening an RPC connection
+  requires a passkey assertion on a registered device (replacing the Telegram
+  admin approval), via `connect-options`/`connect-verify`. See
+  [rpc-connection-gate.md](./rpc-connection-gate.md).
 - ⛔ **Deferred (needs SES):** `enroll/request` — emailing the enroll link so
   signup/recovery self-serves instead of going through an admin. The link and
   ceremony are identical; only the delivery channel is missing. Email lives in
