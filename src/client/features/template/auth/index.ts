@@ -36,9 +36,18 @@ export {
     useRenamePasskey,
     useDeletePasskey,
     usePasskeyLogin,
+    usePasskeyStepUp,
     browserSupportsPasskeys,
     passkeysQueryKey,
 } from './passkeyHooks';
+
+// Passkey step-up guard (gate a sensitive page behind a fresh passkey assertion)
+export { PasskeyGuard } from './PasskeyGuard';
+export { RoutePasskeyGuard } from './RoutePasskeyGuard';
+export {
+    usePasskeyGuardStore,
+    useIsGuardVerified,
+} from './passkeyGuardStore';
 
 // Preflight
 export {

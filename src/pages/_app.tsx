@@ -10,6 +10,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryProvider } from '@/client/query';
 import {
   AuthWrapper,
+  RoutePasskeyGuard,
   useSettingsStore,
   initializeOfflineListeners,
   BatchSyncAlert,
@@ -41,7 +42,11 @@ export default function App({ Component: _Component, pageProps: _pageProps }: Ap
               {RouteComponent => (
                 <AuthWrapper>
                   <PushNavigationBridge />
-                  <Layout><RouteComponent /></Layout>
+                  <Layout>
+                    <RoutePasskeyGuard>
+                      <RouteComponent />
+                    </RoutePasskeyGuard>
+                  </Layout>
                 </AuthWrapper>
               )}
             </RouterProvider>

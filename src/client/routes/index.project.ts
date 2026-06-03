@@ -22,6 +22,7 @@ import { Todos } from './project/Todos';
 import { SingleTodo } from './project/SingleTodo';
 import { Dashboard } from './project/Dashboard';
 import { Debug } from './project/Debug';
+import { SensitiveExample } from './project/SensitiveExample';
 
 /**
  * Project route definitions.
@@ -34,6 +35,15 @@ export const projectRoutes: Routes = {
   '/agent': { component: Agent, fullScreen: true },
   '/todos': Todos,
   '/todos/:todoId': SingleTodo,
+  // Demo of the route-level passkey guard — the router wraps this page in a
+  // <PasskeyGuard> automatically (no wrapper needed inside the component).
+  '/sensitive': {
+    component: SensitiveExample,
+    requirePasskey: {
+      title: 'Protected information',
+      description: 'Confirm with your passkey (Face ID / Touch ID / device PIN) to view this page.',
+    },
+  },
 
   // Admin routes
   '/admin/dashboard': Dashboard,

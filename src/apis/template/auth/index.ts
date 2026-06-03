@@ -19,3 +19,6 @@ export const passkeyLoginOptions = 'auth/passkey/login-options';
 export const passkeyLoginVerify = 'auth/passkey/login-verify';
 export const passkeyEnrollOptions = 'auth/passkey/enroll/options';
 export const passkeyEnrollVerify = 'auth/passkey/enroll/verify';
+// Step-up re-auth (guard a sensitive page behind a fresh passkey assertion)
+export const passkeyStepUpOptions = 'auth/passkey/step-up/options';
+export const passkeyStepUpVerify = 'auth/passkey/step-up/verify';

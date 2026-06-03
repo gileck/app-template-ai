@@ -115,8 +115,9 @@ users can set up passkeys *before* a deployment cuts over.
 
 **Endpoints** (auth domain unless noted):
 `passkey/register-options`, `register-verify`, `list`, `rename`, `delete`,
-`login-options`, `login-verify`, `enroll/options`, `enroll/verify`, and
-`admin/users/generate-passkey-link` (admin-gated).
+`login-options`, `login-verify`, `enroll/options`, `enroll/verify`,
+`step-up/options`, `step-up/verify`, and `admin/users/generate-passkey-link`
+(admin-gated).
 
 **Library:** `@simplewebauthn/server` (server) + `@simplewebauthn/browser`
 (client). The server crypto never reaches the client bundle.
@@ -129,6 +130,59 @@ users can set up passkeys *before* a deployment cuts over.
 - `/enroll-passkey` (`EnrollPasskey`) — public landing page the link opens.
 - Hooks: `usePasskeyLogin`, `usePasskeys`, `useAddPasskey`, `useRenamePasskey`,
   `useDeletePasskey`, `useAuthMode`, `browserSupportsPasskeys`.
+
+## Guarding a sensitive page (step-up re-auth)
+
+Gate any page or section behind a fresh passkey assertion — the user is already
+logged in, but must confirm device possession (Face ID / Touch ID / device PIN)
+before the content is revealed. Useful for billing, secrets, or any "are you
+sure it's you" surface.
+
+**Preferred — declare it on the route** (the router wraps the page for you, no
+component needed):
+
+```ts
+// src/client/routes/index.project.ts
+'/billing': { component: Billing, requirePasskey: true },
+// or customize the lock screen:
+'/billing': {
+  component: Billing,
+  requirePasskey: { title: 'Protected', description: 'Confirm to view.', ttlMs: 300000 },
+},
+```
+
+`requirePasskey` is a `RouteConfig` option; the router exposes it via context
+and `RoutePasskeyGuard` (mounted once in `_app.tsx`) wraps the active route.
+
+**Or guard a section** with the component directly:
+
+```tsx
+import { PasskeyGuard } from '@/client/features';
+
+<PasskeyGuard guardKey="billing" title="Protected" description="Confirm to view.">
+  <SensitiveStuff />
+</PasskeyGuard>
+```
+
+Both share the same behavior:
+- A lock screen with an **Unlock with passkey** button; on failure it shows the
+  error + a **Try again** button. On success the content renders and stays
+  unlocked for `ttlMs` (default 5 min).
+- Backed by real server-verified assertions (`auth/passkey/step-up/options` +
+  `verify`, restricted to the user's own credentials) — a genuine WebAuthn
+  proof, not a UI-only flag.
+- Unlock state lives in an **in-memory** store (`usePasskeyGuardStore`, keyed by
+  `guardKey`/route path) — never persisted, so it re-prompts after a reload/new
+  tab. The hook `usePasskeyStepUp()` exposes the ceremony for fully custom UI.
+
+**Security boundary:** this is a client-side UI gate over a real assertion — it
+protects against someone using an already-unlocked session / shoulder-surfing.
+It does **not** change the session, so if the underlying *data* must be
+protected server-side, additionally gate the sensitive API(s). Works in any
+`AUTH_MODE` as long as the user has a registered passkey.
+
+Live demo: **`/sensitive`** (`SensitiveExample`, template project) — gated via
+the route-level `requirePasskey`.
 
 ## Configuration & env
 

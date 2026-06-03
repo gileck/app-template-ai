@@ -22,6 +22,8 @@ import {
     apiPasskeyDelete,
     apiPasskeyLoginOptions,
     apiPasskeyLoginVerify,
+    apiPasskeyStepUpOptions,
+    apiPasskeyStepUpVerify,
 } from '@/apis/template/auth/client';
 import type { PasskeyInfo, UserResponse } from '@/apis/template/auth/types';
 import { useQueryDefaults } from '@/client/query';
@@ -182,6 +184,49 @@ export function useRenamePasskey() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: passkeysQueryKey });
+        },
+    });
+}
+
+/**
+ * Step-up re-authentication: prompt for a fresh passkey assertion to confirm
+ * the current device is the user's, without changing the session. Used to gate
+ * sensitive pages (see PasskeyGuard). Resolves on success, rejects otherwise.
+ */
+export function usePasskeyStepUp() {
+    return useMutation<void, Error, void>({
+        mutationFn: async (): Promise<void> => {
+            if (!browserSupportsPasskeys()) {
+                throw new Error('This browser does not support passkeys');
+            }
+
+            const optionsRes = await apiPasskeyStepUpOptions();
+            const od = optionsRes.data;
+            if (!od || Object.keys(od).length === 0) {
+                throw new Error('You must be online to verify');
+            }
+            if (od.error) throw new Error(od.error);
+            if (!od.options || !od.challengeId) {
+                throw new Error('Failed to start verification');
+            }
+
+            let assertion;
+            try {
+                assertion = await startAuthentication({ optionsJSON: od.options });
+            } catch (err) {
+                if (err instanceof WebAuthnError && err.code === 'ERROR_CEREMONY_ABORTED') {
+                    throw new Error('Verification was cancelled');
+                }
+                throw err instanceof Error ? err : new Error('Verification failed');
+            }
+
+            const verifyRes = await apiPasskeyStepUpVerify({
+                challengeId: od.challengeId,
+                response: assertion,
+            });
+            const vd = verifyRes.data;
+            if (vd?.error) throw new Error(vd.error);
+            if (!vd?.verified) throw new Error('Could not verify your passkey');
         },
     });
 }

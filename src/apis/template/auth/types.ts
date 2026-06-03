@@ -269,6 +269,29 @@ export interface PasskeyEnrollVerifyResponse {
     error?: string;
 }
 
+/**
+ * Step-up re-authentication: the logged-in user proves device possession again
+ * (a fresh passkey assertion) before a sensitive page reveals its content.
+ * Reuses the authentication ceremony restricted to the user's own passkeys.
+ */
+export interface PasskeyStepUpOptionsResponse {
+    options?: PublicKeyCredentialRequestOptionsJSON;
+    challengeId?: string;
+    error?: string;
+}
+
+export interface PasskeyStepUpVerifyRequest {
+    challengeId: string;
+    response: AuthenticationResponseJSON;
+}
+
+export interface PasskeyStepUpVerifyResponse {
+    verified: boolean;
+    /** Server-clock ISO timestamp of a successful verification. */
+    verifiedAt?: string;
+    error?: string;
+}
+
 export interface ApiHandlerContext {
     userId?: string;
     isAdmin: boolean;

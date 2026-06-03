@@ -7,7 +7,7 @@
 
 import type { ReactNode } from 'react';
 import { NavItem } from '../template/layout/types';
-import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Bug, Bot } from 'lucide-react';
+import { Home, MessageSquare, Settings, CheckSquare, Palette, Lightbulb, BarChart3, Bug, Bot, ShieldCheck } from 'lucide-react';
 import { RpcConnectionIndicator } from '@/client/features/template/rpc-connection';
 
 /** Project-specific admin menu items */
@@ -30,6 +30,7 @@ export const menuItems: NavItem[] = [
   { path: '/agent', label: 'Agent', icon: <Bot size={18} /> },
   { path: '/ai-chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
   { path: '/todos', label: 'Todos', icon: <CheckSquare size={18} /> },
+  { path: '/sensitive', label: 'Sensitive (demo)', icon: <ShieldCheck size={18} /> },
   { path: '/my-requests', label: 'My Requests', icon: <Lightbulb size={18} /> },
   { path: '/theme', label: 'Theme', icon: <Palette size={18} /> },
   { path: '/settings', label: 'Settings', icon: <Settings size={18} /> },
