@@ -5,13 +5,21 @@ export const appConfig = {
     cacheType: isProduction ? 's3' : 's3',
     dbName: 'app_template_db',
 
-    // Production URL for the app (used for clarification links in Telegram)
-    // Override via NEXT_PUBLIC_APP_URL env var
-    // Falls back to Vercel URL when deployed, otherwise uses this default
-    appUrl: process.env.NEXT_PUBLIC_APP_URL ||
-            process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` ||
-            process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}` ||
-            'https://app-template-ai.vercel.app',
+    // The app's URL. Resolution order:
+    //   1. NEXT_PUBLIC_APP_URL  — explicit override (custom domain / testing).
+    //   2. VERCEL_PROJECT_PRODUCTION_URL — auto-provided by Vercel, per-PROJECT
+    //      correct (its own stable production domain, incl. custom domains). This
+    //      is the zero-config default on Vercel, so every project "just works".
+    //   3. dev → http://localhost:3000.
+    //   4. otherwise undefined — callers then fail loudly via requireAppUrl()
+    //      rather than silently using a wrong domain (only happens off Vercel
+    //      with nothing configured).
+    // NOTE: there is intentionally NO hardcoded fallback domain — that was the
+    // old bug (projects silently inheriting app-template-ai.vercel.app).
+    // Read via getAppUrl()/requireAppUrl() from `@/server/template/appUrl`.
+    appUrl: process.env.NEXT_PUBLIC_APP_URL
+        || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+        || (isProduction ? undefined : 'http://localhost:3000'),
 
     // Telegram Chat IDs for different notification categories
     // Get these by running: yarn telegram-setup

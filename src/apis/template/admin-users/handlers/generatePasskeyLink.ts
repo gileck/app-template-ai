@@ -1,4 +1,4 @@
-import { appConfig } from '@/app.config';
+import { requireAppUrl } from '@/server/template/appUrl';
 import * as users from '@/server/database/collections/template/users/users';
 import {
   createEnrollmentToken,
@@ -33,8 +33,7 @@ export const generatePasskeyLink = async (
     await invalidateAllEnrollmentTokensForUser(user._id);
     const { rawToken, token } = await createEnrollmentToken(user._id);
 
-    const base = (appConfig.appUrl || '').replace(/\/$/, '');
-    const url = `${base}/enroll-passkey?token=${rawToken}`;
+    const url = `${requireAppUrl()}/enroll-passkey?token=${rawToken}`;
 
     return { url, expiresAt: token.expiresAt.toISOString() };
   } catch (error: unknown) {

@@ -113,12 +113,22 @@ Gate: checks green and the app boots + logs in. Continue.
    ! vercel link
    ```
    Confirm `.vercel/project.json` now exists and names the right project.
-2. **Push env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown; `LOCAL_*` keys are excluded automatically):
+2. **App URL (usually nothing to do).** Absolute links (passkey enrollment,
+   password reset, login-approval, Telegram deep-links, WebAuthn origin) come
+   from `appConfig.appUrl`, which on Vercel defaults to the project's own
+   `VERCEL_PROJECT_PRODUCTION_URL` automatically — so a standard deploy just
+   works. **Only** set an override if the developer uses a **custom domain**
+   Vercel doesn't report (or wants to pin it explicitly), for all envs:
+   ```
+   yarn set-app-url https://<custom-domain>      # add --local for local dev too
+   ```
+   Skip otherwise.
+3. **Push env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown; `LOCAL_*` keys are excluded automatically):
    ```
    yarn vercel-cli env:push
    ```
    Remind them to remove any dev-only values (e.g. a local MongoDB URI) before pushing.
-3. **Verify the deployment is live** (the addition). After a push to the connected branch triggers a build — or trigger one — check it reaches **Ready**:
+4. **Verify the deployment is live** (the addition). After a push to the connected branch triggers a build — or trigger one — check it reaches **Ready**:
    ```
    npx vercel ls          # latest deployment + status
    npx vercel inspect <deployment-url>   # details if a build failed
