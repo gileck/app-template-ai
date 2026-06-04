@@ -75,3 +75,4 @@ child-projects.json
 package-lock.json
 .telegram-bot-sessions.json
 .agent-worktrees/
+.worktrees/
