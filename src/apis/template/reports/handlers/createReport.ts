@@ -148,8 +148,11 @@ export const createReport = async (
             }
 
             // Forward to the external AI assistant app (no-op if not configured).
-            // Fire-and-forget: never delays or fails the user's submission.
-            void forwardBugReportToAssistant(newReport);
+            // AWAIT (not fire-and-forget): an un-awaited promise doesn't survive
+            // serverless suspension after the response is sent, so it'd silently
+            // not deliver. The forward never throws and is time-bounded, so
+            // awaiting can't fail or noticeably hang the submission.
+            await forwardBugReportToAssistant(newReport);
         }
 
         // Convert to client format

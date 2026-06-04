@@ -29,6 +29,10 @@ const MAX_TITLE_LEN = 120;
 // Caps so a noisy session doesn't create an enormous task note.
 const MAX_LOG_ENTRIES = 100;
 const MAX_LOG_CHARS = 8000;
+// Bound how long a report submission can wait on the assistant app. Callers
+// AWAIT the forward (fire-and-forget doesn't survive serverless suspension),
+// so this cap keeps a slow/unreachable receiver from hanging the submission.
+const FORWARD_TIMEOUT_MS = 6000;
 
 type IntakeType = 'bug' | 'feature';
 
@@ -93,6 +97,8 @@ export async function forwardToAssistant(
     const config = readConfig();
     if (!config) return { ok: false, skipped: true };
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FORWARD_TIMEOUT_MS);
     try {
         const response = await fetch(`${config.baseUrl}${INTAKE_PATH}`, {
             method: 'POST',
@@ -101,6 +107,7 @@ export async function forwardToAssistant(
                 Authorization: `Bearer ${config.token}`,
             },
             body: JSON.stringify(payload),
+            signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -122,6 +129,8 @@ export async function forwardToAssistant(
             ok: false,
             error: error instanceof Error ? error.message : 'unknown error',
         };
+    } finally {
+        clearTimeout(timer);
     }
 }
 
