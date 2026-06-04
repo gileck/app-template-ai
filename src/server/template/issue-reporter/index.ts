@@ -18,11 +18,17 @@
  * the user's report submission.
  */
 
-import type { ReportDocument } from '@/server/database/collections/template/reports/types';
+import type {
+    ReportDocument,
+    SessionLogEntry,
+} from '@/server/database/collections/template/reports/types';
 import type { FeatureRequestDocument } from '@/server/database/collections/template/feature-requests/types';
 
 const INTAKE_PATH = '/api/intake/report';
 const MAX_TITLE_LEN = 120;
+// Caps so a noisy session doesn't create an enormous task note.
+const MAX_LOG_ENTRIES = 100;
+const MAX_LOG_CHARS = 8000;
 
 type IntakeType = 'bug' | 'feature';
 
@@ -31,8 +37,14 @@ interface IntakeMetadata {
     environment?: string;
     route?: string;
     severity?: string;
-    stackTrace?: string;
+    category?: string;
+    networkStatus?: string;
+    userAgent?: string;
+    errorMessage?: string;
+    screenshot?: string;
+    occurrenceCount?: string;
     sessionId?: string;
+    stackTrace?: string;
     reporter?: string;
 }
 
@@ -41,6 +53,8 @@ interface IntakePayload {
     title: string;
     description?: string;
     metadata?: IntakeMetadata;
+    /** Pre-formatted debug/session log text; rendered as a fenced block. */
+    logs?: string;
 }
 
 export interface ForwardResult {
@@ -117,6 +131,24 @@ function firstLine(text: string | undefined, max: number): string {
     return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }
 
+/** Render the report's session/debug logs into a compact text block. */
+function formatSessionLogs(logs: SessionLogEntry[] | undefined): string | undefined {
+    if (!logs || logs.length === 0) return undefined;
+    const recent = logs.slice(-MAX_LOG_ENTRIES);
+    const text = recent
+        .map((e) => {
+            const route = e.route ? ` (${e.route})` : '';
+            const meta =
+                e.meta && Object.keys(e.meta).length > 0
+                    ? ` ${JSON.stringify(e.meta)}`
+                    : '';
+            return `[${e.level.toUpperCase()}] ${e.timestamp} ${e.feature}: ${e.message}${route}${meta}`;
+        })
+        .join('\n');
+    // Keep the tail (most recent) if over the cap.
+    return text.length > MAX_LOG_CHARS ? text.slice(text.length - MAX_LOG_CHARS) : text;
+}
+
 /** Map a saved bug report → intake payload and forward it. */
 export async function forwardBugReportToAssistant(
     report: ReportDocument
@@ -130,11 +162,23 @@ export async function forwardBugReportToAssistant(
         title,
         description: report.description,
         metadata: pruneMetadata({
+            reporter:
+                report.userInfo?.username ||
+                report.userInfo?.email ||
+                report.userInfo?.userId,
             route: report.route,
-            severity: report.category,
+            category: report.category,
+            networkStatus: report.networkStatus,
+            userAgent: report.browserInfo?.userAgent,
+            errorMessage: report.errorMessage,
             stackTrace: report.stackTrace,
-            reporter: report.userInfo?.userId,
+            screenshot: report.screenshot,
+            occurrenceCount:
+                report.occurrenceCount && report.occurrenceCount > 1
+                    ? String(report.occurrenceCount)
+                    : undefined,
         }),
+        logs: formatSessionLogs(report.sessionLogs),
     });
 }
 
