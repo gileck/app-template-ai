@@ -52,36 +52,30 @@ All three must print `OK`. If any are `MISSING`, the project needs a template sy
 
 ---
 
-## Step 2 — Get the assistant app URL + intake token
+## Step 2 — Generate a token in the assistant app
 
-**Goal:** the user has the assistant app's base URL and a fresh, project-scoped intake token.
+**Goal:** the user has both env-var lines, copied from the assistant app.
 
 In the **assistant app** (the receiver), the user:
 
 1. Opens the project that should receive *this* app's reports.
 2. Opens **Settings** → the **Intake tokens** section.
-3. Clicks **Generate**, gives it a label (e.g. this project's name), and **copies the token once** (it's shown only at creation). The panel also shows the **endpoint URL** — its origin (everything before `/api/intake/report`) is the value for `AI_ASSISTANT_REPORTS_URL`.
+3. Enters a label (e.g. this project's name) and clicks **Generate**.
+4. Clicks **Copy env vars** — this copies BOTH lines at once (the token is shown only once):
+   ```
+   AI_ASSISTANT_REPORTS_URL=https://<assistant-app>
+   AI_ASSISTANT_REPORTS_TOKEN=intk_…
+   ```
 
-So the user should come back with two values:
+The URL is the assistant app's **stable** base URL — resolved server-side from `NEXT_PUBLIC_APP_URL` / Vercel's production URL, not from the browser's address bar. So it's correct regardless of which host the admin is viewing, **as long as the assistant app is deployed (or has `NEXT_PUBLIC_APP_URL` set)**. Caveat: if the admin generates the token while viewing the assistant app on `localhost`, the URL line will be `http://localhost:…` — fine for local testing only. For a **deployed** child, generate the token against the **deployed** assistant app.
 
-- **Base URL** — e.g. `https://my-assistant.vercel.app` (origin only, no `/api/...` path).
-- **Token** — starts with `intk_`.
-
-If the user doesn't have access to generate one, they need it from whoever owns the assistant app. Do not proceed without both.
+Have the user paste both lines here. If they can't generate one, they need it from whoever owns the assistant app. Do not proceed without both.
 
 ---
 
 ## Step 3 — Write to `.env.local`
 
-```bash
-# Replace the placeholders with the values from Step 2.
-grep -q '^AI_ASSISTANT_REPORTS_URL='   .env.local && echo "URL already set"   || printf '\nAI_ASSISTANT_REPORTS_URL=%s\n'   "<paste-base-url>" >> .env.local
-grep -q '^AI_ASSISTANT_REPORTS_TOKEN=' .env.local && echo "TOKEN already set" || printf 'AI_ASSISTANT_REPORTS_TOKEN=%s\n' "<paste-token>"  >> .env.local
-```
-
-If a value is already present but the user wants to change it (e.g. rotated token), edit `.env.local` directly rather than appending a duplicate.
-
-Verify both are readable and the URL has no trailing path:
+Paste the two copied lines into `.env.local`, replacing any existing `AI_ASSISTANT_REPORTS_*` lines (don't append duplicates). Then verify they're readable and sane:
 
 ```bash
 URL=$(grep '^AI_ASSISTANT_REPORTS_URL=' .env.local | cut -d= -f2-)
@@ -89,14 +83,15 @@ TOKEN=$(grep '^AI_ASSISTANT_REPORTS_TOKEN=' .env.local | cut -d= -f2-)
 echo "URL=$URL"
 echo "TOKEN prefix=${TOKEN:0:13}…"
 case "$URL" in
-  *"/api/"*) echo "⚠️  URL should be the ORIGIN only (no /api/... path) — fix it" ;;
-  "") echo "⚠️  URL empty" ;;
-  *) echo "URL shape OK" ;;
+  *"/api/"*)          echo "⚠️  URL should be the ORIGIN only (no /api/... path)";;
+  "")                 echo "⚠️  URL empty";;
+  http://localhost*)  echo "⚠️  localhost URL — valid ONLY if this app also runs locally; not for a deployed child";;
+  *)                  echo "URL shape OK";;
 esac
-case "$TOKEN" in intk_*) echo "TOKEN shape OK" ;; *) echo "⚠️  TOKEN should start with intk_" ;; esac
+case "$TOKEN" in intk_*) echo "TOKEN shape OK";; *) echo "⚠️  TOKEN should start with intk_";; esac
 ```
 
-Both must look right before moving on.
+Both must look right before moving on. (A `*.vercel.app` URL is fine **only** if it's the assistant's stable production domain — never a per-deploy preview URL like `…-git-branch-….vercel.app`.)
 
 ---
 
@@ -169,8 +164,8 @@ After this skill finishes:
 
 - [ ] Vercel project linked
 - [ ] Template code present (util + both handler hooks)
-- [ ] Assistant app base URL + `intk_` token obtained from the assistant app's project Settings
-- [ ] `AI_ASSISTANT_REPORTS_URL` (origin only) + `AI_ASSISTANT_REPORTS_TOKEN` in `.env.local`, shapes validated
+- [ ] Both env-var lines copied via **Copy env vars** in the assistant app's project Settings (token generated against the *deployed* assistant for a deployed child)
+- [ ] `AI_ASSISTANT_REPORTS_URL` + `AI_ASSISTANT_REPORTS_TOKEN` in `.env.local`, shapes validated (not a localhost/preview URL for a deployed child)
 - [ ] **Probe POST returned `HTTP 200 {ok:true}` AND user saw the task in the assistant app**
 - [ ] Probe task deleted in the assistant app
 - [ ] Both env vars set on Vercel (production + preview)
