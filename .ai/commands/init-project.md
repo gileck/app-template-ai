@@ -87,9 +87,10 @@ Don't trust — verify each result, and fix any gap directly:
 
 - `src/app.config.js` → `appName` is the new name (not `app-template-ai`) and `dbName` is derived/sensible.
 - `package.json` `name` updated.
-- `src/config/pwa.config.ts` + `public/manifest.json` reflect the name / description / theme color.
+- `src/config/pwa.config.ts` + `public/manifest.json` reflect the name / description / theme color. `init-project` registers `src/config/pwa.config.ts` under `.template-sync.json` → `projectOverrides` (its per-project identity edits would otherwise trip the template-ownership pre-commit guard); confirm it's listed.
 - `.env` contains a real `LOCAL_USER_ID` (and it is NOT the template author's — it should be a freshly-created id).
-- `.env` / `.env.local` did NOT inherit the template's Vercel values — no `VERCEL_PROJECT_PRODUCTION_URL=app-template-ai.vercel.app` (or stale `VERCEL_OIDC_TOKEN`). The script strips these on copy; if an older project already inherited one, remove it (Vercel re-provides the correct per-project URL at deploy time).
+- `.env` / `.env.local` did NOT inherit the template's Vercel values. `init-project` now strips the leaky PROJECT keys (`VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_OIDC_TOKEN`) from `.env`/`.env.local` on **every run** — not just on copy — so a pre-populated env is cleaned too. Confirm: `grep -nE '^VERCEL_PROJECT_PRODUCTION_URL=|^VERCEL_OIDC_TOKEN=' .env.local` prints nothing (Vercel re-provides the correct per-project URL at deploy time). The identity keys (`LOCAL_USER_ID`/`ADMIN_USER_ID`) are intentionally left alone on existing files — they belong to this project.
+- If `AUTH_MODE=passkey` (passkey login), `WEBAUTHN_RP_ID` must be the **production domain host** (no scheme) — passkeys bind to the rpID and break without it. You get the domain in Phase 5 (`yarn vercel-cli domain`); see `/migrate-to-passkeys`.
 - `.template-sync.json` exists with `init.appConfig` (and other `init.*`) flags set.
 - Git hooks installed (`.git/hooks` populated by `yarn setup-hooks`) and `yarn.lock` is skip-worktree.
 - Demo features removed (Todos / Chat / AIChat / demo Home gone), and `src/client/routes/index.project.ts` / `src/apis/apis.project.ts` no longer reference them. If `/` is now unrouted, decide with the developer (redirect, placeholder, or leave for their first feature) — see `/cleanup-template-demo` for the routing follow-up.
@@ -114,11 +115,12 @@ Gate: checks green and the app boots + logs in. Continue.
    ! vercel link
    ```
    Confirm `.vercel/project.json` now exists and names the right project.
-2. **Push env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown; `LOCAL_*` keys are excluded automatically). `env:push` reads `.env` by default, but the project's real secrets live in `.env.local` — pass `--file .env.local`:
+2. **Sync env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown). Use `env:sync`: it reads `.env.local` by default and skips local-only keys — `VERCEL_OIDC_TOKEN`, `VERCEL_TOKEN`, `VERCEL_PROJECT_PRODUCTION_URL`, `RPC_LOCAL_DIRECT`, `TEST_*`, `IGNORE_*` (so dev shortcuts and personal/ephemeral tokens never reach prod). Preview first:
    ```
-   yarn vercel-cli env:push --file .env.local
+   yarn vercel-cli env:sync --dry-run         # preview what would sync
+   yarn vercel-cli env:sync                    # sync .env.local → Vercel (all envs)
    ```
-   Remind them to scrub **dev-only** values first — `env:push` does NOT filter these, so anything present gets pushed: a local `MONGO_URI`, `RPC_LOCAL_DIRECT=true` (breaks prod RPC — set `false`), a personal `VERCEL_TOKEN`, `TEST_*`. `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_OIDC_TOKEN` should already be stripped (Phase 1); if one is still present, delete it before pushing — Vercel re-provides the correct per-project value at deploy time.
+   Still scrub any dev-only value the filter can't know about (e.g. a local `MONGO_URI`) before syncing. (`env:push --file .env.local` is the lower-level alternative — it now applies the same exclusion list; use `env:rm --name X` to delete a var that slipped through.)
 3. **Verify the deployment is live.** A push to the connected branch triggers a build — check it reaches **Ready** (prefer the project's own CLI over `npx vercel`, which can be network-blocked in agent sandboxes):
    ```
    yarn vercel-cli list                       # latest deployment + status
@@ -203,7 +205,8 @@ Offer to commit the initialization changes (don't commit unprompted). Suggested 
 | Seed the local dev user (idempotent, approved) | `yarn create-local-user` |
 | Create an approved owner/admin user (any DB) | `yarn create-user --username <u> --password <pw> --admin` |
 | Validate | `yarn checks`, `yarn dev` |
-| Vercel link / env / deploys | `vercel link`, `yarn vercel-cli env:push --file .env.local`, `yarn vercel-cli list` |
+| Vercel link / env / deploys | `vercel link`, `yarn vercel-cli env:sync` (or `--dry-run`), `yarn vercel-cli list` |
+| Remove an env var (where `npx vercel` is blocked) | `yarn vercel-cli env:rm --name X [--target production]` |
 | Get the production domain / fix app URL | `yarn vercel-cli domain`, `yarn vercel-cli domain --set-app-url` |
 | Telegram bot | `/setup-telegram-bot` |
 | RPC (needed for the agent) | `/enable-rpc-calls` |
