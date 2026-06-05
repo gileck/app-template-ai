@@ -20,6 +20,7 @@ import '../../src/agents/shared/loadEnv';
  *   env:push    Push env vars from .env file to Vercel
  *   env:sync    Sync all env vars from .env.local (recommended)
  *   project     Show current project info
+ *   domain      Print the project's production domain (canonical app URL)
  *   redeploy    Trigger redeployment via empty git commit
  *
  * Environment Variable Commands:
@@ -39,6 +40,9 @@ import '../../src/agents/shared/loadEnv';
  *   yarn vercel-cli env:sync --dry-run          # Preview what would be synced
  *   yarn vercel-cli env:sync --redeploy         # Sync and trigger redeployment
  *   yarn vercel-cli project
+ *   yarn vercel-cli domain                      # Print the production domain
+ *   yarn vercel-cli domain --plain              # Bare URL, e.g. for APP_URL=$(...)
+ *   yarn vercel-cli domain --set-app-url        # Detect + pin NEXT_PUBLIC_APP_URL
  *   yarn vercel-cli redeploy                    # Trigger redeploy with default message
  *   yarn vercel-cli redeploy --message "fix: update env vars"  # Custom message
  */
@@ -266,7 +270,9 @@ function getConfig(options: { cloudProxy?: boolean; projectId?: string; teamId?:
         if (projectConfig) {
             projectId = projectConfig.projectId;
             orgId = orgId || projectConfig.orgId;
-            console.log('📁 Using project from .vercel/project.json');
+            // Diagnostic → stderr, so stdout stays clean for scripting
+            // (e.g. `URL=$(yarn vercel-cli domain --plain)`).
+            console.error('📁 Using project from .vercel/project.json');
         }
     }
 
@@ -812,6 +818,47 @@ async function getProjectInfo(config: Config): Promise<void> {
     printProjectInfo(response);
 }
 
+interface VercelProjectDomain {
+    name: string;
+    verified?: boolean;
+    redirect?: string | null;
+    redirectStatusCode?: number | null;
+    gitBranch?: string | null;
+}
+
+interface ProjectDomainsResponse {
+    domains: VercelProjectDomain[];
+    pagination?: { count: number; next?: number | null; prev?: number | null };
+}
+
+/**
+ * Fetch the project's PRODUCTION domain — the canonical URL the app is served
+ * at, e.g. `nutrition-tracker-app-sigma.vercel.app` or a custom domain.
+ *
+ * This is the value `appConfig.appUrl` / `NEXT_PUBLIC_APP_URL` should use. It is
+ * NOT a per-deployment alias (`info --deployment` shows those) and NOT the
+ * `<project>.vercel.app` short name (which another account may already own).
+ * Query: `GET /v9/projects/{projectId}/domains`.
+ *
+ * Selection: among domains that serve production (no `gitBranch` branch filter
+ * and not a `redirect`), prefer a custom domain over the auto `*.vercel.app`
+ * one. Returns the bare hostname, or null if the project has no domain yet
+ * (e.g. it has never been deployed).
+ */
+async function getProductionDomain(config: Config): Promise<string | null> {
+    const response = await vercelFetch<ProjectDomainsResponse>(
+        `/v9/projects/${config.projectId}/domains`,
+        config.token,
+        { teamId: config.teamId }
+    );
+    const productionDomains = (response.domains || []).filter(
+        d => !d.gitBranch && !d.redirect
+    );
+    if (productionDomains.length === 0) return null;
+    const custom = productionDomains.find(d => !d.name.endsWith('.vercel.app'));
+    return (custom || productionDomains[0]).name;
+}
+
 /**
  * Set a single environment variable via the Vercel API.
  * This avoids the trailing newline issue that occurs when piping to `vercel env add`.
@@ -1259,6 +1306,49 @@ program
             const config = getConfig(globalOpts);
 
             await getProjectInfo(config);
+        } catch (error) {
+            handleError(error);
+        }
+    });
+
+// Domain command - Print the project's production domain (canonical app URL)
+program
+    .command('domain')
+    .description("Print the project's production domain (the canonical app URL)")
+    .option('--plain', 'Print only the bare https URL (for scripting / $(...))', false)
+    .option('--set-app-url', 'Pin the detected domain as NEXT_PUBLIC_APP_URL (local + Vercel)', false)
+    .action(async (options) => {
+        try {
+            const globalOpts = program.opts();
+            if (globalOpts.cloudProxy) setupCloudProxy();
+            const config = getConfig(globalOpts);
+
+            const domain = await getProductionDomain(config);
+            if (!domain) {
+                if (options.plain) process.exit(1);
+                console.error('\n❌ No production domain found for this project.');
+                console.error('   Deploy the project at least once, then try again.');
+                process.exit(1);
+            }
+            const url = `https://${domain}`;
+
+            if (options.plain) {
+                console.log(url);
+            } else {
+                console.log('\n🌐 Production Domain');
+                console.log('═'.repeat(60));
+                console.log(`   ${url}`);
+                console.log('');
+            }
+
+            if (options.setAppUrl) {
+                const { execSync } = await import('child_process');
+                console.log('Pinning as NEXT_PUBLIC_APP_URL (local + Vercel)…');
+                execSync(`yarn set-app-url ${url} --local --vercel`, {
+                    stdio: 'inherit',
+                    cwd: process.cwd(),
+                });
+            }
         } catch (error) {
             handleError(error);
         }

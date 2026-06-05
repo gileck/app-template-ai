@@ -114,29 +114,31 @@ Gate: checks green and the app boots + logs in. Continue.
    ! vercel link
    ```
    Confirm `.vercel/project.json` now exists and names the right project.
-2. **App URL (usually nothing to do).** Absolute links (passkey enrollment,
-   password reset, login-approval, Telegram deep-links, WebAuthn origin) come
-   from `appConfig.appUrl`, which on Vercel defaults to the project's own
-   `VERCEL_PROJECT_PRODUCTION_URL` automatically — so a standard deploy just
-   works. **Only** set an override if the developer uses a **custom domain**
-   Vercel doesn't report (or wants to pin it explicitly), for all envs:
+2. **Push env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown; `LOCAL_*` keys are excluded automatically). `env:push` reads `.env` by default, but the project's real secrets live in `.env.local` — pass `--file .env.local`:
    ```
-   yarn set-app-url https://<custom-domain>      # add --local for local dev too
+   yarn vercel-cli env:push --file .env.local
    ```
-   Skip otherwise.
-3. **Push env vars** — this changes Vercel project configuration, so **confirm the key list with the developer first** (values aren't shown; `LOCAL_*` keys are excluded automatically):
+   Remind them to scrub **dev-only** values first — `env:push` does NOT filter these, so anything present gets pushed: a local `MONGO_URI`, `RPC_LOCAL_DIRECT=true` (breaks prod RPC — set `false`), a personal `VERCEL_TOKEN`, `TEST_*`. `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_OIDC_TOKEN` should already be stripped (Phase 1); if one is still present, delete it before pushing — Vercel re-provides the correct per-project value at deploy time.
+3. **Verify the deployment is live.** A push to the connected branch triggers a build — check it reaches **Ready** (prefer the project's own CLI over `npx vercel`, which can be network-blocked in agent sandboxes):
    ```
-   yarn vercel-cli env:push
+   yarn vercel-cli list                       # latest deployment + status
+   yarn vercel-cli logs --deployment <id>     # build logs if it failed
    ```
-   Remind them to remove any dev-only values (e.g. a local MongoDB URI) before pushing.
-4. **Verify the deployment is live** (the addition). After a push to the connected branch triggers a build — or trigger one — check it reaches **Ready**:
+   If the latest build is **Error**, read the logs, fix the cause (commonly a missing env var or a `yarn checks` failure), and redeploy (`yarn vercel-cli redeploy`). Don't finish this phase until a deployment is **Ready**.
+4. **Lock in the app URL — verify it points at THIS project.** Absolute links (passkey enrollment, password reset, login-approval, Telegram deep-links, WebAuthn origin) come from `appConfig.appUrl`. Now that the project has deployed, read its **canonical production domain** straight from Vercel:
    ```
-   npx vercel ls          # latest deployment + status
-   npx vercel inspect <deployment-url>   # details if a build failed
+   yarn vercel-cli domain                      # e.g. https://<project>-<hash>.vercel.app (or your custom domain)
+   yarn vercel-cli domain --plain              # bare URL; capture with: URL=$(yarn --silent vercel-cli domain --plain)
    ```
-   If the latest build is **Error**, read the build logs (`yarn vercel-cli logs --deployment <id>`), fix the cause (commonly a missing env var or a `yarn checks` failure), and redeploy. Don't finish this phase until a deployment is **Ready**.
+   This calls the Vercel API (`GET /v9/projects/{projectId}/domains`) and returns the real production domain — NOT a per-deployment alias (`info --deployment` shows those), and NOT the `<project>.vercel.app` short name (another account may already own it). **Verify** `appConfig.appUrl` resolves to this domain:
+   - **Normal case (nothing to do):** with the leaky `VERCEL_PROJECT_PRODUCTION_URL` stripped in Phase 1, Vercel auto-injects the correct per-project value and `appUrl` already matches.
+   - **If it doesn't match** — an older project that inherited `app-template-ai.vercel.app`, or a **custom domain** Vercel reports here — pin the real domain (sets `NEXT_PUBLIC_APP_URL`, resolution priority #1, locally + all Vercel envs) and redeploy so it takes effect:
+     ```
+     yarn vercel-cli domain --set-app-url       # detect + pin in one step
+     yarn vercel-cli redeploy                   # env changes only affect NEW builds
+     ```
 
-Gate: a Vercel deployment is **Ready**. Continue.
+Gate: a Vercel deployment is **Ready** and `appConfig.appUrl` points at this project's own domain. Continue.
 
 ---
 
@@ -179,7 +181,7 @@ Confirm and summarize:
 - ✅ Identity configured (name / description / theme) and verified
 - ✅ `.env.local` has the required secrets; `LOCAL_USER_ID` seeded (fresh, not the template author's)
 - ✅ `yarn checks` green; app boots and the local user logs in
-- ✅ Vercel linked, env pushed, a deployment is **Ready**
+- ✅ Vercel linked, env pushed, a deployment is **Ready**; `appConfig.appUrl` points at this project's own domain (`yarn vercel-cli domain`)
 - ✅ Production owner account exists + approved; `ADMIN_USER_ID` set (locally + Vercel)
 - ✅ Telegram bot set up
 
@@ -201,7 +203,8 @@ Offer to commit the initialization changes (don't commit unprompted). Suggested 
 | Seed the local dev user (idempotent, approved) | `yarn create-local-user` |
 | Create an approved owner/admin user (any DB) | `yarn create-user --username <u> --password <pw> --admin` |
 | Validate | `yarn checks`, `yarn dev` |
-| Vercel link / env / deploys | `vercel link`, `yarn vercel-cli env:push`, `npx vercel ls` |
+| Vercel link / env / deploys | `vercel link`, `yarn vercel-cli env:push --file .env.local`, `yarn vercel-cli list` |
+| Get the production domain / fix app URL | `yarn vercel-cli domain`, `yarn vercel-cli domain --set-app-url` |
 | Telegram bot | `/setup-telegram-bot` |
 | RPC (needed for the agent) | `/enable-rpc-calls` |
 | Build the app's agent | `/build-app-agent` |
