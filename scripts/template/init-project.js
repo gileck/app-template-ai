@@ -596,6 +596,10 @@ async function promptVercelLink() {
 // cases that don't follow the LOCAL_ prefix convention.
 const VERCEL_ENV_EXCLUDE_EXACT = new Set([
     'IGNORE_LOCAL_USER_ID',
+    // Local-dev-only RPC shortcut (runs handlers in-process instead of via the
+    // daemon). Inert in production anyway (guarded by NODE_ENV), but it has no
+    // LOCAL_ prefix, so exclude it explicitly to keep it off Vercel.
+    'RPC_LOCAL_DIRECT',
 ]);
 
 function isLocalOnlyEnvKey(key) {

@@ -918,6 +918,7 @@ async function syncEnvVars(
         'TEST_USER_NAME',     // Local testing only
         'TEST_PASSWORD',      // Local testing only
         'IGNORE_LOCAL_USER_ID', // Local development flag
+        'RPC_LOCAL_DIRECT',   // Local-dev RPC shortcut; inert in prod, keep off Vercel
     ];
 
     // Read .env file
