@@ -1,7 +1,7 @@
 ---
 title: App Shell
 description: Template-owned application root that owns the full provider/bridge tree. Use this when adding app-root wiring (providers, bridges) or wondering why _app.tsx is a thin shim.
-summary: The entire provider/boot tree (Query, Theme, Router, Auth, Layout, hydration gating, offline + API-client init, app-root bridges) lives in the template-owned <AppShell>. Child `src/pages/_app.tsx` is a thin shim that renders <AppShell/> and imports global CSS. Template features needing app-root mounting (e.g. push deep-link navigation) are wired via <TemplateAppBridges> and work end-to-end in every child with no _app.tsx changes. Project-wide providers attach via the `wrapProviders` prop.
+summary: The entire provider/boot tree (Query, Theme, Router, Auth, Layout, hydration gating, offline + API-client init, app-root bridges) lives in the template-owned <AppShell>. Child `src/pages/_app.tsx` is a thin shim that renders <AppShell/> and imports global CSS. Template features needing app-root mounting (e.g. push deep-link navigation) are wired via <TemplateAppBridges> and work end-to-end in every child with no _app.tsx changes. Project-wide providers attach via the `wrapProviders` prop. Existing projects migrate with the `/migrate-to-app-shell` skill.
 priority: 3
 ---
 
@@ -107,6 +107,8 @@ rather than the barrel.
 
 `_app.tsx` is project-owned, so a sync does **not** replace a child's existing
 `_app.tsx`; their current wiring keeps working. `<AppShell>` syncs in as new
-files but stays unused until the child adopts the thin shim. To migrate, replace
-the body of `_app.tsx` with the shim above, moving any project-specific
-providers into `wrapProviders`.
+files but stays unused until the child adopts the thin shim. To migrate, run the
+**`/migrate-to-app-shell`** skill (`.ai/commands/migrate-to-app-shell.md`) after
+syncing — it classifies the existing `_app.tsx`, replaces the standard tree with
+the shim, and moves any project-specific providers into `wrapProviders`. It is
+idempotent (no-ops if already migrated).
