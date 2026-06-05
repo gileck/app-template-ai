@@ -205,10 +205,19 @@ async function writeEnvLocalUserId(id) {
 // LOCAL_USER_ID for the new project's own database in createLocalUserAndWriteEnv().
 const LEAKY_IDENTITY_KEYS = ['LOCAL_USER_ID', 'ADMIN_USER_ID'];
 
-function stripLeakyIdentityKeys(filePath, fileName) {
+// Vercel values bound to the TEMPLATE's own deployment. Copying them would point
+// the new project at the template's domain / Vercel project — e.g.
+// VERCEL_PROJECT_PRODUCTION_URL="app-template-ai.vercel.app" silently becomes the
+// new project's app URL. Each is re-provided per-project by Vercel at deploy time
+// (or via `yarn set-app-url`), so drop them rather than inherit the template's.
+const LEAKY_PROJECT_KEYS = ['VERCEL_PROJECT_PRODUCTION_URL', 'VERCEL_OIDC_TOKEN'];
+
+const LEAKY_TEMPLATE_KEYS = [...LEAKY_IDENTITY_KEYS, ...LEAKY_PROJECT_KEYS];
+
+function stripLeakyTemplateKeys(filePath, fileName) {
     let content = fs.readFileSync(filePath, 'utf8');
     let changed = false;
-    for (const key of LEAKY_IDENTITY_KEYS) {
+    for (const key of LEAKY_TEMPLATE_KEYS) {
         // Match active OR commented assignments (whole line), with optional
         // leading "#"/whitespace and optional "export ".
         const re = new RegExp(`^[ \\t]*#?[ \\t]*(?:export[ \\t]+)?${key}=.*$\\n?`, 'gm');
@@ -219,7 +228,7 @@ function stripLeakyIdentityKeys(filePath, fileName) {
     }
     if (changed) {
         fs.writeFileSync(filePath, content, 'utf8');
-        console.log(`[${fileName}] Stripped template identity keys (${LEAKY_IDENTITY_KEYS.join(', ')}).`);
+        console.log(`[${fileName}] Stripped template-specific keys (${LEAKY_TEMPLATE_KEYS.join(', ')}).`);
     }
 }
 
@@ -235,7 +244,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(templatePath)) {
         fs.copyFileSync(templatePath, cwdPath);
         console.log(`[${fileName}] Copied from ../app-template-ai/`);
-        stripLeakyIdentityKeys(cwdPath, fileName);
+        stripLeakyTemplateKeys(cwdPath, fileName);
         return;
     }
 
@@ -244,7 +253,7 @@ function copyEnvFileIfMissing(fileName) {
     if (fs.existsSync(parentPath)) {
         fs.copyFileSync(parentPath, cwdPath);
         console.log(`[${fileName}] Copied from parent directory.`);
-        stripLeakyIdentityKeys(cwdPath, fileName);
+        stripLeakyTemplateKeys(cwdPath, fileName);
         return;
     }
 

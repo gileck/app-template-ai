@@ -18,7 +18,7 @@ It does everything `yarn init-project` does — but **AI-driven and verified at 
 
 | # | Step | What it sets |
 |---|---|---|
-| 1 | Ensure `.env` + `.env.local` | Copies from a sibling `../app-template-ai/` if present (or creates empty), and **strips template identity keys** (`LOCAL_USER_ID`, `ADMIN_USER_ID`) so you don't inherit the template author's ids |
+| 1 | Ensure `.env` + `.env.local` | Copies from a sibling `../app-template-ai/` if present (or creates empty), and **strips template-specific keys** so you don't inherit the template author's values: identity (`LOCAL_USER_ID`, `ADMIN_USER_ID`) and Vercel deployment (`VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_OIDC_TOKEN` — otherwise the new project's app URL silently resolves to `app-template-ai.vercel.app`) |
 | 2 | Init template tracking | Runs `init-template` → creates `.template-sync.json` (holds `init.*` idempotency flags + path-ownership config) |
 | 3–5 | Project identity | Prompts name / description / theme color → updates `src/app.config.js` (`appName` + `dbName`), `package.json` name, `src/config/pwa.config.ts`, `public/manifest.json`. Sets the `init.appConfig` flag |
 | 6–7 | Local user | Via **`yarn create-local-user`** — reuses the app's real `users.insertUser` + `SALT_ROUNDS` + approval logic (so the seeded user matches the current schema and is created **approved**), then writes `LOCAL_USER_ID` to `.env`. `LOCAL_USER_ID` is a dev-only auth shortcut that also grants admin locally |
@@ -89,6 +89,7 @@ Don't trust — verify each result, and fix any gap directly:
 - `package.json` `name` updated.
 - `src/config/pwa.config.ts` + `public/manifest.json` reflect the name / description / theme color.
 - `.env` contains a real `LOCAL_USER_ID` (and it is NOT the template author's — it should be a freshly-created id).
+- `.env` / `.env.local` did NOT inherit the template's Vercel values — no `VERCEL_PROJECT_PRODUCTION_URL=app-template-ai.vercel.app` (or stale `VERCEL_OIDC_TOKEN`). The script strips these on copy; if an older project already inherited one, remove it (Vercel re-provides the correct per-project URL at deploy time).
 - `.template-sync.json` exists with `init.appConfig` (and other `init.*`) flags set.
 - Git hooks installed (`.git/hooks` populated by `yarn setup-hooks`) and `yarn.lock` is skip-worktree.
 - Demo features removed (Todos / Chat / AIChat / demo Home gone), and `src/client/routes/index.project.ts` / `src/apis/apis.project.ts` no longer reference them. If `/` is now unrouted, decide with the developer (redirect, placeholder, or leave for their first feature) — see `/cleanup-template-demo` for the routing follow-up.
