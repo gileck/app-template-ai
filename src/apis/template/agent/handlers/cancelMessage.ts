@@ -13,7 +13,7 @@ import type { ObjectId } from 'mongodb';
 import {
     cancelPendingMessage,
     findMessageById,
-} from '@/server/database/collections/project/agentConversations';
+} from '@/server/database/collections/template/agentConversations';
 import { cancelQuestionsForMessage } from '@/server/database/collections/template/agentQuestions/agentQuestions';
 import {
     appendTrace,

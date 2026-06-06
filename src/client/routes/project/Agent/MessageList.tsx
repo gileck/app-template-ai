@@ -23,9 +23,9 @@ import type {
     AgentQuestionAnswer,
     AgentQuestionClient,
     AgentTraceClient,
-} from '@/apis/project/agent/types';
+} from '@/apis/template/agent/types';
 import type { TraceEntry } from '@/server/database/collections/template/agentTraces/types';
-import { isMessageLivePending } from '@/client/features/project/agent';
+import { isMessageLivePending } from '@/client/features/template/agent';
 import { EventTimeline } from './EventTimeline';
 import { TraceLogEntry } from './TraceLogEntry';
 

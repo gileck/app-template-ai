@@ -7,7 +7,7 @@ import {
     useCreateAgentConversation,
     useDeleteAgentConversation,
     useAgentUIStore,
-} from '@/client/features/project/agent';
+} from '@/client/features/template/agent';
 
 interface ConversationSidebarProps {
     onNavigate?: () => void;

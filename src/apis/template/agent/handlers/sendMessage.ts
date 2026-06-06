@@ -28,18 +28,11 @@ import { getModelById } from '@/common/ai/models';
 import { toQueryId, toStringId } from '@/server/template/utils';
 import type { ApiHandlerContext } from '@/apis/types';
 import type { SendMessageRequest, SendMessageResponse } from '../types';
+// Project-owned seam: which agent handler runs + its default system
+// prompt. NOT synced — `build-app-agent` customizes it per project.
+import { agentRuntime } from '@/apis/project/agent/runtime.project';
 
-// No file extension — the daemon resolves `.ts`/`.js`/`/index.*`.
-const HANDLER_PATH = 'src/server/project/demo-agent/handler';
 const RPC_TTL_MS = 60 * 60 * 1000; // 1 hour
-const DEFAULT_SYSTEM_PROMPT =
-    'You are a helpful assistant. You have these tools available: ' +
-    'get_time (returns the current server time, optionally in a given timezone), ' +
-    'calculate (one arithmetic operation on two numbers), and ' +
-    'ask_user (ask the user one or more multiple-choice questions and wait for their answer — ' +
-    'use it whenever the next step depends on a choice among concrete options; each question ' +
-    'can be single-choice or multiSelect, and you may ask several at once). ' +
-    'Use them when relevant. Be concise.';
 
 function getModelProvider(modelId: string): string | null {
     try {
@@ -239,13 +232,13 @@ export const sendMessage = async (
               ].join('\n');
 
         await createRpcJob({
-            handlerPath: HANDLER_PATH,
+            handlerPath: agentRuntime.handlerPath,
             args: {
                 userId: userIdStr,
                 conversationId: toStringId(conversationId),
                 sourceMessageId: toStringId(assistantMessage._id),
                 modelId: request.modelId,
-                systemPrompt: request.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+                systemPrompt: request.systemPrompt ?? agentRuntime.systemPrompt,
                 userText: enrichedUserText,
                 userImageUrls: imageAttachments.map((a) => a.url),
                 history,

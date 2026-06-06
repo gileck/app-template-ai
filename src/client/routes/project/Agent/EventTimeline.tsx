@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, Wrench, CheckCircle2, XCircle, Brain, Messag
 import { Badge } from '@/client/components/template/ui/badge';
 import { cn } from '@/client/lib/utils';
 import type { AgentEvent } from '@/server/template/agentic';
-import { useAgentUIStore } from '@/client/features/project/agent';
+import { useAgentUIStore } from '@/client/features/template/agent';
 
 interface EventTimelineProps {
     messageId: string;

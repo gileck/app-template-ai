@@ -20,7 +20,7 @@ import type {
     AgentConversationClient,
     AgentMessageClient,
     AgentTraceClient,
-} from '@/apis/project/agent/types';
+} from '@/apis/template/agent/types';
 import type { AgentEvent } from '@/server/template/agentic';
 import type { TraceEntry } from '@/server/database/collections/template/agentTraces/types';
 

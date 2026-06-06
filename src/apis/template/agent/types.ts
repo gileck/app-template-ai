@@ -2,7 +2,7 @@ import type {
     AgentConversationClient,
     AgentMessageAttachment,
     AgentMessageClient,
-} from '@/server/database/collections/project/agentConversations';
+} from '@/server/database/collections/template/agentConversations';
 import type { AgentTraceClient } from '@/server/database/collections/template/agentTraces/types';
 import type {
     AgentQuestionAnswer,

@@ -19,7 +19,7 @@ import {
     listConversations,
     sendMessage,
     uploadAttachment,
-} from '@/apis/project/agent/client';
+} from '@/apis/template/agent/client';
 import type {
     AgentConversationClient,
     AgentMessageAttachment,
@@ -29,7 +29,7 @@ import type {
     AgentTraceClient,
     GetConversationResponse,
     SendMessageRequest,
-} from '@/apis/project/agent/types';
+} from '@/apis/template/agent/types';
 import { useQueryDefaults } from '@/client/query';
 import { errorToast } from '@/client/features/template/error-tracking';
 import { toast } from '@/client/components/template/ui/toast';

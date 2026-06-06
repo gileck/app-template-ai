@@ -1,4 +1,5 @@
 import { createStore } from '@/client/stores';
+import { agentClientConfig } from '@/client/utils/project/agentClientConfig';
 
 interface AgentUIState {
     /** Currently-selected conversation id, or null when on the empty
@@ -39,7 +40,7 @@ interface AgentUIState {
     recordClientReceived: (messageId: string) => void;
 }
 
-const DEFAULT_MODEL_ID = 'claude-code-sonnet';
+const DEFAULT_MODEL_ID = agentClientConfig.defaultModelId;
 
 export const useAgentUIStore = createStore<AgentUIState>({
     key: 'agent-ui',

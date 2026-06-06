@@ -53,12 +53,12 @@ import {
     useUploadAttachment,
     isMessageLivePending,
     groupQuestionsByMessageId,
-} from '@/client/features/project/agent';
-import { getTraces } from '@/apis/project/agent/client';
+} from '@/client/features/template/agent';
+import { getTraces } from '@/apis/template/agent/client';
 import type {
     AgentMessageAttachment,
     AgentTraceClient,
-} from '@/apis/project/agent/types';
+} from '@/apis/template/agent/types';
 import { copyTextToClipboard } from '@/client/utils/clipboard';
 import {
     ChatComposer,
