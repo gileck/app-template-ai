@@ -1,10 +1,12 @@
 /**
- * Project-owned agent runtime config (NOT synced from template).
+ * Agent runtime override point (same pattern as `apis/auth-overrides.ts`).
  *
- * The template owns the agent API plumbing (conversations, messages,
- * traces, attachments); this is the thin per-project seam that points the
- * `agent/sendMessage` endpoint at THIS project's agent. The
- * `build-app-agent` skill rewrites these two values per project.
+ * Ships TEMPLATE DEFAULTS that point `agent/sendMessage` at the demo agent.
+ * It IS synced, so every project always has it (the template-owned handler
+ * imports it — there must never be a missing-module break). A project
+ * customizes the two values via `build-app-agent` and adds this file to its
+ * `projectOverrides` (in `.template-sync.json`) so future syncs keep the
+ * change. Until a real agent message is sent, the default is inert.
  */
 export const agentRuntime = {
     /** RPC handler module the daemon runs for each turn. No file
