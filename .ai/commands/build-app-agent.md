@@ -96,7 +96,7 @@ Ask the user (use `AskUserQuestion` where a few clear options help, free text ot
 
 Encode it in the system prompt. It lives as `agentRuntime.systemPrompt` in the override seam `src/apis/template/agent/runtime.ts` (the template-owned `sendMessage` handler reads it). This file ships a template default and **is** synced, so to keep your edits, add it to `projectOverrides` in `.template-sync.json` (Phase 7 reminds you). Replace the prompt with the app-specific identity, and **list the tools you'll add in Phase 3** so the model knows when to use them. Keep it tight — a few sentences of identity + a one-line cue per tool.
 
-Also set the default model the picker opens on: `defaultModelId` in `src/client/utils/agentClientConfig.ts` (same override-seam rules — add it to `projectOverrides` too).
+Also set the default model the picker opens on: `defaultModelId` in `src/client/utils/agentClientConfig.ts`. Same override-seam rules — but only add it to `projectOverrides` **if you actually change it** from the template default (Phase 7).
 
 Gate: `yarn checks` green. Continue.
 
@@ -308,9 +308,9 @@ Gate: a real turn calls a real tool and produces the right side effect.
 ## Phase 7 — Wrap up
 
 - Run `yarn checks` one final time (must be green: TypeScript, ESLint, circular deps, unused deps).
-- **Protect the override seams from sync.** The two files you edited ship template defaults and are synced, so add both to `projectOverrides` in `.template-sync.json` or the next `/sync-template` reverts them to the demo:
-  - `src/apis/template/agent/runtime.ts`
-  - `src/client/utils/agentClientConfig.ts`
+- **Protect the seams you changed from sync.** These two files ship template defaults and are synced, so any you *edited* must go into `projectOverrides` in `.template-sync.json` or the next `/sync-template` reverts them to the demo. **Override only the files you actually changed** — listing an unchanged file freezes it and silently stops it receiving future template updates (and can re-break it if the template later changes its shape):
+  - `src/apis/template/agent/runtime.ts` — you almost always change this (handler path + prompt) → override it.
+  - `src/client/utils/agentClientConfig.ts` — override **only if** you changed `defaultModelId` from the template default. If you left it, leave it out and re-add it the day you change the model.
 - Summarize what was built: agent identity, the tools (custom + exposed APIs), data context, UI branding, and the handler wiring.
 - Suggest follow-ups: more tools, richer data context, suggested-prompt presets, a domain disclaimer in the system prompt, and per-tool confirmation for destructive actions.
 - Offer to commit (don't commit unprompted). Suggested message: `feat(agent): build <app> agent (<identity> + <tool summary>)`.
