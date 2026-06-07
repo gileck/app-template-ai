@@ -5,7 +5,7 @@
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
     "path": "agent:code-reviewer",
-    "args": ["--stream", "--triggeredBy", "task-manager"],
+    "args": ["--stream", "--triggeredBy", "cron"],
     "interpreter": "npm",
     "workingDirectory": "/path/to/example-project"
   },

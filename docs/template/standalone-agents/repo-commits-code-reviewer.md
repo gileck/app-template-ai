@@ -68,7 +68,6 @@ The agent skips:
   - `agent-logs/`
   - `agent-tasks/`
   - `.ai/`
-  - `task-manager/`
 
 ## Review Context
 

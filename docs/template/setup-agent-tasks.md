@@ -32,7 +32,7 @@ Replace `<repo-name>` with the project's repository name (e.g., `my-app`, `book-
   "description": "Runs all workflow agents sequentially every 10 minutes",
   "script": {
     "path": "github-workflows-agent",
-    "args": ["--all", "--global-limit", "--stream", "--reset", "--stale-timeout", "20", "--triggeredBy", "task-manager"],
+    "args": ["--all", "--global-limit", "--stream", "--reset", "--stale-timeout", "20", "--triggeredBy", "cron"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/agents-copy/<repo-name>"
   },
@@ -116,7 +116,7 @@ Replace `<repo-name>` with the project's repository name:
   "description": "Reviews recent commits for bugs and improvements (diff-budget batched, every 4h)",
   "script": {
     "path": "agent:code-reviewer",
-    "args": ["--stream", "--triggeredBy", "task-manager"],
+    "args": ["--stream", "--triggeredBy", "cron"],
     "interpreter": "npm",
     "workingDirectory": "/Users/gileck/Projects/<repo-name>"
   },

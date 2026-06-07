@@ -44,7 +44,6 @@ const SKIP_PATTERNS = [
     /^agent-logs\//,
     /^agent-tasks\//,
     /^\.ai\//,
-    /^task-manager\//,
 ];
 
 /** Commit messages matching these patterns are skipped entirely */

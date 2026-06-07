@@ -23,7 +23,7 @@
  *   --limit <n>       Limit items to process (passed to agents)
  *   --global-limit    Stop workflow after first agent processes items (only with --all)
  *   --stream          Stream Claude output (passed to agents only)
- *   --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
+ *   --triggeredBy <s> Log what triggered this run (e.g. "cron", "manual")
  *   --stale-timeout <min> Minutes before a lock is considered stale (default: 20, 0 = force-clear)
  *
  * Examples:
@@ -152,7 +152,7 @@ Options:
   --limit <n>       Limit items to process (passed to agents)
   --global-limit    Stop workflow after first agent processes items (only with --all)
   --stream          Stream Claude output (passed to agents only)
-  --triggeredBy <s> Log what triggered this run (e.g. "task-manager", "manual")
+  --triggeredBy <s> Log what triggered this run (e.g. "cron", "manual")
   --stale-timeout <min> Minutes before lock is stale (default: 20, 0 = force-clear)
 
 Examples:

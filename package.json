@@ -70,7 +70,6 @@
     "test-codex-sdk": "tsx scripts/template/test-codex-sdk.ts",
     "test-all-adapters": "tsx scripts/template/test-all-adapters.ts",
     "test-clarification-flow": "tsx scripts/template/test-clarification-flow.ts",
-    "task": "tsx task-manager/tasks-cli.ts",
     "agent-workflow": "tsx src/agents/cli/index.ts",
     "daemon": "tsx src/server/template/rpc/daemon.ts",
     "daemon:dev": "tsx --watch src/server/template/rpc/daemon.ts --verbose"

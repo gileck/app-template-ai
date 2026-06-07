@@ -5,7 +5,7 @@
   "description": "Classifies Backlog items by domain and suggests metadata (every 30 minutes, 3 items per run)",
   "script": {
     "path": "agent:triage",
-    "args": ["--stream", "--triggeredBy", "task-manager"],
+    "args": ["--stream", "--triggeredBy", "cron"],
     "interpreter": "npm",
     "workingDirectory": "/path/to/example-project"
   },
