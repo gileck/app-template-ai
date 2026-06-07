@@ -37,21 +37,24 @@ This skill deletes those orphans. **Run it once in the child after the sync that
 
 ## Step 1 — Delete the orphaned source directories
 
-These are the de-globbed paths sync leaves behind. They are template-origin code (children don't customize them), so deleting them is safe.
+These are the de-globbed paths sync leaves behind. They are template-origin code (children don't customize them), so deleting them is safe. `task-manager/` is the analogous orphan from the earlier **task-manager removal** — it was never a synced path, so the child still has it, and its `tasks-cli.ts` imports the now-relocated `loadEnv`, breaking checks; remove it too.
 
 - **Actions:**
   ```bash
   git rm -r --quiet --ignore-unmatch \
     src/agents \
     src/pages/api/feature-requests \
-    src/pages/design-mocks
+    src/pages/design-mocks \
+    task-manager
   ```
   If any of those weren't git-tracked, also remove the on-disk leftovers:
   ```bash
-  rm -rf src/agents src/pages/api/feature-requests src/pages/design-mocks
+  rm -rf src/agents src/pages/api/feature-requests src/pages/design-mocks task-manager
   ```
 - **Note:** Keep `src/pages/api/telegram-webhook/` and `src/pages/api/telegram-webhook.ts` — those are general Telegram (synced, already decoupled). Only the `feature-requests/` REST dir (the old public approve endpoint) goes.
-- **Verify:** `ls src/agents src/pages/api/feature-requests src/pages/design-mocks 2>&1` → all "No such file or directory".
+- **Verify:** `ls src/agents src/pages/api/feature-requests src/pages/design-mocks task-manager 2>&1` → all "No such file or directory".
+
+> **Batch alternative:** to clean **all** child projects at once instead of per-project, run `bash scripts/template/cleanup-workflow-code-all.sh` from the template (dry-run; add `--apply`). It discovers children via `.template-sync.json`, gates on sync state, and performs Steps 1–4 for each.
 
 ---
 
@@ -77,7 +80,8 @@ These are the de-globbed paths sync leaves behind. They are template-origin code
 - **Actions:** Remove these script keys if present (leave everything else, especially `daemon` / `daemon:dev`):
   - `github-workflows-agent`, `agent-workflow`, and all `agent:*` (`agent:product-dev`, `agent:product-design`, `agent:tech-design`, `agent:implement`, `agent:bug-investigator`, `agent:pr-review`, `agent:workflow-review`, `agent:auto-advance`, `agent:triage`, `agent:code-reviewer`, `agent:logs`)
   - agent-only helpers (their target scripts were deleted from the template): `investigate-bugs`, `setup-github-secrets`, `sync-agent-logs`, `audit-feature-status`, `verify-setup`, `init-agents-copy`, `copy-to-agents`, `test-s3-logging`, `test-cursor-adapter`, `test-gemini-adapter`, `test-openai-codex-adapter`, `test-codex-sdk`, `test-all-adapters`, `test-clarification-flow`
-  - **Rule of thumb:** if a script's command contains `src/agents/`, delete it. If a script points to `scripts/template/<file>.ts` that no longer exists on disk, delete it.
+  - Also drop the `task` script (`tsx task-manager/tasks-cli.ts`) — its target is removed in Step 1.
+  - **Rule of thumb:** if a script's command references `src/agents/` or `task-manager/`, or points to a `scripts/template/<file>` that no longer exists on disk, delete it.
 - **Keep:** `daemon`, `daemon:dev`, `setup-s3-logging`, `telegram-*`, `github-pr`, `verify-credentials`, `verify-production`, and all non-agent scripts.
 - **Verify:** `grep -nE '"(github-workflows-agent|agent-workflow|agent:)' package.json` → no matches.
 
