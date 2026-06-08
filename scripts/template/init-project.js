@@ -11,7 +11,9 @@
   5) Write LOCAL_USER_ID in .env
   6) Delete template example features (Todos, Chat, AIChat, Home)
   7) Install git hooks + mark yarn.lock skip-worktree (yarn setup-hooks)
-  8) Prompt for `vercel link`, then optionally push .env/.env.local to
+  8) Register this child in the template's child-projects.json (so
+     `yarn sync-children` from the template picks it up)
+  9) Prompt for `vercel link`, then optionally push .env/.env.local to
      Vercel (filtered: LOCAL_* keys excluded, user confirms the key list)
 */
 
@@ -119,6 +121,44 @@ function ensureProjectOverride(relPath) {
     cfg.projectOverrides = overrides;
     writeTemplateSyncConfig(cfg);
     console.log(`[.template-sync.json] Added ${relPath} to projectOverrides.`);
+}
+
+// Register this child in the TEMPLATE's child-projects.json so `yarn
+// sync-children` (run from the template) picks it up. init-project runs in the
+// CHILD; the template sits at ../app-template-ai (same assumption as the env
+// copy + sync). The entry format matches the file: a `../<dir-name>` path
+// relative to the template. Idempotent and best-effort — silently skips if the
+// template or its config isn't a sibling (e.g. a child cloned standalone).
+function registerInTemplateChildProjects() {
+    const childName = path.basename(process.cwd());
+    if (childName === 'app-template-ai') return; // never register the template itself
+    const templateDir = path.resolve(process.cwd(), '..', 'app-template-ai');
+    if (!fs.existsSync(templateDir)) {
+        console.log('[child-projects.json] Template not found at ../app-template-ai — skipping sync-children registration.');
+        return;
+    }
+    // child-projects.json is gitignored (the template owner's LOCAL list of
+    // their children), so a fresh template clone won't have it — create it.
+    const templateConfigPath = path.join(templateDir, 'child-projects.json');
+    let config = { projects: [] };
+    if (fs.existsSync(templateConfigPath)) {
+        try {
+            config = JSON.parse(fs.readFileSync(templateConfigPath, 'utf8'));
+        } catch {
+            console.log('[child-projects.json] Template config unreadable — skipping registration.');
+            return;
+        }
+    }
+    const projects = Array.isArray(config.projects) ? config.projects : [];
+    const entry = `../${childName}`;
+    if (projects.includes(entry)) {
+        console.log(`[child-projects.json] Already registered (${entry}).`);
+        return;
+    }
+    projects.push(entry); // append (don't sort — keep the existing list's diff minimal)
+    config.projects = projects;
+    fs.writeFileSync(templateConfigPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+    console.log(`[child-projects.json] Registered ${entry} in the template's sync-children list.`);
 }
 
 function isProjectConfigured() {
@@ -586,6 +626,10 @@ async function main() {
     // fresh and already-configured paths) so the template-ownership pre-commit
     // guard won't block those edits and template sync won't overwrite them.
     ensureProjectOverride('src/config/pwa.config.ts');
+
+    // Register this child in the template's child-projects.json so
+    // `yarn sync-children` (run from the template) includes it.
+    registerInTemplateChildProjects();
 
     // Step 6-7: Create local user and write LOCAL_USER_ID to .env
     await createLocalUserAndWriteEnv();

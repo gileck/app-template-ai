@@ -24,7 +24,8 @@ It does everything `yarn init-project` does — but **AI-driven and verified at 
 | 6–7 | Local user | Via **`yarn create-local-user`** — reuses the app's real `users.insertUser` + `SALT_ROUNDS` + approval logic (so the seeded user matches the current schema and is created **approved**), then writes `LOCAL_USER_ID` to `.env`. `LOCAL_USER_ID` is a dev-only auth shortcut that also grants admin locally |
 | 8 | Demo cleanup | Deletes the example features (Todos, Chat, AIChat, demo Home) |
 | 9 | Git hooks | `yarn setup-hooks` (installs hooks + marks `yarn.lock` skip-worktree) |
-| 10 | Vercel | Prompts `vercel link`, then optionally pushes env vars (excludes `LOCAL_*`) |
+| 10 | Register with template | Appends this child's `../<dir-name>` to the template's `child-projects.json` (at `../app-template-ai/`) so `yarn sync-children` run from the template picks it up. Idempotent; best-effort (skips if the template isn't a sibling) |
+| 11 | Vercel | Prompts `vercel link`, then optionally pushes env vars (excludes `LOCAL_*`) |
 
 It's **idempotent** — every step checks a flag/marker and skips if already done, so re-running is safe.
 
