@@ -35,7 +35,10 @@ This skill runs that core, then adds: **verify setup → verify Vercel deploymen
 
 ## Phase 0 — Preflight
 
-1. **Refuse on the template repo itself.** If `package.json` `name` is `app-template-ai` (or the working dir is the template clone), STOP — this skill is for child projects. Initializing the template would wipe its demo features (which are its documentation).
+1. **Refuse on the template repo itself — check the PATH, not the package name.** Initializing the template would wipe its demo features (which are its documentation), so refuse if you're in it. But the `package.json` `name` is `app-template-ai` in *every* fresh child too (it's a copy artifact this skill fixes in Phase 2), so it is NOT a reliable signal — **do not gate on it.** Instead determine "am I the template?" the way the codebase does (`scripts/template/init-project.js` → `isTemplateRepoItself()`):
+   - **It's the template (STOP):** the working directory's basename is `app-template-ai` (e.g. `~/Projects/app-template-ai`) **and** `.template-sync.json` has an empty/absent `templateRepo`. (Git origin alone is not a discriminator — the in-app scaffold flow repoints a child's origin back at the template repo.)
+   - **It's a child (PROCEED):** the directory is named anything else (e.g. `~/Projects/test-project`), **or** `.template-sync.json` already has a non-empty `templateRepo`. A child whose `package.json` still says `app-template-ai` is the *normal* starting state — proceed without asking.
+   - **Only if genuinely ambiguous** (dir basename *is* `app-template-ai` but `templateRepo` is already set) ask the developer to confirm before doing anything destructive.
 2. **Dependencies installed.** If `node_modules` is missing, run `yarn install`.
 3. **Clean tree.** Run `git status`. If there are uncommitted changes beyond a fresh clone, note them — this skill edits config files and deletes demos.
 4. **Tooling present.** Confirm `node`, `yarn`, and (for later phases) the `vercel` CLI are available; MongoDB must be reachable for the local-user step.
