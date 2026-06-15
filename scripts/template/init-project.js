@@ -24,7 +24,79 @@ const { execSync } = require('child_process');
 
 // NOTE: dotenv is loaded AFTER ensureEnvFromParentOrEmpty() in main() to ensure .env exists first
 
+// --- Non-interactive answers ------------------------------------------------
+// The script is interactive by default (readline prompts), but an agent or CI
+// can drive it unattended by passing flags or INIT_* env vars. This avoids the
+// stdin-EOF truncation that happens when piping answers (`printf ... | yarn
+// init-project`) — the second prompt would read EOF and the run would abort
+// half-initialized. With presets, `prompt()` returns the preset and never reads
+// stdin, so every step runs in one clean pass.
+//
+//   Flags:  --name <s> --description <s> --theme <hex>
+//           --yes            (accept defaults / confirmations non-interactively)
+//           --no-vercel      (skip the Vercel link + env-push prompts)
+//   Env:    INIT_PROJECT_NAME, INIT_PROJECT_DESCRIPTION, INIT_PROJECT_THEME,
+//           INIT_YES=1, INIT_NO_VERCEL=1
+//
+// A flag wins over its env var; an env var wins over interactive prompting.
+function parseArgs(argv) {
+    const out = {};
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        const takeValue = () => argv[++i];
+        switch (a) {
+            case '--name': out.name = takeValue(); break;
+            case '--description': out.description = takeValue(); break;
+            case '--theme': out.theme = takeValue(); break;
+            case '--yes': case '-y': out.yes = true; break;
+            case '--no-vercel': out.noVercel = true; break;
+            case '--core-env': out.coreEnv = true; break;
+            default: break;
+        }
+    }
+    return out;
+}
+
+const CLI = parseArgs(process.argv.slice(2));
+
+const PRESETS = {
+    name: CLI.name || process.env.INIT_PROJECT_NAME || null,
+    description: CLI.description || process.env.INIT_PROJECT_DESCRIPTION || null,
+    theme: CLI.theme || process.env.INIT_PROJECT_THEME || null,
+    yes: Boolean(CLI.yes || process.env.INIT_YES === '1'),
+    noVercel: Boolean(CLI.noVercel || process.env.INIT_NO_VERCEL === '1'),
+    coreEnv: Boolean(CLI.coreEnv || process.env.INIT_CORE_ENV === '1'),
+};
+
+// True when the run is fully driven by presets — no prompt needs stdin. Used to
+// pick safe non-interactive defaults for confirmations (e.g. Vercel push stays
+// off unless --yes).
+const NON_INTERACTIVE = Boolean(
+    PRESETS.yes || PRESETS.name || PRESETS.description || PRESETS.theme || PRESETS.noVercel
+);
+
+// Map a prompt to its preset (if any), so prompt() can answer without stdin.
+function presetFor(question) {
+    const q = question.toLowerCase();
+    if (q.includes('project name')) return PRESETS.name;
+    if (q.includes('description')) return PRESETS.description;
+    if (q.includes('theme')) return PRESETS.theme;
+    return null;
+}
+
 async function prompt(question, defaultValue) {
+    // Preset answer (flag/env) — skip stdin entirely.
+    const preset = presetFor(question);
+    if (preset != null && preset !== '') {
+        console.log(`${question}: ${preset}  (from flag/env)`);
+        return preset;
+    }
+    // Non-interactive with no preset for this question → take the default,
+    // rather than blocking on (or EOF-ing) stdin.
+    if (NON_INTERACTIVE) {
+        console.log(`${question}: ${defaultValue || ''}  (default, non-interactive)`);
+        return defaultValue || '';
+    }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const q = defaultValue ? `${question} (${defaultValue}): ` : `${question}: `;
     const answer = await new Promise((resolve) => rl.question(q, (ans) => resolve(ans)));
@@ -63,6 +135,29 @@ const TEMPLATE_DEFAULT_APP_NAME = 'App Template AI';
 // signal: we only rewrite the name while it still equals this, so a project
 // that already customized it (or a manual edit) is never clobbered.
 const TEMPLATE_DEFAULT_PACKAGE_NAME = 'app-template-ai';
+
+// Generic placeholder identity the template ships in pwa.config.ts /
+// manifest.json. The recovery path used to write these verbatim, leaving the
+// project branded as the template. We treat their PRESENCE in a managed file as
+// a "still default, please overwrite" signal — see managedFilesHaveDefaults().
+const TEMPLATE_DEFAULT_DESCRIPTION = 'A custom SPA application with PWA capabilities';
+const TEMPLATE_DEFAULT_THEME_COLOR = '#000000';
+
+// Does a managed PWA file still carry the template's default branding? True
+// when the file is missing OR contains the template appName / generic
+// description / placeholder theme. Used by the recovery path to decide whether
+// to force-rewrite rather than skip a stale, half-initialized file.
+function managedFilesHaveDefaults() {
+    const pwaPath = path.resolve(__dirname, '..', '..', 'src', 'config', 'pwa.config.ts');
+    const manifestPath = path.resolve(__dirname, '..', '..', 'public', 'manifest.json');
+    const markers = [TEMPLATE_DEFAULT_APP_NAME, TEMPLATE_DEFAULT_DESCRIPTION];
+    for (const p of [pwaPath, manifestPath]) {
+        if (!fs.existsSync(p)) return true; // missing → must (re)create
+        const content = fs.readFileSync(p, 'utf8');
+        if (markers.some((m) => content.includes(m))) return true;
+    }
+    return false;
+}
 
 function getAppConfigValues() {
     const configPath = path.resolve(__dirname, '..', '..', 'src', 'app.config.js');
@@ -107,6 +202,28 @@ function setInitFlag(name) {
     if (!cfg) return;
     cfg.init = { ...(cfg.init || {}), [name]: true };
     writeTemplateSyncConfig(cfg);
+}
+
+// --- Resolved identity persistence ------------------------------------------
+// The fresh-init path collects name/description/theme from prompts (or
+// flags/env). We stash them on `.template-sync.json` under `init.identity` so
+// the recovery path (a re-run after a crash) can reconstruct pwa.config.ts /
+// manifest.json with the REAL values instead of the generic placeholders that
+// caused half-written files in earlier runs. app.config.js only stores
+// name/dbName, so without this the recovery path had no description/theme.
+function saveResolvedIdentity({ name, description, themeColor }) {
+    const cfg = readTemplateSyncConfig();
+    if (!cfg) return;
+    cfg.init = {
+        ...(cfg.init || {}),
+        identity: { name, description, themeColor },
+    };
+    writeTemplateSyncConfig(cfg);
+}
+
+function getResolvedIdentity() {
+    const cfg = readTemplateSyncConfig();
+    return (cfg && cfg.init && cfg.init.identity) || null;
 }
 
 // Register a path as a project override so template sync won't clobber it and
@@ -448,16 +565,47 @@ function createManifest(projectName, description, themeColor, { force = false } 
 // inside the template repo itself.
 const TEMPLATE_REPO_URL = 'git@github.com:gileck/app-template-ai.git';
 
-function isTemplateRepoItself() {
+// The template's repo path component, matched against any origin URL form
+// (ssh git@…:gileck/app-template-ai.git, https://…/gileck/app-template-ai.git,
+// with or without the .git suffix). More robust than an exact-string compare,
+// which broke when an origin used https instead of the canonical ssh URL.
+const TEMPLATE_REPO_SLUG = 'gileck/app-template-ai';
+
+function getGitOrigin() {
     try {
-        const origin = execSync('git remote get-url origin', {
+        return execSync('git remote get-url origin', {
             encoding: 'utf8',
             stdio: 'pipe',
         }).trim();
-        return origin === TEMPLATE_REPO_URL;
     } catch {
-        return false;
+        return '';
     }
+}
+
+// True when this checkout IS the template repo. Recognized two ways: the cwd
+// directory name is `app-template-ai` (the canonical clone dir), OR the git
+// origin points at the template repo in any URL form. Either alone is enough —
+// a child cloned into a differently-named dir is caught by origin; a template
+// clone with no origin is caught by the directory name.
+function isTemplateRepoItself() {
+    if (path.basename(process.cwd()) === 'app-template-ai') return true;
+    const origin = getGitOrigin();
+    if (!origin) return false;
+    return origin === TEMPLATE_REPO_URL ||
+        origin.replace(/\.git$/, '').endsWith(TEMPLATE_REPO_SLUG);
+}
+
+// A child whose origin still points at the TEMPLATE repo hasn't been given its
+// own GitHub repo yet — pushing would commit into the template. Detect this so
+// the caller can warn early instead of letting init "succeed" against the wrong
+// remote. Distinct from isTemplateRepoItself(): here we're a child (the dir is
+// NOT app-template-ai) but the remote is wrong.
+function childPointsAtTemplateOrigin() {
+    if (path.basename(process.cwd()) === 'app-template-ai') return false; // we ARE the template
+    const origin = getGitOrigin();
+    if (!origin) return false;
+    return origin === TEMPLATE_REPO_URL ||
+        origin.replace(/\.git$/, '').endsWith(TEMPLATE_REPO_SLUG);
 }
 
 function runInitTemplate() {
@@ -576,6 +724,18 @@ function runSetupHooks() {
 async function main() {
     console.log('=== Project Initialization ===\n');
 
+    // Preflight: a child whose git origin still points at the template repo has
+    // no repo of its own. Warn up front so the user creates/sets their repo
+    // BEFORE init pushes anything (env, child-projects.json) — otherwise the
+    // "successful" run is against the wrong remote and Vercel links the template.
+    if (childPointsAtTemplateOrigin()) {
+        console.log('⚠️  Git origin points at the TEMPLATE repo (gileck/app-template-ai).');
+        console.log('   This project has no repo of its own yet. Before deploying, create one and point origin at it:');
+        console.log('     gh repo create <your-project> --private --source=. --remote=origin --push');
+        console.log('   (or update origin manually: git remote set-url origin <your-repo-url>)');
+        console.log('   Continuing local init — but DO NOT push or link Vercel until origin is fixed.\n');
+    }
+
     // Step 1: Ensure .env exists (copy from parent if needed)
     ensureEnvFromParentOrEmpty();
 
@@ -595,13 +755,47 @@ async function main() {
     // Step 3-5: Project config, PWA config, manifest. Skip if `init.appConfig`
     // is already set (or detected via legacy customization migration).
     if (isProjectConfigured()) {
-        const values = getAppConfigValues();
+        let values = getAppConfigValues();
+
+        // Recovery: a crashed run can set the `init.appConfig` flag while leaving
+        // src/app.config.js holding the template default ("App Template AI") or an
+        // empty appName. The flag short-circuits the fresh path, so without this
+        // check the wrong name sticks forever. If we have a real name stashed from
+        // the original run, rewrite app.config.js before doing anything downstream.
+        if (!values.appName || values.appName === TEMPLATE_DEFAULT_APP_NAME) {
+            const saved = getResolvedIdentity();
+            const recoveredName = saved && saved.name;
+            if (recoveredName) {
+                console.log(`[Recovery] app.config.js still holds the template default — rewriting appName to "${recoveredName}".`);
+                updateAppConfig(recoveredName, toDbName(recoveredName));
+                values = getAppConfigValues();
+            } else {
+                console.log('[Recovery] app.config.js holds the template default but no saved identity exists to recover from — leaving as-is.');
+            }
+        }
+
         console.log(`[app.config.js] Already configured (appName: "${values.appName}"), skipping prompts.`);
-        // Recovery: create pwa.config.ts / manifest.json if missing, but never
-        // overwrite — they may hold the user's earlier prompt answers.
-        createPwaConfig(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
-        createManifest(values.appName, 'A custom SPA application with PWA capabilities', '#000000');
         if (values.appName) updatePackageName(toPackageName(values.appName));
+
+        // Recovery: pwa.config.ts / manifest.json may be MISSING (crashed run) or
+        // still carry the template's default branding ("App Template AI" / the
+        // generic description). Don't silently skip those — force-rewrite with the
+        // best identity we have. Prefer the identity stashed by the fresh-init
+        // path; fall back to the resolved appName + template placeholders so the
+        // app name is at least correct even if description/theme were never saved.
+        if (managedFilesHaveDefaults()) {
+            const saved = getResolvedIdentity();
+            const name = (saved && saved.name) || values.appName;
+            const description = (saved && saved.description) || TEMPLATE_DEFAULT_DESCRIPTION;
+            const themeColor = (saved && saved.themeColor) || TEMPLATE_DEFAULT_THEME_COLOR;
+            console.log('[Recovery] Managed PWA files still hold template defaults — rewriting with project identity.');
+            createPwaConfig(name, description, themeColor, { force: true });
+            createManifest(name, description, themeColor, { force: true });
+        } else {
+            // Files exist and are already branded for this project — leave them.
+            createPwaConfig(values.appName, TEMPLATE_DEFAULT_DESCRIPTION, TEMPLATE_DEFAULT_THEME_COLOR);
+            createManifest(values.appName, TEMPLATE_DEFAULT_DESCRIPTION, TEMPLATE_DEFAULT_THEME_COLOR);
+        }
     } else {
         const defaultName = getDefaultProjectName();
         const projectName = await prompt('Project Name', defaultName);
@@ -611,13 +805,16 @@ async function main() {
         updatePackageName(toPackageName(projectName));
 
         // PWA configuration
-        const pwaDescription = await prompt('App Description', 'A custom SPA application with PWA capabilities');
-        const pwaThemeColor = await prompt('Theme Color (hex)', '#000000');
+        const pwaDescription = await prompt('App Description', TEMPLATE_DEFAULT_DESCRIPTION);
+        const pwaThemeColor = await prompt('Theme Color (hex)', TEMPLATE_DEFAULT_THEME_COLOR);
 
         // force: prompts ran with fresh user input; existing files are stale defaults.
         createPwaConfig(projectName, pwaDescription, pwaThemeColor, { force: true });
         createManifest(projectName, pwaDescription, pwaThemeColor, { force: true });
 
+        // Persist the resolved identity so a later re-run (recovery path) can
+        // reconstruct these files with the real description/theme, not placeholders.
+        saveResolvedIdentity({ name: projectName, description: pwaDescription, themeColor: pwaThemeColor });
         setInitFlag('appConfig');
     }
 
@@ -643,6 +840,12 @@ async function main() {
     console.log('\n=== Initialization complete ===');
 
     // Step 10: Prompt for Vercel linking, then optionally push env vars.
+    // --no-vercel (INIT_NO_VERCEL=1) skips this entirely — the init-project
+    // skill handles Vercel in its own phase, so an agent-driven run opts out.
+    if (PRESETS.noVercel) {
+        console.log('\n[Vercel] Skipped (--no-vercel). Link + push env later in Phase 5 / `yarn vercel-cli env:sync`.');
+        return;
+    }
     const linked = await promptVercelLink();
     if (linked) {
         await promptVercelEnvPush();
@@ -716,6 +919,20 @@ function isLocalOnlyEnvKey(key) {
     return VERCEL_ENV_EXCLUDE_EXACT.has(key);
 }
 
+// The minimal set of keys a fresh deployment needs to boot and authenticate.
+// "Push core only" sends just these, leaving optional service integrations
+// (Telegram, GitHub bridge, AI-assistant reports, push/VAPID, passkeys) to be
+// configured later by their own setup skills. This keeps the first deploy clean
+// and avoids leaking the template owner's service credentials into a new
+// project. Selected with --core-env (or INIT_CORE_ENV=1); ignored otherwise.
+const CORE_ENV_KEYS = new Set([
+    'MONGO_URI',
+    'JWT_SECRET',
+    'RPC_SECRET',
+    'ADMIN_USER_ID',
+    'NEXT_PUBLIC_APP_URL',
+]);
+
 function parseDotenvFile(filePath) {
     const out = {};
     if (!fs.existsSync(filePath)) return out;
@@ -744,14 +961,22 @@ async function promptVercelEnvPush() {
     const envLocal = parseDotenvFile(path.resolve(process.cwd(), '.env.local'));
     const merged = { ...envBase, ...envLocal };
 
+    // "Core only" mode (--core-env / INIT_CORE_ENV=1): narrow the pushable set to
+    // CORE_ENV_KEYS so a first deploy ships only the boot/auth essentials and no
+    // optional service credentials leak from the template owner's env.
+    const coreOnly = PRESETS.coreEnv;
     const pushable = Object.entries(merged)
         .filter(([key, value]) => !isLocalOnlyEnvKey(key) && value.length > 0)
+        .filter(([key]) => !coreOnly || CORE_ENV_KEYS.has(key))
         .map(([key]) => key)
         .sort();
     const excluded = Object.keys(merged).filter((k) => isLocalOnlyEnvKey(k)).sort();
 
     console.log('\n📤 Vercel Environment Variables');
     console.log('═'.repeat(50));
+    if (coreOnly) {
+        console.log('Mode: CORE ONLY (boot/auth essentials; optional services pushed later by their setup skills).');
+    }
 
     if (pushable.length === 0) {
         console.log('\nNo env vars to push (empty or only LOCAL_* keys).');
@@ -769,8 +994,18 @@ async function promptVercelEnvPush() {
     console.log('\n⚠️  Review the list above — values won\'t be shown but keys will go to Vercel.');
     console.log('   Anything pointing to a dev-only resource (e.g. local MongoDB) should be removed from .env.local first.');
 
-    const answer = await prompt('\nPush these to Vercel now?', 'N');
-    const confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    // Non-interactive auto-confirm: an explicit --yes (or --core-env, which is a
+    // deliberate "push the narrowed set" request) authorizes the push without a
+    // prompt. Without either, prompt() would EOF/default to 'N' and silently
+    // skip — making --core-env a no-op. With them we proceed.
+    const autoConfirm = PRESETS.yes || PRESETS.coreEnv;
+    let confirmed = autoConfirm;
+    if (!confirmed) {
+        const answer = await prompt('\nPush these to Vercel now?', 'N');
+        confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    } else {
+        console.log(`\nAuto-confirmed (${PRESETS.coreEnv ? '--core-env' : '--yes'}) — pushing.`);
+    }
     if (!confirmed) {
         console.log('\n📋 Skipped. Run later with: yarn vercel-cli env:push');
         return;
