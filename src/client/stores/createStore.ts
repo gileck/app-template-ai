@@ -24,9 +24,37 @@
  */
 
 import { create, type StoreApi } from 'zustand';
-import { persist, subscribeWithSelector, type PersistOptions } from 'zustand/middleware';
+import { createJSONStorage, persist, subscribeWithSelector, type PersistOptions, type StateStorage } from 'zustand/middleware';
 import type { PersistedStoreConfig, InMemoryStoreConfig } from './types';
 import { registerStore } from './registry';
+
+/**
+ * Quota-safe localStorage wrapper for zustand's persist middleware.
+ *
+ * zustand's default storage writes to localStorage with no error handling, so a
+ * near-full quota makes `setItem` throw an uncaught QuotaExceededError on routine
+ * writes (e.g. route-storage on every navigation). This wrapper swallows write
+ * failures: the store keeps working in memory and degrades gracefully instead of
+ * crashing the writer that happened to trip the full quota.
+ *
+ * Returns `undefined` on the server so callers fall back to zustand's no-op SSR
+ * path (never construct a persistStorage around an unavailable backend).
+ */
+function getSafeStorage(): StateStorage | undefined {
+    if (typeof window === 'undefined') return undefined;
+    return {
+        getItem: (name) => window.localStorage.getItem(name),
+        setItem: (name, value) => {
+            try {
+                window.localStorage.setItem(name, value);
+            } catch (error) {
+                // localStorage full (or unavailable) — drop the write, don't throw.
+                console.warn(`[store] Failed to persist "${name}" to localStorage (quota likely exceeded). Continuing in memory.`, error);
+            }
+        },
+        removeItem: (name) => window.localStorage.removeItem(name),
+    };
+}
 
 // ============================================================================
 // Store Return Types
@@ -121,8 +149,14 @@ export function createStore<T>(
     const persistedConfig = config as PersistedStoreConfig<T>;
     const { persistOptions, withSelector = true } = persistedConfig;
     
-    // Build persist options with the key as name
+    // Build persist options with the key as name.
+    // On the client, default to a quota-safe localStorage wrapper so a near-full
+    // quota degrades gracefully instead of throwing an uncaught QuotaExceededError
+    // on write. On the server we leave `storage` unset so zustand's built-in no-op
+    // SSR path applies. Callers can still override `storage` explicitly.
+    const safeStorage = getSafeStorage();
     const fullPersistOptions: PersistOptions<T, Partial<T>> = {
+        ...(safeStorage ? { storage: createJSONStorage(() => safeStorage) } : {}),
         ...persistOptions,
         name: key,
     };

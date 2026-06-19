@@ -58,6 +58,16 @@ const SLOW_DURATION_THRESHOLD = 500; // ms
 const LARGE_SIZE_THRESHOLD = 1024 * 1024; // 1MB
 
 /**
+ * Maximum size (in bytes/UTF-16 code units) of the React Query persist blob
+ * written to localStorage. localStorage is capped at ~5MB total across ALL keys,
+ * so we budget the cache below that to leave headroom for zustand stores and to
+ * avoid filling the quota (which makes the next setItem from any writer throw
+ * QuotaExceededError). When exceeded, we skip the write rather than persist a
+ * blob that crowds out every other store.
+ */
+const MAX_PERSIST_BYTES = 4 * 1024 * 1024; // 4MB
+
+/**
  * Check if cache operation should be logged (only if slow or large)
  */
 function shouldLogCacheOperation(duration: number, size: number): boolean {
@@ -76,10 +86,22 @@ export function createLocalStoragePersister(): Persister {
             try {
                 const start = performance.now();
                 const data = JSON.stringify(client);
+                const size = data.length;
+
+                // Cap the persist blob so the React Query cache can never consume
+                // the whole localStorage quota. If it would, skip this write (the
+                // last successfully persisted, smaller blob stays in place) and warn.
+                if (size > MAX_PERSIST_BYTES) {
+                    const queryCount = client.clientState?.queries?.length || 0;
+                    logger.warn('cache', `React Query cache too large to persist, skipping write (localStorage)`, {
+                        meta: { size, sizeFormatted: formatBytes(size), limit: MAX_PERSIST_BYTES, limitFormatted: formatBytes(MAX_PERSIST_BYTES), queryCount }
+                    });
+                    return;
+                }
+
                 localStorage.setItem(key, data);
                 const duration = Math.round(performance.now() - start);
-                const size = data.length;
-                
+
                 // Only log if slow or large
                 if (shouldLogCacheOperation(duration, size)) {
                     const queryCount = client.clientState?.queries?.length || 0;
