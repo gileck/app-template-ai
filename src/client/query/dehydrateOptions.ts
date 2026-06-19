@@ -9,10 +9,16 @@
  * creating a QueryProvider <-> trimCache import cycle.
  */
 
+import { projectExcludedQueryKeys } from './persist-exclusions.project';
+
 // Query keys that should NOT be persisted.
 // These are either too large or not worth caching.
+// Template defaults + project-owned exclusions (persist-exclusions.project.ts),
+// so a child project can exclude its own large entities without editing the
+// template. Matched on the first queryKey segment.
 export const EXCLUDED_QUERY_KEYS = [
     'reports', // Reports contain huge session logs and performance entries
+    ...projectExcludedQueryKeys,
 ];
 
 // Dehydrate options - stable reference at module level
