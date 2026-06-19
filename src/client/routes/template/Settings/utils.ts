@@ -9,9 +9,11 @@ import {
     type CacheSizeInfo,
 } from '@/client/stores';
 import { formatBytes } from '@/client/lib/utils';
+import { PERSISTED_CACHE_KEY } from '@/client/query';
 
-// React Query cache key (not managed by store registry)
-export const REACT_QUERY_CACHE_KEY = 'react-query-cache-v2';
+// React Query cache key (not managed by store registry).
+// Single source of truth: the persister's canonical key.
+export const REACT_QUERY_CACHE_KEY = PERSISTED_CACHE_KEY;
 
 // localStorage limit is typically ~5MB
 export const LOCAL_STORAGE_LIMIT = 5 * 1024 * 1024;

@@ -14,12 +14,15 @@
  */
 import type { ReactElement } from 'react';
 import { PushNavigationBridge } from '../push-notifications';
+import { CacheMonitorBridge } from '../cache-monitor';
 
 export function TemplateAppBridges(): ReactElement {
     return (
         <>
             {/* Push deep-link navigation: SW `push-navigate` message -> router. */}
             <PushNavigationBridge />
+            {/* Cache-size threshold notifications (toast + Trim action). */}
+            <CacheMonitorBridge />
             {/* Add future template app-root bridges below. */}
         </>
     );

@@ -8,6 +8,13 @@ const CACHE_KEY = 'react-query-cache';
 const CACHE_BUSTER = 'v2'; // Increment to invalidate all cached data (v2: excluded reports from cache)
 
 /**
+ * Canonical localStorage key for the persisted React Query blob.
+ * Exported as the single source of truth so the cache monitor, the trim helper,
+ * and the Settings UI all reference the same key instead of hardcoding it.
+ */
+export const PERSISTED_CACHE_KEY = `${CACHE_KEY}-${CACHE_BUSTER}`;
+
+/**
  * Storage type for React Query persistence
  * - 'localStorage': Fast, but limited to ~5MB
  * - 'indexedDB': Larger capacity, but can be very slow on some systems
@@ -79,14 +86,16 @@ function shouldLogCacheOperation(duration: number, size: number): boolean {
  * Fast but limited to ~5MB
  */
 export function createLocalStoragePersister(): Persister {
-    const key = `${CACHE_KEY}-${CACHE_BUSTER}`;
+    const key = PERSISTED_CACHE_KEY;
 
     return {
         persistClient: async (client: PersistedClient) => {
             try {
                 const start = performance.now();
                 const data = JSON.stringify(client);
-                const size = data.length;
+                // True UTF-8 byte size (matches the monitor + Settings, which both
+                // measure with Blob), not the UTF-16 code-unit count of data.length.
+                const size = new Blob([data]).size;
 
                 // Cap the persist blob so the React Query cache can never consume
                 // the whole localStorage quota. If it would, skip this write (the

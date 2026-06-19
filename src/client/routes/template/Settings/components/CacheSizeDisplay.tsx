@@ -1,19 +1,44 @@
 import { useState } from 'react';
 import { LOCAL_STORAGE_LIMIT, type CacheSizeState } from '../utils';
+import { ONE_MB } from '@/client/features/template/cache-monitor';
 
 interface CacheSizeDisplayProps {
     cacheSize: CacheSizeState;
+}
+
+/**
+ * Health tier for the cache size:
+ * - destructive: > 80% of the ~5MB localStorage limit (close to the quota)
+ * - warning: >= 1MB (the persister cost starts to be noticeable)
+ * - success: < 1MB (healthy)
+ */
+function getCacheTier(bytes: number): { dot: string; label: string; text: string } {
+    if (bytes / LOCAL_STORAGE_LIMIT > 0.8) {
+        return { dot: 'bg-destructive', text: 'text-destructive', label: 'Near limit' };
+    }
+    if (bytes >= ONE_MB) {
+        return { dot: 'bg-warning', text: 'text-warning', label: 'Large' };
+    }
+    return { dot: 'bg-success', text: 'text-success', label: 'Healthy' };
 }
 
 export function CacheSizeDisplay({ cacheSize }: CacheSizeDisplayProps) {
     // eslint-disable-next-line state-management/prefer-state-architecture -- local UI toggle for breakdown visibility
     const [showBreakdown, setShowBreakdown] = useState(false);
 
+    const tier = getCacheTier(cacheSize.total.bytes);
+
     return (
         <div className="mb-3 rounded-md bg-muted p-3">
             <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Total Client Cache</span>
-                <span className="text-sm font-mono">{cacheSize.total.formatted}</span>
+                <div className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1 text-xs font-medium ${tier.text}`}>
+                        <span className={`h-2 w-2 rounded-full ${tier.dot}`} />
+                        {tier.label}
+                    </span>
+                    <span className="text-sm font-mono">{cacheSize.total.formatted}</span>
+                </div>
             </div>
             <div className="mt-2">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-background">

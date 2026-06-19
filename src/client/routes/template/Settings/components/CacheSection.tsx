@@ -11,6 +11,8 @@ import { LinearProgress } from '@/client/components/template/ui/linear-progress'
 import { useSettingsStore } from '@/client/features';
 import { clearCache as clearCacheApi } from '@/apis/template/settings/clearCache/client';
 import { clearAllPersistedStores } from '@/client/stores';
+import { trimPersistedCache } from '@/client/query';
+import { formatBytes } from '@/client/lib/utils';
 import { REACT_QUERY_CACHE_KEY, getCombinedCacheSize, printCacheToConsole, type CacheSizeState } from '../utils';
 import { CacheSizeDisplay } from './CacheSizeDisplay';
 import { CacheBehaviorSection } from './CacheBehaviorSection';
@@ -81,6 +83,18 @@ export function CacheSection({ onSnackbar }: CacheSectionProps) {
         }
     };
 
+    const handleTrimCache = () => {
+        const { removedCount, freedBytes } = trimPersistedCache();
+        if (removedCount > 0) {
+            onSnackbar(`Trimmed cache — freed ${formatBytes(freedBytes)} (${removedCount} queries)`, 'success');
+        } else {
+            onSnackbar('Cache is already within target — nothing to trim', 'info');
+        }
+        // The persister re-writes asynchronously after removeQueries; give it
+        // a moment before re-measuring the on-disk size.
+        setTimeout(refreshCacheSize, 1200);
+    };
+
     return (
         <>
             <h2 className="mb-2 text-lg font-medium">Cache Management</h2>
@@ -91,8 +105,9 @@ export function CacheSection({ onSnackbar }: CacheSectionProps) {
 
             <CacheSizeDisplay cacheSize={cacheSize} />
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <Button onClick={handleClearCache} disabled={isClearing}>Clear Cache</Button>
+                <Button variant="outline" onClick={handleTrimCache}>Trim Cache</Button>
                 <Button variant="outline" onClick={printCacheToConsole}>Print to Console</Button>
             </div>
             {isClearing && <LinearProgress className="mt-2" />}

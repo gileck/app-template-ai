@@ -3,6 +3,7 @@ import { QueryClientProvider, useIsRestoring } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { getQueryClient } from './queryClient';
 import { createLocalStoragePersister } from './persister';
+import { dehydrateOptions } from './dehydrateOptions';
 import { defaultSettings } from '@/client/features/template/settings';
 
 interface QueryProviderProps {
@@ -62,33 +63,6 @@ function WaitForCacheRestore({ children }: { children: React.ReactNode }) {
  */
 const USE_REACT_QUERY_PERSISTENCE = true;
 const persister = (USE_REACT_QUERY_PERSISTENCE && typeof window !== 'undefined') ? createLocalStoragePersister() : null;
-
-// Query keys that should NOT be persisted to IndexedDB
-// These are either too large or not worth caching
-const EXCLUDED_QUERY_KEYS = [
-    'reports', // Reports contain huge session logs and performance entries
-];
-
-// Dehydrate options - stable reference at module level
-const dehydrateOptions = {
-    shouldDehydrateQuery: (query: { queryKey: readonly unknown[]; state: { status: string; error: unknown } }) => {
-        // Only persist successful queries
-        if (query.state.status !== 'success') {
-            return false;
-        }
-        // Don't persist queries with errors
-        if (query.state.error) {
-            return false;
-        }
-        // Don't persist excluded query keys (e.g., large reports data)
-        const firstKey = query.queryKey[0];
-        if (typeof firstKey === 'string' && EXCLUDED_QUERY_KEYS.includes(firstKey)) {
-            return false;
-        }
-        // Don't persist mutations
-        return true;
-    },
-};
 
 /**
  * React Query provider with localStorage persistence
