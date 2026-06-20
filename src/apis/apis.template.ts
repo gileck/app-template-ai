@@ -14,8 +14,8 @@ import { loginApprovalsApiHandlers } from "./template/login-approvals/server";
 import { userApprovalsApiHandlers } from "./template/user-approvals/server";
 import { reportsApiHandlers } from "./template/reports/server";
 import { featureRequestsApiHandlers } from "./template/feature-requests/server";
-import { dashboardApiHandlers } from "./template/dashboard/server";
 import { agentApiHandlers } from "./template/agent/server";
+import { agentAdminApiHandlers } from "./template/agent-admin/server";
 import { adminUsersApiHandlers } from "./template/admin-users/server";
 import { pushNotificationsApiHandlers } from "./template/push-notifications/server";
 import { mongoExplorerApiHandlers } from "./template/mongo-explorer/server";
@@ -29,8 +29,8 @@ export const templateApiHandlers = mergeApiHandlers(
   userApprovalsApiHandlers,
   reportsApiHandlers,
   featureRequestsApiHandlers,
-  dashboardApiHandlers,
   agentApiHandlers,
+  agentAdminApiHandlers,
   adminUsersApiHandlers,
   pushNotificationsApiHandlers,
   mongoExplorerApiHandlers,
