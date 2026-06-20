@@ -22,6 +22,7 @@ import { toast } from '@/client/components/template/ui/toast';
 
 interface MongoCollectionsData {
     dbName: string;
+    dbSizeBytes: number;
     collections: MongoExplorerCollectionSummary[];
 }
 
@@ -52,6 +53,7 @@ export function useMongoCollections() {
 
             return {
                 dbName: result.data?.dbName ?? '',
+                dbSizeBytes: result.data?.dbSizeBytes ?? 0,
                 collections: result.data?.collections ?? [],
             };
         },

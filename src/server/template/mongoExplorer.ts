@@ -17,6 +17,7 @@ type ExplorerFieldKind = 'objectId' | 'string' | 'number' | 'boolean' | 'date' |
 
 interface CollectionsForExplorerResult {
     dbName: string;
+    dbSizeBytes: number;
     collections: MongoExplorerCollectionSummary[];
 }
 
@@ -362,6 +363,32 @@ function toDocumentSummary(document: Document): MongoExplorerDocumentSummary {
     };
 }
 
+async function getCollectionSizeBytes(
+    db: Awaited<ReturnType<typeof getDb>>,
+    collectionName: string
+): Promise<number> {
+    try {
+        const stats = await db
+            .collection(collectionName)
+            .aggregate([{ $collStats: { storageStats: {} } }])
+            .toArray();
+        const size = stats[0]?.storageStats?.size;
+        return typeof size === 'number' ? size : 0;
+    } catch {
+        return 0;
+    }
+}
+
+async function getDbSizeBytes(db: Awaited<ReturnType<typeof getDb>>): Promise<number> {
+    try {
+        const stats = await db.stats();
+        const size = stats?.dataSize;
+        return typeof size === 'number' ? size : 0;
+    } catch {
+        return 0;
+    }
+}
+
 export async function listCollectionsForExplorer(): Promise<CollectionsForExplorerResult> {
     const db = await getDb();
     const collections = await db.listCollections({}, { nameOnly: true }).toArray();
@@ -369,18 +396,26 @@ export async function listCollectionsForExplorer(): Promise<CollectionsForExplor
     const summaries = await Promise.all(
         collections
             .map((collection) => collection.name)
-            .sort((left, right) => left.localeCompare(right))
             .map(async (collectionName) => {
-                const documentCount = await db.collection(collectionName).countDocuments({});
+                const [documentCount, sizeBytes] = await Promise.all([
+                    db.collection(collectionName).countDocuments({}),
+                    getCollectionSizeBytes(db, collectionName),
+                ]);
                 return {
                     name: collectionName,
                     documentCount,
+                    sizeBytes,
                 };
             })
     );
 
+    summaries.sort((left, right) => right.sizeBytes - left.sizeBytes);
+
+    const dbSizeBytes = await getDbSizeBytes(db);
+
     return {
         dbName: appConfig.dbName,
+        dbSizeBytes,
         collections: summaries,
     };
 }

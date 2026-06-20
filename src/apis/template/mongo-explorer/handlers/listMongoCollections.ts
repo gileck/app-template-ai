@@ -6,6 +6,7 @@ export async function listMongoCollectionsHandler(): Promise<ListMongoCollection
 
     return {
         dbName: result.dbName,
+        dbSizeBytes: result.dbSizeBytes,
         collections: result.collections,
     };
 }

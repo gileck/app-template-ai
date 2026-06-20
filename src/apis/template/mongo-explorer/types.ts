@@ -12,6 +12,7 @@ export type MongoSerializedValue =
 export interface MongoExplorerCollectionSummary {
     name: string;
     documentCount: number;
+    sizeBytes: number;
 }
 
 export interface MongoExplorerDocumentSummary {
@@ -31,6 +32,7 @@ export interface MongoExplorerPagination {
 export interface ListMongoCollectionsResponse {
     error?: string;
     dbName?: string;
+    dbSizeBytes?: number;
     collections?: MongoExplorerCollectionSummary[];
 }
 

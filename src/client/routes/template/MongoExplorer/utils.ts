@@ -13,8 +13,35 @@ export const PAGE_SIZE = 25;
 export const ROOT_PATH = '/admin/mongo-explorer';
 export const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
 
+// Soft DB size limit shown as a usage progress bar on the collections page.
+export const DB_SIZE_LIMIT_BYTES = 500 * 1024 * 1024;
+
+export function formatLimitPercent(bytes: number): string {
+    const percent = (bytes / DB_SIZE_LIMIT_BYTES) * 100;
+    if (percent > 0 && percent < 0.1) {
+        return '<0.1%';
+    }
+    return `${percent.toFixed(percent < 10 ? 1 : 0)}%`;
+}
+
 export function formatCountLabel(count: number): string {
     return count.toLocaleString();
+}
+
+export function formatBytes(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+        return '0 B';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const exponent = Math.min(
+        Math.floor(Math.log(bytes) / Math.log(1024)),
+        units.length - 1
+    );
+    const value = bytes / 1024 ** exponent;
+    const formatted = exponent === 0 ? String(value) : value.toFixed(value >= 10 ? 0 : 1);
+
+    return `${formatted} ${units[exponent]}`;
 }
 
 export function isPlainSerializedObject(value: MongoSerializedValue): value is MongoSerializedObject {

@@ -11,12 +11,19 @@ import {
     CardTitle,
 } from '@/client/components/template/ui/card';
 import { Input } from '@/client/components/template/ui/input';
+import { LinearProgress } from '@/client/components/template/ui/linear-progress';
 import { RefreshCw, Search } from 'lucide-react';
 import { useMongoCollections } from './hooks';
 import { CenteredLoading } from './components/CenteredLoading';
 import { EmptyState } from './components/EmptyState';
 import { PageHeader } from './components/PageHeader';
-import { formatCountLabel, getCollectionPath } from './utils';
+import {
+    DB_SIZE_LIMIT_BYTES,
+    formatBytes,
+    formatCountLabel,
+    formatLimitPercent,
+    getCollectionPath,
+} from './utils';
 
 export function MongoCollectionsPage({
     dbName,
@@ -27,6 +34,12 @@ export function MongoCollectionsPage({
 }) {
     const { navigate } = useRouter();
     const collections = collectionsQuery.data?.collections ?? [];
+    const dbSizeBytes = collectionsQuery.data?.dbSizeBytes;
+    const usagePercent =
+        dbSizeBytes !== undefined
+            ? Math.min(100, (dbSizeBytes / DB_SIZE_LIMIT_BYTES) * 100)
+            : undefined;
+    const isOverLimit = dbSizeBytes !== undefined && dbSizeBytes > DB_SIZE_LIMIT_BYTES;
     const isLoadingCollections = collectionsQuery.isLoading && !collectionsQuery.data;
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral local filter input for the collection list page
     const [collectionQuery, setCollectionQuery] = useState('');
@@ -79,9 +92,34 @@ export function MongoCollectionsPage({
                         />
                     </div>
 
-                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                        Current database:{' '}
-                        <span className="font-mono text-foreground">{dbName}</span>
+                    <div className="space-y-2 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span>
+                                Current database:{' '}
+                                <span className="font-mono text-foreground">{dbName}</span>
+                            </span>
+                            {dbSizeBytes !== undefined && (
+                                <span>
+                                    <span
+                                        className={
+                                            isOverLimit
+                                                ? 'font-mono text-destructive'
+                                                : 'font-mono text-foreground'
+                                        }
+                                    >
+                                        {formatBytes(dbSizeBytes)}
+                                    </span>{' '}
+                                    / {formatBytes(DB_SIZE_LIMIT_BYTES)} (
+                                    {formatLimitPercent(dbSizeBytes)})
+                                </span>
+                            )}
+                        </div>
+                        {usagePercent !== undefined && (
+                            <LinearProgress
+                                value={usagePercent}
+                                className={isOverLimit ? '[&>span]:bg-destructive' : undefined}
+                            />
+                        )}
                     </div>
 
                     {collectionsQuery.error && (
@@ -116,12 +154,17 @@ export function MongoCollectionsPage({
                                                 {collection.name}
                                             </p>
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                                Browse documents
+                                                {formatCountLabel(collection.documentCount)} docs
                                             </p>
                                         </div>
-                                        <Badge variant="secondary">
-                                            {formatCountLabel(collection.documentCount)}
-                                        </Badge>
+                                        <div className="flex shrink-0 flex-col items-end gap-1">
+                                            <Badge variant="secondary">
+                                                {formatBytes(collection.sizeBytes)}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                                {formatLimitPercent(collection.sizeBytes)} of limit
+                                            </span>
+                                        </div>
                                     </div>
                                 </button>
                             ))}
