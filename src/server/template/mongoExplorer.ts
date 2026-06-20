@@ -2,13 +2,22 @@ import { randomUUID } from 'crypto';
 import { ObjectId, type Document, type Filter } from 'mongodb';
 import { appConfig } from '@/app.config';
 import { getDb } from '@/server/database';
-import type {
-    MongoExplorerCollectionSummary,
-    MongoExplorerDocumentSummary,
-    MongoExplorerPagination,
-    MongoSerializedObject,
-    MongoSerializedValue,
+import {
+    DB_SIZE_LIMIT_BYTES,
+    DB_SIZE_WARNING_THRESHOLD_PERCENT,
+    type MongoExplorerCollectionSummary,
+    type MongoExplorerDocumentSummary,
+    type MongoExplorerPagination,
+    type MongoSerializedObject,
+    type MongoSerializedValue,
 } from '@/apis/template/mongo-explorer/types';
+import {
+    getMongoUsageAlertBand,
+    setMongoUsageAlertBand,
+    type MongoUsageAlertBand,
+} from '@/server/database/collections/template/mongo-usage-alert';
+import { sendNotificationToOwner } from '@/server/template/telegram';
+import { getAppUrl } from '@/server/template/appUrl';
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -389,6 +398,64 @@ async function getDbSizeBytes(db: Awaited<ReturnType<typeof getDb>>): Promise<nu
     }
 }
 
+function formatMb(bytes: number): string {
+    return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+}
+
+/** The highest threshold band the given usage falls into. */
+function bandForUsage(usagePercent: number): MongoUsageAlertBand {
+    if (usagePercent >= 100) {
+        return 'over';
+    }
+    if (usagePercent >= DB_SIZE_WARNING_THRESHOLD_PERCENT) {
+        return 'warn';
+    }
+    return 'none';
+}
+
+/**
+ * Fire a deduped Telegram owner alert when DB usage crosses into a higher
+ * threshold band. Runs on every collections-page load, so the persisted band
+ * (singleton state) ensures we notify ONCE per crossing:
+ *   - <80% → ≥80%  fires the "warning" alert and arms 'warn'.
+ *   - <100% → ≥100% fires the "over limit" alert and arms 'over'.
+ *   - dropping back below a band re-arms it (so a later re-crossing alerts again).
+ * Best-effort: never throws into the page load.
+ */
+async function evaluateUsageAlert(dbSizeBytes: number): Promise<void> {
+    try {
+        const usagePercent = (dbSizeBytes / DB_SIZE_LIMIT_BYTES) * 100;
+        const currentBand = bandForUsage(usagePercent);
+        const previousBand = await getMongoUsageAlertBand();
+
+        if (currentBand === previousBand) {
+            return;
+        }
+
+        const bandRank: Record<MongoUsageAlertBand, number> = { none: 0, warn: 1, over: 2 };
+        const isEscalation = bandRank[currentBand] > bandRank[previousBand];
+
+        // Persist the new band first so concurrent loads don't double-fire.
+        await setMongoUsageAlertBand(currentBand);
+
+        if (!isEscalation) {
+            return;
+        }
+
+        const percentLabel = `${usagePercent.toFixed(usagePercent < 10 ? 1 : 0)}%`;
+        const appUrl = getAppUrl();
+        const linkLine = appUrl ? `\n\n${appUrl}/admin/mongo-explorer` : '';
+        const message =
+            currentBand === 'over'
+                ? `🔴 **${appConfig.appName}**: database is OVER the ${formatMb(DB_SIZE_LIMIT_BYTES)} limit (${percentLabel} used). Clean up data to avoid hitting hard caps.${linkLine}`
+                : `⚠️ **${appConfig.appName}**: database usage crossed ${DB_SIZE_WARNING_THRESHOLD_PERCENT}% of the ${formatMb(DB_SIZE_LIMIT_BYTES)} limit (${percentLabel} used).${linkLine}`;
+
+        await sendNotificationToOwner(message);
+    } catch (error) {
+        console.warn('[mongoExplorer] DB usage alert evaluation failed:', error);
+    }
+}
+
 export async function listCollectionsForExplorer(): Promise<CollectionsForExplorerResult> {
     const db = await getDb();
     const collections = await db.listCollections({}, { nameOnly: true }).toArray();
@@ -412,6 +479,8 @@ export async function listCollectionsForExplorer(): Promise<CollectionsForExplor
     summaries.sort((left, right) => right.sizeBytes - left.sizeBytes);
 
     const dbSizeBytes = await getDbSizeBytes(db);
+
+    await evaluateUsageAlert(dbSizeBytes);
 
     return {
         dbName: appConfig.dbName,

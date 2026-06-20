@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react';
-import { useRouter } from '@/client/features';
+import { useRouter, useSettingsStore } from '@/client/features';
 import { Alert, AlertDescription } from '@/client/components/template/ui/alert';
 import { Badge } from '@/client/components/template/ui/badge';
 import { Button } from '@/client/components/template/ui/button';
@@ -12,7 +12,7 @@ import {
 } from '@/client/components/template/ui/card';
 import { Input } from '@/client/components/template/ui/input';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
-import { AlertTriangle, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Search, X } from 'lucide-react';
 import { useMongoCollections } from './hooks';
 import { CenteredLoading } from './components/CenteredLoading';
 import { EmptyState } from './components/EmptyState';
@@ -26,6 +26,8 @@ import {
     getCollectionPath,
 } from './utils';
 
+const SNOOZE_DURATION_MS = 24 * 60 * 60 * 1000;
+
 export function MongoCollectionsPage({
     dbName,
     collectionsQuery,
@@ -34,6 +36,8 @@ export function MongoCollectionsPage({
     collectionsQuery: ReturnType<typeof useMongoCollections>;
 }) {
     const { navigate } = useRouter();
+    const snoozedUntil = useSettingsStore((state) => state.settings.dbUsageAlertSnoozedUntil);
+    const updateSettings = useSettingsStore((state) => state.updateSettings);
     const collections = collectionsQuery.data?.collections ?? [];
     const dbSizeBytes = collectionsQuery.data?.dbSizeBytes;
     const usagePercent =
@@ -43,6 +47,9 @@ export function MongoCollectionsPage({
     const isOverLimit = dbSizeBytes !== undefined && dbSizeBytes > DB_SIZE_LIMIT_BYTES;
     const isNearLimit =
         usagePercent !== undefined && usagePercent >= DB_SIZE_WARNING_THRESHOLD_PERCENT;
+    // Snooze only suppresses the warning band; an over-limit DB always shows the banner.
+    const isSnoozed = snoozedUntil > Date.now();
+    const showUsageWarning = isNearLimit && dbSizeBytes !== undefined && (isOverLimit || !isSnoozed);
     const isLoadingCollections = collectionsQuery.isLoading && !collectionsQuery.data;
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral local filter input for the collection list page
     const [collectionQuery, setCollectionQuery] = useState('');
@@ -125,15 +132,32 @@ export function MongoCollectionsPage({
                         )}
                     </div>
 
-                    {isNearLimit && dbSizeBytes !== undefined && (
+                    {showUsageWarning && dbSizeBytes !== undefined && (
                         <Alert variant={isOverLimit ? 'destructive' : 'warning'}>
                             <div className="flex items-start gap-2">
                                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                                <AlertDescription>
+                                <AlertDescription className="flex-1">
                                     {isOverLimit
                                         ? `Database is over the ${formatBytes(DB_SIZE_LIMIT_BYTES)} limit (${formatLimitPercent(dbSizeBytes)} used).`
                                         : `Database is at ${formatLimitPercent(dbSizeBytes)} of the ${formatBytes(DB_SIZE_LIMIT_BYTES)} limit. Consider cleaning up data.`}
                                 </AlertDescription>
+                                {!isOverLimit && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="-mr-1 -mt-1 h-7 w-7 shrink-0 text-warning hover:text-warning"
+                                        onClick={() =>
+                                            updateSettings({
+                                                dbUsageAlertSnoozedUntil: Date.now() + SNOOZE_DURATION_MS,
+                                            })
+                                        }
+                                        aria-label="Dismiss for 24 hours"
+                                        title="Dismiss for 24 hours"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
                             </div>
                         </Alert>
                     )}

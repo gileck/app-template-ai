@@ -13,6 +13,13 @@ export interface Settings {
     cacheGcTimeMinutes: number;
     /** How long to persist cache to localStorage in days. Default: 7 */
     cachePersistDays: number;
+    /**
+     * Epoch ms until which the Mongo Explorer DB-usage warning banner is
+     * snoozed. 0 (default) = not snoozed. Set when the admin dismisses the
+     * banner; it reappears once this time passes (or immediately if usage
+     * escalates over the limit).
+     */
+    dbUsageAlertSnoozedUntil: number;
 }
 
 export const defaultSettings: Settings = {
@@ -23,5 +30,6 @@ export const defaultSettings: Settings = {
     cacheStaleTimeSeconds: 30,
     cacheGcTimeMinutes: 30,
     cachePersistDays: 7,
+    dbUsageAlertSnoozedUntil: 0,
 };
 

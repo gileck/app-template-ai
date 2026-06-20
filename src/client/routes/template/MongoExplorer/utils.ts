@@ -1,6 +1,8 @@
-import type {
-    MongoSerializedObject,
-    MongoSerializedValue,
+import {
+    DB_SIZE_LIMIT_BYTES,
+    DB_SIZE_WARNING_THRESHOLD_PERCENT,
+    type MongoSerializedObject,
+    type MongoSerializedValue,
 } from '@/apis/template/mongo-explorer/types';
 import type {
     DocumentFieldDescriptor,
@@ -13,11 +15,8 @@ export const PAGE_SIZE = 25;
 export const ROOT_PATH = '/admin/mongo-explorer';
 export const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
 
-// Soft DB size limit shown as a usage progress bar on the collections page.
-export const DB_SIZE_LIMIT_BYTES = 500 * 1024 * 1024;
-
-// Usage at or above this percentage of the limit surfaces a warning banner.
-export const DB_SIZE_WARNING_THRESHOLD_PERCENT = 80;
+// Soft DB size limit + warning threshold are shared with the server alert.
+export { DB_SIZE_LIMIT_BYTES, DB_SIZE_WARNING_THRESHOLD_PERCENT };
 
 export function formatLimitPercent(bytes: number): string {
     const percent = (bytes / DB_SIZE_LIMIT_BYTES) * 100;

@@ -1,3 +1,11 @@
+// Soft DB size limit (shared by the client usage UI and the server-side
+// Telegram threshold alert). Fixed constant — no per-deployment config.
+export const DB_SIZE_LIMIT_BYTES = 500 * 1024 * 1024;
+
+// Usage at or above this percentage of the limit surfaces a warning banner
+// and fires the deduped owner alert.
+export const DB_SIZE_WARNING_THRESHOLD_PERCENT = 80;
+
 type MongoSerializedPrimitive = string | number | boolean | null;
 
 export interface MongoSerializedObject {
