@@ -4,3 +4,4 @@
 export const name = 'admin-users';
 export const API_LIST_USERS = 'admin/users/list';
 export const API_GENERATE_PASSKEY_LINK = 'admin/users/generate-passkey-link';
+export const API_GET_USER_DETAIL = 'admin/users/detail';
