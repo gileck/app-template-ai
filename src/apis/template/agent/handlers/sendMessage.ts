@@ -251,7 +251,6 @@ export const sendMessage = async (
                 history,
                 resumeSessionId,
             },
-            secret: process.env.RPC_SECRET ?? '',
             status: 'pending',
             createdAt: new Date(),
             expiresAt: new Date(Date.now() + RPC_TTL_MS),

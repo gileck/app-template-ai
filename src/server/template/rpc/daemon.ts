@@ -1,9 +1,10 @@
 import '@/server/template/loadEnv';
-import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
 import * as os from 'os';
 import { ensureRpcIndexes, claimNextPendingJob, completeRpcJob, failRpcJob } from './collection';
+import { resolveAllowedHandlerPath } from './handler-paths';
+import { verifyRpcJobSignature } from './signature';
 import {
   markDaemonStarted,
   recordDaemonHeartbeat,
@@ -48,7 +49,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimNextPendingJob>>>): Promise<void> {
-  const { handlerPath, secret } = job;
+  const { handlerPath } = job;
   const jobId = job._id.toHexString();
   const handlerName = handlerPath.split('/').pop() ?? handlerPath;
   log(`Claimed ${jobId} [${handlerName}] (${activeJobs}/${MAX_CONCURRENT} running)`);
@@ -57,22 +58,29 @@ async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimNextPe
   vlog(`  created: ${job.createdAt.toISOString()}`);
   vlog(`  expires: ${job.expiresAt.toISOString()}`);
 
-  const expectedSecret = process.env.RPC_SECRET;
-  if (!expectedSecret || secret !== expectedSecret) {
-    await failRpcJob(job._id, 'Invalid or missing RPC secret');
-    console.error(`[rpc-daemon] Rejected job ${jobId}: bad secret`);
+  const signatureValid = verifyRpcJobSignature(
+    {
+      handlerPath: job.handlerPath,
+      args: job.args,
+      createdAt: job.createdAt,
+      userId: job.userId,
+    },
+    job.sig
+  );
+  if (!signatureValid) {
+    await failRpcJob(job._id, 'Invalid or missing RPC signature');
+    console.error(`[rpc-daemon] Rejected job ${jobId}: bad signature`);
     return;
   }
-  vlog(`  secret: valid`);
+  vlog(`  signature: valid`);
 
-  const fullPath = resolve(process.cwd(), handlerPath);
-  const allowedBase = resolve(process.cwd(), 'src/server/');
-  if (!fullPath.startsWith(allowedBase)) {
+  const fullPath = resolveAllowedHandlerPath(handlerPath);
+  if (!fullPath) {
     await failRpcJob(job._id, `Invalid handler path: "${handlerPath}"`);
     console.error(`[rpc-daemon] Rejected invalid path: ${handlerPath}`);
     return;
   }
-  vlog(`  path check: within src/server/`);
+  vlog(`  path check: within an allowlisted handler root`);
 
   const fileExists =
     existsSync(fullPath + '.ts') ||

@@ -17,6 +17,8 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { timingSafeEqual } from 'crypto';
+import { appConfig } from '@/app.config';
 import { answerCallbackQuery, editMessageText, editMessageWithResult } from './telegram-api';
 import { parseCallbackData, escapeHtml } from './utils';
 import {
@@ -24,7 +26,27 @@ import {
     handleRpcConnectionApprove,
     handleRpcConnectionReject,
 } from './handlers';
-import type { TelegramUpdate } from './types';
+import type { TelegramCallbackQuery, TelegramUpdate } from './types';
+
+/** Constant-time string compare (avoids leaking length-independent timing). */
+function safeEqual(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Every supported callback (login approval, RPC connect approve/reject) is an
+ * owner-only action. Verify the tap came from the configured owner chat. This
+ * is defense-in-depth on top of the secret-token check — the secret-token
+ * proves the request came from Telegram; this proves it came from the OWNER.
+ */
+function isFromOwner(callbackQuery: TelegramCallbackQuery): boolean {
+    const owner = appConfig.ownerTelegramChatId;
+    if (!owner) return false;
+    return String(callbackQuery.from?.id) === String(owner);
+}
 
 /**
  * Maximum time (ms) to wait for handler processing before returning a response.
@@ -72,6 +94,19 @@ async function processCallbackQuery(
 ): Promise<void> {
     const { action, parts } = parsed;
     const callbackData = callback_query.data;
+
+    // All supported actions are owner-only. Reject taps from anyone else (and
+    // refuse outright if the owner chat isn't configured) before mutating state.
+    const OWNER_ONLY_ACTIONS = ['approve_login', 'rpc_conn_approve', 'rpc_conn_reject'];
+    if (OWNER_ONLY_ACTIONS.includes(action) && !isFromOwner(callback_query)) {
+        console.warn('[telegram-webhook] Rejected non-owner callback', {
+            action,
+            fromId: callback_query.from?.id,
+            ownerConfigured: !!appConfig.ownerTelegramChatId,
+        });
+        await answerCallbackQuery(botToken, callback_query.id, 'Not authorized');
+        return;
+    }
 
     if (action === 'approve_login' && parts.length === 2) {
         const approvalId = parsed.getString(1);
@@ -188,6 +223,26 @@ export default async function handler(
     if (!botToken) {
         console.error('Telegram webhook: missing TELEGRAM_BOT_TOKEN');
         return res.status(500).json({ error: 'Bot token not configured' });
+    }
+
+    // Authenticate the request actually came from Telegram. Telegram echoes the
+    // `secret_token` set at setWebhook time in this header on every callback.
+    // Without it, anyone who knows the public URL could POST forged callbacks
+    // (e.g. self-approving an RPC connection or login).
+    const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (expectedSecret) {
+        const presented = req.headers['x-telegram-bot-api-secret-token'];
+        const presentedStr = Array.isArray(presented) ? presented[0] : presented;
+        if (!presentedStr || !safeEqual(presentedStr, expectedSecret)) {
+            console.warn('[telegram-webhook] Rejected request: invalid or missing secret token');
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+    } else if (process.env.NODE_ENV === 'production') {
+        // Fail closed in production: an unauthenticated webhook defeats the RPC
+        // connection gate and login 2FA. Configure TELEGRAM_WEBHOOK_SECRET and
+        // re-run the webhook setup.
+        console.error('[telegram-webhook] TELEGRAM_WEBHOOK_SECRET not configured — refusing callbacks in production');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
     const update: TelegramUpdate = req.body;

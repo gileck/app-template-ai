@@ -17,3 +17,12 @@ export const RPC_CONNECTION_PENDING_TIMEOUT_MS = readPositiveIntEnv(
   'RPC_CONNECTION_PENDING_TIMEOUT_MS',
   10 * 60 * 1000
 );
+
+/**
+ * Minimum spacing between a user's RPC connect requests. Each connect pings the
+ * owner on Telegram, so this throttles approval-request spam. Default 30s.
+ */
+export const RPC_CONNECT_RATE_LIMIT_MS = readPositiveIntEnv(
+  'RPC_CONNECT_RATE_LIMIT_MS',
+  30 * 1000
+);

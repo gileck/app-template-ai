@@ -46,12 +46,23 @@ async function getWebhookInfo(botToken: string): Promise<WebhookInfo> {
 }
 
 async function setWebhook(botToken: string, url: string): Promise<boolean> {
+    const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!secretToken) {
+        console.warn(
+            '[telegram-webhook-setup] TELEGRAM_WEBHOOK_SECRET is not set — the webhook will be registered WITHOUT a secret token. ' +
+            'The webhook endpoint rejects unauthenticated requests in production, so set this env var and re-run setup.'
+        );
+    }
     const response = await fetch(`${TELEGRAM_API_URL}${botToken}/setWebhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             url,
             allowed_updates: ['callback_query'], // Only listen for button clicks
+            // Telegram echoes this back in the X-Telegram-Bot-Api-Secret-Token
+            // header on every callback so the endpoint can verify the request
+            // genuinely came from Telegram.
+            ...(secretToken ? { secret_token: secretToken } : {}),
         }),
     });
 

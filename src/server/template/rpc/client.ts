@@ -1,6 +1,8 @@
-import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { createRpcJob, findRpcJobById, findRecentJob } from './collection';
+import { assertRpcConnection, getRpcCallContext } from './connection-gate';
+import { resolveAllowedHandlerPath } from './handler-paths';
+import { verifyRpcResult } from './signature';
 import type { CallRemoteOptions, RpcResult } from './types';
 
 const DEFAULT_TIMEOUT_MS = 55_000;
@@ -19,6 +21,21 @@ const LOCAL_DIRECT_ENABLED =
   (process.env.RPC_LOCAL_DIRECT ?? '').toLowerCase() === 'true';
 
 type RpcHandler = (args: Record<string, unknown>) => Promise<unknown>;
+
+// Verify a completed job's result signature before trusting it. The daemon
+// (which holds RPC_SECRET) signs the result on completion; a result row with a
+// missing or bad signature means either a forged DB write or a legacy/old-daemon
+// job — either way it must not be returned as genuine handler output.
+function verifyResultOrThrow<TResult>(job: {
+  _id: { toHexString(): string };
+  result?: unknown;
+  resultSig?: string;
+}): TResult {
+  if (!verifyRpcResult(job._id.toHexString(), job.result, job.resultSig)) {
+    throw new Error('RPC result failed signature verification — refusing to return an unauthenticated result');
+  }
+  return job.result as TResult;
+}
 
 // tsx's programmatic loader can double-wrap the default export through CJS/ESM
 // interop (mod.default.default), unlike the daemon's native import(). Unwrap up
@@ -41,10 +58,9 @@ async function callHandlerDirect<TResult>(
   handlerPath: string,
   args: Record<string, unknown>
 ): Promise<RpcResult<TResult>> {
-  const resolved = resolve(process.cwd(), handlerPath);
-  const allowedBase = resolve(process.cwd(), 'src/server/');
-  if (!resolved.startsWith(allowedBase)) {
-    throw new Error(`RPC handler path must resolve within src/server/, got: "${handlerPath}"`);
+  const resolved = resolveAllowedHandlerPath(handlerPath);
+  if (!resolved) {
+    throw new Error(`RPC handler path must resolve within an allowlisted handler root, got: "${handlerPath}"`);
   }
 
   const { tsImport } = (await import(/* webpackIgnore: true */ 'tsx/esm/api')) as {
@@ -85,23 +101,23 @@ export async function callRemote<TResult>(
   // Connection gate runs inside createRpcJob, so every enqueue (including
   // direct callers that bypass callRemote) is gated at one boundary.
 
-  const resolved = resolve(process.cwd(), handlerPath);
-  const allowedBase = resolve(process.cwd(), 'src/server/');
-  if (!resolved.startsWith(allowedBase)) {
-    throw new Error(`RPC handler path must resolve within src/server/, got: "${handlerPath}"`);
+  if (!resolveAllowedHandlerPath(handlerPath)) {
+    throw new Error(`RPC handler path must resolve within an allowlisted handler root, got: "${handlerPath}"`);
   }
 
-  const secret = process.env.RPC_SECRET;
-  if (!secret) {
-    throw new Error('RPC_SECRET env var is not set');
-  }
+  // Gate BEFORE reading the cache. The cache short-circuit below returns a
+  // completed job's result without ever calling createRpcJob (where the gate
+  // otherwise runs), so without this an ungated caller could read a cached
+  // result. Also scope the cache lookup to the calling user.
+  await assertRpcConnection();
+  const userId = getRpcCallContext()?.userId;
 
-  // Reuse a recent job for the same handler+args if one exists
-  const existing = options?.skipCache ? null : await findRecentJob(handlerPath, args);
+  // Reuse a recent job for the same handler+args (and same user) if one exists
+  const existing = options?.skipCache ? null : await findRecentJob(handlerPath, args, userId);
   let jobId = existing?._id;
 
   if (existing?.status === 'completed') {
-    return { data: existing.result as TResult, durationMs: 0 };
+    return { data: verifyResultOrThrow<TResult>(existing), durationMs: 0 };
   }
 
   if (!jobId) {
@@ -109,7 +125,6 @@ export async function callRemote<TResult>(
     jobId = await createRpcJob({
       handlerPath,
       args,
-      secret,
       status: 'pending',
       createdAt: now,
       expiresAt: new Date(now.getTime() + ttlMs),
@@ -129,7 +144,7 @@ export async function callRemote<TResult>(
 
     if (job.status === 'completed') {
       return {
-        data: job.result as TResult,
+        data: verifyResultOrThrow<TResult>(job),
         durationMs: Date.now() - start,
       };
     }

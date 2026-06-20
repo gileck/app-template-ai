@@ -4,9 +4,10 @@ import {
   endActiveConnectionForUser,
   endRpcConnection,
   expireStaleConnectionForUser,
+  listConnectionsForUser,
 } from '@/server/database/collections/template/rpc-connections/rpc-connections';
 import { isDaemonAlive } from '@/server/database/collections/template/rpc-daemon-status/daemon-status';
-import { RPC_CONNECTION_PENDING_TIMEOUT_MS } from '@/server/template/rpc/config';
+import { RPC_CONNECTION_PENDING_TIMEOUT_MS, RPC_CONNECT_RATE_LIMIT_MS } from '@/server/template/rpc/config';
 import { sendRpcConnectionApprovalRequest } from '@/server/template/rpc/connection-approval';
 import type { ConnectRequest, ConnectResponse } from '../types';
 import { toRpcConnectionView } from './shared';
@@ -23,6 +24,18 @@ export const connect = async (
     return {
       error: 'RPC daemon is offline. Start it with `yarn daemon` before connecting.',
     };
+  }
+
+  // Rate-limit: every connect pings the owner on Telegram, so refuse a fresh
+  // request if this user just made one. Checked before the supersede logic
+  // below so a rate-limited retry doesn't revoke an existing session.
+  const [mostRecent] = await listConnectionsForUser(context.userId, 1);
+  if (mostRecent) {
+    const sinceMs = Date.now() - mostRecent.requestedAt.getTime();
+    if (sinceMs < RPC_CONNECT_RATE_LIMIT_MS) {
+      const waitS = Math.ceil((RPC_CONNECT_RATE_LIMIT_MS - sinceMs) / 1000);
+      return { error: `Please wait ${waitS}s before requesting another RPC connection.` };
+    }
   }
 
   // Connect = "give me a fresh approved session". Any prior row is
