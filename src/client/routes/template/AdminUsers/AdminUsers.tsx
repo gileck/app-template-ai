@@ -8,7 +8,8 @@
  */
 
 import { useState } from 'react';
-import { Loader2, Mail, KeyRound, Fingerprint, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, KeyRound, Fingerprint, AlertCircle, ShieldCheck, ChevronRight } from 'lucide-react';
+import { useRouter } from '@/client/features';
 import { Card, CardContent } from '@/client/components/template/ui/card';
 import { Button } from '@/client/components/template/ui/button';
 import { Badge } from '@/client/components/template/ui/badge';
@@ -113,10 +114,15 @@ interface UserCardProps {
 }
 
 function UserCard({ user, onGenerate, generating }: UserCardProps) {
+    const { navigate } = useRouter();
     return (
         <Card>
             <CardContent className="flex flex-col gap-3 p-4">
-                <div className="flex flex-col gap-1">
+                <button
+                    type="button"
+                    onClick={() => navigate(`/admin/users/${user.id}`)}
+                    className="flex flex-col gap-1 text-left"
+                >
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-base font-semibold text-foreground break-words">
                             {user.username}
@@ -126,6 +132,7 @@ function UserCard({ user, onGenerate, generating }: UserCardProps) {
                         {user.approvalStatus === 'rejected' && (
                             <Badge variant="destructive">Rejected</Badge>
                         )}
+                        <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     </div>
                     {user.email && (
                         <p className="flex items-center gap-1.5 text-sm text-muted-foreground break-all">
@@ -142,7 +149,7 @@ function UserCard({ user, onGenerate, generating }: UserCardProps) {
                         </span>
                         {!!user.passkeyCount && <ShieldCheck className="h-3.5 w-3.5 text-success" />}
                     </p>
-                </div>
+                </button>
 
                 <Button
                     type="button"

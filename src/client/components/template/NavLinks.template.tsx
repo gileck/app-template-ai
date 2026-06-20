@@ -8,7 +8,7 @@
  */
 
 import { NavItem } from './layout/types';
-import { ClipboardList, UserCheck, Bug, Database, Activity, Plug, Users, Palette, Settings } from 'lucide-react';
+import { ClipboardList, UserCheck, Bug, Database, Activity, Plug, Users, Palette, Settings, BarChart3, DollarSign, ListTree } from 'lucide-react';
 
 /**
  * Template-provided app menu items (rendered after project items in the drawer).
@@ -26,6 +26,9 @@ export const templateAdminMenuItems: NavItem[] = [
   { path: '/admin/users', label: 'Users', icon: <Users size={18} /> },
   { path: '/admin/approvals', label: 'Approvals', icon: <UserCheck size={18} /> },
   { path: '/admin/sessions', label: 'Sessions', icon: <Activity size={18} /> },
+  { path: '/admin/agent-analytics', label: 'Agent Analytics', icon: <BarChart3 size={18} /> },
+  { path: '/admin/ai-usage', label: 'AI Usage', icon: <DollarSign size={18} /> },
+  { path: '/admin/agent-traces', label: 'Agent Traces', icon: <ListTree size={18} /> },
   { path: '/admin/rpc-connection', label: 'RPC Connection', icon: <Plug size={18} /> },
   { path: '/admin/service-worker', label: 'SW & Push Debug', icon: <Bug size={18} /> },
   { path: '/admin/mongo-explorer', label: 'Mongo Explorer', icon: <Database size={18} /> },

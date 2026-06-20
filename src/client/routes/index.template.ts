@@ -19,9 +19,13 @@ import { Connection } from './template/Connection';
 import { ResetPassword } from './template/ResetPassword';
 import { UserApprovals } from './template/UserApprovals';
 import { AdminUsers } from './template/AdminUsers';
+import { AdminUserDetail } from './template/AdminUserDetail';
 import { EnrollPasskey } from './template/EnrollPasskey';
 import { AdminSessions } from './template/AdminSessions';
 import { Admin } from './template/Admin';
+import { AgentAnalytics } from './template/AgentAnalytics';
+import { AiUsage } from './template/AiUsage';
+import { AgentTraces } from './template/AgentTraces';
 import { ServiceWorkerDebug } from './template/ServiceWorkerDebug';
 import { MongoExplorer } from './template/MongoExplorer';
 import { Routes } from '../features/template/router';
@@ -54,8 +58,13 @@ export const templateRoutes: Routes = {
   '/admin/feature-requests': FeatureRequests,
   '/admin/feature-requests/:requestId': FeatureRequestDetail,
   '/admin/users': AdminUsers,
+  '/admin/users/:userId': AdminUserDetail,
   '/admin/approvals': UserApprovals,
   '/admin/sessions': AdminSessions,
+  '/admin/agent-analytics': AgentAnalytics,
+  '/admin/ai-usage': AiUsage,
+  '/admin/agent-traces': AgentTraces,
+  '/admin/agent-traces/:messageId': AgentTraces,
   '/admin/service-worker': ServiceWorkerDebug,
   '/admin/mongo-explorer': MongoExplorer,
   '/admin/mongo-explorer/:collectionName': MongoExplorer,
