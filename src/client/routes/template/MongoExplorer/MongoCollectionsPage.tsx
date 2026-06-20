@@ -12,13 +12,14 @@ import {
 } from '@/client/components/template/ui/card';
 import { Input } from '@/client/components/template/ui/input';
 import { LinearProgress } from '@/client/components/template/ui/linear-progress';
-import { RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Search } from 'lucide-react';
 import { useMongoCollections } from './hooks';
 import { CenteredLoading } from './components/CenteredLoading';
 import { EmptyState } from './components/EmptyState';
 import { PageHeader } from './components/PageHeader';
 import {
     DB_SIZE_LIMIT_BYTES,
+    DB_SIZE_WARNING_THRESHOLD_PERCENT,
     formatBytes,
     formatCountLabel,
     formatLimitPercent,
@@ -40,6 +41,8 @@ export function MongoCollectionsPage({
             ? Math.min(100, (dbSizeBytes / DB_SIZE_LIMIT_BYTES) * 100)
             : undefined;
     const isOverLimit = dbSizeBytes !== undefined && dbSizeBytes > DB_SIZE_LIMIT_BYTES;
+    const isNearLimit =
+        usagePercent !== undefined && usagePercent >= DB_SIZE_WARNING_THRESHOLD_PERCENT;
     const isLoadingCollections = collectionsQuery.isLoading && !collectionsQuery.data;
     // eslint-disable-next-line state-management/prefer-state-architecture -- ephemeral local filter input for the collection list page
     const [collectionQuery, setCollectionQuery] = useState('');
@@ -121,6 +124,19 @@ export function MongoCollectionsPage({
                             />
                         )}
                     </div>
+
+                    {isNearLimit && dbSizeBytes !== undefined && (
+                        <Alert variant={isOverLimit ? 'destructive' : 'warning'}>
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                <AlertDescription>
+                                    {isOverLimit
+                                        ? `Database is over the ${formatBytes(DB_SIZE_LIMIT_BYTES)} limit (${formatLimitPercent(dbSizeBytes)} used).`
+                                        : `Database is at ${formatLimitPercent(dbSizeBytes)} of the ${formatBytes(DB_SIZE_LIMIT_BYTES)} limit. Consider cleaning up data.`}
+                                </AlertDescription>
+                            </div>
+                        </Alert>
+                    )}
 
                     {collectionsQuery.error && (
                         <Alert variant="destructive">
