@@ -97,3 +97,60 @@ export interface AgentMessageClient {
     createdAt: string;
     finalizedAt: string | null;
 }
+
+// ─── admin analytics aggregations (cross-user) ──────────────────────────────
+
+/** Optional inclusive date window applied to message `createdAt`. */
+export interface AgentDateRange {
+    startDate?: Date;
+    endDate?: Date;
+}
+
+/** Roll-up of every assistant turn in the window. */
+export interface AssistantTurnStats {
+    total: number;
+    completed: number;
+    errored: number;
+    pending: number;
+    totalCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+}
+
+/** Per-model cost/usage. `modelId` is 'unknown' when the parent
+ *  conversation was deleted (lookup miss). */
+export interface ModelUsageRow {
+    modelId: string;
+    turns: number;
+    cost: number;
+    inputTokens: number;
+    outputTokens: number;
+}
+
+/** One day's assistant cost + turn count, keyed by 'YYYY-MM-DD' (UTC). */
+export interface DailyAgentCostRow {
+    date: string;
+    cost: number;
+    turns: number;
+}
+
+/** Assistant cost grouped by the user who owns the conversation. */
+export interface UserSpendRow {
+    userId: string;
+    cost: number;
+    turns: number;
+}
+
+/** Reliability counters for one tool, aggregated over every turn's
+ *  `events`. `incomplete` = tool_calls with no matching tool_result
+ *  (the turn crashed mid-tool). */
+export interface ToolUsageRow {
+    name: string;
+    calls: number;
+    results: number;
+    ok: number;
+    failed: number;
+    wrote: number;
+    truncated: number;
+    incomplete: number;
+}

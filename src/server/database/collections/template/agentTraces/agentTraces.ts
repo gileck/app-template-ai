@@ -16,6 +16,8 @@ function getCollection(): Promise<Collection<AgentTraceDocument>> {
             const db = await getDb();
             const col = db.collection<AgentTraceDocument>(COLLECTION);
             await col.createIndex({ userId: 1, conversationId: 1, startedAt: -1 });
+            // Cross-user admin queries: recent listing + stuck-at-started scan.
+            await col.createIndex({ status: 1, startedAt: -1 });
             // 30-day TTL on startedAt — old traces aren't useful for debug.
             await col.createIndex(
                 { startedAt: 1 },
@@ -161,4 +163,121 @@ export async function findTraceByMessageId(
 ): Promise<AgentTraceDocument | null> {
     const col = await getCollection();
     return col.findOne({ _id: messageId, userId });
+}
+
+// ─── admin (cross-user) ──────────────────────────────────────────────────
+//
+// These finders drop the userId scope to power the admin trace explorer.
+// `agentTraces` has a 30-day TTL, so they only ever see recent rows.
+
+export interface TraceListFilter {
+    status?: AgentTraceDocument['status'];
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+}
+
+/** Recent traces across all users, newest first. */
+export async function findRecentTracesAnyUser(
+    filter: TraceListFilter = {}
+): Promise<AgentTraceDocument[]> {
+    const col = await getCollection();
+    const query: Record<string, unknown> = {};
+    if (filter.status) query.status = filter.status;
+    if (filter.startDate || filter.endDate) {
+        const startedAt: Record<string, Date> = {};
+        if (filter.startDate) startedAt.$gte = filter.startDate;
+        if (filter.endDate) startedAt.$lte = filter.endDate;
+        query.startedAt = startedAt;
+    }
+    return col
+        .find(query)
+        .sort({ startedAt: -1 })
+        .limit(Math.min(filter.limit ?? 100, 500))
+        .toArray();
+}
+
+/** Traces stuck at status='started' older than `thresholdMs` — the
+ *  silent-crash signal. Oldest first (most-stuck at the top). */
+export async function findStuckTracesAnyUser(
+    thresholdMs: number,
+    limit = 100
+): Promise<AgentTraceDocument[]> {
+    const col = await getCollection();
+    const cutoff = new Date(Date.now() - thresholdMs);
+    return col
+        .find({ status: 'started', startedAt: { $lt: cutoff } })
+        .sort({ startedAt: 1 })
+        .limit(Math.min(limit, 500))
+        .toArray();
+}
+
+/** A single trace by message id, any user (admin detail view). */
+export async function findTraceByMessageIdAnyUser(
+    messageId: ObjectId
+): Promise<AgentTraceDocument | null> {
+    const col = await getCollection();
+    return col.findOne({ _id: messageId });
+}
+
+/** Count of traces by lifecycle status in an optional window. */
+export async function getTraceStatusCounts(filter: {
+    startDate?: Date;
+    endDate?: Date;
+} = {}): Promise<{ started: number; completed: number; errored: number }> {
+    const col = await getCollection();
+    const match: Record<string, unknown> = {};
+    if (filter.startDate || filter.endDate) {
+        const startedAt: Record<string, Date> = {};
+        if (filter.startDate) startedAt.$gte = filter.startDate;
+        if (filter.endDate) startedAt.$lte = filter.endDate;
+        match.startedAt = startedAt;
+    }
+    const rows = await col
+        .aggregate<{ _id: AgentTraceDocument['status']; count: number }>([
+            { $match: match },
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+        ])
+        .toArray();
+    const out = { started: 0, completed: 0, errored: 0 };
+    for (const r of rows) {
+        if (r._id in out) out[r._id] = r.count;
+    }
+    return out;
+}
+
+/** Average turn latency (ms) over finished traces in the window. */
+export async function getTraceLatencyStats(filter: {
+    startDate?: Date;
+    endDate?: Date;
+} = {}): Promise<{ avgMs: number; count: number }> {
+    const col = await getCollection();
+    const match: Record<string, unknown> = { finishedAt: { $exists: true } };
+    if (filter.startDate || filter.endDate) {
+        const startedAt: Record<string, Date> = {};
+        if (filter.startDate) startedAt.$gte = filter.startDate;
+        if (filter.endDate) startedAt.$lte = filter.endDate;
+        match.startedAt = startedAt;
+    }
+    const rows = await col
+        .aggregate<{ avgMs: number; count: number }>([
+            { $match: match },
+            {
+                $group: {
+                    _id: null,
+                    // Clamp each duration to >= 0: startedAt (Vercel) and
+                    // finishedAt (daemon, separate machine) come from
+                    // different wall-clocks, so skew can yield a negative
+                    // delta that would drag the average down.
+                    avgMs: {
+                        $avg: {
+                            $max: [{ $subtract: ['$finishedAt', '$startedAt'] }, 0],
+                        },
+                    },
+                    count: { $sum: 1 },
+                },
+            },
+        ])
+        .toArray();
+    return { avgMs: Math.round(rows[0]?.avgMs ?? 0), count: rows[0]?.count ?? 0 };
 }
