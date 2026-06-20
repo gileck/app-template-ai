@@ -8,7 +8,7 @@ key_points:
   - "Start daemon: `yarn daemon` or `yarn daemon --verbose` (or `yarn daemon:dev` for tsx --watch + hot handler reload)"
   - "Handlers are modules with a default export async function"
   - "Child-project handlers MUST live under `src/server/project/**` — never under `src/server/template/` (gets overwritten on template sync)"
-  - "Security: shared secret (RPC_SECRET env var) + path validation + file existence check"
+  - "Security: HMAC-SHA256 job + result signatures (keyed by RPC_SECRET, never persisted) + handler-path allowlist + file existence check"
   - "task-cli config: `agent-tasks/rpc-daemon/config.json`"
 ---
 
@@ -29,30 +29,38 @@ Vercel (callRemote)         MongoDB (rpc-jobs)         Local Daemon (yarn daemon
 ───────────────────         ──────────────────         ──────────────────────────
 insert job {                 ──►
   handlerPath,
-  args,
-  secret,
+  args,                      (args normalized: undefined stripped)
+  sig,                       (HMAC over handlerPath+args+createdAt+userId)
   status: 'pending'
 }
 poll every 500ms...                                    poll every 2s
                                                        claim job (pending → processing)
-                                                       validate secret
-                                                       validate path within src/server/
+                                                       verify HMAC signature
+                                                       resolve path against handler allowlist
                                                        validate file exists on disk
                                                        dynamic import(handlerPath)
                                                        run default export(args)
-                             ◄──                       update {status: 'completed', result}
-read result, return          ◄──
+                             ◄──                       update {status: 'completed',
+                                                                result, resultSig}
+verify resultSig, return     ◄──
 ```
+
+The `secret` is **never** written to the job document — `RPC_SECRET` is only an
+HMAC key, held by Vercel (signer) and the daemon (verifier). The daemon signs
+the result on completion; `callRemote` verifies `resultSig` before returning it,
+so a forged DB write can't inject an unauthenticated result.
 
 ## File Structure
 
 ```
 src/server/template/rpc/
-├── types.ts        # RpcJobDocument, RpcJobStatus, CallRemoteOptions, RpcResult<T>
-├── collection.ts   # MongoDB operations (inline, not in database/collections/)
-├── client.ts       # callRemote<T>() — Vercel-side caller
-├── daemon.ts       # Standalone daemon process (yarn daemon)
-└── index.ts        # Barrel — exports callRemote and types
+├── types.ts          # RpcJobDocument, RpcJobStatus, CallRemoteOptions, RpcResult<T>
+├── collection.ts     # MongoDB operations (inline, not in database/collections/)
+├── client.ts         # callRemote<T>() — Vercel-side caller (signs + verifies)
+├── daemon.ts         # Standalone daemon process (yarn daemon)
+├── signature.ts      # HMAC sign/verify for jobs + results, args normalization
+├── handler-paths.ts  # resolveAllowedHandlerPath() — handler-root allowlist
+└── index.ts          # Barrel — exports callRemote and types
 ```
 
 ## Components
@@ -61,10 +69,9 @@ src/server/template/rpc/
 
 `callRemote<TResult>(handlerPath, args, options?)` — called from Vercel server code when you want to wait for the result.
 
-- Validates resolved path is within `src/server/`
-- Validates file exists on disk
-- Stamps `RPC_SECRET` on the job
-- Inserts pending job into MongoDB via `createRpcJob` (which gates via the [connection gate](rpc-connection-gate.md)), or reuses an existing job for the same handler+args
+- Validates the handler path resolves inside an allowlisted handler root (`resolveAllowedHandlerPath`)
+- Inserts pending job into MongoDB via `createRpcJob` — which **HMAC-signs** the job's immutable fields and gates via the [connection gate](rpc-connection-gate.md) — or reuses an existing completed/pending job for the same handler+args **and same user**
+- **Verifies the result's `resultSig`** before returning, on both the cache-hit and poll-completion paths — a missing/bad signature throws rather than returning unauthenticated data
 - Polls every 500ms until completed/failed/timeout/no-daemon
 - Defaults: 55s handler timeout, 500ms poll, 1hr DB TTL, 30s `pendingPickupTimeoutMs` (fails fast when no daemon claims the job)
 
@@ -78,11 +85,11 @@ Standalone process that runs on a local machine. Start with `yarn daemon` or `ya
 - Ensures MongoDB indexes on startup (TTL on `expiresAt`, compound on `{status, createdAt}`)
 - Polls every 2s for pending jobs
 - For each job, validates in order:
-  1. **Secret** — `RPC_SECRET` must match
-  2. **Path** — resolved path must be within `src/server/`
+  1. **Signature** — recomputes the HMAC over `{handlerPath, args, createdAt, userId}` and constant-time-compares it to the job's `sig`; rejects on mismatch
+  2. **Path** — resolved path must sit inside an allowlisted handler root (`resolveAllowedHandlerPath`)
   3. **File** — handler file must exist on disk
 - Dynamic imports the handler and calls its default export
-- Writes result or error back to MongoDB
+- Signs the result (HMAC over `{jobId, result}`) and writes `result` + `resultSig` back to MongoDB (or the error on failure)
 - Handles SIGINT/SIGTERM for graceful shutdown with MongoDB connection cleanup
 
 ### Collection (`collection.ts`)
@@ -90,10 +97,10 @@ Standalone process that runs on a local machine. Start with `yarn daemon` or `ya
 MongoDB operations for the `rpc-jobs` collection:
 
 - `ensureRpcIndexes()` — TTL index on `expiresAt` (auto-cleanup), compound on `{status, createdAt}`
-- `createRpcJob(job)` — insert pending job
-- `findRecentJob(handlerPath, args)` — find existing job for deduplication
+- `createRpcJob(job)` — normalizes args (`normalizeForStorage`), HMAC-signs the job, gates via `assertRpcConnection`, inserts the pending job
+- `findRecentJob(handlerPath, args, userId)` — find an existing job for the same handler+args **scoped to the calling user** (dedup + per-user cache); normalizes the query args so it matches the stored, undefined-stripped value
 - `claimNextPendingJob()` — atomic `findOneAndUpdate` (pending → processing), skips expired jobs
-- `completeRpcJob(id, result)` — mark completed
+- `completeRpcJob(id, result)` — normalizes the result, signs it (`signRpcResult`), stores `result` + `resultSig`
 - `failRpcJob(id, error)` — mark failed
 
 ## Handler Convention
@@ -116,15 +123,20 @@ export default async function(args: Record<string, unknown>): Promise<MyResponse
 | **Child projects** | `src/server/project/**` | Put all your custom handlers here |
 | Template only | `src/server/template/rpc/handlers/**` | Reserved for handlers shipped with the template |
 
-**Do not add child-project handlers under `src/server/template/`.** That folder is template-owned and gets overwritten on every template sync — your handler will disappear. The path-boundary check only enforces that handlers live somewhere under `src/server/`; ownership is your responsibility.
+**Do not add child-project handlers under `src/server/template/`.** That folder is template-owned and gets overwritten on every template sync — your handler will disappear. The allowlist (below) admits `src/server/project/**`, so that's where project handlers belong.
 
 ## Security
 
-Three layers of defense before code execution:
+Defense in depth before and after code execution:
 
-1. **Shared secret** — `RPC_SECRET` env var must be set on both Vercel and local machine. Jobs without a valid secret are rejected.
-2. **Path boundary** — Handler path must resolve within `src/server/` after normalization (prevents `../` traversal).
+1. **HMAC job signature** — `createRpcJob` signs the job's immutable fields (`handlerPath`, `args`, `createdAt`, `userId`) with HMAC-SHA256 keyed by `RPC_SECRET`. The daemon recomputes and constant-time-compares the HMAC before executing. The secret itself is **never written to the DB** — only the signature is. A DB-write attacker can't forge a runnable job without the key.
+2. **Handler-path allowlist** — `resolveAllowedHandlerPath` admits only paths resolving inside `src/server/template/rpc/handlers` or `src/server/project` (separator-aware prefix check — rejects `../` traversal *and* sibling dirs like `…-evil`). This is a capability restriction: the daemon `import()`s whatever path a job names, so without an allowlist any default-export function under `src/server/` could be invoked.
 3. **File existence** — Handler file must exist on disk before import.
+4. **HMAC result signature** — the daemon signs each completed result (HMAC over `{jobId, result}`); `callRemote` verifies it before returning. A forged DB write can't inject an unauthenticated result, and binding to `jobId` prevents cross-job replay.
+
+**Signing/storage consistency**: args and results are run through `normalizeForStorage()` (deep-strips `undefined`) before they're signed *and* stored, so the signed bytes equal exactly what MongoDB persists. This decouples HMAC integrity from the driver's `ignoreUndefined` setting.
+
+**Rolling-deploy caveat**: results without a `resultSig` (legacy rows, or an old daemon) fail verification closed. Deploy Vercel and restart the daemon together so in-flight jobs aren't rejected.
 
 ## Configuration
 
@@ -132,7 +144,7 @@ Three layers of defense before code execution:
 
 | Variable | Where | Purpose |
 |----------|-------|---------|
-| `RPC_SECRET` | Vercel + local `.env.local` | Shared secret for job authentication |
+| `RPC_SECRET` | Vercel + local `.env.local` | HMAC key for job + result signatures. Must match on both sides; never persisted to the DB. |
 | `MONGO_URI` | Vercel + local `.env.local` | MongoDB connection (same database) |
 | `RPC_LOCAL_DIRECT` | local `.env.local` only | `true` runs handlers in-process, bypassing the daemon (see below) |
 
@@ -160,8 +172,9 @@ blocked upstream), so running in-process on Vercel would defeat the purpose. A
 stray `RPC_LOCAL_DIRECT=true` on Vercel is therefore ignored. Locally, the API
 server *is* the local machine, so in-process execution is equivalent.
 
-The same `src/server/` path boundary still applies; the secret check and job
-cache are not relevant in this mode.
+The same handler-path allowlist still applies; HMAC signing/verification and the
+job cache are not relevant in this mode (the handler runs in-process, so there's
+no job document to sign or read back).
 
 ### Task Manager
 

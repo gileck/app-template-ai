@@ -110,8 +110,8 @@ Revoked / expired rows are kept as an audit trail. No cron sweeper — see [Lazy
 | `errors.ts` | `RpcConnectionRequiredError` + `RPC_CONNECTION_REQUIRED_CODE` for the API error code. |
 | `config.ts` | `RPC_CONNECTION_ENABLED`, `RPC_CONNECTION_TTL_MS`, `RPC_CONNECTION_PENDING_TIMEOUT_MS`. |
 | `connection-approval.ts` | Sends the Telegram approval message; exports `RPC_CONN_APPROVE_ACTION` / `RPC_CONN_REJECT_ACTION` callback constants. |
-| `collection.ts` | `createRpcJob` invokes `assertRpcConnection()` — the single gate boundary. Every enqueue path is covered. |
-| `client.ts` | `callRemote` no longer gates directly — it calls `createRpcJob`. Added `pendingPickupTimeoutMs` to fail fast when the daemon is down. |
+| `collection.ts` | `createRpcJob` invokes `assertRpcConnection()` — the enqueue gate boundary covering every direct caller. |
+| `client.ts` | `callRemote` also calls `assertRpcConnection()` *before* its per-user cache lookup (so a cache hit can't bypass the gate), then delegates to `createRpcJob`. Added `pendingPickupTimeoutMs` to fail fast when the daemon is down. |
 
 ### API surface (`src/apis/template/rpc-connections/`)
 
@@ -132,6 +132,11 @@ Two callback actions:
 - `rpc_conn_reject:<id>` → atomic `rejectPendingRpcConnection` (pending → revoked). **Pending-only**: clicking Reject on an already-approved row is a no-op so an admin can't accidentally nuke an active session.
 
 Both handlers re-validate via the atomic update. The pre-fetch only happens on the unhappy path, to render the correct rejection note ("Unknown", "Already X", "Expired").
+
+**Webhook authentication** (two layers — a spoofed webhook would otherwise let anyone self-approve their own RPC connection):
+
+1. **Telegram `secret_token`** — set at `setWebhook` time and echoed by Telegram in the `X-Telegram-Bot-Api-Secret-Token` header. The endpoint constant-time-compares it against `TELEGRAM_WEBHOOK_SECRET` and 401s on mismatch. **Fails closed in production**: if the env var is unset, callbacks are refused with a 500. Set it via the webhook setup script (`yarn telegram-webhook set <url>`).
+2. **Owner-id check** — `approve_login` / `rpc_conn_approve` / `rpc_conn_reject` are owner-only; the callback's `from.id` must equal `appConfig.ownerTelegramChatId`, else the tap is rejected with "Not authorized". The secret-token proves the request came from Telegram; this proves it came from the owner.
 
 ### Client (`src/client/routes/template/Connection/`)
 
@@ -159,23 +164,26 @@ Connect issues a cryptographically random `clientToken` (32 bytes hex), stored o
 
 ## Gate boundary
 
-The gate lives in `createRpcJob`, not in `callRemote`. Reason: child projects use **fire-and-forget** patterns that call `createRpcJob` directly (long-running daemon jobs whose progress is tracked through a separate document, e.g. tunnel start, agent turns). Gating only in `callRemote` would silently leave those paths open. Putting the gate at the enqueue boundary covers every path that triggers daemon execution:
+The gate lives in `createRpcJob` (the enqueue boundary), and `callRemote` **also gates before its cache lookup**. Reason for the enqueue-boundary gate: child projects use **fire-and-forget** patterns that call `createRpcJob` directly (long-running daemon jobs whose progress is tracked through a separate document, e.g. tunnel start, agent turns). Gating only in `callRemote` would silently leave those paths open.
+
+But `callRemote` has a cache short-circuit (`findRecentJob`) that returns a previously-completed job's result **without** calling `createRpcJob` — so the enqueue-boundary gate alone would let an ungated caller read a cached result. To close that, `callRemote` calls `assertRpcConnection()` *before* the cache lookup, and scopes the lookup to the calling user:
 
 ```
-callRemote (wait-for-result)         direct callers (fire-and-forget)
-─────────────────────────────         ────────────────────────────────
-findRecentJob (cache lookup)
-  ↳ cache hit (completed result) ──► return early  (no gate — re-reading already-authorized work)
+callRemote (wait-for-result)              direct callers (fire-and-forget)
+─────────────────────────────             ────────────────────────────────
+assertRpcConnection()  ◄── gate first
+findRecentJob(handler, args, userId)      (per-user cache — no cross-tenant read)
+  ↳ cache hit (completed result) ──► verify resultSig ──► return
   ↳ cache miss                                       │
 createRpcJob ──────────────────────────────────────►─┴── createRpcJob
                                                          ↳ assertRpcConnection()
                                                             ↳ storage.getStore() → { userId }
                                                             ↳ findActiveConnectionForUser(userId)
                                                             ↳ throw if no row / expired / pending
-                                                         ↳ insertOne(job)
+                                                         ↳ HMAC-sign + insertOne(job)
 ```
 
-Cache hits in `callRemote` (a previously-authorized completed job) are not re-gated — the work was authorized when triggered; reading the result is not a new privilege.
+Two gates run for a fresh `callRemote` (once before the cache, once inside `createRpcJob`) — a negligible cost that keeps both the cache-hit and enqueue paths covered. The cache is **scoped to `userId`**, so one user can never read another's cached result, and the returned result's HMAC `resultSig` is verified before it's handed back (see [rpc-architecture.md](rpc-architecture.md#security)).
 
 ## AsyncLocalStorage propagation
 

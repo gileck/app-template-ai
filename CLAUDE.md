@@ -335,7 +335,7 @@ Generic remote function execution system for running server code on a local mach
 - Start daemon: `yarn daemon` or `yarn daemon --verbose` (or `yarn daemon:dev` for tsx --watch + hot handler reload)
 - Handlers are modules with a default export async function
 - Child-project handlers MUST live under `src/server/project/**` — never under `src/server/template/` (gets overwritten on template sync)
-- Security: shared secret (RPC_SECRET env var) + path validation + file existence check
+- Security: HMAC-SHA256 job + result signatures (keyed by RPC_SECRET, never persisted) + handler-path allowlist + file existence check
 - task-cli config: `agent-tasks/rpc-daemon/config.json`
 
 **Docs:** [rpc-architecture.md](docs/template/rpc-architecture.md)
